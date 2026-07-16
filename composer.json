@@ -1,5 +1,5 @@
 {
-   "name": "pocketmine/pocketmine-mp",
+   "name": "axlotl-pm/pocketmine-mp",
    "description": "A server software for Minecraft: Bedrock Edition written in PHP",
    "type": "project",
    "homepage": "https://pmmp.io",
@@ -99,5 +99,11 @@
          "@php build/codegen/pocketmine-yml-property-consts.php",
          "@php build/codegen/registry-interface.php src generated"
       ]
-   }
+   },
+   "repositories": [
+      {
+         "type": "vcs",
+         "url": "https://github.com/axolotl-pm/BedrockProtocol"
+      }
+   ]
 }

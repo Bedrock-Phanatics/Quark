@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "43b2298cca1bf8dc7aebd21cb8d1f587",
+    "content-hash": "a6b2bfdf8bea02673ce4f2539c1fe5d0",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -259,12 +259,12 @@
             "version": "58.0.1+bedrock-1.26.30",
             "source": {
                 "type": "git",
-                "url": "https://github.com/pmmp/BedrockProtocol.git",
+                "url": "https://github.com/axolotl-pm/BedrockProtocol.git",
                 "reference": "8eb5a390a8d913ee54b97ac71f42899ecbb5c419"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/BedrockProtocol/zipball/8eb5a390a8d913ee54b97ac71f42899ecbb5c419",
+                "url": "https://api.github.com/repos/axolotl-pm/BedrockProtocol/zipball/8eb5a390a8d913ee54b97ac71f42899ecbb5c419",
                 "reference": "8eb5a390a8d913ee54b97ac71f42899ecbb5c419",
                 "shasum": ""
             },
@@ -290,14 +290,23 @@
                     "pocketmine\\network\\mcpe\\protocol\\": "src/"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "pocketmine\\network\\mcpe\\protocol\\": "tests/phpunit/"
+                }
+            },
+            "scripts": {
+                "update-create-methods": [
+                    "@php tools/generate-create-static-methods.php"
+                ]
+            },
             "license": [
                 "LGPL-3.0"
             ],
             "description": "An implementation of the Minecraft: Bedrock Edition protocol in PHP",
             "support": {
-                "issues": "https://github.com/pmmp/BedrockProtocol/issues",
-                "source": "https://github.com/pmmp/BedrockProtocol/tree/58.0.1+bedrock-1.26.30"
+                "source": "https://github.com/axolotl-pm/BedrockProtocol/tree/58.0.1+bedrock-1.26.30",
+                "issues": "https://github.com/axolotl-pm/BedrockProtocol/issues"
             },
             "time": "2026-07-05T17:46:09+00:00"
         },
