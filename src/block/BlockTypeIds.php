@@ -854,13 +854,14 @@ final class BlockTypeIds{
 	public const BAMBOO_MOSAIC_STAIRS = 10824;
 	public const AZALEA = 10825;
 	public const FLOWERING_AZALEA = 10826;
+	public const HEAVY_CORE = 10827;
 
-	public const DISPENSER = 10827;
-	public const PISTON = 10828;
-	public const PISTON_ARM_COLLISION = 10829;
-	public const STICKY_PISTON = 10830;
+	public const DISPENSER = 10828;
+	public const PISTON = 10829;
+	public const PISTON_ARM_COLLISION = 10830;
+	public const STICKY_PISTON = 10831;
 
-	public const FIRST_UNUSED_BLOCK_ID = 10831;
+	public const FIRST_UNUSED_BLOCK_ID = 10832;
 
 	private static int $nextDynamicId = self::FIRST_UNUSED_BLOCK_ID;
 
