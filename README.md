@@ -14,6 +14,7 @@ The goal is to retain the flexibility and plugin ecosystem of PocketMine while p
 - Maintain compatibility with the PocketMine plugin ecosystem where possible
 - Fix bugs and inconsistencies found upstream
 - Keep changes clean, measurable, and maintainable
+- Move non-essential vanilla features into optional plugins to eliminate unnecessary overhead on servers that do not use them
 
 ## Changes
 
@@ -38,6 +39,7 @@ Compared to upstream PocketMine-MP / Axolotl, Quark currently includes:
 
 - Updated some `EntityDamageEvent` damage modifier constant values
 - Added broader `ProtectedDamage` and `FinalDamage` API for more configurable damage systems
+- Added better Garbage Collector Configurability (and option to disable)
 
 > [!NOTE]
 > Plugins using the provided `EntityDamageEvent` constants should continue to work normally. Plugins relying directly on the previous integer values may require changes.
