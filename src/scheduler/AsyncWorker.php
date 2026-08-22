@@ -44,7 +44,8 @@ class AsyncWorker extends Worker{
 		private ThreadSafeLogger $logger,
 		private int $id,
 		private int $memoryLimit,
-		private SleeperHandlerEntry $sleeperEntry
+		private SleeperHandlerEntry $sleeperEntry,
+		private int $gcThreshold
 	){}
 
 	public static function getNotifier() : SleeperNotifier{
@@ -74,7 +75,7 @@ class AsyncWorker extends Worker{
 
 		self::$notifier = $this->sleeperEntry->createNotifier();
 		Timings::init();
-		self::$cycleGcManager = new GarbageCollectorManager($this->logger, Timings::$asyncTaskWorkers);
+		self::$cycleGcManager = new GarbageCollectorManager($this->logger, Timings::$asyncTaskWorkers, $this->gcThreshold);
 	}
 
 	public function getLogger() : ThreadSafeLogger{

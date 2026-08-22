@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\scheduler;
 
 use pmmp\thread\Thread as NativeThread;
+use pocketmine\GarbageCollectorManager;
 use pocketmine\snooze\SleeperHandler;
 use pocketmine\thread\log\ThreadSafeLogger;
 use pocketmine\thread\ThreadCrashException;
@@ -64,7 +65,8 @@ class AsyncPool{
 		private int $workerMemoryLimit,
 		private ThreadSafeClassLoader $classLoader,
 		private ThreadSafeLogger $logger,
-		private SleeperHandler $eventLoop
+		private SleeperHandler $eventLoop,
+		private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD
 	){}
 
 	/**
@@ -126,7 +128,7 @@ class AsyncPool{
 			$sleeperEntry = $this->eventLoop->addNotifier(function() use ($workerId) : void{
 				$this->collectTasksFromWorker($workerId);
 			});
-			$this->workers[$workerId] = new AsyncPoolWorkerEntry(new AsyncWorker($this->logger, $workerId, $this->workerMemoryLimit, $sleeperEntry), $sleeperEntry->getNotifierId());
+			$this->workers[$workerId] = new AsyncPoolWorkerEntry(new AsyncWorker($this->logger, $workerId, $this->workerMemoryLimit, $sleeperEntry, $this->gcThreshold), $sleeperEntry->getNotifierId());
 			$this->workers[$workerId]->worker->setClassLoaders([$this->classLoader]);
 			$this->workers[$workerId]->worker->start(self::WORKER_START_OPTIONS);
 
