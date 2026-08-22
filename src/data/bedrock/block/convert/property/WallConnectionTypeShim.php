@@ -32,22 +32,10 @@ use pocketmine\data\bedrock\block\BlockStateStringValues;
  * TODO: get rid of this in PM6 and make the internal enum have a NONE case
  * @internal
  */
-enum WallConnectionTypeShim{
-	case NONE;
-	case SHORT;
-	case TALL;
-
-	/**
-	 * TODO: Would've just put this as enum values, but enum backing values can't reference constants in other files in
-	 * PHP 8.1 :(
-	 */
-	public function getValue() : string{
-		return match($this){
-			self::NONE => BlockStateStringValues::WALL_CONNECTION_TYPE_EAST_NONE,
-			self::SHORT => BlockStateStringValues::WALL_CONNECTION_TYPE_EAST_SHORT,
-			self::TALL => BlockStateStringValues::WALL_CONNECTION_TYPE_EAST_TALL,
-		};
-	}
+enum WallConnectionTypeShim : string{
+	case NONE = BlockStateStringValues::WALL_CONNECTION_TYPE_EAST_NONE;
+	case SHORT = BlockStateStringValues::WALL_CONNECTION_TYPE_EAST_SHORT;
+	case TALL = BlockStateStringValues::WALL_CONNECTION_TYPE_EAST_TALL;
 
 	public function deserialize() : ?WallConnectionType{
 		return match($this){

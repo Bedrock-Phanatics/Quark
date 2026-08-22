@@ -55,7 +55,7 @@ namespace pocketmine {
 
 	require_once __DIR__ . '/VersionInfo.php';
 
-	const MIN_PHP_VERSION = "8.1.0";
+	const MIN_PHP_VERSION = "8.4.0";
 
 	/**
 	 * @param string $message
@@ -242,7 +242,7 @@ JIT_WARNING
 	function server(){
 		if(count($messages = check_platform_dependencies()) > 0){
 			echo PHP_EOL;
-			$binary = version_compare(PHP_VERSION, "5.4") >= 0 ? PHP_BINARY : "unknown";
+			$binary = PHP_BINARY;
 			critical_error("Selected PHP binary does not satisfy some requirements.");
 			foreach($messages as $m){
 				echo " - $m" . PHP_EOL;

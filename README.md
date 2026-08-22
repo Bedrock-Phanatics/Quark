@@ -1,101 +1,95 @@
 # Quark
 
-**Quark** is a high-performance Minecraft: Bedrock Edition server software based on [PocketMine-MP](https://github.com/pmmp/PocketMine-MP) and [Axolotl](https://github.com/Axolotl-MP/Axolotl).
+Quark is a performance-focused Minecraft: Bedrock Edition server derived from PocketMine-MP and Axolotl. It keeps the PocketMine plugin model where practical while reducing overhead in frequently executed code paths.
 
-Quark focuses on improving performance, reducing unnecessary PHP overhead, and moving performance-critical workloads to native extensions such as C and C++ where it makes sense.
+> [!IMPORTANT]
+> Quark currently supports **64-bit PHP 8.4 only** for production use. PHP 8.5 is exercised in CI for forward compatibility, but is not yet a supported production runtime.
 
-The goal is to retain the flexibility and plugin ecosystem of PocketMine while providing a faster and more efficient foundation for production servers.
+## Getting started
+
+Use a prebuilt PHP runtime from [Bedrock-Phanatics/PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries). Quark requires the extensions declared in `composer.json`; optional features such as Snappy network compression also require their corresponding native extension.
+
+Install dependencies and start the server using the same workflow as other PocketMine-derived servers:
+
+```bash
+composer install --no-dev --classmap-authoritative
+php PocketMine-MP.phar
+```
+
+For development, omit `--no-dev` so PHPUnit and PHPStan are installed.
+
+## Project repositories
+
+- [Quark](https://github.com/Bedrock-Phanatics/Quark) — server source, workflows, and releases
+- [BedrockProtocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) — Quark's Bedrock packet and login protocol implementation
+- [PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries) — supported PHP runtimes and required native extensions
+- [PocketMine-MP](https://github.com/pmmp/PocketMine-MP) — primary upstream project
 
 ## Goals
 
-- Improve overall server performance and efficiency
-- Reduce overhead in frequently executed code paths
-- Utilize native C/C++ extensions for performance-sensitive workloads
-- Maintain compatibility with the PocketMine plugin ecosystem where possible
-- Fix bugs and inconsistencies found upstream
-- Keep changes clean, measurable, and maintainable
-- Move non-essential vanilla features into optional plugins to eliminate unnecessary overhead on servers that do not use them
+- Improve throughput and reduce latency in hot paths.
+- Prefer measurable optimizations over speculative complexity.
+- Use native extensions for compression, encoding, serialization, database, and networking workloads when they provide a meaningful benefit.
+- Preserve PocketMine plugin compatibility where it does not conflict with correctness or performance.
+- Keep runtime behavior configurable when different server workloads need different tradeoffs.
+- Move non-essential vanilla mechanics out of unconditional tick paths.
 
-## Changes
-
-Compared to upstream PocketMine-MP / Axolotl, Quark currently includes:
+## Notable changes
 
 ### Performance
 
-- Added optional **Snappy compression** support
-- Increased use of native extensions where they provide a meaningful performance benefit
+- Optional Snappy compression for Bedrock network packet batches.
+- Greater use of native encoding and serialization extensions.
+- Reduced unnecessary work in entity, armor, world-storage, and networking paths.
+
+### Runtime and tooling
+
+- PHP 8.4 is the minimum and currently supported production runtime.
+- CI validates PHP 8.4 and checks PHP 8.5 compatibility.
+- Quark uses the [Bedrock-Phanatics BedrockProtocol fork](https://github.com/Bedrock-Phanatics/BedrockProtocol).
 
 ### Gameplay
 
-- Removed the runtime effects and acquisition paths for **Thorns** and **Frost Walker**. Existing items retain inert enchantment data for save and network compatibility.
-- Removed per-tick worn-item callbacks from armor processing.
-- Turtle helmets now behave as ordinary helmets and no longer grant Water Breathing.
+- Thorns and Frost Walker runtime effects and acquisition paths are removed. Existing items retain inert enchantment data for save and network compatibility.
+- Per-tick worn-item callbacks are removed from armor processing.
+- Turtle helmets behave as ordinary helmets and do not grant Water Breathing.
 
-### Fixes
+### Correctness and API
 
-- Fixed absorption heart client/server desynchronization
-- Hardened Enchantment Table, Anvil, and Crafting Table transactions validations
-
-### API
-
-- Updated some `EntityDamageEvent` damage modifier constant values
-- Added broader `ProtectedDamage` and `FinalDamage` API for more configurable damage systems
-- Added better Garbage Collector Configurability (and option to disable)
+- Fixed absorption-heart client/server desynchronization.
+- Hardened enchanting, anvil, and crafting transaction validation.
+- Added configurable garbage-collector behavior, including the option to disable Quark-managed collection.
+- Expanded protected- and final-damage APIs.
+- Updated selected `EntityDamageEvent` modifier constant values.
 
 > [!NOTE]
-> Plugins using the provided `EntityDamageEvent` constants should continue to work normally. Plugins relying directly on the previous integer values may require changes.
+> Plugins using the provided damage constants should continue to work. Plugins depending on previous raw integer values or undocumented internals may require changes.
 
-## Philosophy
+## Configuration
 
-Quark does not aim to replace PHP with native code everywhere.
+Snappy affects Bedrock network packet compression only. LevelDB, player data, Java-world compatibility, and crash reports retain their format-required compression codecs.
 
-Native implementations are used primarily when they provide a measurable advantage over equivalent PHP implementations, particularly for:
-
-- Compression
-- Encoding and decoding
-- Serialization
-- Database operations
-- Network-related processing
-- Other CPU-intensive hot paths
-
-This allows Quark to retain PocketMine's developer-friendly PHP environment while taking advantage of native performance where it matters most.
+Random block ticking can be reduced or disabled through `chunk-ticking.blocks-per-subchunk-per-tick` and `chunk-ticking.disable-block-ticking` in `pocketmine.yml`.
 
 ## Compatibility
 
-Quark is designed to remain compatible with PocketMine-MP plugins whenever practical.
+Quark aims to support PocketMine plugins where practical, but performance and correctness changes may alter internal or undocumented behavior. Plugins should avoid hardcoded internal constants, direct dependency on implementation details, and assumptions about removed vanilla mechanics.
 
-However, because Quark may modify internals and APIs in pursuit of performance and correctness, complete compatibility with every PocketMine plugin is not guaranteed.
+The `pocketmine` PHP namespace, world compatibility tags, and other persisted identifiers remain unchanged where renaming them would break plugins or existing worlds.
 
-Plugins should avoid relying on undocumented behavior, internal implementation details, or hardcoded constant values.
+## Development
 
-## Requirements
+Before submitting changes, run:
 
-Quark may require additional PHP extensions compared to standard PocketMine-MP depending on the enabled features.
+```bash
+composer install
+vendor/bin/phpstan analyze --no-progress --memory-limit=2G
+vendor/bin/phpunit --bootstrap vendor/autoload.php --fail-on-warning tests/phpunit
+composer update-codegen
+```
 
-Optional features such as Snappy compression require their corresponding native extension.
+Performance changes should include evidence that they target a real bottleneck, preserve correctness, and avoid trading stability for negligible gains.
 
-## Contributing
+## License and credits
 
-Contributions focused on performance, correctness, or maintainability are welcome.
-
-Performance-related changes should ideally:
-
-- Target a measurable bottleneck
-- Avoid unnecessary complexity
-- Maintain correctness
-- Include benchmarks when appropriate
-- Avoid sacrificing stability for negligible performance gains
-
-## Credits
-
-Quark is built upon the work of:
-
-- [PocketMine-MP](https://github.com/pmmp/PocketMine-MP)
-- Axolotl and its contributors
-- The wider PocketMine ecosystem
-
-Quark includes modifications and optimizations developed specifically for this project.
-
-## License
-
-Quark retains the licensing requirements of the upstream projects and any components it incorporates.
+Quark builds on PocketMine-MP, Axolotl, BedrockProtocol, and the wider PocketMine ecosystem. It retains the licensing requirements of upstream projects and incorporated components.

@@ -30,11 +30,11 @@ use function is_int;
 use function str_repeat;
 
 final class VersionInfo{
-	public const NAME = "Quark";
-	public const BASE_VERSION = "5.46.1";
-	public const IS_DEVELOPMENT_BUILD = true;
-	public const BUILD_CHANNEL = "stable";
-	public const GITHUB_URL = "https://github.com/Bedrock-Phanatics/Quark";
+	public const string NAME = "Quark";
+	public const string BASE_VERSION = "5.46.1";
+	public const bool IS_DEVELOPMENT_BUILD = true;
+	public const string BUILD_CHANNEL = "stable";
+	public const string GITHUB_URL = "https://github.com/Bedrock-Phanatics/Quark";
 
 	/**
 	 * PocketMine-MP-specific version ID for world data. Used to determine what fixes need to be applied to old world
@@ -45,11 +45,11 @@ final class VersionInfo{
 	 * (entities, tiles, blocks, biomes etc.). For example, if PM accidentally saved a block with its facing value
 	 * swapped, we would bump this, but not if Mojang did the same change.
 	 */
-	public const WORLD_DATA_VERSION = 1;
+	public const int WORLD_DATA_VERSION = 1;
 	/**
 	 * Name of the NBT tag used to store the world data version.
 	 */
-	public const TAG_WORLD_DATA_VERSION = "PMMPDataVersion"; //TAG_Long
+	public const string TAG_WORLD_DATA_VERSION = "PMMPDataVersion"; //TAG_Long
 
 	private function __construct(){
 		//NOOP
