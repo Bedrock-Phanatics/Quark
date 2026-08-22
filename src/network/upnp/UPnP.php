@@ -201,7 +201,7 @@ class UPnP{
 				'<NewInternalPort>' . $internalPort . '</NewInternalPort>' .
 				'<NewInternalClient>' . $internalIP . '</NewInternalClient>' .
 				'<NewEnabled>1</NewEnabled>' .
-				'<NewPortMappingDescription>PocketMine-MP</NewPortMappingDescription>' .
+				'<NewPortMappingDescription>Quark</NewPortMappingDescription>' .
 				'<NewLeaseDuration>0</NewLeaseDuration>' .
 			'</u:AddPortMapping>';
 
