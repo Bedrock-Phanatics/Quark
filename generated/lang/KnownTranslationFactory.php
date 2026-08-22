@@ -1938,95 +1938,6 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_USERDEFINED_DESCRIPTION, []);
 	}
 
-	public static function pocketmine_command_version_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_version_minecraftVersion(Translatable|string $minecraftVersion, Translatable|string $minecraftProtocolVersion) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_MINECRAFTVERSION, [
-			"minecraftVersion" => $minecraftVersion,
-			"minecraftProtocolVersion" => $minecraftProtocolVersion,
-		]);
-	}
-
-	public static function pocketmine_command_version_noSuchPlugin() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_NOSUCHPLUGIN, []);
-	}
-
-	public static function pocketmine_command_version_operatingSystem(Translatable|string $operatingSystemName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_OPERATINGSYSTEM, [
-			"operatingSystemName" => $operatingSystemName,
-		]);
-	}
-
-	public static function pocketmine_command_version_phpJitDisabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PHPJITDISABLED, []);
-	}
-
-	public static function pocketmine_command_version_phpJitEnabled(Translatable|string $extraJitInfo) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PHPJITENABLED, [
-			"extraJitInfo" => $extraJitInfo,
-		]);
-	}
-
-	public static function pocketmine_command_version_phpJitNotSupported() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PHPJITNOTSUPPORTED, []);
-	}
-
-	public static function pocketmine_command_version_phpJitStatus(Translatable|string $jitStatus) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PHPJITSTATUS, [
-			"jitStatus" => $jitStatus,
-		]);
-	}
-
-	public static function pocketmine_command_version_phpVersion(Translatable|string $phpVersion) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PHPVERSION, [
-			"phpVersion" => $phpVersion,
-		]);
-	}
-
-	public static function pocketmine_command_version_plugin_author(Translatable|string $author) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PLUGIN_AUTHOR, [
-			"author" => $author,
-		]);
-	}
-
-	public static function pocketmine_command_version_plugin_authors(Translatable|string $authors) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PLUGIN_AUTHORS, [
-			"authors" => $authors,
-		]);
-	}
-
-	public static function pocketmine_command_version_plugin_header(Translatable|string $pluginName, Translatable|string $version) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PLUGIN_HEADER, [
-			"pluginName" => $pluginName,
-			"version" => $version,
-		]);
-	}
-
-	public static function pocketmine_command_version_plugin_website(Translatable|string $website) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_PLUGIN_WEBSITE, [
-			"website" => $website,
-		]);
-	}
-
-	public static function pocketmine_command_version_serverSoftwareName(Translatable|string $serverSoftwareName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_SERVERSOFTWARENAME, [
-			"serverSoftwareName" => $serverSoftwareName,
-		]);
-	}
-
-	public static function pocketmine_command_version_serverSoftwareVersion(Translatable|string $serverSoftwareVersion, Translatable|string $serverGitHash) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_SERVERSOFTWAREVERSION, [
-			"serverSoftwareVersion" => $serverSoftwareVersion,
-			"serverGitHash" => $serverGitHash,
-		]);
-	}
-
-	public static function pocketmine_command_version_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_VERSION_USAGE, []);
-	}
-
 	public static function pocketmine_command_whitelist_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_WHITELIST_DESCRIPTION, []);
 	}
@@ -3065,6 +2976,95 @@ final class KnownTranslationFactory{
 
 	public static function potion_wither() : Translatable{
 		return new Translatable(KnownTranslationKeys::POTION_WITHER, []);
+	}
+
+	public static function quark_command_version_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_DESCRIPTION, []);
+	}
+
+	public static function quark_command_version_minecraftVersion(Translatable|string $minecraftVersion, Translatable|string $minecraftProtocolVersion) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_MINECRAFTVERSION, [
+			"minecraftVersion" => $minecraftVersion,
+			"minecraftProtocolVersion" => $minecraftProtocolVersion,
+		]);
+	}
+
+	public static function quark_command_version_noSuchPlugin() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_NOSUCHPLUGIN, []);
+	}
+
+	public static function quark_command_version_operatingSystem(Translatable|string $operatingSystemName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_OPERATINGSYSTEM, [
+			"operatingSystemName" => $operatingSystemName,
+		]);
+	}
+
+	public static function quark_command_version_phpJitDisabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PHPJITDISABLED, []);
+	}
+
+	public static function quark_command_version_phpJitEnabled(Translatable|string $extraJitInfo) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PHPJITENABLED, [
+			"extraJitInfo" => $extraJitInfo,
+		]);
+	}
+
+	public static function quark_command_version_phpJitNotSupported() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PHPJITNOTSUPPORTED, []);
+	}
+
+	public static function quark_command_version_phpJitStatus(Translatable|string $jitStatus) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PHPJITSTATUS, [
+			"jitStatus" => $jitStatus,
+		]);
+	}
+
+	public static function quark_command_version_phpVersion(Translatable|string $phpVersion) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PHPVERSION, [
+			"phpVersion" => $phpVersion,
+		]);
+	}
+
+	public static function quark_command_version_plugin_author(Translatable|string $author) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PLUGIN_AUTHOR, [
+			"author" => $author,
+		]);
+	}
+
+	public static function quark_command_version_plugin_authors(Translatable|string $authors) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PLUGIN_AUTHORS, [
+			"authors" => $authors,
+		]);
+	}
+
+	public static function quark_command_version_plugin_header(Translatable|string $pluginName, Translatable|string $version) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PLUGIN_HEADER, [
+			"pluginName" => $pluginName,
+			"version" => $version,
+		]);
+	}
+
+	public static function quark_command_version_plugin_website(Translatable|string $website) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_PLUGIN_WEBSITE, [
+			"website" => $website,
+		]);
+	}
+
+	public static function quark_command_version_serverSoftwareName(Translatable|string $serverSoftwareName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_SERVERSOFTWARENAME, [
+			"serverSoftwareName" => $serverSoftwareName,
+		]);
+	}
+
+	public static function quark_command_version_serverSoftwareVersion(Translatable|string $serverSoftwareVersion, Translatable|string $serverGitHash) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_SERVERSOFTWAREVERSION, [
+			"serverSoftwareVersion" => $serverSoftwareVersion,
+			"serverGitHash" => $serverGitHash,
+		]);
+	}
+
+	public static function quark_command_version_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_USAGE, []);
 	}
 
 	public static function query_disable() : Translatable{

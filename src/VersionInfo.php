@@ -30,11 +30,11 @@ use function is_int;
 use function str_repeat;
 
 final class VersionInfo{
-	public const NAME = "Axolotl-PM";
+	public const NAME = "Quark";
 	public const BASE_VERSION = "5.46.1";
 	public const IS_DEVELOPMENT_BUILD = true;
 	public const BUILD_CHANNEL = "stable";
-	public const GITHUB_URL = "https://github.com/axolotl-pm/PocketMine-MP";
+	public const GITHUB_URL = "https://github.com/Bedrock-Phanatics/Quark";
 
 	/**
 	 * PocketMine-MP-specific version ID for world data. Used to determine what fixes need to be applied to old world
