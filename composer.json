@@ -4,6 +4,12 @@
    "type": "project",
    "homepage": "https://pmmp.io",
    "license": "LGPL-3.0",
+   "repositories": [
+      {
+         "type": "vcs",
+         "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol.git"
+      }
+   ],
    "require": {
       "php": "^8.1",
       "php-64bit": "*",
@@ -36,7 +42,7 @@
       "axolotl-pm/bedrock-block-upgrade-schema": "~5.2.0+bedrock-1.21.110",
       "axolotl-pm/bedrock-data": "6.8.0+bedrock-1.26.40",
       "axolotl-pm/bedrock-item-upgrade-schema": "1.18.0+bedrock-1.26.40",
-      "axolotl-pm/bedrock-protocol": "60.0.0+bedrock-1.26.44",
+      "axolotl-pm/bedrock-protocol": "dev-master#7779cb6a24e4230a9d4249a57da35cbb293d15e7",
       "netresearch/jsonmapper": "~v6.0.0",
       "pocketmine/binaryutils": "^0.2.1",
       "pocketmine/callback-validator": "~1.0.4",

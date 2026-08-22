@@ -347,14 +347,13 @@ class LoginPacketHandler extends PacketHandler{
 	private function warnUndefinedJsonPropertyHandler(string $context) : \Closure{
 		return function(object $object, string $name, mixed $value) use ($context) : void{
 			static $count = 0;
-
-			if(++$count <= 10){
-				// Newer clients send additional JWT properties unknown to the current protocol version ( It's fine to ignore for now)
-				// $this->session->getLogger()->warning("$context: Unexpected JSON property for " . (new \ReflectionClass($object))->getShortName() . ": " . Utils::printable(substr($name, 0, 80)));
-				return;
+			if($count++ < 10){
+				$this->session->getLogger()->warning(
+					"$context: Unexpected JSON property for " . (new \ReflectionClass($object))->getShortName() . ": " . Utils::printable(substr($name, 0, 80))
+				);
+			}else{
+				throw new PacketHandlingException("$context: Too many unexpected JSON properties");
 			}
-
-			throw new PacketHandlingException("$context: Too many unexpected JSON properties");
 		};
 	}
 }
