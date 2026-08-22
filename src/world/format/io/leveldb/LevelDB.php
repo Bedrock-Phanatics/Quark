@@ -333,10 +333,6 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 				throw new CorruptedChunkException("Failed to deserialize biome palette $i: " . $e->getMessage(), 0, $e);
 			}
 		}
-		if(!$stream->feof()){
-			//maybe bad output produced by a third-party conversion tool like Chunker
-			$logger->error("Unexpected trailing data after 3D biomes data");
-		}
 
 		return $result;
 	}
