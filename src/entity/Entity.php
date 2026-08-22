@@ -549,7 +549,7 @@ abstract class Entity{
 		}
 
 		$this->setLastDamageCause($source);
-		
+
 		$this->applyDamage($source->getFinalDamage());
 	}
 
