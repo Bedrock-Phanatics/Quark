@@ -64,6 +64,9 @@ memory:
     chunk-radius: 4
 
 network:
+  #Compression algorithm used for packet batches. Supported: zlib, snappy.
+  #Snappy can reduce CPU usage at the cost of bandwidth, and requires ext-snappy. Invalid or unavailable choices fall back to zlib.
+  compression-algorithm: zlib
   #Threshold for batching packets, in bytes. Only these packets will be compressed
   #Set to 0 to compress everything, -1 to disable.
   batch-threshold: 256

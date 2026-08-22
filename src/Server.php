@@ -54,6 +54,7 @@ use pocketmine\network\mcpe\auth\AuthKeyProvider;
 use pocketmine\network\mcpe\compression\CompressBatchPromise;
 use pocketmine\network\mcpe\compression\CompressBatchTask;
 use pocketmine\network\mcpe\compression\Compressor;
+use pocketmine\network\mcpe\compression\SnappyCompressor;
 use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\encryption\EncryptionContext;
@@ -134,8 +135,10 @@ use function cli_set_process_title;
 use function copy;
 use function count;
 use function date;
+use function extension_loaded;
 use function fclose;
 use function file_exists;
+use function function_exists;
 use function file_put_contents;
 use function filemtime;
 use function fopen;
@@ -274,6 +277,7 @@ class Server{
 	private AuthKeyProvider $authKeyProvider;
 
 	private Network $network;
+	private Compressor $networkCompressor;
 	private bool $networkCompressionAsync = true;
 	private int $networkCompressionAsyncThreshold = self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD;
 
@@ -945,7 +949,17 @@ class Server{
 				$this->logger->warning("Invalid network compression level $netCompressionLevel set, setting to default 6");
 				$netCompressionLevel = 6;
 			}
-			ZlibCompressor::setInstance(new ZlibCompressor($netCompressionLevel, $netCompressionThreshold, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+			$compressionAlgorithm = strtolower($this->configGroup->getPropertyString(Yml::NETWORK_COMPRESSION_ALGORITHM, "zlib"));
+			if($compressionAlgorithm === "snappy" && extension_loaded("snappy") && function_exists('snappy_compress') && function_exists('snappy_uncompress')){
+				$this->networkCompressor = new SnappyCompressor($netCompressionThreshold, SnappyCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE);
+			}else{
+				if($compressionAlgorithm !== "zlib"){
+					$this->logger->warning($compressionAlgorithm === "snappy" ?
+						"Snappy network compression requested, but ext-snappy is unavailable; falling back to zlib" :
+						"Unknown network compression algorithm '$compressionAlgorithm'; falling back to zlib");
+				}
+				$this->networkCompressor = new ZlibCompressor($netCompressionLevel, $netCompressionThreshold, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE);
+			}
 
 			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, true);
 			$this->networkCompressionAsyncThreshold = max(
@@ -1839,6 +1853,10 @@ class Server{
 
 	public function getNetwork() : Network{
 		return $this->network;
+	}
+
+	public function getNetworkCompressor(): Compressor {
+		return $this->networkCompressor;
 	}
 
 	public function getMemoryManager() : MemoryManager{

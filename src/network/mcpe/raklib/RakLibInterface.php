@@ -26,7 +26,6 @@ namespace pocketmine\network\mcpe\raklib;
 use pmmp\thread\ThreadSafeArray;
 use pocketmine\lang\KnownTranslationFactory;
 use pocketmine\network\AdvancedNetworkInterface;
-use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\EntityEventBroadcaster;
 use pocketmine\network\mcpe\NetworkSession;
@@ -194,7 +193,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			new RakLibPacketSender($sessionId, $this),
 			$this->packetBroadcaster,
 			$this->entityEventBroadcaster,
-			ZlibCompressor::getInstance(), //TODO: this shouldn't be hardcoded, but we might need the RakNet protocol version to select it
+			$this->server->getNetworkCompressor(),
 			$this->typeConverter,
 			$address,
 			$port
