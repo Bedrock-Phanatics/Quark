@@ -308,6 +308,8 @@ class InventoryTransaction{
 			}
 		}
 
+		$this->validate();
+
 		foreach($this->actions as $action){
 			$action->execute($this->source);
 		}

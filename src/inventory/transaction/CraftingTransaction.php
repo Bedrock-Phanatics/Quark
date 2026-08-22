@@ -23,10 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\inventory\transaction;
 
+use pocketmine\crafting\CraftingGrid;
 use pocketmine\crafting\CraftingManager;
 use pocketmine\crafting\CraftingRecipe;
 use pocketmine\crafting\RecipeIngredient;
 use pocketmine\event\inventory\CraftItemEvent;
+use pocketmine\inventory\Inventory;
 use pocketmine\item\Item;
 use pocketmine\player\Player;
 use pocketmine\utils\Utils;
@@ -69,12 +71,16 @@ class CraftingTransaction extends InventoryTransaction{
 	protected array $outputs = [];
 
 	private CraftingManager $craftingManager;
+	private CraftingGrid $craftingGrid;
+	private ?Inventory $expectedWindow;
 
-	public function __construct(Player $source, CraftingManager $craftingManager, array $actions = [], ?CraftingRecipe $recipe = null, ?int $repetitions = null){
+	public function __construct(Player $source, CraftingManager $craftingManager, array $actions = [], ?CraftingRecipe $recipe = null, ?int $repetitions = null, ?CraftingGrid $craftingGrid = null){
 		parent::__construct($source, $actions);
 		$this->craftingManager = $craftingManager;
 		$this->recipe = $recipe;
 		$this->repetitions = $repetitions;
+		$this->expectedWindow = $source->getCurrentWindow();
+		$this->craftingGrid = $craftingGrid ?? ($this->expectedWindow instanceof CraftingGrid ? $this->expectedWindow : $source->getCraftingGrid());
 	}
 
 	/**
@@ -244,7 +250,7 @@ class CraftingTransaction extends InventoryTransaction{
 
 	private function validateRecipe(CraftingRecipe $recipe, ?int $expectedRepetitions) : int{
 		//compute number of times recipe was crafted
-		$repetitions = $this->matchOutputs($this->outputs, $recipe->getResultsFor($this->source->getCraftingGrid()));
+		$repetitions = $this->matchOutputs($this->outputs, $recipe->getResultsFor($this->craftingGrid));
 		if($expectedRepetitions !== null && $repetitions !== $expectedRepetitions){
 			throw new TransactionValidationException("Expected $expectedRepetitions repetitions, got $repetitions");
 		}
@@ -255,6 +261,9 @@ class CraftingTransaction extends InventoryTransaction{
 	}
 
 	public function validate() : void{
+		if($this->source->getCurrentWindow() !== $this->expectedWindow){
+			throw new TransactionValidationException("The active inventory changed during crafting");
+		}
 		$this->squashDuplicateSlotChanges();
 		if(count($this->actions) < 1){
 			throw new TransactionValidationException("Transaction must have at least one action to be executable");
@@ -267,7 +276,7 @@ class CraftingTransaction extends InventoryTransaction{
 			foreach($this->craftingManager->matchRecipeByOutputs($this->outputs) as $recipe){
 				try{
 					//compute number of times recipe was crafted
-					$this->repetitions = $this->matchOutputs($this->outputs, $recipe->getResultsFor($this->source->getCraftingGrid()));
+					$this->repetitions = $this->matchOutputs($this->outputs, $recipe->getResultsFor($this->craftingGrid));
 					//assert that $repetitions x recipe ingredients should be consumed
 					self::matchIngredients($this->inputs, $recipe->getIngredientList(), $this->repetitions);
 

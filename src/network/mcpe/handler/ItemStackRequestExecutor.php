@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\handler;
 
 use pocketmine\block\inventory\EnchantInventory;
+use pocketmine\crafting\CraftingGrid;
+use pocketmine\crafting\ShapedRecipe;
 use pocketmine\inventory\Inventory;
 use pocketmine\inventory\transaction\action\CreateItemAction;
 use pocketmine\inventory\transaction\action\DestroyItemAction;
@@ -238,20 +240,29 @@ class ItemStackRequestExecutor{
 			//It's already hard-limited to 256 repetitions in the protocol, so this is just a sanity check.
 			throw new ItemStackRequestProcessException("Cannot craft a recipe more than 256 times");
 		}
+		$currentWindow = $this->player->getCurrentWindow();
+		if($currentWindow !== null && !$currentWindow instanceof CraftingGrid){
+			throw new ItemStackRequestProcessException("Crafting recipes cannot be used while another workstation is open");
+		}
+		$craftingGrid = $currentWindow ?? $this->player->getCraftingGrid();
+
 		$craftingManager = $this->player->getServer()->getCraftingManager();
 		$recipeIndex = $recipeId - CraftingDataCache::RECIPE_ID_OFFSET;
 		$recipe = $craftingManager->getCraftingRecipeFromIndex($recipeIndex);
 		if($recipe === null){
 			throw new ItemStackRequestProcessException("No such crafting recipe index: $recipeIndex");
 		}
+		$gridWidth = $craftingGrid->getGridWidth();
+		if(
+			count($recipe->getIngredientList()) > $gridWidth ** 2 ||
+			($recipe instanceof ShapedRecipe && ($recipe->getWidth() > $gridWidth || $recipe->getHeight() > $gridWidth))
+		){
+			throw new ItemStackRequestProcessException("Recipe does not fit in the active {$gridWidth}x{$gridWidth} crafting grid");
+		}
 
-		$this->specialTransaction = new CraftingTransaction($this->player, $craftingManager, [], $recipe, $repetitions);
+		$this->specialTransaction = new CraftingTransaction($this->player, $craftingManager, [], $recipe, $repetitions, $craftingGrid);
 
-		//TODO: Since the system assumes that crafting can only be done in the crafting grid, we have to give it a
-		//crafting grid to make the API happy. No implementation of getResultsFor() actually uses the crafting grid
-		//right now, so this will work, but this will become a problem in the future for things like shulker boxes and
-		//custom crafting recipes.
-		$craftingResults = $recipe->getResultsFor($this->player->getCraftingGrid());
+		$craftingResults = $recipe->getResultsFor($craftingGrid);
 		foreach($craftingResults as $k => $craftingResult){
 			$craftingResult->setCount($craftingResult->getCount() * $repetitions);
 			$this->craftingResults[$k] = $craftingResult;
@@ -343,11 +354,18 @@ class ItemStackRequestExecutor{
 		}elseif($action instanceof CraftRecipeStackRequestAction){
 			$window = $this->player->getCurrentWindow();
 			if($window instanceof EnchantInventory){
-				$optionId = $this->inventoryManager->getEnchantingTableOptionIndex($action->getRecipeId());
-				if($optionId !== null && ($option = $window->getOption($optionId)) !== null){
-					$this->specialTransaction = new EnchantingTransaction($this->player, $option, $optionId + 1);
-					$this->setNextCreatedItem($window->getOutput($optionId));
+				if($this->specialTransaction !== null){
+					throw new ItemStackRequestProcessException("Another special transaction is already in progress");
 				}
+				if($action->getRepetitions() !== 1){
+					throw new ItemStackRequestProcessException("Enchanting operations must have exactly 1 repetition");
+				}
+				$optionId = $this->inventoryManager->getEnchantingTableOptionIndex($action->getRecipeId());
+				if($optionId === null || ($option = $window->getOption($optionId)) === null || ($output = $window->getOutput($optionId)) === null){
+					throw new ItemStackRequestProcessException("No such enchanting option");
+				}
+				$this->specialTransaction = new EnchantingTransaction($this->player, $option, $optionId + 1, $window);
+				$this->setNextCreatedItem($output);
 			}else{
 				$this->beginCrafting($action->getRecipeId(), $action->getRepetitions());
 			}
