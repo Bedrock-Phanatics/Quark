@@ -907,7 +907,14 @@ class Server{
 			TimingsHandler::setEnabled($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false));
 			$this->profilingTickRate = $this->configGroup->getPropertyInt(Yml::SETTINGS_PROFILE_REPORT_TRIGGER, self::TARGET_TICKS_PER_SECOND);
 
-			$this->asyncPool = new AsyncPool($poolSize, max(-1, $this->configGroup->getPropertyInt(Yml::MEMORY_ASYNC_WORKER_HARD_LIMIT, 256)), $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->asyncPool = new AsyncPool(
+				$poolSize,
+				max(-1, $this->configGroup->getPropertyInt(Yml::MEMORY_ASYNC_WORKER_HARD_LIMIT, 256)),
+				$this->autoloader,
+				$this->logger,
+				$this->tickSleeper,
+				$this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD)
+			);
 			$this->asyncPool->addWorkerStartHook(function(int $i) : void{
 				if(TimingsHandler::isEnabled()){
 					$this->asyncPool->submitTaskToWorker(TimingsControlTask::setEnabled(true), $i);

@@ -71,7 +71,8 @@ class MemoryManager{
 		private Server $server
 	){
 		$this->logger = new \PrefixedLogger($server->getLogger(), "Memory Manager");
-		$this->cycleGcManager = new GarbageCollectorManager($this->logger, Timings::$memoryManager);
+		$gcThreshold = $server->getConfigGroup()->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD);
+		$this->cycleGcManager = new GarbageCollectorManager($this->logger, Timings::$memoryManager, $gcThreshold);
 
 		$this->init($server->getConfigGroup());
 	}

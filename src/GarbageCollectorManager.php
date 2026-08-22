@@ -44,10 +44,12 @@ final class GarbageCollectorManager{
 	//behavioural changes.
 	private const GC_THRESHOLD_TRIGGER = 100;
 	private const GC_THRESHOLD_MAX = 1_000_000_000;
-	private const GC_THRESHOLD_DEFAULT = 10_001;
 	private const GC_THRESHOLD_STEP = 10_000;
 
-	private int $threshold = self::GC_THRESHOLD_DEFAULT;
+	public const DEFAULT_THRESHOLD = 10_001;
+
+	private int $threshold;
+	private int $minimumThreshold;
 	private int $collectionTimeTotalNs = 0;
 	private int $runs = 0;
 
@@ -57,8 +59,11 @@ final class GarbageCollectorManager{
 	public function __construct(
 		\Logger $logger,
 		?TimingsHandler $parentTimings,
+		int $threshold = self::DEFAULT_THRESHOLD,
 	){
 		gc_disable();
+		$this->threshold = min(self::GC_THRESHOLD_MAX, max(0, $threshold));
+		$this->minimumThreshold = $this->threshold;
 		$this->logger = new \PrefixedLogger($logger, "Cyclic Garbage Collector");
 		$this->timings = new TimingsHandler("Cyclic Garbage Collector", $parentTimings);
 	}
@@ -70,8 +75,8 @@ final class GarbageCollectorManager{
 		//Adapted from zend_gc.c/gc_adjust_threshold() as of PHP 8.3.14
 		if($cyclesCollected < self::GC_THRESHOLD_TRIGGER || $rootsAfterGC >= $this->threshold){
 			$this->threshold = min(self::GC_THRESHOLD_MAX, $this->threshold + self::GC_THRESHOLD_STEP);
-		}elseif($this->threshold > self::GC_THRESHOLD_DEFAULT){
-			$this->threshold = max(self::GC_THRESHOLD_DEFAULT, $this->threshold - self::GC_THRESHOLD_STEP);
+		}elseif($this->threshold > $this->minimumThreshold){
+			$this->threshold = max($this->minimumThreshold, $this->threshold - self::GC_THRESHOLD_STEP);
 		}
 	}
 
@@ -80,6 +85,9 @@ final class GarbageCollectorManager{
 	public function getCollectionTimeTotalNs() : int{ return $this->collectionTimeTotalNs; }
 
 	public function maybeCollectCycles() : int{
+		if($this->threshold === 0){
+			return 0;
+		}
 		$rootsBefore = gc_status()["roots"];
 		if($rootsBefore < $this->threshold){
 			return 0;

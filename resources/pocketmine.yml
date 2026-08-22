@@ -50,6 +50,10 @@ memory:
   continuous-trigger-rate: 30
 
   garbage-collection:
+    #Number of buffered possible cycle roots that triggers adaptive collection.
+    #Set to 0 to disable threshold-triggered collection on the main thread and async workers.
+    threshold: 10001
+
     #Period in ticks to fire the garbage collector manually (default 30 minutes), set to 0 to disable
     #This only affects the main thread. Other threads should fire their own collections
     period: 36000
