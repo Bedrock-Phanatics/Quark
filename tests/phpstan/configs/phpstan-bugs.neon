@@ -1,0 +1,146 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property object\:\:\$crashId\.$#'
+			identifier: property.notFound
+			count: 1
+			path: ../../../src/Server.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$crashUrl\.$#'
+			identifier: property.notFound
+			count: 1
+			path: ../../../src/Server.php
+
+		-
+			message: '#^Access to an undefined property object\:\:\$error\.$#'
+			identifier: property.notFound
+			count: 1
+			path: ../../../src/Server.php
+
+		-
+			message: '#^Method pocketmine\\crafting\\ShapedRecipe\:\:getIngredientMap\(\) should return list\<list\<pocketmine\\crafting\\RecipeIngredient\|null\>\> but returns array\<int\<0, max\>, non\-empty\-array\<int\<0, max\>, pocketmine\\crafting\\RecipeIngredient\|null\>\>\.$#'
+			identifier: return.type
+			count: 1
+			path: ../../../src/crafting/ShapedRecipe.php
+
+		-
+			message: '#^Offset ''name'' on \*NEVER\* in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: ../../../src/crafting/json/ItemStackData.php
+
+		-
+			message: '#^Property pocketmine\\crash\\CrashDumpData\:\:\$parameters \(list\<string\>\) does not accept array\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: ../../../src/crash/CrashDump.php
+
+		-
+			message: '#^Property pocketmine\\item\\WritableBookBase\:\:\$pages \(list\<pocketmine\\item\\WritableBookPage\>\) does not accept non\-empty\-array\<int, pocketmine\\item\\WritableBookPage\>\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: ../../../src/item/WritableBookBase.php
+
+		-
+			message: '#^Parameter \#3 \$input of class pocketmine\\network\\mcpe\\protocol\\types\\recipe\\ShapedRecipe constructor expects list\<list\<pocketmine\\network\\mcpe\\protocol\\types\\recipe\\RecipeIngredient\>\>, array\<int\<0, max\>, non\-empty\-array\<int\<0, max\>, pocketmine\\network\\mcpe\\protocol\\types\\recipe\\RecipeIngredient\>\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../../../src/network/mcpe/cache/CraftingDataCache.php
+
+		-
+			message: '#^Parameter \#1 \$states of class pocketmine\\network\\mcpe\\convert\\BlockStateDictionary constructor expects list\<pocketmine\\network\\mcpe\\convert\\BlockStateDictionaryEntry\>, array\<int\<0, max\>, pocketmine\\network\\mcpe\\convert\\BlockStateDictionaryEntry\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../../../src/network/mcpe/convert/BlockStateDictionary.php
+
+		-
+			message: '#^Cannot access offset ''default'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: ../../../src/network/mcpe/convert/LegacySkinAdapter.php
+
+		-
+			message: '#^Dead catch \- RuntimeException is never thrown in the try block\.$#'
+			identifier: catch.neverThrown
+			count: 1
+			path: ../../../src/plugin/PluginManager.php
+
+		-
+			message: '#^Binary operation "\." between mixed and ''/''\|''\\\\'' results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: ../../../src/thread/ThreadSafeClassLoader.php
+
+		-
+			message: '#^Binary operation "\." between mixed and non\-falsy\-string results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: ../../../src/thread/ThreadSafeClassLoader.php
+
+		-
+			message: '#^Method pocketmine\\timings\\TimingsHandler\:\:lazyGetSet\(\) should return pocketmine\\utils\\ObjectSet\<T of object\> but returns pocketmine\\utils\\ObjectSet\<object\>\.$#'
+			identifier: return.type
+			count: 1
+			path: ../../../src/timings/TimingsHandler.php
+
+		-
+			message: '#^Parameter &\$where @param\-out type of method pocketmine\\timings\\TimingsHandler\:\:lazyGetSet\(\) expects pocketmine\\utils\\ObjectSet\<T of object\>, pocketmine\\utils\\ObjectSet\<object\> given\.$#'
+			identifier: paramOut.type
+			count: 1
+			path: ../../../src/timings/TimingsHandler.php
+
+		-
+			message: '#^Binary operation "\*" between mixed and 3600 results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: ../../../src/utils/Timezone.php
+
+		-
+			message: '#^Binary operation "\*" between mixed and 60 results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: ../../../src/utils/Timezone.php
+
+		-
+			message: '#^Binary operation "\+" between \(float\|int\) and mixed results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: ../../../src/utils/Timezone.php
+
+		-
+			message: '#^Property pocketmine\\world\\format\\io\\region\\RegionLoader\:\:\$locationTable \(list\<pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\) does not accept non\-empty\-array\<int, pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\.$#'
+			identifier: assign.propertyType
+			count: 2
+			path: ../../../src/world/format/io/region/RegionLoader.php
+
+		-
+			message: '#^Property pocketmine\\world\\format\\io\\region\\RegionLoader\:\:\$locationTable \(list\<pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\) does not accept non\-empty\-array\<int\<0, max\>, pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\.$#'
+			identifier: assign.propertyType
+			count: 3
+			path: ../../../src/world/format/io/region/RegionLoader.php
+
+		-
+			message: '#^Method pocketmine\\world\\format\\io\\region\\RegionWorldProvider\:\:createRegionIterator\(\) should return RegexIterator\<mixed, string, FilesystemIterator\> but returns RegexIterator\<mixed, mixed, Traversable\<TKey, TValue\>\>\.$#'
+			identifier: return.type
+			count: 1
+			path: ../../../src/world/format/io/region/RegionWorldProvider.php
+
+		-
+			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
+			identifier: staticMethod.alreadyNarrowedType
+			count: 1
+			path: ../../phpunit/promise/PromiseTest.php
+
+		-
+			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with false and ''All promise should…'' will always evaluate to false\.$#'
+			identifier: staticMethod.impossibleType
+			count: 1
+			path: ../../phpunit/promise/PromiseTest.php
+
+		-
+			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with false will always evaluate to false\.$#'
+			identifier: staticMethod.impossibleType
+			count: 2
+			path: ../../phpunit/promise/PromiseTest.php
+

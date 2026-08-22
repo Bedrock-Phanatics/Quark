@@ -1,0 +1,633 @@
+<?php
+
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+ */
+
+declare(strict_types=1);
+
+namespace pocketmine\tools\generate_bedrock_data_from_packets;
+
+use pmmp\encoding\ByteBufferReader;
+use pocketmine\crafting\json\ItemStackData;
+use pocketmine\crafting\json\PotionContainerChangeRecipeData;
+use pocketmine\crafting\json\PotionTypeRecipeData;
+use pocketmine\crafting\json\RecipeIngredientData;
+use pocketmine\crafting\json\ShapedRecipeData;
+use pocketmine\crafting\json\ShapelessRecipeData;
+use pocketmine\crafting\json\SmithingTransformRecipeData;
+use pocketmine\crafting\json\SmithingTrimRecipeData;
+use pocketmine\data\bedrock\block\BlockStateData;
+use pocketmine\data\bedrock\item\BlockItemIdMap;
+use pocketmine\data\bedrock\item\ItemTypeNames;
+use pocketmine\inventory\json\CreativeGroupData;
+use pocketmine\nbt\LittleEndianNbtSerializer;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
+use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\convert\BlockStateDictionary;
+use pocketmine\network\mcpe\convert\BlockTranslator;
+use pocketmine\network\mcpe\convert\ItemTranslator;
+use pocketmine\network\mcpe\handler\PacketHandler;
+use pocketmine\network\mcpe\protocol\AvailableActorIdentifiersPacket;
+use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
+use pocketmine\network\mcpe\protocol\CraftingDataPacket;
+use pocketmine\network\mcpe\protocol\CreativeContentPacket;
+use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
+use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
+use pocketmine\network\mcpe\protocol\StartGamePacket;
+use pocketmine\network\mcpe\protocol\types\inventory\CreativeGroupEntry;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackExtraData;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackExtraDataShield;
+use pocketmine\network\mcpe\protocol\types\recipe\MolangItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\MultiRecipe;
+use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
+use pocketmine\network\mcpe\protocol\types\recipe\ShapedRecipe;
+use pocketmine\network\mcpe\protocol\types\recipe\ShapelessRecipe;
+use pocketmine\network\mcpe\protocol\types\recipe\SmithingTransformRecipe;
+use pocketmine\network\mcpe\protocol\types\recipe\SmithingTrimRecipe;
+use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
+use pocketmine\network\PacketHandlingException;
+use pocketmine\utils\AssumptionFailedError;
+use pocketmine\utils\Filesystem;
+use pocketmine\utils\Utils;
+use pocketmine\world\biome\model\BiomeDefinitionEntryData;
+use pocketmine\world\biome\model\ColorData;
+use pocketmine\world\format\io\GlobalBlockStateHandlers;
+use Ramsey\Uuid\Exception\InvalidArgumentException;
+use Symfony\Component\Filesystem\Path;
+use function array_map;
+use function array_values;
+use function asort;
+use function base64_decode;
+use function base64_encode;
+use function bin2hex;
+use function chr;
+use function count;
+use function dirname;
+use function explode;
+use function file;
+use function file_put_contents;
+use function fwrite;
+use function get_class;
+use function implode;
+use function is_array;
+use function is_object;
+use function json_encode;
+use function ksort;
+use function mkdir;
+use function ord;
+use function round;
+use function strlen;
+use const FILE_IGNORE_NEW_LINES;
+use const JSON_PRETTY_PRINT;
+use const JSON_THROW_ON_ERROR;
+use const PHP_BINARY;
+use const PHP_EOL;
+use const SORT_NUMERIC;
+use const SORT_STRING;
+use const STDERR;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+class ParserPacketHandler extends PacketHandler{
+
+	public ?ItemTypeDictionary $itemTypeDictionary = null;
+	private BlockTranslator $blockTranslator;
+	private BlockItemIdMap $blockItemIdMap;
+
+	public function __construct(private string $bedrockDataPath){
+		$this->blockTranslator = new BlockTranslator(
+			BlockStateDictionary::loadFromString(
+				Filesystem::fileGetContents(Path::join($this->bedrockDataPath, "canonical_block_states.nbt")),
+				Filesystem::fileGetContents(Path::join($this->bedrockDataPath, "block_state_meta_map.json")),
+			),
+			GlobalBlockStateHandlers::getSerializer()
+		);
+		$this->blockItemIdMap = BlockItemIdMap::getInstance();
+	}
+
+	private static function blockStatePropertiesToString(BlockStateData $blockStateData) : string{
+		$statePropertiesTag = CompoundTag::create();
+		foreach(Utils::stringifyKeys($blockStateData->getStates()) as $name => $value){
+			$statePropertiesTag->setTag($name, $value);
+		}
+		return base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($statePropertiesTag)));
+	}
+
+	/**
+	 * @param ItemStackData[] $items
+	 */
+	private function creativeGroupEntryToJson(CreativeGroupEntry $entry, array $items) : CreativeGroupData{
+		$data = new CreativeGroupData();
+
+		$data->group_name = $entry->getCategoryName();
+		$data->group_icon = $entry->getIcon()->getId() === 0 ? null : $this->itemStackToJson($entry->getIcon());
+		$data->items = $items;
+
+		return $data;
+	}
+
+	private function itemStackToJson(ItemStack $itemStack) : ItemStackData{
+		if($itemStack->getId() === 0){
+			throw new InvalidArgumentException("Cannot serialize a null itemstack");
+		}
+		if($this->itemTypeDictionary === null){
+			throw new PacketHandlingException("Can't process item yet; haven't received item type dictionary");
+		}
+		$itemStringId = $this->itemTypeDictionary->fromIntId($itemStack->getId());
+		$data = new ItemStackData($itemStringId);
+
+		if($itemStack->getCount() !== 1){
+			$data->count = $itemStack->getCount();
+		}
+
+		$meta = $itemStack->getMeta();
+		if($meta === 32767){
+			$meta = 0; //kick wildcard magic bullshit
+		}
+		if($this->blockItemIdMap->lookupBlockId($itemStringId) !== null){
+			if($meta !== 0){
+				throw new PacketHandlingException("Unexpected non-zero blockitem meta");
+			}
+			$blockState = $this->blockTranslator->getBlockStateDictionary()->generateDataFromStateId($itemStack->getBlockRuntimeId()) ?? null;
+			if($blockState === null){
+				throw new PacketHandlingException("Unmapped blockstate ID " . $itemStack->getBlockRuntimeId());
+			}
+
+			$stateProperties = $blockState->getStates();
+			if(count($stateProperties) > 0){
+				$data->block_states = self::blockStatePropertiesToString($blockState);
+			}
+		}elseif($itemStack->getBlockRuntimeId() !== ItemTranslator::NO_BLOCK_RUNTIME_ID){
+			throw new PacketHandlingException("Non-blockitems should have a zero block runtime ID (" . $itemStack->getBlockRuntimeId() . " on " . $itemStringId . ")");
+		}elseif($meta !== 0){
+			$data->meta = $meta;
+		}
+
+		$rawExtraData = $itemStack->getRawExtraData();
+		if($rawExtraData !== ""){
+			$decoder = new ByteBufferReader($rawExtraData);
+			$extraData = $itemStringId === ItemTypeNames::SHIELD ? ItemStackExtraDataShield::read($decoder) : ItemStackExtraData::read($decoder);
+			$nbt = $extraData->getNbt();
+			if($nbt !== null && count($nbt) > 0){
+				$data->nbt = base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($nbt)));
+			}
+
+			if(count($extraData->getCanPlaceOn()) > 0){
+				$data->can_place_on = $extraData->getCanPlaceOn();
+			}
+			if(count($extraData->getCanDestroy()) > 0){
+				$data->can_destroy = $extraData->getCanDestroy();
+			}
+		}
+
+		return $data;
+	}
+
+	private static function objectToOrderedArray(object $object) : mixed{
+		if($object instanceof \JsonSerializable){
+			$result = $object->jsonSerialize();
+			if(is_object($result)){
+				$result = (array) $result;
+			}elseif(!is_array($result)){
+				return $result;
+			}
+		}else{
+			$result = (array) $object;
+		}
+
+		ksort($result, SORT_STRING);
+
+		foreach(Utils::promoteKeys($result) as $property => $value){
+			if(is_object($value)){
+				$result[$property] = self::objectToOrderedArray($value);
+			}elseif(is_array($value)){
+				$array = [];
+				foreach(Utils::promoteKeys($value) as $k => $v){
+					if(is_object($v)){
+						$array[$k] = self::objectToOrderedArray($v);
+					}else{
+						$array[$k] = $v;
+					}
+				}
+
+				$result[$property] = $array;
+			}
+		}
+
+		return $result;
+	}
+
+	private static function sort(mixed $object) : mixed{
+		if(is_object($object)){
+			return self::objectToOrderedArray($object);
+		}
+		if(is_array($object)){
+			$result = [];
+			foreach(Utils::promoteKeys($object) as $k => $v){
+				$result[$k] = self::sort($v);
+			}
+			return $result;
+		}
+
+		return $object;
+	}
+
+	public function handleStartGame(StartGamePacket $packet) : bool{
+		foreach(Utils::promoteKeys($packet->levelSettings->experiments->getExperiments()) as $name => $experiment){
+			echo "Experiment \"$name\" is " . ($experiment ? "" : "not ") . "active\n";
+		}
+		return true;
+	}
+
+	public function handleItemRegistry(ItemRegistryPacket $packet) : bool{
+		$this->itemTypeDictionary = new ItemTypeDictionary($packet->getEntries());
+
+		echo "updating required_item_list.json\n";
+		$emptyNBT = new CompoundTag();
+		$table = [];
+		foreach($packet->getEntries() as $entry){
+			$table[$entry->getStringId()] = [
+				"runtime_id" => $entry->getNumericId(),
+				"component_based" => $entry->isComponentBased(),
+				"version" => $entry->getVersion(),
+			];
+
+			$componentNBT = $entry->getComponentNbt()->getRoot();
+			if(!$componentNBT->equals($emptyNBT)){
+				$table[$entry->getStringId()]["component_nbt"] = base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($componentNBT)));
+			}
+		}
+		ksort($table, SORT_STRING);
+		file_put_contents($this->bedrockDataPath . '/required_item_list.json', json_encode($table, JSON_PRETTY_PRINT) . "\n");
+		return true;
+	}
+
+	public function handleCreativeContent(CreativeContentPacket $packet) : bool{
+		echo "updating creative inventory data\n";
+
+		$groupItems = [];
+		foreach($packet->getItems() as $itemEntry){
+			$groupItems[$itemEntry->getGroupId()][] = $this->itemStackToJson($itemEntry->getItem());
+		}
+
+		static $typeMap = [
+			CreativeContentPacket::CATEGORY_CONSTRUCTION => "construction",
+			CreativeContentPacket::CATEGORY_NATURE => "nature",
+			CreativeContentPacket::CATEGORY_EQUIPMENT => "equipment",
+			CreativeContentPacket::CATEGORY_ITEMS => "items",
+		];
+
+		$groupCategories = [];
+		foreach(Utils::promoteKeys($packet->getGroups()) as $groupId => $group){
+			$category = $typeMap[$group->getCategoryId()] ?? throw new PacketHandlingException("Unknown creative category ID " . $group->getCategoryId());
+			//FIXME: objectToOrderedArray might mess with the order of groupItems
+			//this isn't a problem right now because it's a list, but could cause problems in the future
+			$groupCategories[$category][] = self::objectToOrderedArray($this->creativeGroupEntryToJson($group, $groupItems[$groupId]));
+		}
+
+		foreach(Utils::promoteKeys($groupCategories) as $category => $categoryGroups){
+			file_put_contents($this->bedrockDataPath . '/creative/' . $category . '.json', json_encode($categoryGroups, JSON_PRETTY_PRINT) . "\n");
+		}
+
+		return true;
+	}
+
+	private function recipeIngredientToJson(RecipeIngredient $itemStack) : RecipeIngredientData{
+		if($this->itemTypeDictionary === null){
+			throw new PacketHandlingException("Can't process item yet; haven't received item type dictionary");
+		}
+
+		$descriptor = $itemStack->getDescriptor();
+		if($descriptor === null){
+			throw new PacketHandlingException("Can't json-serialize a null recipe ingredient");
+		}
+		$data = new RecipeIngredientData();
+
+		if($descriptor instanceof StringIdMetaItemDescriptor){
+			$data->name = $descriptor->getId();
+
+			$meta = $descriptor->getMeta();
+			if($meta !== 32767){
+				$blockStateId = $this->blockTranslator->getBlockStateDictionary()->lookupStateIdFromIdMeta($data->name, $meta);
+				if($this->blockItemIdMap->lookupBlockId($data->name) !== null && $blockStateId !== null){
+					$blockState = $this->blockTranslator->getBlockStateDictionary()->generateDataFromStateId($blockStateId);
+					if($blockState !== null && count($blockState->getStates()) > 0){
+						$data->block_states = self::blockStatePropertiesToString($blockState);
+					}
+				}elseif($meta !== 0){
+					$data->meta = $meta;
+				}
+			}else{
+				$data->meta = $meta;
+			}
+		}elseif($descriptor instanceof TagItemDescriptor){
+			$data->tag = $descriptor->getTag();
+		}elseif($descriptor instanceof MolangItemDescriptor){
+			$data->molang_expression = $descriptor->getMolangExpression();
+			$data->molang_version = $descriptor->getMolangVersion();
+		}else{
+			throw new \UnexpectedValueException("Unknown item descriptor type " . get_class($descriptor));
+		}
+		if($itemStack->getCount() !== 1){
+			$data->count = $itemStack->getCount();
+		}
+
+		return $data;
+	}
+
+	private function shapedRecipeToJson(ShapedRecipe $entry) : ShapedRecipeData{
+		$keys = [];
+
+		$shape = [];
+		$char = ord("A");
+
+		$outputsByKey = [];
+		foreach(Utils::promoteKeys($entry->getInput()) as $x => $row){
+			foreach(Utils::promoteKeys($row) as $y => $ingredient){
+				if($ingredient->getDescriptor() === null){
+					$shape[$x][$y] = " ";
+				}else{
+					$jsonIngredient = $this->recipeIngredientToJson($ingredient);
+					$hash = json_encode($jsonIngredient, JSON_THROW_ON_ERROR);
+					if(isset($keys[$hash])){
+						$shape[$x][$y] = $keys[$hash];
+					}else{
+						$key = chr($char & 0xff);
+						$keys[$hash] = $shape[$x][$y] = $key;
+						$outputsByKey[$key] = $jsonIngredient;
+						$char++;
+						if($char >= 128){
+							throw new \RuntimeException("Too many ingredients");
+						}
+					}
+				}
+			}
+		}
+		$unlockingIngredients = $entry->getUnlockingRequirement()?->getUnlockingIngredients();
+		return new ShapedRecipeData(
+			array_map(fn(array $array) => implode('', array_values($array)), array_values($shape)),
+			$outputsByKey,
+			array_map(fn(ItemStack $output) => $this->itemStackToJson($output), $entry->getOutput()),
+			$entry->getBlockName(),
+			$entry->getPriority(),
+			$unlockingIngredients !== null ? array_map(fn(RecipeIngredient $input) => $this->recipeIngredientToJson($input), $unlockingIngredients) : []
+		);
+	}
+
+	private function shapelessRecipeToJson(ShapelessRecipe $recipe) : ShapelessRecipeData{
+		$unlockingIngredients = $recipe->getUnlockingRequirement()?->getUnlockingIngredients();
+		return new ShapelessRecipeData(
+			array_map(fn(RecipeIngredient $input) => $this->recipeIngredientToJson($input), $recipe->getInputs()),
+			array_map(fn(ItemStack $output) => $this->itemStackToJson($output), $recipe->getOutputs()),
+			$recipe->getBlockName(),
+			$recipe->getPriority(),
+			$unlockingIngredients !== null ? array_map(fn(RecipeIngredient $input) => $this->recipeIngredientToJson($input), $unlockingIngredients) : []
+		);
+	}
+
+	private function smithingRecipeToJson(SmithingTransformRecipe $recipe) : SmithingTransformRecipeData{
+		return new SmithingTransformRecipeData(
+			$this->recipeIngredientToJson($recipe->getTemplate()),
+			$this->recipeIngredientToJson($recipe->getInput()),
+			$this->recipeIngredientToJson($recipe->getAddition()),
+			$this->itemStackToJson($recipe->getOutput()),
+			$recipe->getBlockName()
+		);
+	}
+
+	private function smithingTrimRecipeToJson(SmithingTrimRecipe $recipe) : SmithingTrimRecipeData{
+		return new SmithingTrimRecipeData(
+			$this->recipeIngredientToJson($recipe->getTemplate()),
+			$this->recipeIngredientToJson($recipe->getInput()),
+			$this->recipeIngredientToJson($recipe->getAddition()),
+			$recipe->getBlockName()
+		);
+	}
+
+	public function handleCraftingData(CraftingDataPacket $packet) : bool{
+		echo "updating crafting data\n";
+
+		$recipesPath = Path::join($this->bedrockDataPath, "recipes");
+		Filesystem::recursiveUnlink($recipesPath);
+		@mkdir($recipesPath);
+
+		$recipes = [];
+		$recipeTypes = [
+			"shaped_crafting" => $packet->shapedRecipes,
+			"shapeless_crafting" => $packet->shapelessRecipes,
+			"special_hardcoded" => $packet->multiRecipes,
+			"shapeless_shulker_box" => $packet->userDataShapelessRecipes,
+			"shapeless_chemistry" => $packet->shapelessChemistryRecipes,
+			"shaped_chemistry" => $packet->shapedChemistryRecipes,
+			"smithing" => $packet->smithingTransformRecipes,
+			"smithing_trim" => $packet->smithingTrimRecipes,
+		];
+		foreach($recipeTypes as $mappedType => $entries){
+			foreach($entries as $entry){
+				if($entry instanceof ShapedRecipe){
+					//all known recipes are currently symmetric and I don't feel like attaching a `symmetric` field to
+					//every shaped recipe for this - split it into a separate category instead
+					if(!$entry->isSymmetric()){
+						$recipes[$mappedType . "_asymmetric"][] = $this->shapedRecipeToJson($entry);
+					}else{
+						$recipes[$mappedType][] = $this->shapedRecipeToJson($entry);
+					}
+				}elseif($entry instanceof ShapelessRecipe){
+					$recipes[$mappedType][] = $this->shapelessRecipeToJson($entry);
+				}elseif($entry instanceof MultiRecipe){
+					$recipes[$mappedType][] = $entry->getRecipeId()->toString();
+				}elseif($entry instanceof SmithingTransformRecipe){
+					$recipes[$mappedType][] = $this->smithingRecipeToJson($entry);
+				}elseif($entry instanceof SmithingTrimRecipe){
+					$recipes[$mappedType][] = $this->smithingTrimRecipeToJson($entry);
+				}else{
+					throw new AssumptionFailedError("Unknown recipe type " . get_class($entry));
+				}
+			}
+		}
+
+		if($this->itemTypeDictionary === null){
+			throw new AssumptionFailedError("We should have already crashed if this was null");
+		}
+
+		foreach($packet->potionTypeRecipes as $recipe){
+			$recipes["potion_type"][] = new PotionTypeRecipeData(
+				$this->recipeIngredientToJson(new RecipeIngredient(new StringIdMetaItemDescriptor($this->itemTypeDictionary->fromIntId($recipe->getInputItemId()), $recipe->getInputItemMeta()), 1)),
+				$this->recipeIngredientToJson(new RecipeIngredient(new StringIdMetaItemDescriptor($this->itemTypeDictionary->fromIntId($recipe->getIngredientItemId()), $recipe->getIngredientItemMeta()), 1)),
+				$this->itemStackToJson(new ItemStack($recipe->getOutputItemId(), $recipe->getOutputItemMeta(), 1, 0, "")),
+			);
+		}
+		foreach($packet->potionContainerRecipes as $recipe){
+			$recipes["potion_container_change"][] = new PotionContainerChangeRecipeData(
+				$this->itemTypeDictionary->fromIntId($recipe->getInputItemId()),
+				$this->recipeIngredientToJson(new RecipeIngredient(new StringIdMetaItemDescriptor($this->itemTypeDictionary->fromIntId($recipe->getIngredientItemId()), 0), 1)),
+				$this->itemTypeDictionary->fromIntId($recipe->getOutputItemId()),
+			);
+		}
+
+		//this sorts the data into a canonical order to make diffs between versions reliable
+		//how the data is ordered doesn't matter as long as it's reproducible
+		foreach(Utils::promoteKeys($recipes) as $_type => $entries){
+			$_sortedRecipes = [];
+			$_seen = [];
+			foreach($entries as $entry){
+				$entry = self::sort($entry);
+				$_key = json_encode($entry);
+				$duplicates = $_seen[$_key] ??= 0;
+				$_seen[$_key]++;
+				$suffixOrd = ord("a") + $duplicates;
+				if($suffixOrd >= 128){
+					throw new \RuntimeException("Too many duplicates ($duplicates)");
+				}
+				$suffix = chr($suffixOrd);
+				$_sortedRecipes[$_key . $suffix] = $entry;
+			}
+			ksort($_sortedRecipes, SORT_STRING);
+			$recipes[$_type] = array_values($_sortedRecipes);
+			foreach($_seen as $_key => $_seenCount){
+				if($_seenCount > 1){
+					fwrite(STDERR, "warning: $_type recipe $_key was seen $_seenCount times\n");
+				}
+			}
+		}
+
+		ksort($recipes, SORT_STRING);
+		foreach(Utils::promoteKeys($recipes) as $type => $entries){
+			echo "$type: " . count($entries) . "\n";
+		}
+		foreach(Utils::promoteKeys($recipes) as $type => $entries){
+			file_put_contents(Path::join($recipesPath, $type . '.json'), json_encode($entries, JSON_PRETTY_PRINT) . "\n");
+		}
+
+		return true;
+	}
+
+	public function handleAvailableActorIdentifiers(AvailableActorIdentifiersPacket $packet) : bool{
+		echo "storing actor identifiers" . PHP_EOL;
+
+		$tag = $packet->identifiers->getRoot();
+		if(!($tag instanceof CompoundTag)){
+			throw new AssumptionFailedError();
+		}
+		$generic = $tag->getTag("idlist");
+		if(!($generic instanceof ListTag) || ($idList = $generic->cast(CompoundTag::class)) === null){
+			echo $tag . "\n";
+			throw new \RuntimeException("expected TAG_List<TAG_Compound>(\"idlist\") tag inside root TAG_Compound");
+		}
+		if($tag->count() > 1){
+			echo $tag . "\n";
+			echo "!!! unexpected extra data found in available actor identifiers\n";
+		}
+		echo "updating legacy => string entity ID mapping table\n";
+		$map = [];
+		foreach($idList as $thing){
+			$map[$thing->getString("id")] = $thing->getInt("rid");
+		}
+		asort($map, SORT_NUMERIC);
+		file_put_contents($this->bedrockDataPath . '/entity_id_map.json', json_encode($map, JSON_PRETTY_PRINT) . "\n");
+		echo "storing entity identifiers\n";
+		file_put_contents($this->bedrockDataPath . '/entity_identifiers.nbt', $packet->identifiers->getEncodedNbt());
+		return true;
+	}
+
+	public function handleBiomeDefinitionList(BiomeDefinitionListPacket $packet) : bool{
+		echo "storing biome definitions" . PHP_EOL;
+
+		$definitions = [];
+		foreach($packet->buildDefinitionsFromData() as $entry){
+			$mapWaterColor = new ColorData();
+			$mapWaterColor->r = $entry->getMapWaterColor()->getR();
+			$mapWaterColor->g = $entry->getMapWaterColor()->getG();
+			$mapWaterColor->b = $entry->getMapWaterColor()->getB();
+			$mapWaterColor->a = $entry->getMapWaterColor()->getA();
+
+			$data = new BiomeDefinitionEntryData();
+			$data->id = $entry->getId();
+			$data->temperature = round($entry->getTemperature(), 3);
+			$data->downfall = round($entry->getDownfall(), 3);
+			$data->foliageSnow = round($entry->getFoliageSnow(), 3);
+			$data->depth = round($entry->getDepth(), 3);
+			$data->scale = round($entry->getScale(), 3);
+			$data->mapWaterColour = $mapWaterColor;
+			$data->rain = $entry->hasRain();
+			$data->tags = $entry->getTags() ?? [];
+
+			$definitions[$entry->getBiomeName()] = self::objectToOrderedArray($data);
+		}
+
+		ksort($definitions, SORT_STRING);
+
+		file_put_contents($this->bedrockDataPath . '/biome_definitions.json', json_encode($definitions, JSON_PRETTY_PRINT) . "\n");
+
+		return true;
+	}
+}
+
+/**
+ * @param string[] $argv
+ */
+function main(array $argv) : int{
+	if(count($argv) !== 3){
+		fwrite(STDERR, 'Usage: ' . PHP_BINARY . ' ' . __FILE__ . ' <input file> <path to BedrockData>');
+		return 1;
+	}
+	[, $inputFile, $bedrockDataPath] = $argv;
+
+	$handler = new ParserPacketHandler($bedrockDataPath);
+
+	$packets = file($inputFile, FILE_IGNORE_NEW_LINES);
+	if($packets === false){
+		fwrite(STDERR, 'File ' . $inputFile . ' not found or permission denied');
+		return 1;
+	}
+
+	foreach($packets as $lineNum => $line){
+		$parts = explode(':', $line, limit: 3);
+		if(count($parts) !== 2){
+			fwrite(STDERR, 'Wrong packet format at line ' . ($lineNum + 1) . ', expected read:base64 or write:base64');
+			return 1;
+		}
+		$raw = base64_decode($parts[1], true);
+		if($raw === false){
+			fwrite(STDERR, 'Invalid base64\'d packet on line ' . ($lineNum + 1) . ' could not be parsed');
+			return 1;
+		}
+
+		$pk = PacketPool::getInstance()->getPacket($raw);
+		if($pk === null){
+			fwrite(STDERR, "Unknown packet on line " . ($lineNum + 1) . ": " . $parts[1]);
+			continue;
+		}
+		$serializer = new ByteBufferReader($raw);
+
+		$pk->decode($serializer);
+		$pk->handle($handler);
+		$remaining = strlen($serializer->getData()) - $serializer->getOffset();
+		if($remaining > 0){
+			echo "Packet on line " . ($lineNum + 1) . ": didn't read all data from " . get_class($pk) . " (stopped at offset " . $serializer->getOffset() . " of " . strlen($serializer->getData()) . " bytes): " . bin2hex($serializer->readByteArray($remaining)) . "\n";
+		}
+	}
+	return 0;
+}
+
+exit(main($argv ?? []));

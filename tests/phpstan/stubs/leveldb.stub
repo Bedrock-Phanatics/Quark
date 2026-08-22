@@ -1,0 +1,18 @@
+<?php
+
+class LevelDB{
+	/**
+	 * @param string $key
+	 * @param array<string, mixed> $read_options
+	 *
+	 * @return string|false
+	 */
+	public function get($key, array $read_options = []){}
+}
+
+/**
+ * @implements Iterator<string, string>
+ */
+class LevelDBIterator implements Iterator{
+
+}
