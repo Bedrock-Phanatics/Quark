@@ -23,7 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\inventory\transaction;
 
+use pocketmine\block\inventory\EnchantInventory;
 use pocketmine\event\player\PlayerItemEnchantEvent;
+use pocketmine\inventory\transaction\action\SlotChangeAction;
 use pocketmine\item\enchantment\EnchantingHelper;
 use pocketmine\item\enchantment\EnchantingOption;
 use pocketmine\item\Item;
@@ -37,13 +39,57 @@ class EnchantingTransaction extends InventoryTransaction{
 
 	private ?Item $inputItem = null;
 	private ?Item $outputItem = null;
+	private readonly ?EnchantInventory $inventory;
 
 	public function __construct(
 		Player $source,
 		private readonly EnchantingOption $option,
-		private readonly int $cost
+		private readonly int $cost,
+		?EnchantInventory $inventory = null
 	){
 		parent::__construct($source);
+		$currentWindow = $source->getCurrentWindow();
+		$this->inventory = $inventory ?? ($currentWindow instanceof EnchantInventory ? $currentWindow : null);
+	}
+
+	private function validateWorkstationInputs() : void{
+		if($this->inventory === null || $this->source->getCurrentWindow() !== $this->inventory){
+			throw new TransactionValidationException("The enchanting table is no longer open");
+		}
+		if($this->inputItem === null){
+			throw new AssumptionFailedError("Expected inputItem to be available before validating workstation inputs");
+		}
+
+		$inputConsumed = null;
+		$lapisConsumed = 0;
+		foreach($this->actions as $action){
+			if(!$action instanceof SlotChangeAction || $action->getInventory() !== $this->inventory){
+				continue;
+			}
+
+			$sourceItem = $action->getSourceItem();
+			$targetItem = $action->getTargetItem();
+			if($sourceItem->isNull() || (!$targetItem->isNull() && !$sourceItem->canStackWith($targetItem))){
+				continue;
+			}
+			$consumedCount = $sourceItem->getCount() - $targetItem->getCount();
+			if($consumedCount < 1){
+				continue;
+			}
+
+			if($action->getSlot() === EnchantInventory::SLOT_INPUT){
+				$inputConsumed = (clone $sourceItem)->setCount($consumedCount);
+			}elseif($action->getSlot() === EnchantInventory::SLOT_LAPIS && $sourceItem->getTypeId() === ItemTypeIds::LAPIS_LAZULI){
+				$lapisConsumed += $consumedCount;
+			}
+		}
+
+		if($inputConsumed === null || !$inputConsumed->equalsExact($this->inputItem)){
+			throw new TransactionValidationException("The enchanted item must be consumed from the enchanting table input slot");
+		}
+		if($this->source->hasFiniteResources() && $lapisConsumed !== $this->cost){
+			throw new TransactionValidationException("The lapis lazuli cost must be consumed from the enchanting table material slot");
+		}
 	}
 
 	private function validateOutput() : void{
@@ -73,6 +119,9 @@ class EnchantingTransaction extends InventoryTransaction{
 	}
 
 	public function validate() : void{
+		$this->inputItem = null;
+		$this->outputItem = null;
+
 		if(count($this->actions) < 1){
 			throw new TransactionValidationException("Transaction must have at least one action to be executable");
 		}
@@ -86,7 +135,7 @@ class EnchantingTransaction extends InventoryTransaction{
 		$lapisSpent = 0;
 		foreach($inputs as $input){
 			if($input->getTypeId() === ItemTypeIds::LAPIS_LAZULI){
-				$lapisSpent = $input->getCount();
+				$lapisSpent += $input->getCount();
 			}else{
 				if($this->inputItem !== null){
 					throw new TransactionValidationException("Received more than 1 items to enchant");
@@ -98,13 +147,20 @@ class EnchantingTransaction extends InventoryTransaction{
 		if($this->inputItem === null){
 			throw new TransactionValidationException("No item to enchant received");
 		}
+		if($this->inputItem->getCount() !== 1){
+			throw new TransactionValidationException("Expected exactly 1 item to enchant, but received " . $this->inputItem->getCount());
+		}
 
 		if(($outputCount = count($outputs)) !== 1){
 			throw new TransactionValidationException("Expected 1 output item, but received $outputCount");
 		}
 		$this->outputItem = $outputs[0];
+		if($this->outputItem->getCount() !== 1){
+			throw new TransactionValidationException("Expected exactly 1 enchanted output item, but received " . $this->outputItem->getCount());
+		}
 
 		$this->validateOutput();
+		$this->validateWorkstationInputs();
 
 		if($this->source->hasFiniteResources()){
 			$this->validateFiniteResources($lapisSpent);

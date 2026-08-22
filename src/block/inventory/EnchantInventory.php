@@ -24,8 +24,11 @@ declare(strict_types=1);
 namespace pocketmine\block\inventory;
 
 use pocketmine\event\player\PlayerEnchantingOptionsRequestEvent;
+use pocketmine\inventory\Inventory;
 use pocketmine\inventory\SimpleInventory;
 use pocketmine\inventory\TemporaryInventory;
+use pocketmine\inventory\transaction\action\validator\CallbackSlotValidator;
+use pocketmine\inventory\transaction\TransactionValidationException;
 use pocketmine\item\enchantment\EnchantingHelper as Helper;
 use pocketmine\item\enchantment\EnchantingOption;
 use pocketmine\item\Item;
@@ -48,6 +51,11 @@ class EnchantInventory extends SimpleInventory implements BlockInventory, Tempor
 	public function __construct(Position $holder){
 		$this->holder = $holder;
 		parent::__construct(2);
+		$this->validators->add(new CallbackSlotValidator(
+			static fn(Inventory $inventory, Item $item, int $slot) : ?TransactionValidationException =>
+			$slot === self::SLOT_INPUT && $item->getCount() !== 1 ?
+				new TransactionValidationException("Enchanting table input must contain exactly 1 item") : null
+		));
 	}
 
 	protected function onSlotChange(int $index, Item $before) : void{
