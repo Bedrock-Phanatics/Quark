@@ -40,13 +40,14 @@ class EntityDamageEvent extends EntityEvent implements Cancellable{
 	public const MODIFIER_STRENGTH = 2;
 	public const MODIFIER_WEAKNESS = 3;
 	public const MODIFIER_RESISTANCE = 4;
-	public const MODIFIER_ABSORPTION = 5;
-	public const MODIFIER_ARMOR_ENCHANTMENTS = 6;
-	public const MODIFIER_CRITICAL = 7;
-	public const MODIFIER_TOTEM = 8;
-	public const MODIFIER_WEAPON_ENCHANTMENTS = 9;
-	public const MODIFIER_PREVIOUS_DAMAGE_COOLDOWN = 10;
-	public const MODIFIER_ARMOR_HELMET = 11;
+	public const MODIFIER_ARMOR_ENCHANTMENTS = 5;
+	public const MODIFIER_CRITICAL = 6;
+	public const MODIFIER_TOTEM = 7;
+	public const MODIFIER_WEAPON_ENCHANTMENTS = 8;
+	public const MODIFIER_PREVIOUS_DAMAGE_COOLDOWN = 9;
+	public const MODIFIER_ARMOR_HELMET = 10;
+
+	public const MODIFIER_PROTECTED_DAMAGE = 11;
 
 	public const CAUSE_CONTACT = 0;
 	public const CAUSE_ENTITY_ATTACK = 1;
@@ -73,6 +74,9 @@ class EntityDamageEvent extends EntityEvent implements Cancellable{
 	private array $originals;
 	private int $attackCooldown = 10;
 
+	/** @var float */
+	private float $protectedDamage = 0.0;
+
 	/**
 	 * @param float[] $modifiers
 	 */
@@ -91,25 +95,14 @@ class EntityDamageEvent extends EntityEvent implements Cancellable{
 		return $this->cause;
 	}
 
-	/**
-	 * Returns the base amount of damage applied, before modifiers.
-	 */
 	public function getBaseDamage() : float{
 		return $this->baseDamage;
 	}
 
-	/**
-	 * Sets the base amount of damage applied, optionally recalculating modifiers.
-	 *
-	 * TODO: add ability to recalculate modifiers when this is set
-	 */
 	public function setBaseDamage(float $damage) : void{
 		$this->baseDamage = $damage;
 	}
 
-	/**
-	 * Returns the original base amount of damage applied, before alterations by plugins.
-	 */
 	public function getOriginalBaseDamage() : float{
 		return $this->originalBase;
 	}
@@ -144,42 +137,51 @@ class EntityDamageEvent extends EntityEvent implements Cancellable{
 		return isset($this->modifiers[$type]);
 	}
 
-	public function getFinalDamage() : float{
-		return max(0, $this->baseDamage + array_sum($this->modifiers));
+	public function addProtectedDamage(float $damage) : void{
+		$this->protectedDamage += $damage;
 	}
 
-	/**
-	 * Returns whether an entity can use armour points to reduce this type of damage.
-	 */
-	public function canBeReducedByArmor() : bool{
-		switch($this->cause){
-			case self::CAUSE_FIRE_TICK:
-			case self::CAUSE_SUFFOCATION:
-			case self::CAUSE_DROWNING:
-			case self::CAUSE_STARVATION:
-			case self::CAUSE_FALL:
-			case self::CAUSE_VOID:
-			case self::CAUSE_MAGIC:
-			case self::CAUSE_SUICIDE:
-				return false;
+	public function setProtectedDamage(float $damage) : void{
+		$this->protectedDamage = $damage;
+	}
 
+	public function getProtectedDamage() : float{
+		return $this->protectedDamage;
+	}
+
+	public function clearProtectedDamage() : void{
+		$this->protectedDamage = 0.0;
+	}
+
+	public function getFinalDamage() : float{
+		$normalDamage = $this->baseDamage + array_sum($this->modifiers);
+
+		$finalProtectedDamage = $this->protectedDamage;
+		if(isset($this->modifiers[self::MODIFIER_PROTECTED_DAMAGE])){
+			$finalProtectedDamage += $this->modifiers[self::MODIFIER_PROTECTED_DAMAGE];
 		}
 
-		return true;
+		return max(0, $normalDamage + max(0, $finalProtectedDamage));
 	}
 
-	/**
-	 * Returns the cooldown in ticks before the target entity can be attacked again.
-	 */
+	public function getFinalDamageWithoutProtected() : float{
+		$modifiers = $this->modifiers;
+		unset($modifiers[self::MODIFIER_PROTECTED_DAMAGE]);
+		return max(0, $this->baseDamage + array_sum($modifiers));
+	}
+
+	public function canBeReducedByArmor() : bool{
+		return match ($this->cause) {
+			self::CAUSE_FIRE_TICK, self::CAUSE_SUFFOCATION, self::CAUSE_DROWNING, self::CAUSE_STARVATION, self::CAUSE_FALL, self::CAUSE_VOID, self::CAUSE_MAGIC, self::CAUSE_SUICIDE => false,
+			default => true,
+		};
+
+	}
+
 	public function getAttackCooldown() : int{
 		return $this->attackCooldown;
 	}
 
-	/**
-	 * Sets the cooldown in ticks before the target entity can be attacked again.
-	 *
-	 * NOTE: This value is not used in non-Living entities
-	 */
 	public function setAttackCooldown(int $attackCooldown) : void{
 		$this->attackCooldown = $attackCooldown;
 	}

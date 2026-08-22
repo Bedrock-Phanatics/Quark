@@ -549,8 +549,15 @@ abstract class Entity{
 		}
 
 		$this->setLastDamageCause($source);
+		
+		$this->applyDamage($source->getFinalDamage());
+	}
 
-		$this->setHealth($this->getHealth() - $source->getFinalDamage());
+	/**
+	 * Applies the final damage amount to the entity after all modifiers have been resolved.
+	 */
+	protected function applyDamage(float $damage) : void{
+		$this->setHealth($this->getHealth() - $damage);
 	}
 
 	public function heal(EntityRegainHealthEvent $source) : void{

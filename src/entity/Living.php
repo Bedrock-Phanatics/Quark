@@ -244,6 +244,31 @@ abstract class Living extends Entity{
 		$this->absorptionAttr->setValue($absorption);
 	}
 
+	/**
+	 * Applies damage to absorption first, then health.
+	 * Prevents Health DeSync when player health is reduced with absorption hearts
+	 */
+	public function damageWithAbsorption(float $damage) : void{
+		if($damage <= 0.0){
+			return;
+		}
+
+		$absorption = $this->getAbsorption();
+
+		if($absorption > 0.0){
+			if($damage < $absorption){
+				$this->setAbsorption($absorption - $damage);
+				return;
+			}
+			$damage -= $absorption;
+			$this->setAbsorption(0.0);
+		}
+
+		$newHealth = $this->getHealth() - $damage;
+
+		$this->setHealth(max(0.0, $newHealth));
+	}
+
 	public function getSneakOffset() : float{
 		return 0.0;
 	}
@@ -470,8 +495,6 @@ abstract class Living extends Entity{
 		}
 		$source->setModifier(-$source->getFinalDamage() * min(ceil(min($totalEpf, 25) * (mt_rand(50, 100) / 100)), 20) * 0.04, EntityDamageEvent::MODIFIER_ARMOR_ENCHANTMENTS);
 
-		$source->setModifier(-min($this->getAbsorption(), $source->getFinalDamage()), EntityDamageEvent::MODIFIER_ABSORPTION);
-
 		if($cause === EntityDamageEvent::CAUSE_FALLING_BLOCK && $this->armorInventory->getHelmet() instanceof Armor){
 			$source->setModifier(-($source->getFinalDamage() / 4), EntityDamageEvent::MODIFIER_ARMOR_HELMET);
 		}
@@ -483,7 +506,6 @@ abstract class Living extends Entity{
 	 * This will not be called by damage sources causing death.
 	 */
 	protected function applyPostDamageEffects(EntityDamageEvent $source) : void{
-		$this->setAbsorption(max(0, $this->getAbsorption() + $source->getModifier(EntityDamageEvent::MODIFIER_ABSORPTION)));
 		if($source->canBeReducedByArmor()){
 			$this->damageArmor($source->getBaseDamage());
 		}
@@ -510,7 +532,7 @@ abstract class Living extends Entity{
 			if($source->getModifier(EntityDamageEvent::MODIFIER_ARMOR_HELMET) < 0){
 				$helmet = $this->armorInventory->getHelmet();
 				if($helmet instanceof Armor){
-					$finalDamage = $source->getFinalDamage();
+					$finalDamage = $source->getFinalDamageWithoutProtected();
 					$this->damageItem($helmet, (int) round($finalDamage * 4 + Utils::getRandomFloat() * $finalDamage * 2));
 					$this->armorInventory->setHelmet($helmet);
 				}
