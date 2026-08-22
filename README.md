@@ -24,6 +24,12 @@ Compared to upstream PocketMine-MP / Axolotl, Quark currently includes:
 - Added optional **Snappy compression** support
 - Increased use of native extensions where they provide a meaningful performance benefit
 
+### Gameplay
+
+- Removed the runtime effects and acquisition paths for **Thorns** and **Frost Walker**. Existing items retain inert enchantment data for save and network compatibility.
+- Removed per-tick worn-item callbacks from armor processing.
+- Turtle helmets now behave as ordinary helmets and no longer grant Water Breathing.
+
 ### Fixes
 
 - Fixed absorption heart client/server desynchronization

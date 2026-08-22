@@ -23,19 +23,5 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
-use pocketmine\entity\effect\EffectInstance;
-use pocketmine\entity\effect\VanillaEffects;
-use pocketmine\entity\Human;
-use pocketmine\entity\Living;
-
 class TurtleHelmet extends Armor{
-
-	public function onTickWorn(Living $entity) : bool{
-		if($entity instanceof Human && !$entity->isUnderwater()){
-			$entity->getEffects()->add(new EffectInstance(VanillaEffects::WATER_BREATHING(), 200, 0, false));
-			return true;
-		}
-
-		return false;
-	}
 }

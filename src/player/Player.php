@@ -2033,8 +2033,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 
 		if($this->isAlive()){
-			//reactive damage like thorns might cause us to be killed by attacking another mob, which
-			//would mean we'd already have dropped the inventory by the time we reached here
+			//An attack event handler might kill us while attacking another mob, which would mean we'd
+			//already have dropped the inventory by the time we reached here.
 			$returnedItems = [];
 			$heldItem->onAttackEntity($entity, $returnedItems);
 			$this->returnItemsFromAction($oldItem, $heldItem, $returnedItems);
