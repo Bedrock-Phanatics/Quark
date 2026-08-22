@@ -34,6 +34,7 @@ Compared to upstream PocketMine-MP / Axolotl, Quark currently includes:
 ### Fixes
 
 - Fixed absorption heart client/server desynchronization
+- Hardened Enchantment Table, Anvil, and Crafting Table transactions validations
 
 ### API
 
