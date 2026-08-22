@@ -18,7 +18,6 @@ resource_packs/
 server.lock
 /phpstan.neon
 /docker/test_data/
-tests/*
 
 # Common IDEs
 .idea/*
