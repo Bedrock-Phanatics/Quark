@@ -25,9 +25,14 @@ namespace pocketmine\block;
 
 use pocketmine\entity\Entity;
 use pocketmine\entity\Living;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
+use pocketmine\block\utils\redstone\PowerSource;
+use pocketmine\block\utils\redstone\PressurePlateTrait;
 use function array_filter;
 
-class StonePressurePlate extends SimplePressurePlate{
+class StonePressurePlate extends SimplePressurePlate implements PowerSource{
+	use PressurePlateTrait;
+	use RedstoneBlockAccessTrait;
 
 	protected function filterIrrelevantEntities(array $entities) : array{
 		return array_filter($entities, fn(Entity $e) => $e instanceof Living); //TODO: armor stands should activate stone plates too

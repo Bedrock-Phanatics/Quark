@@ -23,6 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-class Redstone extends Opaque{
+use pocketmine\block\utils\redstone\RedstoneBehavior;
+use pocketmine\block\utils\redstone\PowerSource;
+
+class Redstone extends Opaque implements PowerSource{
+	use RedstoneBehavior;
 
 }

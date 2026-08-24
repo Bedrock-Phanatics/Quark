@@ -34,8 +34,11 @@ use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\world\BlockTransaction;
 use pocketmine\world\sound\DoorSound;
+use pocketmine\block\utils\redstone\Powerable;
+use pocketmine\block\utils\redstone\PowerableDoorTrait;
 
-class Door extends Transparent implements HorizontalFacing{
+class Door extends Transparent implements HorizontalFacing, Powerable{
+	use PowerableDoorTrait;
 	use HorizontalFacingTrait;
 
 	protected bool $top = false;

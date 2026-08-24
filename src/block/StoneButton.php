@@ -23,7 +23,13 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-class StoneButton extends Button{
+use pocketmine\block\utils\redstone\ButtonTrait;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
+use pocketmine\block\utils\redstone\PowerSource;
+
+class StoneButton extends Button implements PowerSource{
+	use ButtonTrait;
+	use RedstoneBlockAccessTrait;
 
 	protected function getActivationTime() : int{
 		return 20;

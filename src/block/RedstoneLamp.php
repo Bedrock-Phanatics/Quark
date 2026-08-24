@@ -23,12 +23,16 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\RedstoneLampBehavior;
+use pocketmine\block\utils\redstone\Powerable;
+
 use pocketmine\block\utils\Lightable;
 use pocketmine\block\utils\PoweredByRedstone;
 use pocketmine\block\utils\PoweredByRedstoneTrait;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 
-class RedstoneLamp extends Opaque implements PoweredByRedstone, Lightable{
+class RedstoneLamp extends Opaque implements PoweredByRedstone, Lightable, Powerable{
+	use RedstoneLampBehavior;
 	use PoweredByRedstoneTrait;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{

@@ -156,7 +156,7 @@ jobs:
       - name: Verify code is unchanged
         run: |
           git diff
-          git diff --quiet
+          test -z "$(git status --porcelain --untracked-files=all)"
 
       - name: Check for generated code files colliding with src files
         run:

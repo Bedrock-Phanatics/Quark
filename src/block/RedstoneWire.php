@@ -23,16 +23,19 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\RedstoneWireBehavior;
+use pocketmine\block\utils\redstone\PowerSource;
+use pocketmine\block\utils\redstone\Transmittable;
+
 use pocketmine\block\utils\AnalogRedstoneSignalEmitter;
 use pocketmine\block\utils\AnalogRedstoneSignalEmitterTrait;
-use pocketmine\block\utils\StaticSupportTrait;
 use pocketmine\item\Item;
 use pocketmine\item\VanillaItems;
 use pocketmine\math\Facing;
 
-class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter{
+class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter, PowerSource, Transmittable{
+	use RedstoneWireBehavior;
 	use AnalogRedstoneSignalEmitterTrait;
-	use StaticSupportTrait;
 
 	public function readStateFromWorld() : Block{
 		parent::readStateFromWorld();
@@ -41,9 +44,6 @@ class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter{
 		return $this;
 	}
 
-	private function canBeSupportedAt(Block $block) : bool{
-		return $block->getAdjacentSupportType(Facing::DOWN)->hasCenterSupport();
-	}
 
 	public function asItem() : Item{
 		return VanillaItems::REDSTONE_DUST();
