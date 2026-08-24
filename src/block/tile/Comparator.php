@@ -25,6 +25,8 @@ namespace pocketmine\block\tile;
 
 use pocketmine\block\RedstoneComparator;
 use pocketmine\nbt\tag\CompoundTag;
+use function max;
+use function min;
 
 /**
  * @deprecated

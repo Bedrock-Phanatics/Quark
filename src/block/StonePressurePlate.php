@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\entity\Entity;
-use pocketmine\entity\Living;
-use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
 use pocketmine\block\utils\redstone\PowerSource;
 use pocketmine\block\utils\redstone\PressurePlateTrait;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
+use pocketmine\entity\Entity;
+use pocketmine\entity\Living;
 use function array_filter;
 
 class StonePressurePlate extends SimplePressurePlate implements PowerSource{

@@ -360,9 +360,9 @@ final class VanillaBlocksInputs extends RegistrySource{
 		self::register("red_mushroom", fn(BID $id) => new RedMushroom($id, "Red Mushroom", new Info(BreakInfo::instant(), [Tags::POTTABLE_PLANTS])));
 		self::register("redstone", fn(BID $id) => new Redstone($id, "Redstone Block", new Info(BreakInfo::pickaxe(5.0, ToolTier::WOOD, 30.0))));
 		self::register("dispenser", fn(BID $id) => new Dispenser($id, "Dispenser", new Info(new BreakInfo(3.5, ToolType::PICKAXE))), TileDispenser::class);
-		self::register("piston", fn(BID $id) => new Piston($id, "Piston", new Info(new BreakInfo(0.5)), false), TilePistonArm::class);
-		self::register("piston_arm_collision", fn(BID $id) => new PistonArmCollision($id, "Piston Arm", new Info(new BreakInfo(0.5))));
-		self::register("sticky_piston", fn(BID $id) => new Piston($id, "Sticky Piston", new Info(new BreakInfo(0.5)), true), TilePistonArm::class);
+		self::register("piston", fn(BID $id) => new Piston($id, "Piston", new Info(new BreakInfo(1.5)), false), TilePistonArm::class);
+		self::register("piston_arm_collision", fn(BID $id) => new PistonArmCollision($id, "Piston Arm", new Info(new BreakInfo(1.5))));
+		self::register("sticky_piston", fn(BID $id) => new Piston($id, "Sticky Piston", new Info(new BreakInfo(1.5)), true), TilePistonArm::class);
 
 		self::register("redstone_comparator", fn(BID $id) => new RedstoneComparator($id, "Redstone Comparator", new Info(BreakInfo::instant())), TileComparator::class);
 		self::register("redstone_lamp", fn(BID $id) => new RedstoneLamp($id, "Redstone Lamp", new Info(new BreakInfo(0.3))));

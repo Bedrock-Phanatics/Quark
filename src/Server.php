@@ -27,6 +27,8 @@ declare(strict_types=1);
  */
 namespace pocketmine;
 
+use pocketmine\block\tile\comparator\ComparatorWeightRegistry;
+use pocketmine\block\tile\dispenser\DispensableItemManager;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\command\SimpleCommandMap;
@@ -91,11 +93,6 @@ use pocketmine\plugin\ScriptPluginLoader;
 use pocketmine\promise\Promise;
 use pocketmine\promise\PromiseResolver;
 use pocketmine\resourcepacks\ResourcePackManager;
-use pocketmine\block\tile\comparator\ComparatorWeightRegistry;
-use pocketmine\block\tile\dispenser\DispensableItemManager;
-use pocketmine\world\redstone\RedstoneConfig;
-use pocketmine\world\redstone\RedstoneManager;
-use pocketmine\world\tnt\TntConfig;
 use pocketmine\scheduler\AsyncPool;
 use pocketmine\scheduler\TimingsCollectionTask;
 use pocketmine\scheduler\TimingsControlTask;
@@ -126,6 +123,9 @@ use pocketmine\world\generator\Generator;
 use pocketmine\world\generator\GeneratorManager;
 use pocketmine\world\generator\InvalidGeneratorOptionsException;
 use pocketmine\world\Position;
+use pocketmine\world\redstone\RedstoneConfig;
+use pocketmine\world\redstone\RedstoneManager;
+use pocketmine\world\tnt\TntConfig;
 use pocketmine\world\World;
 use pocketmine\world\WorldCreationOptions;
 use pocketmine\world\WorldManager;
@@ -143,10 +143,10 @@ use function date;
 use function extension_loaded;
 use function fclose;
 use function file_exists;
-use function function_exists;
 use function file_put_contents;
 use function filemtime;
 use function fopen;
+use function function_exists;
 use function get_class;
 use function gettype;
 use function ini_set;
@@ -1899,7 +1899,7 @@ class Server{
 		return $this->network;
 	}
 
-	public function getNetworkCompressor(): Compressor {
+	public function getNetworkCompressor() : Compressor {
 		return $this->networkCompressor;
 	}
 

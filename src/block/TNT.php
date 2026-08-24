@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\Powerable;
+use pocketmine\block\utils\redstone\PowerableTrait;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 use pocketmine\entity\Location;
 use pocketmine\entity\object\PrimedTNT;
@@ -38,9 +41,6 @@ use pocketmine\player\Player;
 use pocketmine\utils\Random;
 use pocketmine\world\sound\IgniteSound;
 use pocketmine\world\tnt\TntLimiter;
-use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
-use pocketmine\block\utils\redstone\Powerable;
-use pocketmine\block\utils\redstone\PowerableTrait;
 use function cos;
 use function sin;
 use const M_PI;

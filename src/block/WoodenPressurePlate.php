@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\PowerSource;
+use pocketmine\block\utils\redstone\PressurePlateTrait;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
 use pocketmine\block\utils\WoodMaterial;
 use pocketmine\block\utils\WoodType;
 use pocketmine\block\utils\WoodTypeTrait;
-use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
-use pocketmine\block\utils\redstone\PowerSource;
-use pocketmine\block\utils\redstone\PressurePlateTrait;
 
 class WoodenPressurePlate extends SimplePressurePlate implements WoodMaterial, PowerSource{
 	use PressurePlateTrait;

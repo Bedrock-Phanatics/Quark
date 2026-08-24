@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\redstone\RedstoneRepeaterBehavior;
-use pocketmine\block\utils\redstone\ToggleablePowerSource;
-use pocketmine\block\utils\redstone\Transmittable;
-use pocketmine\block\utils\redstone\Waitable;
-
 use pocketmine\block\utils\HorizontalFacing;
 use pocketmine\block\utils\HorizontalFacingTrait;
 use pocketmine\block\utils\PoweredByRedstone;
 use pocketmine\block\utils\PoweredByRedstoneTrait;
+
+use pocketmine\block\utils\redstone\RedstoneRepeaterBehavior;
+use pocketmine\block\utils\redstone\ToggleablePowerSource;
+use pocketmine\block\utils\redstone\Transmittable;
+use pocketmine\block\utils\redstone\Waitable;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
@@ -86,6 +86,5 @@ class RedstoneRepeater extends Flowable implements PoweredByRedstone, Horizontal
 		$this->position->getWorld()->setBlock($this->position, $this);
 		return true;
 	}
-
 
 }

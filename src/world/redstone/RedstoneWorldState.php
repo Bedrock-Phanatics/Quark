@@ -1,5 +1,24 @@
 <?php
 
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace pocketmine\world\redstone;
@@ -8,16 +27,17 @@ use Generator;
 use InvalidArgumentException;
 use pocketmine\block\Block;
 use pocketmine\block\Opaque;
-use pocketmine\timings\Timings;
+use pocketmine\block\RedstoneWire;
+use pocketmine\block\utils\redstone\PowerSource;
+use pocketmine\block\utils\redstone\RedstoneBlockUtils;
+use pocketmine\block\utils\redstone\Waitable;
 use pocketmine\math\Facing;
+use pocketmine\timings\Timings;
 use pocketmine\world\format\Chunk;
 use pocketmine\world\World;
 use RangeException;
-use pocketmine\block\utils\redstone\PowerSource;
-use pocketmine\block\utils\redstone\Waitable;
-use pocketmine\block\RedstoneWire;
-use pocketmine\block\utils\redstone\RedstoneBlockUtils;
-use pocketmine\world\redstone\RedstoneConfig;
+use function intdiv;
+use function max;
 
 final class RedstoneWorldState{
 
@@ -96,7 +116,6 @@ final class RedstoneWorldState{
 		}
 	}
 
-
 	public function loadChunk(int $chunkX, int $chunkZ) : void{
 		$this->chunks[World::chunkHash($chunkX, $chunkZ)] = null;
 	}
@@ -126,9 +145,6 @@ final class RedstoneWorldState{
 	 * Returns all power sources that have the potential to strongly power
 	 * the opaque block.
 	 *
-	 * @param Block $block
-	 * @param int $facing
-	 * @param int|null $ignored_side
 	 * @return Generator<PowerSource>
 	 */
 	public function getPotentiallyStronglyPoweringSources(Block $block, int $facing, ?int $ignored_side = null) : Generator{
@@ -150,14 +166,10 @@ final class RedstoneWorldState{
 		}
 	}
 
-
 	/**
 	 * Returns all power sources that are strongly powering the opaque
 	 * block.
 	 *
-	 * @param Block $block
-	 * @param int $facing
-	 * @param int|null $ignored_side
 	 * @return Generator<PowerSource>
 	 */
 	public function getStronglyPoweringSources(Block $block, int $facing, ?int $ignored_side = null) : Generator{
@@ -170,11 +182,6 @@ final class RedstoneWorldState{
 
 	/**
 	 * Returns whether the opaque block is strongly powered.
-	 *
-	 * @param Block $block
-	 * @param int $facing
-	 * @param int|null $ignored_side
-	 * @return bool
 	 */
 	public function isStronglyPowered(Block $block, int $facing, ?int $ignored_side = null) : bool{
 		foreach($this->getPotentiallyStronglyPoweringSources($block, $facing, $ignored_side) as $source){

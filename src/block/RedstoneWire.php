@@ -23,15 +23,14 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\redstone\RedstoneWireBehavior;
-use pocketmine\block\utils\redstone\PowerSource;
-use pocketmine\block\utils\redstone\Transmittable;
-
 use pocketmine\block\utils\AnalogRedstoneSignalEmitter;
 use pocketmine\block\utils\AnalogRedstoneSignalEmitterTrait;
+use pocketmine\block\utils\redstone\PowerSource;
+
+use pocketmine\block\utils\redstone\RedstoneWireBehavior;
+use pocketmine\block\utils\redstone\Transmittable;
 use pocketmine\item\Item;
 use pocketmine\item\VanillaItems;
-use pocketmine\math\Facing;
 
 class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter, PowerSource, Transmittable{
 	use RedstoneWireBehavior;
@@ -43,7 +42,6 @@ class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter, Powe
 
 		return $this;
 	}
-
 
 	public function asItem() : Item{
 		return VanillaItems::REDSTONE_DUST();

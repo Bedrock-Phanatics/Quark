@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\ButtonTrait;
+use pocketmine\block\utils\redstone\PowerSource;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
 use pocketmine\block\utils\WoodMaterial;
 use pocketmine\block\utils\WoodTypeTrait;
-use pocketmine\block\utils\redstone\ButtonTrait;
-use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
-use pocketmine\block\utils\redstone\PowerSource;
 use pocketmine\entity\Entity;
 use pocketmine\entity\projectile\Arrow;
 use pocketmine\item\VanillaItems;

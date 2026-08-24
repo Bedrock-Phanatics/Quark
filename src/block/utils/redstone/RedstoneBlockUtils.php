@@ -1,5 +1,24 @@
 <?php
 
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+ */
+
 declare(strict_types=1);
 
 namespace pocketmine\block\utils\redstone;
@@ -20,7 +39,6 @@ use pocketmine\world\World;
 use function count;
 
 final class RedstoneBlockUtils{
-
 
 	public static function getBlockAtSide(Position $position, int $side, int $step = 1) : Block{
 		[$offsetX, $offsetY, $offsetZ] = Facing::OFFSET[$side];
@@ -46,8 +64,6 @@ final class RedstoneBlockUtils{
 	}
 
 	/**
-	 * @param Inventory $inventory
-	 * @param bool $include_empty
 	 * @return array<int, Item>
 	 */
 	public static function fastReadOnlyInventoryContents(Inventory $inventory, bool $include_empty = false) : array{

@@ -132,10 +132,10 @@ function parse_mojang_language_defs(string $contents) : array{
  * @return string[]
  * @phpstan-return list<string>
  */
-function verify_keys(array $pocketmine, array $mojang, array $knownBadKeys) : array{
+function verify_keys(array $translations, array $mojang, array $knownBadKeys) : array{
 	$wrong = [];
-	foreach($pocketmine as $k => $v){
-		if(str_starts_with($k, "pocketmine.")){
+	foreach($translations as $k => $v){
+		if(str_starts_with($k, "pocketmine.") || str_starts_with($k, "quark.")){
 			continue;
 		}
 
@@ -144,7 +144,7 @@ function verify_keys(array $pocketmine, array $mojang, array $knownBadKeys) : ar
 		}
 	}
 	foreach($knownBadKeys as $k => $_){
-		if(!isset($pocketmine[$k])){
+		if(!isset($translations[$k])){
 			fwrite(STDERR, "known-bad-keys.json contains key \"$k\" which does not exist in eng.ini\n");
 		}
 	}
@@ -191,9 +191,9 @@ foreach($knownBadKeysDecoded as $key){
 
 $badKeys = verify_keys($eng, $mojang, array_fill_keys($knownBadKeys, true));
 if(count($badKeys) !== 0){
-	fwrite(STDERR, "The following non-\"pocketmine.\" keys are not matched by Mojang sources and are not whitelisted:\n");
+	fwrite(STDERR, "The following server translation keys are not matched by Mojang sources and are not whitelisted:\n");
 	fwrite(STDERR, json_encode($badKeys, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
-	fwrite(STDERR, "Keys must either match Mojang sources, or be prefixed with \"pocketmine.\"\n");
+	fwrite(STDERR, "Keys must either match Mojang sources, or be prefixed with \"pocketmine.\" or \"quark.\"\n");
 	fwrite(STDERR, "Failure to do so will cause these to be shown incorrectly on clients, as the server won't translate them\n");
 	exit(1);
 }
