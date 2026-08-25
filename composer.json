@@ -43,6 +43,7 @@
       "axolotl-pm/bedrock-data": "6.8.0+bedrock-1.26.40",
       "axolotl-pm/bedrock-item-upgrade-schema": "1.18.0+bedrock-1.26.40",
       "axolotl-pm/bedrock-protocol": "dev-master#61d0b67968a664048a0a8dc6e1ecf5e9d7e4b8a6",
+      "axolotl-pm/xoroshiro128pp": "0.1.0",
       "netresearch/jsonmapper": "~v6.0.0",
       "pocketmine/binaryutils": "^0.2.1",
       "pocketmine/callback-validator": "~1.0.4",
