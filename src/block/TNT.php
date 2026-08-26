@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\Powerable;
+use pocketmine\block\utils\redstone\PowerableTrait;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 use pocketmine\entity\Location;
 use pocketmine\entity\object\PrimedTNT;
@@ -37,11 +40,24 @@ use pocketmine\math\Vector3;
 use pocketmine\player\Player;
 use pocketmine\utils\Random;
 use pocketmine\world\sound\IgniteSound;
+use pocketmine\world\tnt\TntLimiter;
 use function cos;
 use function sin;
 use const M_PI;
 
-class TNT extends Opaque{
+class TNT extends Opaque implements Powerable{
+	use RedstoneBlockAccessTrait;
+	use PowerableTrait;
+
+	private(set) int $activation_delay = 0;
+	private(set) int $deactivation_delay = 0;
+	private(set) bool $requires_strong_power = false;
+
+	public function isPowered() : bool{ return false; }
+
+	protected function onReceivePower(int $power) : void{
+		if($power > 0){ $this->ignite(); }
+	}
 	protected bool $unstable = false; //TODO: Usage unclear, seems to be a weird hack in vanilla
 	protected bool $worksUnderwater = false;
 
@@ -70,8 +86,7 @@ class TNT extends Opaque{
 	}
 
 	public function onBreak(Item $item, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($this->unstable){
-			$this->ignite();
+		if($this->unstable && $this->ignite()){
 			return true;
 		}
 		return parent::onBreak($item, $player, $returnedItems);
@@ -79,23 +94,26 @@ class TNT extends Opaque{
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
 		if($item->getTypeId() === ItemTypeIds::FIRE_CHARGE){
-			$item->pop();
-			$this->ignite();
+			if($this->ignite()){
+				$item->pop();
+			}
 			return true;
 		}
 		if($item instanceof FlintSteel || $item->hasEnchantment(VanillaEnchantments::FIRE_ASPECT())){
-			if($item instanceof Durable){
+			if($this->ignite() && $item instanceof Durable){
 				$item->applyDamage(1);
 			}
-			$this->ignite();
 			return true;
 		}
 
 		return false;
 	}
 
-	public function ignite(int $fuse = 80) : void{
+	public function ignite(int $fuse = 80) : bool{
 		$world = $this->position->getWorld();
+		if(!TntLimiter::tryIgnite($this->position)){
+			return false;
+		}
 		$world->setBlock($this->position, VanillaBlocks::AIR());
 
 		$mot = (new Random())->nextSignedFloat() * M_PI * 2;
@@ -107,6 +125,7 @@ class TNT extends Opaque{
 
 		$tnt->spawnToAll();
 		$tnt->broadcastSound(new IgniteSound());
+		return true;
 	}
 
 	public function getFlameEncouragement() : int{

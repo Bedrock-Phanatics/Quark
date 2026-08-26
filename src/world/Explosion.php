@@ -245,7 +245,9 @@ class Explosion{
 		foreach($this->affectedBlocks as $hash => $block){
 			$pos = $block->getPosition();
 			if($block instanceof TNT){
-				$block->ignite(mt_rand(10, 30));
+				if(!$block->ignite(mt_rand(10, 30))){
+					$this->world->setBlockAt((int) $pos->x, (int) $pos->y, (int) $pos->z, $airBlock);
+				}
 			}else{
 				if(mt_rand(0, 100) < $yield){
 					$drops = $block->getBreakInfo()->isExplosionHarvestable() ?

@@ -74,7 +74,6 @@ class EntityDamageEvent extends EntityEvent implements Cancellable{
 	private array $originals;
 	private int $attackCooldown = 10;
 
-	/** @var float */
 	private float $protectedDamage = 0.0;
 
 	/**

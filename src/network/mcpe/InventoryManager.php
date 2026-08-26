@@ -36,6 +36,7 @@ use pocketmine\block\inventory\SmithingTableInventory;
 use pocketmine\block\inventory\StonecutterInventory;
 use pocketmine\crafting\FurnaceType;
 use pocketmine\data\bedrock\EnchantmentIdMap;
+use pocketmine\inventory\BlockInventoryWindow;
 use pocketmine\inventory\Inventory;
 use pocketmine\inventory\transaction\action\SlotChangeAction;
 use pocketmine\inventory\transaction\InventoryTransaction;
@@ -345,7 +346,7 @@ class InventoryManager{
 					$windowType = null;
 					foreach($pks as $pk){
 						if($pk instanceof ContainerOpenPacket){
-							//workaround useless bullshit in 1.21 - ContainerClose requires a type now for some reason
+							//Bedrock 1.21 requires ContainerClose packets to include the window type
 							$windowType = $pk->windowType;
 						}
 						$this->session->sendDataPacket($pk);
@@ -372,6 +373,7 @@ class InventoryManager{
 		if($inv instanceof BlockInventory){
 			$blockPosition = BlockPosition::fromVector3($inv->getHolder());
 			$windowType = match(true){
+				$inv instanceof BlockInventoryWindow => $inv->getNetworkWindowType(),
 				$inv instanceof LoomInventory => WindowTypes::LOOM,
 				$inv instanceof FurnaceInventory => match($inv->getFurnaceType()){
 						FurnaceType::FURNACE => WindowTypes::FURNACE,

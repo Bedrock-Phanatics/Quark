@@ -128,7 +128,8 @@ abstract class PressurePlate extends Transparent{
 		//it will cause scheduled updates on the plate every tick. We don't want to fire events in this case if the
 		//plate is already deactivated.
 		if(count($activatingEntities) > 0 || $this->hasOutputSignal()){
-			[$newState, $pressedChange] = $this->calculatePlateState($activatingEntities);
+			$wasPowered = $this->hasOutputSignal();
+			[$newState] = $this->calculatePlateState($activatingEntities);
 
 			//always call this, in case there are new entities on the plate
 			if(PressurePlateUpdateEvent::hasHandlers()){
@@ -136,16 +137,17 @@ abstract class PressurePlate extends Transparent{
 				$ev->call();
 				$newState = $ev->isCancelled() ? null : $ev->getNewState();
 			}
+			$isPowered = $newState === null ? $wasPowered : $newState instanceof self && $newState->hasOutputSignal();
 			if($newState !== null){
 				$world->setBlock($this->position, $newState);
-				if($pressedChange !== null){
-					$world->addSound($this->position, $pressedChange ?
+				if($isPowered !== $wasPowered){
+					$world->addSound($this->position, $isPowered ?
 						new PressurePlateActivateSound($this) :
 						new PressurePlateDeactivateSound($this)
 					);
 				}
 			}
-			if($pressedChange ?? $this->hasOutputSignal()){
+			if($isPowered){
 				$world->scheduleDelayedBlockUpdate($this->position, $this->deactivationDelayTicks);
 			}
 		}

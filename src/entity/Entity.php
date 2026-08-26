@@ -1158,6 +1158,12 @@ abstract class Entity{
 		return $block->isSolid() && !$block->isTransparent() && $block->collidesWithBB($this->getBoundingBox());
 	}
 
+	/** @internal Quark redstone piston movement fast path. */
+	public function moveByPiston(float $dx, float $dy, float $dz) : void{
+		$this->move($dx, $dy, $dz);
+		$this->updateMovement();
+	}
+
 	protected function move(float $dx, float $dy, float $dz) : void{
 		$this->blocksAround = null;
 
