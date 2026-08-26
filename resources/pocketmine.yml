@@ -133,7 +133,7 @@ ticks-per:
 
 auto-report:
   #Send crash reports for processing
-  enabled: true
+  enabled: false
   send-code: true
   send-settings: true
   send-phpinfo: false
@@ -146,7 +146,7 @@ anonymous-statistics:
   host: stats.pocketmine.net
 
 auto-updater:
-  enabled: true
+  enabled: false
   on-update:
     warn-console: true
   #Can be development, alpha, beta or stable.
@@ -221,7 +221,7 @@ redstone:
 tnt-limits:
   # Set enabled to false to preserve unrestricted vanilla TNT activation.
   # Any individual numeric limit may be set to 0 for unlimited.
-  enabled: true
+  enabled: false
   # Active TNT is attributed to the chunk where it was ignited, even after it moves.
   max-active-per-chunk: 64
   # Combined active TNT originating in the surrounding 3x3 chunk area.
