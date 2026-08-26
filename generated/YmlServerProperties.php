@@ -98,6 +98,17 @@ final class YmlServerProperties{
 	public const PLAYER_VERIFY_XUID = 'player.verify-xuid';
 	public const PLUGINS = 'plugins';
 	public const PLUGINS_LEGACY_DATA_DIR = 'plugins.legacy-data-dir';
+	public const REDSTONE = 'redstone';
+	public const REDSTONE_DISPENSERS_ENABLED = 'redstone.dispensers-enabled';
+	public const REDSTONE_ENABLED = 'redstone.enabled';
+	public const REDSTONE_MAX_DISPENSER_ACTIONS_PER_TICK = 'redstone.max-dispenser-actions-per-tick';
+	public const REDSTONE_MAX_PISTON_ACTIONS_PER_TICK = 'redstone.max-piston-actions-per-tick';
+	public const REDSTONE_MAX_SCHEDULED_UPDATES = 'redstone.max-scheduled-updates';
+	public const REDSTONE_MAX_UPDATES_PER_TICK = 'redstone.max-updates-per-tick';
+	public const REDSTONE_MAX_WIRE_NETWORK_SIZE = 'redstone.max-wire-network-size';
+	public const REDSTONE_PISTONS_ENABLED = 'redstone.pistons-enabled';
+	public const REDSTONE_WORLDS = 'redstone.worlds';
+	public const REDSTONE_WORLD_POLICY = 'redstone.world-policy';
 	public const SETTINGS = 'settings';
 	public const SETTINGS_ASYNC_WORKERS = 'settings.async-workers';
 	public const SETTINGS_ENABLE_DEV_BUILDS = 'settings.enable-dev-builds';
@@ -110,5 +121,11 @@ final class YmlServerProperties{
 	public const TICKS_PER_AUTOSAVE = 'ticks-per.autosave';
 	public const TIMINGS = 'timings';
 	public const TIMINGS_HOST = 'timings.host';
+	public const TNT_LIMITS = 'tnt-limits';
+	public const TNT_LIMITS_ENABLED = 'tnt-limits.enabled';
+	public const TNT_LIMITS_MAX_ACTIVE_NEARBY = 'tnt-limits.max-active-nearby';
+	public const TNT_LIMITS_MAX_ACTIVE_PER_CHUNK = 'tnt-limits.max-active-per-chunk';
+	public const TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND = 'tnt-limits.max-dispenser-ignitions-per-second';
+	public const TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK = 'tnt-limits.max-ignitions-per-chunk-per-tick';
 	public const WORLDS = 'worlds';
 }

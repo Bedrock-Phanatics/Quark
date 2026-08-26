@@ -23,9 +23,15 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\redstone\PowerSource;
+use pocketmine\block\utils\redstone\PressurePlateTrait;
+use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
+
 /**
  * @deprecated
  */
-class WeightedPressurePlateHeavy extends WeightedPressurePlate{
+class WeightedPressurePlateHeavy extends WeightedPressurePlate implements PowerSource{
+	use PressurePlateTrait;
+	use RedstoneBlockAccessTrait;
 
 }

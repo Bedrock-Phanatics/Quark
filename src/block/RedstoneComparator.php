@@ -27,11 +27,14 @@ use pocketmine\block\tile\Comparator;
 use pocketmine\block\utils\AnalogRedstoneSignalEmitter;
 use pocketmine\block\utils\AnalogRedstoneSignalEmitterTrait;
 use pocketmine\block\utils\HorizontalFacing;
+
 use pocketmine\block\utils\HorizontalFacingTrait;
 use pocketmine\block\utils\PoweredByRedstone;
 use pocketmine\block\utils\PoweredByRedstoneTrait;
-use pocketmine\block\utils\StaticSupportTrait;
-use pocketmine\block\utils\SupportType;
+use pocketmine\block\utils\redstone\RedstoneComparatorBehavior;
+use pocketmine\block\utils\redstone\Transmittable;
+use pocketmine\block\utils\redstone\VariablePowerSource;
+use pocketmine\block\utils\redstone\Waitable;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
@@ -41,11 +44,11 @@ use pocketmine\player\Player;
 use pocketmine\world\BlockTransaction;
 use function assert;
 
-class RedstoneComparator extends Flowable implements AnalogRedstoneSignalEmitter, PoweredByRedstone, HorizontalFacing{
+class RedstoneComparator extends Flowable implements AnalogRedstoneSignalEmitter, PoweredByRedstone, HorizontalFacing, VariablePowerSource, Transmittable, Waitable{
+	use RedstoneComparatorBehavior;
 	use HorizontalFacingTrait;
 	use AnalogRedstoneSignalEmitterTrait;
 	use PoweredByRedstoneTrait;
-	use StaticSupportTrait;
 
 	protected bool $isSubtractMode = false;
 
@@ -99,9 +102,4 @@ class RedstoneComparator extends Flowable implements AnalogRedstoneSignalEmitter
 		return true;
 	}
 
-	private function canBeSupportedAt(Block $block) : bool{
-		return $block->getAdjacentSupportType(Facing::DOWN) !== SupportType::NONE;
-	}
-
-	//TODO: redstone functionality
 }

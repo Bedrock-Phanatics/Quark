@@ -1,19 +1,22 @@
 <?php
 
 /*
- *   ____  _   _    _    ____  _  __
- *  / __ \| | | |  / \  |  _ \| |/ /
- * | |  | | | | | / _ \ | |_) | ' /
- * | |__| | |_| |/ ___ \|  _ <| . \
- *  \___\_\\___//_/   \_\_| \_\_|\_\
  *
- * Quark - Performance without compromise.
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
  *
- * A high-performance fork of PocketMine-MP for Minecraft: Bedrock Edition.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Licensed under the GNU Lesser General Public License v3.0 or later.
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
  *
- * @link https://github.com/Bedrock-Phanatics/Quark
+ *
  */
 
 declare(strict_types=1);
@@ -35,12 +38,12 @@ final class SnappyCompressor implements Compressor{
 		private int $maxDecompressionSize
 	){}
 
-	public function getCompressionThreshold(): ?int {
+	public function getCompressionThreshold() : ?int {
 		return $this->minCompressionSize;
 	}
 
 	/* @throws DecompressionException */
-	private function readUncompressedLength(string $payload): int {
+	private function readUncompressedLength(string $payload) : int {
 		$result = 0;
 		$shift = 0;
 		$length = strlen($payload);
@@ -59,7 +62,7 @@ final class SnappyCompressor implements Compressor{
 		throw new DecompressionException("Invalid Snappy uncompressed length");
 	}
 
-	public function decompress(string $payload): string {
+	public function decompress(string $payload) : string {
 		$expectedLength = $this->readUncompressedLength($payload);
 		$result = @snappy_uncompress($payload);
 		if ($result === false || strlen($result) !== $expectedLength) {
@@ -68,11 +71,11 @@ final class SnappyCompressor implements Compressor{
 		return $result;
 	}
 
-	public function compress(string $payload): string {
+	public function compress(string $payload) : string {
 		return Utils::assumeNotFalse(snappy_compress($payload), "Snappy compression failed");
 	}
 
-	public function getNetworkId(): int {
+	public function getNetworkId() : int {
 		return CompressionAlgorithm::SNAPPY;
 	}
 }

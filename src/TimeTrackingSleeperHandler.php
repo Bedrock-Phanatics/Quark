@@ -55,8 +55,11 @@ final class TimeTrackingSleeperHandler extends SleeperHandler{
 
 		return parent::addNotifier(function() use ($timings, $handler) : void{
 			$timings->startTiming();
-			$handler();
-			$timings->stopTiming();
+			try{
+				$handler();
+			}finally{
+				$timings->stopTiming();
+			}
 		});
 	}
 

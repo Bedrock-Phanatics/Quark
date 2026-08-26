@@ -28,7 +28,7 @@ For development, omit `--no-dev` so PHPUnit and PHPStan are installed.
 ## Goals
 
 - Improve throughput and reduce latency in hot paths.
-- Prefer measurable optimizations over speculative complexity.
+- Prefer measurable optimizations to speculative complexity.
 - Use native extensions for compression, encoding, serialization, database, and networking workloads when they provide a meaningful benefit.
 - Preserve PocketMine plugin compatibility where it does not conflict with correctness or performance.
 - Keep runtime behavior configurable when different server workloads need different tradeoffs.
@@ -65,11 +65,20 @@ For development, omit `--no-dev` so PHPUnit and PHPStan are installed.
 > [!NOTE]
 > Plugins using the provided damage constants should continue to work. Plugins depending on previous raw integer values or undocumented internals may require changes.
 
-## Configuration
+## Runtime redstone API
 
-Snappy affects Bedrock network packet compression only. LevelDB, player data, Java-world compatibility, and crash reports retain their format-required compression codecs.
+Plugins can apply non-persistent world or chunk overrides on the main thread without loading chunks:
 
-Random block ticking can be reduced or disabled through `chunk-ticking.blocks-per-subchunk-per-tick` and `chunk-ticking.disable-block-ticking` in `pocketmine.yml`.
+```php
+$redstone = $server->getRedstoneManager();
+$redstone->setWorldEnabled($world, false);
+$redstone->setChunkEnabled($world, $chunkX, $chunkZ, true);
+
+$redstone->clearChunkOverride($world, $chunkX, $chunkZ);
+$redstone->clearWorldOverride($world);
+```
+
+Chunk overrides take precedence over world policy. Policy data may be loaded asynchronously, but overrides and world access must be applied on the main thread.
 
 ## Compatibility
 

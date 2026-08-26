@@ -25,6 +25,8 @@ namespace pocketmine\block\tile;
 
 use pocketmine\block\RedstoneComparator;
 use pocketmine\nbt\tag\CompoundTag;
+use function max;
+use function min;
 
 /**
  * @deprecated
@@ -40,11 +42,11 @@ class Comparator extends Tile{
 	}
 
 	public function setSignalStrength(int $signalStrength) : void{
-		$this->signalStrength = $signalStrength;
+		$this->signalStrength = min(15, max(0, $signalStrength));
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
-		$this->signalStrength = $nbt->getInt(self::TAG_OUTPUT_SIGNAL, 0);
+		$this->setSignalStrength($nbt->getInt(self::TAG_OUTPUT_SIGNAL, 0));
 	}
 
 	protected function writeSaveData(CompoundTag $nbt) : void{

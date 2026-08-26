@@ -80,6 +80,11 @@ abstract class Timings{
 
 	public static TimingsHandler $playerCommand;
 	public static TimingsHandler $craftingDataCacheRebuild;
+	public static TimingsHandler $redstone;
+	public static TimingsHandler $redstoneScheduler;
+	public static TimingsHandler $redstoneWireNetworks;
+	public static TimingsHandler $redstonePistons;
+	public static TimingsHandler $redstoneDispensers;
 
 	public static TimingsHandler $syncPlayerDataLoad;
 	public static TimingsHandler $syncPlayerDataSave;
@@ -198,6 +203,11 @@ abstract class Timings{
 
 		self::$playerCommand = new TimingsHandler("Player Command");
 		self::$craftingDataCacheRebuild = new TimingsHandler("Build CraftingDataPacket Cache");
+		self::$redstone = new TimingsHandler("Redstone");
+		self::$redstoneScheduler = new TimingsHandler("Redstone - Scheduled Updates", self::$redstone);
+		self::$redstoneWireNetworks = new TimingsHandler("Redstone - Wire Networks", self::$redstone);
+		self::$redstonePistons = new TimingsHandler("Redstone - Pistons", self::$redstone);
+		self::$redstoneDispensers = new TimingsHandler("Redstone - Dispensers", self::$redstone);
 
 	}
 

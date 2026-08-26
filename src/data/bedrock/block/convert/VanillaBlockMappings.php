@@ -1341,6 +1341,10 @@ final class VanillaBlockMappings{
 		]));
 
 		//D
+		$reg->mapModel(Model::create(Blocks::DISPENSER(), Ids::DISPENSER)->properties([
+			$commonProperties->anyFacingClassic,
+			new BoolProperty(StateNames::TRIGGERED_BIT, fn(PoweredByRedstone $b) => $b->isPowered(), fn(PoweredByRedstone $b, bool $v) => $b->setPowered($v))
+		]));
 		$reg->mapModel(Model::create(Blocks::DEEPSLATE(), Ids::DEEPSLATE)->properties([$commonProperties->pillarAxis]));
 		$reg->mapModel(Model::create(Blocks::DETECTOR_RAIL(), Ids::DETECTOR_RAIL)->properties([
 			new BoolProperty(StateNames::RAIL_DATA_BIT, fn(DetectorRail $b) => $b->isActivated(), fn(DetectorRail $b, bool $v) => $b->setActivated($v)),
@@ -1417,6 +1421,8 @@ final class VanillaBlockMappings{
 		]));
 
 		//P
+		$reg->mapModel(Model::create(Blocks::PISTON(), Ids::PISTON)->properties([$commonProperties->anyFacingClassic]));
+		$reg->mapModel(Model::create(Blocks::PISTON_ARM_COLLISION(), Ids::PISTON_ARM_COLLISION)->properties([$commonProperties->anyFacingClassic]));
 		$reg->mapModel(Model::create(Blocks::PINK_PETALS(), Ids::PINK_PETALS)->properties([
 			//Pink petals only uses 0-3, but GROWTH state can go up to 7
 			new IntProperty(StateNames::GROWTH, 0, 7, fn(PinkPetals $b) => $b->getCount(), fn(PinkPetals $b, int $v) => $b->setCount(min($v, PinkPetals::MAX_COUNT)), offset: 1),
@@ -1457,6 +1463,7 @@ final class VanillaBlockMappings{
 		]));
 
 		//S
+		$reg->mapModel(Model::create(Blocks::STICKY_PISTON(), Ids::STICKY_PISTON)->properties([$commonProperties->anyFacingClassic]));
 		$reg->mapModel(Model::create(Blocks::SEA_PICKLE(), Ids::SEA_PICKLE)->properties([
 			new IntProperty(StateNames::CLUSTER_COUNT, 0, 3, fn(SeaPickle $b) => $b->getCount(), fn(SeaPickle $b, int $v) => $b->setCount($v), offset: 1),
 			new BoolProperty(StateNames::DEAD_BIT, fn(SeaPickle $b) => $b->isUnderwater(), fn(SeaPickle $b, bool $v) => $b->setUnderwater($v), inverted: true)

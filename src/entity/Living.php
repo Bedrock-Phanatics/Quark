@@ -65,7 +65,6 @@ use pocketmine\world\sound\EntityLandSound;
 use pocketmine\world\sound\EntityLongFallSound;
 use pocketmine\world\sound\EntityShortFallSound;
 use pocketmine\world\sound\ItemBreakSound;
-use function abs;
 use function array_shift;
 use function atan2;
 use function ceil;
