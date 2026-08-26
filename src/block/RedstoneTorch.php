@@ -25,9 +25,15 @@ namespace pocketmine\block;
 
 use pocketmine\block\utils\Lightable;
 use pocketmine\block\utils\LightableTrait;
+use pocketmine\block\utils\redstone\RedstoneTorchBehavior;
+use pocketmine\block\utils\redstone\ToggleablePowerSource;
+
+use pocketmine\block\utils\redstone\Transmittable;
+use pocketmine\block\utils\redstone\Waitable;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 
-class RedstoneTorch extends Torch implements Lightable{
+class RedstoneTorch extends Torch implements Lightable, ToggleablePowerSource, Transmittable, Waitable{
+	use RedstoneTorchBehavior;
 	use LightableTrait;
 
 	public function __construct(BlockIdentifier $idInfo, string $name, BlockTypeInfo $typeInfo){

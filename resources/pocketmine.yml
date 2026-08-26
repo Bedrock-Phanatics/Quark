@@ -199,6 +199,38 @@ aliases:
   ##To change an existing command alias and make it do something else:
   #tp: [suicide]
 
+redstone:
+  # Enables Quark's native redstone propagation and component updates.
+  # Disabled mode skips redstone propagation and scheduled component processing.
+  enabled: true
+  # all: every world; allowlist: only listed worlds; blocklist: every world except listed worlds.
+  world-policy: all
+  # World folder names are matched case-insensitively.
+  worlds: []
+  # Hard safety limit for a connected wire component. Networks larger than this are left unchanged.
+  max-wire-network-size: 65536
+  # Caps queued component updates per world to prevent memory-exhaustion circuits.
+  max-scheduled-updates: 262144
+  # Excess work is deferred, keeping a single redstone clock from monopolizing a tick.
+  max-updates-per-tick: 8192
+  pistons-enabled: true
+  max-piston-actions-per-tick: 1024
+  dispensers-enabled: true
+  max-dispenser-actions-per-tick: 4096
+
+tnt-limits:
+  # Set enabled to false to preserve unrestricted vanilla TNT activation.
+  # Any individual numeric limit may be set to 0 for unlimited.
+  enabled: true
+  # Active TNT is attributed to the chunk where it was ignited, even after it moves.
+  max-active-per-chunk: 64
+  # Combined active TNT originating in the surrounding 3x3 chunk area.
+  max-active-nearby: 192
+  # Covers every core ignition source, including redstone, fire, projectiles, and explosions.
+  max-ignitions-per-chunk-per-tick: 24
+  # Per individual dispenser, measured over a 20-tick window.
+  max-dispenser-ignitions-per-second: 20
+
 worlds:
   #These settings will override the generator set in server.properties and allows loading multiple worlds
   #Example:

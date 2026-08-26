@@ -25,6 +25,8 @@ namespace pocketmine\block;
 
 use pocketmine\block\utils\HorizontalFacing;
 use pocketmine\block\utils\HorizontalFacingTrait;
+use pocketmine\block\utils\redstone\Powerable;
+use pocketmine\block\utils\redstone\PowerableDoorTrait;
 use pocketmine\block\utils\SupportType;
 use pocketmine\data\runtime\RuntimeDataDescriber;
 use pocketmine\item\Item;
@@ -35,7 +37,8 @@ use pocketmine\player\Player;
 use pocketmine\world\BlockTransaction;
 use pocketmine\world\sound\DoorSound;
 
-class Door extends Transparent implements HorizontalFacing{
+class Door extends Transparent implements HorizontalFacing, Powerable{
+	use PowerableDoorTrait;
 	use HorizontalFacingTrait;
 
 	protected bool $top = false;

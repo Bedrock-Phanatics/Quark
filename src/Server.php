@@ -27,6 +27,8 @@ declare(strict_types=1);
  */
 namespace pocketmine;
 
+use pocketmine\block\tile\comparator\ComparatorWeightRegistry;
+use pocketmine\block\tile\dispenser\DispensableItemManager;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\command\SimpleCommandMap;
@@ -121,6 +123,9 @@ use pocketmine\world\generator\Generator;
 use pocketmine\world\generator\GeneratorManager;
 use pocketmine\world\generator\InvalidGeneratorOptionsException;
 use pocketmine\world\Position;
+use pocketmine\world\redstone\RedstoneConfig;
+use pocketmine\world\redstone\RedstoneManager;
+use pocketmine\world\tnt\TntConfig;
 use pocketmine\world\World;
 use pocketmine\world\WorldCreationOptions;
 use pocketmine\world\WorldManager;
@@ -138,10 +143,10 @@ use function date;
 use function extension_loaded;
 use function fclose;
 use function file_exists;
-use function function_exists;
 use function file_put_contents;
 use function filemtime;
 use function fopen;
+use function function_exists;
 use function get_class;
 use function gettype;
 use function ini_set;
@@ -270,6 +275,7 @@ class Server{
 	private ResourcePackManager $resourceManager;
 
 	private WorldManager $worldManager;
+	private ?RedstoneManager $redstoneWorldManager = null;
 
 	private int $maxPlayers;
 
@@ -453,6 +459,11 @@ class Server{
 
 	public function getWorldManager() : WorldManager{
 		return $this->worldManager;
+	}
+
+	/** @api */
+	public function getRedstoneManager() : RedstoneManager{
+		return $this->redstoneWorldManager ?? throw new \LogicException('Redstone manager has not been initialized');
 	}
 
 	public function getAsyncPool() : AsyncPool{
@@ -1030,6 +1041,31 @@ class Server{
 			DefaultPermissions::registerCorePermissions();
 
 			$this->commandMap = new SimpleCommandMap($this);
+			$redstoneEnabled = $this->configGroup->getPropertyBool(Yml::REDSTONE_ENABLED, true);
+			$redstoneWorlds = $this->configGroup->getProperty(Yml::REDSTONE_WORLDS, []);
+			RedstoneConfig::configure(
+				$this->configGroup->getPropertyInt(Yml::REDSTONE_MAX_WIRE_NETWORK_SIZE, 65536),
+				$this->configGroup->getPropertyInt(Yml::REDSTONE_MAX_SCHEDULED_UPDATES, 262144),
+				$this->configGroup->getPropertyInt(Yml::REDSTONE_MAX_UPDATES_PER_TICK, 8192),
+				$this->configGroup->getPropertyBool(Yml::REDSTONE_PISTONS_ENABLED, true),
+				$this->configGroup->getPropertyBool(Yml::REDSTONE_DISPENSERS_ENABLED, true),
+				$this->configGroup->getPropertyInt(Yml::REDSTONE_MAX_PISTON_ACTIONS_PER_TICK, 1024),
+				$this->configGroup->getPropertyInt(Yml::REDSTONE_MAX_DISPENSER_ACTIONS_PER_TICK, 4096),
+				$redstoneEnabled,
+				$this->configGroup->getPropertyString(Yml::REDSTONE_WORLD_POLICY, RedstoneConfig::WORLD_POLICY_ALL),
+				is_array($redstoneWorlds) ? $redstoneWorlds : []
+			);
+			TntConfig::configure(
+				$this->configGroup->getPropertyBool(Yml::TNT_LIMITS_ENABLED, true),
+				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_PER_CHUNK, 64),
+				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_NEARBY, 192),
+				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK, 24),
+				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND, 20)
+			);
+			if($redstoneEnabled){
+				DispensableItemManager::init();
+				ComparatorWeightRegistry::init();
+			}
 
 			$this->craftingManager = CraftingManagerFromDataHelper::make(BedrockDataFiles::RECIPES);
 
@@ -1066,6 +1102,7 @@ class Server{
 			}
 
 			$this->worldManager = new WorldManager($this, Path::join($this->dataPath, "worlds"), $providerManager);
+			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
 
@@ -1862,7 +1899,7 @@ class Server{
 		return $this->network;
 	}
 
-	public function getNetworkCompressor(): Compressor {
+	public function getNetworkCompressor() : Compressor {
 		return $this->networkCompressor;
 	}
 
@@ -1915,6 +1952,7 @@ class Server{
 		Timings::$schedulerAsync->stopTiming();
 
 		$this->worldManager->tick($this->tickCounter);
+		$this->redstoneWorldManager?->tick();
 
 		Timings::$connection->startTiming();
 		$this->network->tick();
