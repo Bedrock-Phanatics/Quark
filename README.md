@@ -134,4 +134,4 @@ Performance changes should include evidence that they target a real bottleneck, 
 
 Quark builds on PocketMine-MP, Axolotl, BedrockProtocol, and the wider PocketMine ecosystem. It retains the licensing requirements of upstream projects and incorporated components.
 
-Quark's redstone system is based substantially on [**Cosmoverse/Redstone**](https://github.com/Cosmoverse/Redstone), a PocketMine-MP plugin bringing redstone mechanics to PocketMine-MP servers, created by @Muqsit (https://github.com/Muqsit).
+Quark's redstone system is based substantially on [**Cosmoverse/Redstone**](https://github.com/Cosmoverse/Redstone), a PocketMine-MP plugin bringing redstone mechanics to PocketMine-MP servers, created by [**@Muqsit**](https://github.com/Muqsit).
