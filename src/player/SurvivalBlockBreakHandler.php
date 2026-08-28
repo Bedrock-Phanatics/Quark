@@ -69,7 +69,7 @@ final class SurvivalBlockBreakHandler{
 	 * @return float
 	 */
 	private function calculateBreakProgressPerTick() : float{
-		if($this->block->getBreakInfo()->breaksInstantly()) {
+		if($this->block->getBreakInfo()->breaksInstantly()){
 			return 1.0;
 		}
 		if(!$this->block->getBreakInfo()->isBreakable()){
