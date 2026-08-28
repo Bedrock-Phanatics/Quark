@@ -263,8 +263,12 @@ abstract class Projectile extends Entity{
 			$this->pendingFeedbackOwner = $this->pendingFeedbackVictim = null;
 		}
 
-		$feedbackOwner?->getNetworkSession()->flushLatencySensitiveOutput();
-		$feedbackVictim?->getNetworkSession()->flushLatencySensitiveOutput(true);
+		if($feedbackOwner?->isConnected() === true){
+			$feedbackOwner->getNetworkSession()->flushLatencySensitiveOutput();
+		}
+		if($feedbackVictim?->isConnected() === true){
+			$feedbackVictim->getNetworkSession()->flushLatencySensitiveOutput(true);
+		}
 
 		$this->isCollided = $this->onGround = true;
 		if($motionBeforeHit->equals($this->motion)){
