@@ -421,6 +421,13 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		return "";
 	}
 
+	/**
+	 * @return SurvivalBlockBreakHandler|null
+	 */
+	public function getBlockBreakHandler() : ?SurvivalBlockBreakHandler{
+		return $this->blockBreakHandler;
+	}
+
 	public function isAuthenticated() : bool{
 		return $this->authenticated;
 	}
@@ -1551,8 +1558,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				Timings::$playerCheckNearEntities->stopTiming();
 			}
 
-			if($this->blockBreakHandler !== null && !$this->blockBreakHandler->update()){
-				$this->blockBreakHandler = null;
+			if($this->blockBreakHandler !== null){
+				if($this->blockBreakHandler->getBreakProgress() >= 1) {
+					// If the block break progress is 100% we break the block
+					// This is a hack for custom block
+					$this->breakBlock($this->blockBreakHandler->getBlockPos());
+					$this->blockBreakHandler = null;
+				}
+
+				$this->blockBreakHandler?->update();
 			}
 
 			if($this->isUsingItem() && $this->getItemUseDuration() % 4 === 0 && ($item = $this->inventory->getItemInHand()) instanceof ConsumableItem){
