@@ -2042,6 +2042,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$this->hungerManager->exhaust(0.1, PlayerExhaustEvent::CAUSE_ATTACK);
 		}
 
+		if($ev->getFinalDamage() > 0){
+			//Include all synchronous hit effects in the early batch.
+			$this->networkSession->flushLatencySensitiveOutput();
+			if($entity instanceof Player && $entity !== $this){
+				$entity->getNetworkSession()->flushLatencySensitiveOutput(true);
+			}
+		}
+
 		return true;
 	}
 

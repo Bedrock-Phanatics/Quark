@@ -88,6 +88,7 @@ final class YmlServerProperties{
 	public const NETWORK_ASYNC_COMPRESSION = 'network.async-compression';
 	public const NETWORK_ASYNC_COMPRESSION_THRESHOLD = 'network.async-compression-threshold';
 	public const NETWORK_BATCH_THRESHOLD = 'network.batch-threshold';
+	public const NETWORK_COMBAT_LOW_LATENCY_FEEDBACK = 'network.combat-low-latency-feedback';
 	public const NETWORK_COMPRESSION_ALGORITHM = 'network.compression-algorithm';
 	public const NETWORK_COMPRESSION_LEVEL = 'network.compression-level';
 	public const NETWORK_ENABLE_ENCRYPTION = 'network.enable-encryption';

@@ -81,6 +81,8 @@ network:
   #Threshold for async compression, in bytes. Only packets larger than this will be compressed asynchronously
   #Due to large overhead of AsyncTask, async compression isn't worth it except for large packets
   async-compression-threshold: 10000
+  #Send combat feedback before the normal tick flush. Limited to one early batch per player per tick.
+  combat-low-latency-feedback: true
   #Experimental. Use UPnP to automatically port forward
   upnp-forwarding: false
   #Maximum size in bytes of packets sent over the network (default 1492 bytes). Packets larger than this will be
