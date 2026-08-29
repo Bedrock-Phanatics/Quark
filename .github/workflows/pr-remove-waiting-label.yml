@@ -4,6 +4,9 @@ on:
   pull_request_target:
     types: synchronize
 
+permissions:
+  issues: write
+
 jobs:
   delabel:
     name: Remove label
@@ -33,5 +36,7 @@ jobs:
               }
             }
             const [owner, repo] = context.payload.repository.full_name.split('/');
-            removeLabel(owner, repo, context.payload.number, "Status: Waiting on Author");
-            removeLabel(owner, repo, context.payload.number, "Stale");
+            await Promise.all([
+              removeLabel(owner, repo, context.payload.number, "Status: Waiting on Author"),
+              removeLabel(owner, repo, context.payload.number, "Stale"),
+            ]);

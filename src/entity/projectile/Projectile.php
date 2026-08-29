@@ -42,6 +42,7 @@ use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
+use pocketmine\player\Player;
 use pocketmine\timings\Timings;
 use function atan2;
 use function ceil;
@@ -56,6 +57,9 @@ abstract class Projectile extends Entity{
 	private const TAG_TILE_X = "tileX"; //TAG_Int
 	private const TAG_TILE_Y = "tileY"; //TAG_Int
 	private const TAG_TILE_Z = "tileZ"; //TAG_Int
+
+	private ?Player $pendingFeedbackVictim = null;
+	private ?Player $pendingFeedbackOwner = null;
 
 	protected float $damage = 0.0;
 	protected ?Vector3 $blockHit = null;
@@ -184,8 +188,9 @@ abstract class Projectile extends Entity{
 		$entityDistance = PHP_INT_MAX;
 
 		$newDiff = $end->subtractVector($start);
+		$owningEntityId = null;
 		foreach($world->getCollidingEntities($this->boundingBox->addCoord($newDiff->x, $newDiff->y, $newDiff->z)->expand(1, 1, 1), $this) as $entity){
-			if($entity->getId() === $this->getOwningEntityId() && $this->ticksLived < 5){
+			if($this->ticksLived < 5 && $entity->getId() === ($owningEntityId ??= $this->getOwningEntityId())){
 				continue;
 			}
 
@@ -196,7 +201,7 @@ abstract class Projectile extends Entity{
 				continue;
 			}
 
-			$distance = $this->location->distanceSquared($entityHitResult->hitVector);
+			$distance = $start->distanceSquared($entityHitResult->hitVector);
 
 			if($distance < $entityDistance){
 				$entityDistance = $distance;
@@ -217,32 +222,15 @@ abstract class Projectile extends Entity{
 
 		if($hitResult !== null){
 			[$objectHit, $rayTraceResult] = $hitResult;
-			if($objectHit instanceof Entity){
-				$ev = new ProjectileHitEntityEvent($this, $rayTraceResult, $objectHit);
-				$specificHitFunc = fn() => $this->onHitEntity($objectHit, $rayTraceResult);
-			}else{
-				$ev = new ProjectileHitBlockEvent($this, $rayTraceResult, $objectHit);
-				$specificHitFunc = fn() => $this->onHitBlock($objectHit, $rayTraceResult);
-			}
-
-			$motionBeforeOnHit = clone $this->motion;
-			$ev->call();
-			$this->onHit($ev);
-			$specificHitFunc();
-
-			$this->isCollided = $this->onGround = true;
-			if($motionBeforeOnHit->equals($this->motion)){
-				$this->motion = Vector3::zero();
-			}
+			$this->processCollision($objectHit, $rayTraceResult);
 		}else{
 			$this->isCollided = $this->onGround = false;
 			$this->blockHit = null;
 
-			//recompute angles...
-			$f = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
+			$horizontalSpeed = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
 			$this->setRotation(
 				atan2($this->motion->x, $this->motion->z) * 180 / M_PI,
-				atan2($this->motion->y, $f) * 180 / M_PI
+				atan2($this->motion->y, $horizontalSpeed) * 180 / M_PI
 			);
 		}
 
@@ -250,6 +238,42 @@ abstract class Projectile extends Entity{
 		$this->checkBlockIntersections();
 
 		Timings::$projectileMove->stopTiming();
+	}
+
+	private function processCollision(Block|Entity $objectHit, RayTraceResult $hitResult) : void{
+		$motionBeforeHit = clone $this->motion;
+		$event = $objectHit instanceof Entity
+			? new ProjectileHitEntityEvent($this, $hitResult, $objectHit)
+			: new ProjectileHitBlockEvent($this, $hitResult, $objectHit);
+
+		$event->call();
+		$this->onHit($event);
+
+		$this->pendingFeedbackOwner = null;
+		$this->pendingFeedbackVictim = null;
+		try{
+			if($objectHit instanceof Entity){
+				$this->onHitEntity($objectHit, $hitResult);
+			}else{
+				$this->onHitBlock($objectHit, $hitResult);
+			}
+		}finally{
+			$feedbackOwner = $this->pendingFeedbackOwner;
+			$feedbackVictim = $this->pendingFeedbackVictim;
+			$this->pendingFeedbackOwner = $this->pendingFeedbackVictim = null;
+		}
+
+		if($feedbackOwner?->isConnected() === true){
+			$feedbackOwner->getNetworkSession()->flushLatencySensitiveOutput();
+		}
+		if($feedbackVictim?->isConnected() === true){
+			$feedbackVictim->getNetworkSession()->flushLatencySensitiveOutput(true);
+		}
+
+		$this->isCollided = $this->onGround = true;
+		if($motionBeforeHit->equals($this->motion)){
+			$this->motion = Vector3::zero();
+		}
 	}
 
 	/**
@@ -286,6 +310,10 @@ abstract class Projectile extends Entity{
 			}
 
 			$entityHit->attack($ev);
+			if(!$ev->isCancelled() && $ev->getFinalDamage() > 0){
+				$this->pendingFeedbackVictim = $entityHit instanceof Player ? $entityHit : null;
+				$this->pendingFeedbackOwner = $owner instanceof Player ? $owner : null;
+			}
 
 			if($this->isOnFire()){
 				$ev = new EntityCombustByEntityEvent($this, $entityHit, 5);

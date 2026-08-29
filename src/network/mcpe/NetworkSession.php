@@ -189,6 +189,8 @@ class NetworkSession{
 
 	/** @phpstan-var \SplQueue<array{CompressBatchPromise|string, list<PromiseResolver<true>>, bool}> */
 	private \SplQueue $compressedQueue;
+	private bool $latencySensitiveFlushEnabled;
+	private bool $latencySensitiveFlushPerformedThisTick = false;
 	private bool $forceAsyncCompression = true;
 	private bool $enableCompression = false; //disabled until handshake completed
 
@@ -225,6 +227,7 @@ class NetworkSession{
 		$this->logger = new \PrefixedLogger($this->server->getLogger(), $this->getLogPrefix());
 
 		$this->compressedQueue = new \SplQueue();
+		$this->latencySensitiveFlushEnabled = $this->server->isLowLatencyCombatFeedbackEnabled();
 
 		$this->disposeHooks = new ObjectSet();
 
@@ -687,6 +690,35 @@ class NetworkSession{
 			}finally{
 				Timings::$playerNetworkSend->stopTiming();
 			}
+		}
+	}
+
+	/** Flushes latency sensitive packets in order, at most once per server tick. */
+	public function flushLatencySensitiveOutput(bool $synchronizePlayerAttributes = false) : void{
+		if(!$this->latencySensitiveFlushEnabled || $this->latencySensitiveFlushPerformedThisTick || !$this->connected){
+			return;
+		}
+
+		if($synchronizePlayerAttributes){
+			$this->synchronizePlayerAttributes();
+		}
+		if(count($this->sendBuffer) === 0){
+			return;
+		}
+
+		$this->latencySensitiveFlushPerformedThisTick = true;
+		$this->flushGamePacketQueue();
+	}
+
+	private function synchronizePlayerAttributes() : void{
+		if($this->player === null){
+			return;
+		}
+
+		$dirtyAttributes = $this->player->getAttributeMap()->needSend();
+		$this->entityEventBroadcaster->syncAttributes([$this], $this->player, $dirtyAttributes);
+		foreach($dirtyAttributes as $attribute){
+			$attribute->markSynchronized();
 		}
 	}
 
@@ -1393,6 +1425,7 @@ class NetworkSession{
 	}
 
 	public function tick() : void{
+		$this->latencySensitiveFlushPerformedThisTick = false;
 		if(!$this->isConnected()){
 			$this->dispose();
 			return;
@@ -1408,14 +1441,7 @@ class NetworkSession{
 
 		if($this->player !== null){
 			$this->player->doChunkRequests();
-
-			$dirtyAttributes = $this->player->getAttributeMap()->needSend();
-			$this->entityEventBroadcaster->syncAttributes([$this], $this->player, $dirtyAttributes);
-			foreach($dirtyAttributes as $attribute){
-				//TODO: we might need to send these to other players in the future
-				//if that happens, this will need to become more complex than a flag on the attribute itself
-				$attribute->markSynchronized();
-			}
+			$this->synchronizePlayerAttributes();
 		}
 		Timings::$playerNetworkSendInventorySync->startTiming();
 		try{
