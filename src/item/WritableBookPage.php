@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use quark\utils\Limits;
+use pocketmine\utils\Limits;
 use quark\utils\Utils;
 use function sprintf;
 use function strlen;

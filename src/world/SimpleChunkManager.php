@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world;
 
+use pocketmine\utils\Limits;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\VanillaBlocks;
-use quark\utils\Limits;
 use quark\world\format\Chunk;
 
 class SimpleChunkManager implements ChunkManager{

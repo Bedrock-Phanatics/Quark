@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\item\enchantment;
 
+use pocketmine\utils\Limits;
 use quark\block\BlockTypeIds;
 use quark\item\enchantment\AvailableEnchantmentRegistry as EnchantmentRegistry;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
 use quark\item\VanillaItems as Items;
-use quark\utils\Limits;
 use quark\utils\Random;
 use quark\world\Position;
 use function abs;

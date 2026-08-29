@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\convert\property;
 
+use pocketmine\utils\Limits;
 use quark\data\bedrock\block\convert\BlockStateReader;
 use quark\data\bedrock\block\convert\BlockStateWriter;
-use quark\utils\Limits;
 
 /**
  * @phpstan-template TBlock of object

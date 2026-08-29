@@ -23,9 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\color\Color;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\utils\Binary;
 use quark\block\Block;
 use quark\block\FillableCauldron;
-use pocketmine\color\Color;
 use quark\data\bedrock\block\BlockStateNames;
 use quark\data\bedrock\PotionTypeIdMap;
 use quark\data\SavedDataLoadingException;
@@ -34,10 +37,7 @@ use quark\item\ItemTypeIds;
 use quark\item\Potion;
 use quark\item\SplashPotion;
 use quark\item\VanillaItems;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\IntTag;
 use quark\utils\AssumptionFailedError;
-use pocketmine\utils\Binary;
 
 final class Cauldron extends Spawnable{
 

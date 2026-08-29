@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\utils;
 
+use pocketmine\utils\Binary;
 use function abs;
 use function date_default_timezone_set;
 use function date_parse;

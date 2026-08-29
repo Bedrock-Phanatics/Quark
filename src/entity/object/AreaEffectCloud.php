@@ -23,6 +23,12 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\utils\Binary;
 use quark\data\bedrock\EffectIdMap;
 use quark\data\bedrock\PotionTypeIds;
 use quark\entity\effect\EffectCollection;
@@ -33,12 +39,6 @@ use quark\entity\EntitySizeInfo;
 use quark\entity\Living;
 use quark\entity\Location;
 use quark\event\entity\AreaEffectCloudApplyEvent;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ListTag;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\utils\Binary;
 use quark\world\particle\PotionSplashParticle;
 use function count;
 use function max;

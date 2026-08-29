@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\entity\effect;
 
 use pocketmine\color\Color;
-use quark\utils\Limits;
+use pocketmine\utils\Limits;
 
 class EffectInstance{
 	private Effect $effectType;

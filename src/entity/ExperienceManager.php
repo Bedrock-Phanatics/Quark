@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
+use pocketmine\utils\Limits;
 use quark\entity\utils\ExperienceUtils;
 use quark\event\player\PlayerExperienceChangeEvent;
 use quark\item\Durable;
 use quark\item\enchantment\VanillaEnchantments;
-use quark\utils\Limits;
 use quark\world\sound\XpCollectSound;
 use quark\world\sound\XpLevelUpSound;
 use function array_rand;

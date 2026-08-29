@@ -65,7 +65,7 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 @author Quark Team
-@link http://quarkmc.dev/
+@link https://github.com/Bedrock-Phanatics/Quark
 
 
 BODY,

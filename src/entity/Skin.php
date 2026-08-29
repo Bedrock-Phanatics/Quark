@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\entity;
 
 use Ahc\Json\Comment as CommentedJsonDecoder;
-use quark\utils\Limits;
+use pocketmine\utils\Limits;
 use function implode;
 use function in_array;
 use function json_encode;

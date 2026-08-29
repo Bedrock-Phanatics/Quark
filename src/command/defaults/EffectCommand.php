@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\utils\Limits;
 use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\entity\effect\EffectInstance;
 use quark\entity\effect\StringToEffectParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\utils\Limits;
 use quark\utils\TextFormat;
 use function count;
 use function strtolower;

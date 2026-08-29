@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\world;
 
 use pocketmine\math\Vector3;
-use quark\utils\Limits;
+use pocketmine\utils\Limits;
 use quark\utils\Utils;
 use quark\world\generator\Generator;
 use quark\world\generator\normal\Normal;

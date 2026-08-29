@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\region;
 
-use quark\utils\AssumptionFailedError;
 use pocketmine\utils\Binary;
 use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
+use quark\utils\AssumptionFailedError;
 use quark\world\format\ChunkException;
 use quark\world\format\io\exception\CorruptedChunkException;
 use function assert;

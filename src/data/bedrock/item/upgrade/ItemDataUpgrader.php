@@ -23,19 +23,19 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\item\upgrade;
 
+use pocketmine\nbt\NbtException;
+use pocketmine\nbt\tag\ByteTag;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ShortTag;
+use pocketmine\nbt\tag\StringTag;
+use pocketmine\utils\Binary;
 use quark\data\bedrock\block\BlockStateDeserializeException;
 use quark\data\bedrock\block\upgrade\BlockDataUpgrader;
 use quark\data\bedrock\item\BlockItemIdMap;
 use quark\data\bedrock\item\SavedItemData;
 use quark\data\bedrock\item\SavedItemStackData;
 use quark\data\SavedDataLoadingException;
-use pocketmine\nbt\NbtException;
-use pocketmine\nbt\tag\ByteTag;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ShortTag;
-use pocketmine\nbt\tag\StringTag;
 use quark\network\mcpe\convert\BlockStateDictionary;
-use pocketmine\utils\Binary;
 use function array_map;
 
 final class ItemDataUpgrader{

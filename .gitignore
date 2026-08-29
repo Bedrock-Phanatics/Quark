@@ -19,6 +19,7 @@ server.lock
 /phpstan.neon
 /docker/test_data/
 tests/*
+!tests/build-plugin-phar.php
 
 # Common IDEs
 .idea/*
