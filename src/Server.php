@@ -636,17 +636,18 @@ class Server{
 	 */
 	public function getPlayerByPrefix(string $name) : ?Player{
 		$found = null;
-		$name = strtolower($name);
+		$nameLen = strlen($name);
 		$delta = PHP_INT_MAX;
 		foreach($this->getOnlinePlayers() as $player){
-			if(stripos($player->getName(), $name) === 0){
-				$curDelta = strlen($player->getName()) - strlen($name);
+			$playerName = $player->getName();
+			if(strncasecmp($playerName, $name, $nameLen) === 0){
+				$curDelta = strlen($playerName) - $nameLen;
 				if($curDelta < $delta){
 					$found = $player;
 					$delta = $curDelta;
-				}
-				if($curDelta === 0){
-					break;
+					if($curDelta === 0){
+						break;
+					}
 				}
 			}
 		}
@@ -659,13 +660,7 @@ class Server{
 	 */
 	public function getPlayerExact(string $name) : ?Player{
 		$name = strtolower($name);
-		foreach($this->getOnlinePlayers() as $player){
-			if(strtolower($player->getName()) === $name){
-				return $player;
-			}
-		}
-
-		return null;
+		return array_find($this->getOnlinePlayers(), fn($player) => strtolower($player->getName()) === $name);
 	}
 
 	/**
