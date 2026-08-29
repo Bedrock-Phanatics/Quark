@@ -2,40 +2,40 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\command\defaults;
+namespace quark\command\defaults;
 
-use pocketmine\command\Command;
-use pocketmine\command\CommandSender;
-use pocketmine\command\utils\InvalidCommandSyntaxException;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\player\Player;
-use pocketmine\scheduler\BulkCurlTask;
-use pocketmine\scheduler\BulkCurlTaskOperation;
-use pocketmine\timings\TimingsHandler;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\InternetException;
-use pocketmine\utils\InternetRequestResult;
-use pocketmine\YmlServerProperties;
+use quark\command\Command;
+use quark\command\CommandSender;
+use quark\command\utils\InvalidCommandSyntaxException;
+use quark\lang\KnownTranslationFactory;
+use quark\permission\DefaultPermissionNames;
+use quark\player\Player;
+use quark\scheduler\BulkCurlTask;
+use quark\scheduler\BulkCurlTaskOperation;
+use quark\timings\TimingsHandler;
+use quark\utils\AssumptionFailedError;
+use quark\utils\InternetException;
+use quark\utils\InternetRequestResult;
+use quark\YmlServerProperties;
 use Symfony\Component\Filesystem\Path;
 use function count;
 use function http_build_query;
@@ -56,8 +56,8 @@ class TimingsCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"timings",
-			KnownTranslationFactory::pocketmine_command_timings_description(),
-			KnownTranslationFactory::pocketmine_command_timings_usage()
+			KnownTranslationFactory::quark_command_timings_description(),
+			KnownTranslationFactory::quark_command_timings_usage()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_TIMINGS);
 	}
@@ -71,21 +71,21 @@ class TimingsCommand extends VanillaCommand{
 
 		if($mode === "on"){
 			if(TimingsHandler::isEnabled()){
-				$sender->sendMessage(KnownTranslationFactory::pocketmine_command_timings_alreadyEnabled());
+				$sender->sendMessage(KnownTranslationFactory::quark_command_timings_alreadyEnabled());
 				return true;
 			}
 			TimingsHandler::setEnabled();
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_enable());
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_enable());
 
 			return true;
 		}elseif($mode === "off"){
 			TimingsHandler::setEnabled(false);
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_disable());
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_disable());
 			return true;
 		}
 
 		if(!TimingsHandler::isEnabled()){
-			$sender->sendMessage(KnownTranslationFactory::pocketmine_command_timings_timingsDisabled());
+			$sender->sendMessage(KnownTranslationFactory::quark_command_timings_timingsDisabled());
 
 			return true;
 		}
@@ -94,11 +94,11 @@ class TimingsCommand extends VanillaCommand{
 
 		if($mode === "reset"){
 			TimingsHandler::reload();
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_reset());
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_reset());
 		}elseif($mode === "merged" || $mode === "report" || $paste){
 			if($paste){
 				$timingsPromise = TimingsHandler::requestPrintTimings();
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_collect());
+				Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_collect());
 				$timingsPromise->onCompletion(
 					fn(array $lines) => $this->uploadReport($lines, $sender),
 					fn() => throw new AssumptionFailedError("This promise is not expected to be rejected")
@@ -106,7 +106,7 @@ class TimingsCommand extends VanillaCommand{
 			}else{
 				TimingsHandler::createReportFile(Path::join($sender->getServer()->getDataPath(), "timings"))->onCompletion(
 					function(string $timingsFile) use ($sender) : void{
-						Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_timingsWrite($timingsFile));
+						Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_timingsWrite($timingsFile));
 					},
 					fn() => $sender->getServer()->getLogger()->error("Failed to create timings report file")
 				);
@@ -124,7 +124,7 @@ class TimingsCommand extends VanillaCommand{
 	 */
 	private function uploadReport(array $lines, CommandSender $sender) : void{
 		$data = [
-			"browser" => $agent = $sender->getServer()->getName() . " " . $sender->getServer()->getPocketMineVersion(),
+			"browser" => $agent = $sender->getServer()->getName() . " " . $sender->getServer()->getQuarkVersion(),
 			"data" => implode("\n", $lines),
 			"private" => "true"
 		];
@@ -165,10 +165,10 @@ class TimingsCommand extends VanillaCommand{
 					}else{
 						$sender->getServer()->getLogger()->warning("Your chosen timings host does not support private reports. Anyone will be able to see your report if they guess the ID.");
 					}
-					Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_timingsRead($url));
+					Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_timingsRead($url));
 				}else{
 					$sender->getServer()->getLogger()->debug("Invalid response from timings server (" . $result->getCode() . "): " . $result->getBody());
-					Command::broadcastCommandMessage($sender, KnownTranslationFactory::pocketmine_command_timings_pasteError());
+					Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_timings_pasteError());
 				}
 			}
 		));

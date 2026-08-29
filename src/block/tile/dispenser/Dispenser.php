@@ -2,41 +2,41 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block\tile\dispenser;
+namespace quark\block\tile\dispenser;
 
-use pocketmine\block\tile\Container;
-use pocketmine\block\tile\ContainerTrait;
-use pocketmine\block\tile\Nameable;
-use pocketmine\block\tile\NameableTrait;
-use pocketmine\block\tile\Spawnable;
-use pocketmine\inventory\DispenserInventory;
+use quark\block\tile\Container;
+use quark\block\tile\ContainerTrait;
+use quark\block\tile\Nameable;
+use quark\block\tile\NameableTrait;
+use quark\block\tile\Spawnable;
+use quark\inventory\DispenserInventory;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
-use pocketmine\player\Player;
-use pocketmine\world\redstone\RedstoneConfig;
-use pocketmine\world\redstone\RedstoneManager;
-use pocketmine\world\World;
+use quark\player\Player;
+use quark\world\redstone\RedstoneConfig;
+use quark\world\redstone\RedstoneManager;
+use quark\world\World;
 use function array_rand;
 use function count;
 
@@ -94,7 +94,7 @@ class Dispenser extends Spawnable implements Container, Nameable{
 			5 => 5,
 		];
 
-		/** @var \pocketmine\block\Dispenser $dispenser */
+		/** @var \quark\block\Dispenser $dispenser */
 		$dispenser = $this->getBlock();
 		$dispenser_pos = $dispenser->getPosition();
 
@@ -107,7 +107,7 @@ class Dispenser extends Spawnable implements Container, Nameable{
 
 		$pos = $side_block->add(0.5, $facing === 0 ? -1 : ($facing === 1 ? 1 : 0.5), 0.5);
 
-		$contents = \pocketmine\block\utils\redstone\RedstoneBlockUtils::fastReadOnlyInventoryContents($this->inventory);
+		$contents = \quark\block\utils\redstone\RedstoneBlockUtils::fastReadOnlyInventoryContents($this->inventory);
 		if(count($contents) === 0){
 			$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
 		}else{

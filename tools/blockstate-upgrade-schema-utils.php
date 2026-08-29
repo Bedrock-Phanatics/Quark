@@ -2,45 +2,45 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\tools\blockstate_upgrade_schema_utils;
+namespace quark\tools\blockstate_upgrade_schema_utils;
 
-use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\block\upgrade\BlockStateUpgrader;
-use pocketmine\data\bedrock\block\upgrade\BlockStateUpgradeSchema;
-use pocketmine\data\bedrock\block\upgrade\BlockStateUpgradeSchemaBlockRemap;
-use pocketmine\data\bedrock\block\upgrade\BlockStateUpgradeSchemaFlattenInfo;
-use pocketmine\data\bedrock\block\upgrade\BlockStateUpgradeSchemaUtils;
-use pocketmine\data\bedrock\block\upgrade\BlockStateUpgradeSchemaValueRemap;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\block\upgrade\BlockStateUpgrader;
+use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchema;
+use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaBlockRemap;
+use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaFlattenInfo;
+use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaUtils;
+use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaValueRemap;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\convert\BlockStateDictionary;
+use quark\network\mcpe\convert\BlockStateDictionary;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Utils;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
+use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_key_first;
 use function array_key_last;

@@ -2,45 +2,45 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\crafting;
+namespace quark\crafting;
 
-use pocketmine\crafting\json\ItemStackData;
-use pocketmine\crafting\json\PotionContainerChangeRecipeData;
-use pocketmine\crafting\json\PotionTypeRecipeData;
-use pocketmine\crafting\json\RecipeIngredientData;
-use pocketmine\crafting\json\ShapedRecipeData;
-use pocketmine\crafting\json\ShapelessRecipeData;
-use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\item\BlockItemIdMap;
-use pocketmine\data\bedrock\item\ItemTypeDeserializeException;
-use pocketmine\data\bedrock\item\SavedItemData;
-use pocketmine\data\bedrock\item\SavedItemStackData;
-use pocketmine\data\SavedDataLoadingException;
+use quark\crafting\json\ItemStackData;
+use quark\crafting\json\PotionContainerChangeRecipeData;
+use quark\crafting\json\PotionTypeRecipeData;
+use quark\crafting\json\RecipeIngredientData;
+use quark\crafting\json\ShapedRecipeData;
+use quark\crafting\json\ShapelessRecipeData;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\item\BlockItemIdMap;
+use quark\data\bedrock\item\ItemTypeDeserializeException;
+use quark\data\bedrock\item\SavedItemData;
+use quark\data\bedrock\item\SavedItemStackData;
+use quark\data\SavedDataLoadingException;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
-use pocketmine\item\Item;
+use quark\item\Item;
 use pocketmine\nbt\LittleEndianNbtSerializer;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Utils;
-use pocketmine\world\format\io\GlobalItemDataHandlers;
+use quark\utils\Filesystem;
+use quark\utils\Utils;
+use quark\world\format\io\GlobalItemDataHandlers;
 use Symfony\Component\Filesystem\Path;
 use function base64_decode;
 use function count;

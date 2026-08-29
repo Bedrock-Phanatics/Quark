@@ -2,41 +2,41 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\convert;
+namespace quark\network\mcpe\convert;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
-use pocketmine\block\tile\Container;
-use pocketmine\block\VanillaBlocks;
-use pocketmine\crafting\ExactRecipeIngredient;
-use pocketmine\crafting\MetaWildcardRecipeIngredient;
-use pocketmine\crafting\RecipeIngredient;
-use pocketmine\crafting\TagWildcardRecipeIngredient;
-use pocketmine\data\bedrock\BedrockDataFiles;
-use pocketmine\data\bedrock\item\BlockItemIdMap;
-use pocketmine\data\bedrock\item\ItemTypeNames;
-use pocketmine\data\SavedDataLoadingException;
-use pocketmine\item\Item;
-use pocketmine\item\VanillaItems;
+use quark\block\tile\Container;
+use quark\block\VanillaBlocks;
+use quark\crafting\ExactRecipeIngredient;
+use quark\crafting\MetaWildcardRecipeIngredient;
+use quark\crafting\RecipeIngredient;
+use quark\crafting\TagWildcardRecipeIngredient;
+use quark\data\bedrock\BedrockDataFiles;
+use quark\data\bedrock\item\BlockItemIdMap;
+use quark\data\bedrock\item\ItemTypeNames;
+use quark\data\SavedDataLoadingException;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtException;
@@ -53,12 +53,12 @@ use pocketmine\network\mcpe\protocol\types\inventory\ItemStackExtraDataShield;
 use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient as ProtocolRecipeIngredient;
 use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
-use pocketmine\player\GameMode;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\SingletonTrait;
-use pocketmine\world\format\io\GlobalBlockStateHandlers;
-use pocketmine\world\format\io\GlobalItemDataHandlers;
+use quark\player\GameMode;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
+use quark\utils\SingletonTrait;
+use quark\world\format\io\GlobalBlockStateHandlers;
+use quark\world\format\io\GlobalItemDataHandlers;
 use function get_class;
 use function hash;
 

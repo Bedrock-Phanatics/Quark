@@ -2,28 +2,28 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\build\generate_bedrockdata_path_consts;
+namespace quark\build\generate_bedrockdata_path_consts;
 
-use pocketmine\utils\Filesystem;
+use quark\utils\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use function dirname;
 use function fclose;
@@ -36,7 +36,7 @@ use function scandir;
 use function str_replace;
 use function strtoupper;
 use const PHP_EOL;
-use const pocketmine\BEDROCK_DATA_PATH;
+use const quark\BEDROCK_DATA_PATH;
 use const SCANDIR_SORT_ASCENDING;
 use const STDERR;
 
@@ -95,9 +95,9 @@ if($output === false){
 fwrite($output, $header);
 fwrite($output, <<<'HEADER'
 
-namespace pocketmine\data\bedrock;
+namespace quark\data\bedrock;
 
-use const pocketmine\BEDROCK_DATA_PATH;
+use const quark\BEDROCK_DATA_PATH;
 
 final class BedrockDataFiles{
 	private function __construct(){

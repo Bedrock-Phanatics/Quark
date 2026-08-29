@@ -1,5 +1,5 @@
-# PocketMine-MP Docker image
-This folder contains the files used to build and test the `ghcr.io/axolotl-pm/pocketmine-mp` Docker image.
+# Quark Docker image
+This folder contains the files used to build and test the `ghcr.io/quark/quark` Docker image.
 
 Docker is an easy, safe way to run software in a container where it can't affect anything else on your machine.
 You don't need to build any dependencies, and updating is as simple as changing the version number of the image you're using.
@@ -7,7 +7,7 @@ You don't need to build any dependencies, and updating is as simple as changing 
 ## Pre-requisites
 To install Docker, refer to the [official Docker docs](https://docs.docker.com/engine/install/).
 
-## Running PocketMine-MP from Docker (using GitHub Container Registry)
+## Running Quark from Docker (using GitHub Container Registry)
 This is really easy once you have `docker` installed.
 
 ```
@@ -15,12 +15,12 @@ mkdir wherever-you-want
 cd wherever-you-want
 mkdir data plugins
 sudo chown -R 1000:1000 data plugins
-docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/axolotl-pm/pocketmine-mp
+docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/quark/quark
 ```
 
 To run a specific version, just add it to the end of the command, like this:
 ```
-docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/axolotl-pm/pocketmine-mp:5.46.0
+docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/quark/quark:5.46.0
 ```
 
 ## Changing the server port
@@ -59,7 +59,7 @@ Use `docker ps` to see a list of running containers. It will look like this:
 ```
 user@DYLANS-PC:~/pm-docker-test$ docker ps
 CONTAINER ID   IMAGE                                     COMMAND                  CREATED         STATUS         PORTS                                                                              NAMES
-dc20edd3dd62   ghcr.io/axolotl-pm/pocketmine-mp:5.46.0   "start-pocketmine"       7 seconds ago   Up 6 seconds   19132/tcp, 0.0.0.0:19132-19133->19132-19133/udp, :::19132-19133->19132-19133/udp   brave_dijkstra
+dc20edd3dd62   ghcr.io/quark/quark:5.46.0   "start-quark"       7 seconds ago   Up 6 seconds   19132/tcp, 0.0.0.0:19132-19133->19132-19133/udp, :::19132-19133->19132-19133/udp   brave_dijkstra
 ```
 In this case, the container name is `brave_dijkstra`, but it might be something else in your case.
 
@@ -78,24 +78,14 @@ docker logs --tail=100 <container name you saw in docker ps>
 ```
 Change `--tail=100` to the number of recent lines in the log you want to see.
 
-## Adding plugins from Poggit
-If the `$POCKETMINE_PLUGINS` is set, the container will auto-download the plugins specified from https://poggit.pmmp.io
-before starting PocketMine-MP.
-
-The list of plugins should be given in the format `PluginOne:1.2.3 PluginTwo:4.5.6`. The version part (`:4.5.6`) is optional.
-
-> [!CAUTION]
-> Plugins won't be redownloaded if they're already in the `plugins` volume, even if the version is different.
-> If you need to update a plugin, you'll need to delete the old plugin `.phar` first.
-
 ## Volumes
-- `/data` is a read-write data directory where PocketMine stores all data in.
-	This includes PocketMine config files, player data, worlds and plugin config files/data.
-- `/plugins` is a read-only data directory where PocketMine loads plugins from.
+- `/data` is a read-write data directory where Quark stores all data in.
+	This includes Quark config files, player data, worlds and plugin config files/data.
+- `/plugins` is a read-only data directory where Quark loads plugins from.
 
-## Advanced usage: Passing args to PocketMine-MP.phar inside the container
-The `POCKETMINE_ARGS` environment variable will be passed to `PocketMine-MP.phar` when run.
+## Advanced usage: Passing args to Quark.phar inside the container
+The `QUARK_ARGS` environment variable will be passed to `Quark.phar` when run.
 
 ## Building this image
-The Dockerfile requires a build-arg `GIT_HASH` to fill the git hash metadata when building `PocketMine-MP.phar`.
+The Dockerfile requires a build-arg `GIT_HASH` to fill the git hash metadata when building `Quark.phar`.
 This ensures that `/version`, crash reports, logs etc. report the correct server version.

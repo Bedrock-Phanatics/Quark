@@ -2,30 +2,30 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\auth;
+namespace quark\network\mcpe\auth;
 
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\network\mcpe\JwtException;
-use pocketmine\network\mcpe\JwtUtils;
+use quark\lang\KnownTranslationFactory;
+use quark\network\mcpe\JwtException;
+use quark\network\mcpe\JwtUtils;
 use pocketmine\network\mcpe\protocol\types\login\JwtBodyRfc7519;
 use pocketmine\network\mcpe\protocol\types\login\legacy\LegacyAuthJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
@@ -46,11 +46,11 @@ final class AuthJwtHelper{
 	private static function checkExpiry(JwtBodyRfc7519 $claims) : void{
 		$time = time();
 		if(isset($claims->nbf) && $claims->nbf > $time + self::CLOCK_DRIFT_MAX){
-			throw new VerifyLoginException("JWT not yet valid", KnownTranslationFactory::pocketmine_disconnect_invalidSession_tooEarly());
+			throw new VerifyLoginException("JWT not yet valid", KnownTranslationFactory::quark_disconnect_invalidSession_tooEarly());
 		}
 
 		if(isset($claims->exp) && $claims->exp < $time - self::CLOCK_DRIFT_MAX){
-			throw new VerifyLoginException("JWT expired", KnownTranslationFactory::pocketmine_disconnect_invalidSession_tooLate());
+			throw new VerifyLoginException("JWT expired", KnownTranslationFactory::quark_disconnect_invalidSession_tooLate());
 		}
 	}
 
@@ -60,7 +60,7 @@ final class AuthJwtHelper{
 	private static function validateAuthToken(string $jwt, string $signingKeyDer, ?string $issuer, string $audience, XboxAuthJwtBody|SelfSignedJwtBody $claims) : void{
 		try{
 			if(!JwtUtils::verify($jwt, $signingKeyDer, ec: $claims instanceof SelfSignedJwtBody)){
-				throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::pocketmine_disconnect_invalidSession_badSignature());
+				throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::quark_disconnect_invalidSession_badSignature());
 			}
 		}catch(JwtException $e){
 			throw new VerifyLoginException($e->getMessage(), null, 0, $e);
@@ -171,12 +171,12 @@ final class AuthJwtHelper{
 		}
 		if($expectedKeyDer !== null && $headerDerKey !== $expectedKeyDer){
 			//Fast path: if the header key doesn't match what we expected, the signature isn't going to validate anyway
-			throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::pocketmine_disconnect_invalidSession_badSignature());
+			throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::quark_disconnect_invalidSession_badSignature());
 		}
 
 		try{
 			if(!JwtUtils::verify($jwt, $headerDerKey, ec: true)){
-				throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::pocketmine_disconnect_invalidSession_badSignature());
+				throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::quark_disconnect_invalidSession_badSignature());
 			}
 		}catch(JwtException $e){
 			throw new VerifyLoginException($e->getMessage(), null, 0, $e);

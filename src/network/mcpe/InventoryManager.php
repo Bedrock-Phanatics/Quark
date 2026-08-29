@@ -2,48 +2,48 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe;
+namespace quark\network\mcpe;
 
-use pocketmine\block\inventory\AnvilInventory;
-use pocketmine\block\inventory\BlockInventory;
-use pocketmine\block\inventory\BrewingStandInventory;
-use pocketmine\block\inventory\CartographyTableInventory;
-use pocketmine\block\inventory\CraftingTableInventory;
-use pocketmine\block\inventory\EnchantInventory;
-use pocketmine\block\inventory\FurnaceInventory;
-use pocketmine\block\inventory\HopperInventory;
-use pocketmine\block\inventory\LoomInventory;
-use pocketmine\block\inventory\SmithingTableInventory;
-use pocketmine\block\inventory\StonecutterInventory;
-use pocketmine\crafting\FurnaceType;
-use pocketmine\data\bedrock\EnchantmentIdMap;
-use pocketmine\inventory\BlockInventoryWindow;
-use pocketmine\inventory\Inventory;
-use pocketmine\inventory\transaction\action\SlotChangeAction;
-use pocketmine\inventory\transaction\InventoryTransaction;
-use pocketmine\item\enchantment\EnchantingOption;
-use pocketmine\item\enchantment\EnchantmentInstance;
-use pocketmine\item\Item;
-use pocketmine\network\mcpe\cache\CreativeInventoryCache;
+use quark\block\inventory\AnvilInventory;
+use quark\block\inventory\BlockInventory;
+use quark\block\inventory\BrewingStandInventory;
+use quark\block\inventory\CartographyTableInventory;
+use quark\block\inventory\CraftingTableInventory;
+use quark\block\inventory\EnchantInventory;
+use quark\block\inventory\FurnaceInventory;
+use quark\block\inventory\HopperInventory;
+use quark\block\inventory\LoomInventory;
+use quark\block\inventory\SmithingTableInventory;
+use quark\block\inventory\StonecutterInventory;
+use quark\crafting\FurnaceType;
+use quark\data\bedrock\EnchantmentIdMap;
+use quark\inventory\BlockInventoryWindow;
+use quark\inventory\Inventory;
+use quark\inventory\transaction\action\SlotChangeAction;
+use quark\inventory\transaction\InventoryTransaction;
+use quark\item\enchantment\EnchantingOption;
+use quark\item\enchantment\EnchantmentInstance;
+use quark\item\Item;
+use quark\network\mcpe\cache\CreativeInventoryCache;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
@@ -62,11 +62,11 @@ use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
-use pocketmine\network\PacketHandlingException;
-use pocketmine\player\Player;
-use pocketmine\utils\AssumptionFailedError;
+use quark\network\PacketHandlingException;
+use quark\player\Player;
+use quark\utils\AssumptionFailedError;
 use pocketmine\utils\Binary;
-use pocketmine\utils\ObjectSet;
+use quark\utils\ObjectSet;
 use function array_fill_keys;
 use function array_keys;
 use function array_map;

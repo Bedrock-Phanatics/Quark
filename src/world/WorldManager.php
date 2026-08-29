@@ -2,42 +2,42 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world;
+namespace quark\world;
 
-use pocketmine\entity\Entity;
-use pocketmine\event\world\WorldInitEvent;
-use pocketmine\event\world\WorldLoadEvent;
-use pocketmine\event\world\WorldUnloadEvent;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\player\ChunkSelector;
-use pocketmine\Server;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\format\io\exception\CorruptedWorldException;
-use pocketmine\world\format\io\exception\UnsupportedWorldFormatException;
-use pocketmine\world\format\io\FormatConverter;
-use pocketmine\world\format\io\WorldProviderManager;
-use pocketmine\world\format\io\WritableWorldProvider;
-use pocketmine\world\generator\GeneratorManager;
-use pocketmine\world\generator\InvalidGeneratorOptionsException;
+use quark\entity\Entity;
+use quark\event\world\WorldInitEvent;
+use quark\event\world\WorldLoadEvent;
+use quark\event\world\WorldUnloadEvent;
+use quark\lang\KnownTranslationFactory;
+use quark\player\ChunkSelector;
+use quark\Server;
+use quark\world\format\Chunk;
+use quark\world\format\io\exception\CorruptedWorldException;
+use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\FormatConverter;
+use quark\world\format\io\WorldProviderManager;
+use quark\world\format\io\WritableWorldProvider;
+use quark\world\generator\GeneratorManager;
+use quark\world\generator\InvalidGeneratorOptionsException;
 use Symfony\Component\Filesystem\Path;
 use function array_keys;
 use function array_shift;
@@ -139,7 +139,7 @@ class WorldManager{
 			return false;
 		}
 
-		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_unloading($world->getDisplayName())));
+		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_unloading($world->getDisplayName())));
 		if(count($world->getPlayers()) !== 0){
 			try{
 				$safeSpawn = $this->defaultWorld !== null && $this->defaultWorld !== $world ? $this->defaultWorld->getSafeSpawn() : null;
@@ -185,11 +185,11 @@ class WorldManager{
 
 		$providers = $this->providerManager->getMatchingProviders($path);
 		if(count($providers) !== 1){
-			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_loadError(
+			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
 				count($providers) === 0 ?
-					KnownTranslationFactory::pocketmine_level_unknownFormat() :
-					KnownTranslationFactory::pocketmine_level_ambiguousFormat(implode(", ", array_keys($providers)))
+					KnownTranslationFactory::quark_level_unknownFormat() :
+					KnownTranslationFactory::quark_level_ambiguousFormat(implode(", ", array_keys($providers)))
 			)));
 			return false;
 		}
@@ -198,33 +198,33 @@ class WorldManager{
 		try{
 			$provider = $providerClass->fromPath($path, new \PrefixedLogger($this->server->getLogger(), "World Provider: $name"));
 		}catch(CorruptedWorldException $e){
-			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_loadError(
+			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
-				KnownTranslationFactory::pocketmine_level_corrupted($e->getMessage())
+				KnownTranslationFactory::quark_level_corrupted($e->getMessage())
 			)));
 			return false;
 		}catch(UnsupportedWorldFormatException $e){
-			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_loadError(
+			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
-				KnownTranslationFactory::pocketmine_level_unsupportedFormat($e->getMessage())
+				KnownTranslationFactory::quark_level_unsupportedFormat($e->getMessage())
 			)));
 			return false;
 		}
 
 		$generatorEntry = GeneratorManager::getInstance()->getGenerator($provider->getWorldData()->getGenerator());
 		if($generatorEntry === null){
-			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_loadError(
+			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
-				KnownTranslationFactory::pocketmine_level_unknownGenerator($provider->getWorldData()->getGenerator())
+				KnownTranslationFactory::quark_level_unknownGenerator($provider->getWorldData()->getGenerator())
 			)));
 			return false;
 		}
 		try{
 			$generatorEntry->validateGeneratorOptions($provider->getWorldData()->getGeneratorOptions());
 		}catch(InvalidGeneratorOptionsException $e){
-			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_loadError(
+			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
-				KnownTranslationFactory::pocketmine_level_invalidGeneratorOptions(
+				KnownTranslationFactory::quark_level_invalidGeneratorOptions(
 					$provider->getWorldData()->getGeneratorOptions(),
 					$provider->getWorldData()->getGenerator(),
 					$e->getMessage()
@@ -236,14 +236,14 @@ class WorldManager{
 			if(!$autoUpgrade){
 				throw new UnsupportedWorldFormatException("World \"$name\" is in an unsupported format and needs to be upgraded");
 			}
-			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_conversion_start($name)));
+			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_conversion_start($name)));
 
 			$providerClass = $this->providerManager->getDefault();
 			$converter = new FormatConverter($provider, $providerClass, Path::join($this->server->getDataPath(), "backups", "worlds"), $this->server->getLogger());
 			$converter->execute();
 			$provider = $providerClass->fromPath($path, new \PrefixedLogger($this->server->getLogger(), "World Provider: $name"));
 
-			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_conversion_finish($name, $converter->getBackupPath())));
+			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_conversion_finish($name, $converter->getBackupPath())));
 		}
 
 		$world = new World($this->server, $name, $provider, $this->server->getAsyncPool());
@@ -281,7 +281,7 @@ class WorldManager{
 		(new WorldLoadEvent($world))->call();
 
 		if($backgroundGeneration){
-			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_backgroundGeneration($name)));
+			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_backgroundGeneration($name)));
 
 			$spawnLocation = $world->getSpawnLocation();
 			$centerX = $spawnLocation->getFloorX() >> Chunk::COORD_BIT_SIZE;
@@ -297,7 +297,7 @@ class WorldManager{
 						$oldProgress = (int) floor(($done / $total) * 100);
 						$newProgress = (int) floor((++$done / $total) * 100);
 						if(intdiv($oldProgress, 10) !== intdiv($newProgress, 10) || $done === $total || $done === 1){
-							$world->getLogger()->info($world->getServer()->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_spawnTerrainGenerationProgress(strval($done), strval($total), strval($newProgress))));
+							$world->getLogger()->info($world->getServer()->getLanguage()->translate(KnownTranslationFactory::quark_level_spawnTerrainGenerationProgress(strval($done), strval($total), strval($newProgress))));
 						}
 					},
 					static function() : void{

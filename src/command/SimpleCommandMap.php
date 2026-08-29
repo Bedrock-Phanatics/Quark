@@ -2,76 +2,76 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\command;
+namespace quark\command;
 
-use pocketmine\command\defaults\BanCommand;
-use pocketmine\command\defaults\BanIpCommand;
-use pocketmine\command\defaults\BanListCommand;
-use pocketmine\command\defaults\ClearCommand;
-use pocketmine\command\defaults\DefaultGamemodeCommand;
-use pocketmine\command\defaults\DeopCommand;
-use pocketmine\command\defaults\DifficultyCommand;
-use pocketmine\command\defaults\DumpMemoryCommand;
-use pocketmine\command\defaults\EffectCommand;
-use pocketmine\command\defaults\EnchantCommand;
-use pocketmine\command\defaults\GamemodeCommand;
-use pocketmine\command\defaults\GarbageCollectorCommand;
-use pocketmine\command\defaults\GiveCommand;
-use pocketmine\command\defaults\HelpCommand;
-use pocketmine\command\defaults\KickCommand;
-use pocketmine\command\defaults\KillCommand;
-use pocketmine\command\defaults\ListCommand;
-use pocketmine\command\defaults\MeCommand;
-use pocketmine\command\defaults\OpCommand;
-use pocketmine\command\defaults\PardonCommand;
-use pocketmine\command\defaults\PardonIpCommand;
-use pocketmine\command\defaults\ParticleCommand;
-use pocketmine\command\defaults\PluginsCommand;
-use pocketmine\command\defaults\SaveCommand;
-use pocketmine\command\defaults\SaveOffCommand;
-use pocketmine\command\defaults\SaveOnCommand;
-use pocketmine\command\defaults\SayCommand;
-use pocketmine\command\defaults\SeedCommand;
-use pocketmine\command\defaults\SetWorldSpawnCommand;
-use pocketmine\command\defaults\SpawnpointCommand;
-use pocketmine\command\defaults\StatusCommand;
-use pocketmine\command\defaults\StopCommand;
-use pocketmine\command\defaults\TeleportCommand;
-use pocketmine\command\defaults\TellCommand;
-use pocketmine\command\defaults\TimeCommand;
-use pocketmine\command\defaults\TimingsCommand;
-use pocketmine\command\defaults\TitleCommand;
-use pocketmine\command\defaults\TransferServerCommand;
-use pocketmine\command\defaults\VanillaCommand;
-use pocketmine\command\defaults\VersionCommand;
-use pocketmine\command\defaults\WhitelistCommand;
-use pocketmine\command\defaults\XpCommand;
-use pocketmine\command\utils\CommandStringHelper;
-use pocketmine\command\utils\InvalidCommandSyntaxException;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\Server;
-use pocketmine\timings\Timings;
-use pocketmine\utils\TextFormat;
-use pocketmine\utils\Utils;
+use quark\command\defaults\BanCommand;
+use quark\command\defaults\BanIpCommand;
+use quark\command\defaults\BanListCommand;
+use quark\command\defaults\ClearCommand;
+use quark\command\defaults\DefaultGamemodeCommand;
+use quark\command\defaults\DeopCommand;
+use quark\command\defaults\DifficultyCommand;
+use quark\command\defaults\DumpMemoryCommand;
+use quark\command\defaults\EffectCommand;
+use quark\command\defaults\EnchantCommand;
+use quark\command\defaults\GamemodeCommand;
+use quark\command\defaults\GarbageCollectorCommand;
+use quark\command\defaults\GiveCommand;
+use quark\command\defaults\HelpCommand;
+use quark\command\defaults\KickCommand;
+use quark\command\defaults\KillCommand;
+use quark\command\defaults\ListCommand;
+use quark\command\defaults\MeCommand;
+use quark\command\defaults\OpCommand;
+use quark\command\defaults\PardonCommand;
+use quark\command\defaults\PardonIpCommand;
+use quark\command\defaults\ParticleCommand;
+use quark\command\defaults\PluginsCommand;
+use quark\command\defaults\SaveCommand;
+use quark\command\defaults\SaveOffCommand;
+use quark\command\defaults\SaveOnCommand;
+use quark\command\defaults\SayCommand;
+use quark\command\defaults\SeedCommand;
+use quark\command\defaults\SetWorldSpawnCommand;
+use quark\command\defaults\SpawnpointCommand;
+use quark\command\defaults\StatusCommand;
+use quark\command\defaults\StopCommand;
+use quark\command\defaults\TeleportCommand;
+use quark\command\defaults\TellCommand;
+use quark\command\defaults\TimeCommand;
+use quark\command\defaults\TimingsCommand;
+use quark\command\defaults\TitleCommand;
+use quark\command\defaults\TransferServerCommand;
+use quark\command\defaults\VanillaCommand;
+use quark\command\defaults\VersionCommand;
+use quark\command\defaults\WhitelistCommand;
+use quark\command\defaults\XpCommand;
+use quark\command\utils\CommandStringHelper;
+use quark\command\utils\InvalidCommandSyntaxException;
+use quark\lang\KnownTranslationFactory;
+use quark\Server;
+use quark\timings\Timings;
+use quark\utils\TextFormat;
+use quark\utils\Utils;
 use function array_shift;
 use function array_values;
 use function count;
@@ -94,7 +94,7 @@ class SimpleCommandMap implements CommandMap{
 	}
 
 	private function setDefaultCommands() : void{
-		$this->registerAll("pocketmine", [
+		$this->registerAll("quark", [
 			new BanCommand(),
 			new BanIpCommand(),
 			new BanListCommand(),
@@ -226,7 +226,7 @@ class SimpleCommandMap implements CommandMap{
 			return true;
 		}
 
-		$sender->sendMessage(KnownTranslationFactory::pocketmine_command_notFound($sentCommandLabel ?? "", "/help")->prefix(TextFormat::RED));
+		$sender->sendMessage(KnownTranslationFactory::quark_command_notFound($sentCommandLabel ?? "", "/help")->prefix(TextFormat::RED));
 		return false;
 	}
 
@@ -255,7 +255,7 @@ class SimpleCommandMap implements CommandMap{
 
 		foreach(Utils::stringifyKeys($values) as $alias => $commandStrings){
 			if(str_contains($alias, ":")){
-				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_command_alias_illegal($alias)));
+				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_illegal($alias)));
 				continue;
 			}
 
@@ -278,12 +278,12 @@ class SimpleCommandMap implements CommandMap{
 			}
 
 			if(count($recursive) > 0){
-				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_command_alias_recursive($alias, implode(", ", $recursive))));
+				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_recursive($alias, implode(", ", $recursive))));
 				continue;
 			}
 
 			if(count($bad) > 0){
-				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_command_alias_notFound($alias, implode(", ", $bad))));
+				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_notFound($alias, implode(", ", $bad))));
 				continue;
 			}
 

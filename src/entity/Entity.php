@@ -2,19 +2,19 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -24,19 +24,19 @@ declare(strict_types=1);
 /**
  * All the entity classes
  */
-namespace pocketmine\entity;
+namespace quark\entity;
 
-use pocketmine\block\Block;
-use pocketmine\block\Water;
-use pocketmine\entity\animation\Animation;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\event\entity\EntityDespawnEvent;
-use pocketmine\event\entity\EntityExtinguishEvent;
-use pocketmine\event\entity\EntityMotionEvent;
-use pocketmine\event\entity\EntityRegainHealthEvent;
-use pocketmine\event\entity\EntitySpawnEvent;
-use pocketmine\event\entity\EntityTeleportEvent;
-use pocketmine\item\Item;
+use quark\block\Block;
+use quark\block\Water;
+use quark\entity\animation\Animation;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\EntityDespawnEvent;
+use quark\event\entity\EntityExtinguishEvent;
+use quark\event\entity\EntityMotionEvent;
+use quark\event\entity\EntityRegainHealthEvent;
+use quark\event\entity\EntitySpawnEvent;
+use quark\event\entity\EntityTeleportEvent;
+use quark\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector2;
@@ -46,8 +46,8 @@ use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\EntityEventBroadcaster;
-use pocketmine\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
 use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket;
 use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
@@ -57,17 +57,17 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\MetadataProperty;
 use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
-use pocketmine\player\Player;
-use pocketmine\Server;
-use pocketmine\timings\Timings;
-use pocketmine\timings\TimingsHandler;
-use pocketmine\utils\Limits;
-use pocketmine\utils\Utils;
-use pocketmine\VersionInfo;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\Position;
-use pocketmine\world\sound\Sound;
-use pocketmine\world\World;
+use quark\player\Player;
+use quark\Server;
+use quark\timings\Timings;
+use quark\timings\TimingsHandler;
+use quark\utils\Limits;
+use quark\utils\Utils;
+use quark\VersionInfo;
+use quark\world\format\Chunk;
+use quark\world\Position;
+use quark\world\sound\Sound;
+use quark\world\World;
 use function abs;
 use function array_map;
 use function array_values;
@@ -818,7 +818,7 @@ abstract class Entity{
 				//breaks player teleporting (observers see the player rubberband back to the pre-teleport position while
 				//the teleported player sees themselves at the correct position), and does nothing whatsoever for
 				//non-player entities (movement is still interpolated). Both of these are client bugs.
-				//See https://github.com/pmmp/PocketMine-MP/issues/4394
+				//See https://github.com/Bedrock-Phanatics/Quark/issues/4394
 				($this->onGround ? MoveActorAbsolutePacket::FLAG_GROUND : 0)
 			)
 		)]);

@@ -2,30 +2,30 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\resourcepacks;
+namespace quark\resourcepacks;
 
-use pocketmine\utils\Config;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Utils;
+use quark\utils\Config;
+use quark\utils\Filesystem;
+use quark\utils\Utils;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Filesystem\Path;
 use function array_keys;
@@ -81,7 +81,7 @@ class ResourcePackManager{
 
 		$resourcePacksYml = Path::join($this->path, "resource_packs.yml");
 		if(!file_exists($resourcePacksYml)){
-			copy(Path::join(\pocketmine\RESOURCE_PATH, "resource_packs.yml"), $resourcePacksYml);
+			copy(Path::join(\quark\RESOURCE_PATH, "resource_packs.yml"), $resourcePacksYml);
 		}
 
 		$resourcePacksConfig = new Config($resourcePacksYml, Config::YAML, []);
@@ -235,7 +235,7 @@ class ResourcePackManager{
 
 	/**
 	 * Sets the encryption key to use for decrypting the specified resource pack. The pack will **NOT** be decrypted by
-	 * PocketMine-MP; the key is simply passed to the client to allow it to decrypt the pack after downloading it.
+	 * Quark; the key is simply passed to the client to allow it to decrypt the pack after downloading it.
 	 */
 	public function setPackEncryptionKey(string $id, ?string $key) : void{
 		$id = strtolower($id);

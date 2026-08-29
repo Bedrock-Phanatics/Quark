@@ -2,39 +2,39 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world\generator\hell;
+namespace quark\world\generator\hell;
 
-use pocketmine\block\VanillaBlocks;
-use pocketmine\data\bedrock\BiomeIds;
-use pocketmine\world\biome\BiomeRegistry;
-use pocketmine\world\ChunkManager;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\generator\Generator;
-use pocketmine\world\generator\InvalidGeneratorOptionsException;
-use pocketmine\world\generator\noise\Simplex;
-use pocketmine\world\generator\object\OreType;
-use pocketmine\world\generator\populator\Ore;
-use pocketmine\world\generator\populator\Populator;
-use pocketmine\world\World;
+use quark\block\VanillaBlocks;
+use quark\data\bedrock\BiomeIds;
+use quark\world\biome\BiomeRegistry;
+use quark\world\ChunkManager;
+use quark\world\format\Chunk;
+use quark\world\generator\Generator;
+use quark\world\generator\InvalidGeneratorOptionsException;
+use quark\world\generator\noise\Simplex;
+use quark\world\generator\object\OreType;
+use quark\world\generator\populator\Ore;
+use quark\world\generator\populator\Populator;
+use quark\world\World;
 use function abs;
 
 class Nether extends Generator{

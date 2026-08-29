@@ -2,39 +2,39 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\crash;
+namespace quark\crash;
 
 use Composer\InstalledVersions;
 use pocketmine\errorhandler\ErrorTypeToStringMap;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\plugin\PluginBase;
-use pocketmine\plugin\PluginManager;
-use pocketmine\Server;
-use pocketmine\thread\ThreadCrashInfoFrame;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Utils;
-use pocketmine\VersionInfo;
-use pocketmine\YmlServerProperties;
+use quark\plugin\PluginBase;
+use quark\plugin\PluginManager;
+use quark\Server;
+use quark\thread\ThreadCrashInfoFrame;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
+use quark\utils\Utils;
+use quark\VersionInfo;
+use quark\YmlServerProperties;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
 use function base64_encode;
@@ -162,13 +162,13 @@ class CrashDump{
 	private function extraData() : void{
 		global $argv;
 
-		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_REPORT_SEND_SETTINGS, true)){
+		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CRASH_DUMPS_INCLUDE_SETTINGS, true)){
 			$this->data->parameters = (array) $argv;
 			if(($serverDotProperties = @file_get_contents(Path::join($this->server->getDataPath(), "server.properties"))) !== false){
 				$this->data->serverDotProperties = preg_replace("#^rcon\\.password=(.*)$#m", "rcon.password=******", $serverDotProperties) ?? throw new AssumptionFailedError("Pattern is valid");
 			}
-			if(($pocketmineDotYml = @file_get_contents(Path::join($this->server->getDataPath(), "pocketmine.yml"))) !== false){
-				$this->data->pocketmineDotYml = $pocketmineDotYml;
+			if(($quarkDotYml = @file_get_contents(Path::join($this->server->getDataPath(), "quark.yml"))) !== false){
+				$this->data->quarkDotYml = $quarkDotYml;
 			}
 		}
 		$extensions = [];
@@ -180,7 +180,7 @@ class CrashDump{
 
 		$this->data->jit_mode = Utils::getOpcacheJitMode();
 
-		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_REPORT_SEND_PHPINFO, true)){
+		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CRASH_DUMPS_INCLUDE_PHPINFO, true)){
 			ob_start();
 			phpinfo();
 			$this->data->phpinfo = ob_get_contents(); // @phpstan-ignore-line
@@ -236,7 +236,7 @@ class CrashDump{
 			}
 		}
 
-		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_REPORT_SEND_CODE, true) && file_exists($error["fullFile"])){
+		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CRASH_DUMPS_INCLUDE_CODE, true) && file_exists($error["fullFile"])){
 			$file = @file($error["fullFile"], FILE_IGNORE_NEW_LINES);
 			if($file !== false){
 				for($l = max(0, $error["line"] - 10); $l < $error["line"] + 10 && isset($file[$l]); ++$l){

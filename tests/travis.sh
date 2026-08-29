@@ -18,33 +18,29 @@ DATA_DIR="$(pwd)/test_data"
 PLUGINS_DIR="$DATA_DIR/plugins"
 
 rm -rf "$DATA_DIR"
-rm PocketMine-MP.phar 2> /dev/null
+rm Quark.phar 2> /dev/null
 mkdir "$DATA_DIR"
 mkdir "$PLUGINS_DIR"
 
-cd tests/plugins/DevTools || { echo "Couldn't change directory to $DIR"; exit 1; }
-php -dphar.readonly=0 ./src/ConsoleScript.php --make ./ --relative ./ --out "$PLUGINS_DIR/DevTools.phar"
-cd ../../..
+php -d phar.readonly=0 tests/build-plugin-phar.php tests/plugins/TesterPlugin "$PLUGINS_DIR/TesterPlugin.phar"
 composer make-server
 
-if [ -f PocketMine-MP.phar ]; then
+if [ -f Quark.phar ]; then
 	echo Server phar created successfully.
 else
 	echo Server phar was not created!
 	exit 1
 fi
 
-cp -r tests/plugins/TesterPlugin "$PLUGINS_DIR"
 cp tests/plugins/TestScriptPlugin.php "$PLUGINS_DIR"
 
-echo -e "stop\n" | php PocketMine-MP.phar \
+echo -e "stop\n" | php Quark.phar \
   --no-wizard \
   --disable-ansi \
   --disable-readline \
   --debug.level=2 \
   --data="$DATA_DIR" \
   --plugins="$PLUGINS_DIR" \
-  --anonymous-statistics.enabled=0 \
   --settings.async-workers="$PM_WORKERS" \
   --settings.enable-dev-builds=1 \
   --auto-report.enabled=0

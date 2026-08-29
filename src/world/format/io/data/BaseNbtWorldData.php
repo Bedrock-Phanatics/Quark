@@ -2,33 +2,33 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world\format\io\data;
+namespace quark\world\format\io\data;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\world\format\io\exception\CorruptedWorldException;
-use pocketmine\world\format\io\exception\UnsupportedWorldFormatException;
-use pocketmine\world\format\io\WorldData;
+use quark\world\format\io\exception\CorruptedWorldException;
+use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\WorldData;
 use function file_exists;
 
 abstract class BaseNbtWorldData implements WorldData{
@@ -75,7 +75,7 @@ abstract class BaseNbtWorldData implements WorldData{
 	abstract protected function fix() : void;
 
 	/**
-	 * Hack to fix worlds broken previously by older versions of PocketMine-MP which incorrectly saved classpaths of
+	 * Hack to fix worlds broken previously by older versions of Quark which incorrectly saved classpaths of
 	 * generators into level.dat on imported (not generated) worlds.
 	 *
 	 * This should only have affected leveldb worlds as far as I know, because PC format worlds include the
@@ -96,10 +96,10 @@ abstract class BaseNbtWorldData implements WorldData{
 		//THESE ARE DELIBERATELY HARDCODED, DO NOT CHANGE!
 		switch($className){
 			/** @noinspection ClassConstantCanBeUsedInspection */
-			case 'pocketmine\level\generator\normal\Normal':
+			case 'quark\level\generator\normal\Normal':
 				return "normal";
 			/** @noinspection ClassConstantCanBeUsedInspection */
-			case 'pocketmine\level\generator\Flat':
+			case 'quark\level\generator\Flat':
 				return "flat";
 		}
 

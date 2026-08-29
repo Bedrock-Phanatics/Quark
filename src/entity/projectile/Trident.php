@@ -2,44 +2,44 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity\projectile;
+namespace quark\entity\projectile;
 
-use pocketmine\block\Block;
-use pocketmine\entity\Entity;
-use pocketmine\entity\EntitySizeInfo;
-use pocketmine\entity\Location;
-use pocketmine\event\entity\EntityItemPickupEvent;
-use pocketmine\item\Item;
+use quark\block\Block;
+use quark\entity\Entity;
+use quark\entity\EntitySizeInfo;
+use quark\entity\Location;
+use quark\event\entity\EntityItemPickupEvent;
+use quark\item\Item;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\EntityEventBroadcaster;
-use pocketmine\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\player\Player;
-use pocketmine\world\sound\TridentHitBlockSound;
-use pocketmine\world\sound\TridentHitEntitySound;
+use quark\player\Player;
+use quark\world\sound\TridentHitBlockSound;
+use quark\world\sound\TridentHitEntitySound;
 
 class Trident extends Projectile{
 

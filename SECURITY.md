@@ -4,21 +4,21 @@
 
 ### Report via GitHub
 
-Send a _**private security report**_ by going to https://github.com/pmmp/PocketMine-MP/security and clicking the "Report a vulnerability" button.
+Send a _**private security report**_ by going to https://github.com/Bedrock-Phanatics/Quark/security and clicking the "Report a vulnerability" button.
 
 > [!WARNING]
 > **DO NOT report vulnerabilities on the Issues tab. Report them in the Security tab ONLY.**
 > 
 > The issue tracker is public to view, which means that malicious actors may learn about exploits from a public issue.
 >
-> **You may put live PocketMine-MP servers at risk by reporting a vulnerability on the GitHub issue tracker.**
+> **You may put live Quark servers at risk by reporting a vulnerability on the GitHub issue tracker.**
 
 ### Report via email
 
-If you can't or don't want to use the GitHub system, you can also **contact us** by sending an email to [**security@pmmp.io**](mailto:security@pmmp.io).
+Please use GitHub private vulnerability reporting so security reports are not disclosed publicly.
 Include the following information:
 
-- Version of PocketMine-MP
+- Version of Quark
 - Detailed description of the vulnerability (e.g. how to exploit it, what the effects are)
 - Your GitHub username, if you wish to be credited for reporting the problem in the security advisory
 

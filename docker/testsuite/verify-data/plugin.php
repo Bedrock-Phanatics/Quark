@@ -5,10 +5,10 @@
  * @version 1.0.0
  * @api 5.0.0
  * @main DataTest
- * @author PMMP Team
+ * @author QUARK Team
  */
 
-class DataTest extends \pocketmine\plugin\PluginBase {
+class DataTest extends \quark\plugin\PluginBase {
 	public function onEnable() : void {
 		$data = file_get_contents($this->getDataFolder() . "/create-data");
 		if($data !== "successful") {

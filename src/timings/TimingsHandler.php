@@ -2,35 +2,35 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\timings;
+namespace quark\timings;
 
 use pmmp\thread\Thread as NativeThread;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
-use pocketmine\promise\Promise;
-use pocketmine\promise\PromiseResolver;
-use pocketmine\Server;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\ObjectSet;
-use pocketmine\utils\Utils;
+use quark\promise\Promise;
+use quark\promise\PromiseResolver;
+use quark\Server;
+use quark\utils\AssumptionFailedError;
+use quark\utils\ObjectSet;
+use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_merge;
 use function array_push;
@@ -139,7 +139,7 @@ class TimingsHandler{
 		$result = [];
 
 		$result[] = "# Version " . Server::getInstance()->getVersion();
-		$result[] = "# " . Server::getInstance()->getName() . " " . Server::getInstance()->getPocketMineVersion();
+		$result[] = "# " . Server::getInstance()->getName() . " " . Server::getInstance()->getQuarkVersion();
 
 		$result[] = "# FormatVersion " . self::FORMAT_VERSION;
 

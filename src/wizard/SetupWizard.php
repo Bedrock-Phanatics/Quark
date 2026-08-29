@@ -2,19 +2,19 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -25,20 +25,20 @@ declare(strict_types=1);
  * Set-up wizard used on the first run
  * Can be disabled with --no-wizard
  */
-namespace pocketmine\wizard;
+namespace quark\wizard;
 
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\lang\Language;
-use pocketmine\lang\LanguageNotFoundException;
-use pocketmine\lang\Translatable;
-use pocketmine\player\GameMode;
-use pocketmine\Server;
-use pocketmine\ServerProperties;
-use pocketmine\utils\Config;
-use pocketmine\utils\Internet;
-use pocketmine\utils\InternetException;
-use pocketmine\utils\Utils;
-use pocketmine\VersionInfo;
+use quark\lang\KnownTranslationFactory;
+use quark\lang\Language;
+use quark\lang\LanguageNotFoundException;
+use quark\lang\Translatable;
+use quark\player\GameMode;
+use quark\Server;
+use quark\ServerProperties;
+use quark\utils\Config;
+use quark\utils\Internet;
+use quark\utils\InternetException;
+use quark\utils\Utils;
+use quark\VersionInfo;
 use Symfony\Component\Filesystem\Path;
 use function fgets;
 use function sleep;
@@ -118,7 +118,7 @@ class SetupWizard{
 	}
 
 	private function showLicense() : bool{
-		$this->message($this->lang->translate(KnownTranslationFactory::welcome_to_pocketmine(VersionInfo::NAME)));
+		$this->message($this->lang->translate(KnownTranslationFactory::welcome_to_quark(VersionInfo::NAME)));
 		echo <<<LICENSE
 
   This program is free software: you can redistribute it and/or modify
@@ -234,8 +234,8 @@ LICENSE;
 
 	private function endWizard() : void{
 		$this->message($this->lang->translate(KnownTranslationFactory::you_have_finished()));
-		$this->message($this->lang->translate(KnownTranslationFactory::pocketmine_plugins()));
-		$this->message($this->lang->translate(KnownTranslationFactory::pocketmine_will_start(VersionInfo::NAME)));
+		$this->message($this->lang->translate(KnownTranslationFactory::quark_plugins()));
+		$this->message($this->lang->translate(KnownTranslationFactory::quark_will_start(VersionInfo::NAME)));
 
 		$this->writeLine();
 		$this->writeLine();

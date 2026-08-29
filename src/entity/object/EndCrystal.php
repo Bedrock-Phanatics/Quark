@@ -2,34 +2,34 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity\object;
+namespace quark\entity\object;
 
-use pocketmine\entity\Entity;
-use pocketmine\entity\EntitySizeInfo;
-use pocketmine\entity\Explosive;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\event\entity\EntityPreExplodeEvent;
-use pocketmine\item\Item;
-use pocketmine\item\VanillaItems;
+use quark\entity\Entity;
+use quark\entity\EntitySizeInfo;
+use quark\entity\Explosive;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\EntityPreExplodeEvent;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -38,7 +38,7 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\world\Explosion;
+use quark\world\Explosion;
 
 class EndCrystal extends Entity implements Explosive{
 	private const TAG_SHOWBASE = "ShowBottom"; //TAG_Byte

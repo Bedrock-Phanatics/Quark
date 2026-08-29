@@ -1,4 +1,4 @@
-Code contributions must be submitted using [GitHub Pull Requests](https://github.com/pmmp/PocketMine-MP/pulls), where they will be reviewed by maintainers.
+Code contributions must be submitted using [GitHub Pull Requests](https://github.com/Bedrock-Phanatics/Quark/pulls), where they will be reviewed by maintainers.
 
 Small contributions (e.g. minor bug fixes) can be submitted as pull requests directly.
 
@@ -6,7 +6,7 @@ Larger contributions like feature additions should be preceded by a [Change Prop
 
 > [!TIP]
 > Want to contribute (non-English) translations? Visit our
-> [Crowdin Translation Project](https://crowdin.com/project/pocketmine) instead.
+> [Crowdin Translation Project](https://crowdin.com/project/quark) instead.
 >
 > Translations need to go through a different review process, so we can't accept changes to them in PRs.
 
@@ -18,30 +18,30 @@ Larger contributions like feature additions should be preceded by a [Change Prop
 ## Other things you'll need
 - [git](https://git-scm.com/)
 
-## List of `pocketmine` namespaces which are in other repos
-PocketMine-MP has several dependencies which are independent from the main server code. Most of them use the `pocketmine` namespace.
-Some of these add extra classes to packages which already exist in PocketMine-MP.
+## List of `quark` namespaces which are in other repos
+Quark has several dependencies which are independent from the main server code. Most of them use the `quark` namespace.
+Some of these add extra classes to packages which already exist in Quark.
 
 Take a look at the table below if you can't find the class or function you're looking for.
 
 | Source URL                                                      | Namespace, class or function                                                                                                             |
 |:----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------|
-| [pmmp/BedrockProtocol](https://github.com/pmmp/BedrockProtocol) | `pocketmine\network\mcpe\protocol`                                                                                                       |
-| [pmmp/BinaryUtils](https://github.com/pmmp/BinaryUtils)         | `pocketmine\utils\BinaryDataException`</br>`pocketmine\utils\BinaryStream`</br>`pocketmine\utils\Binary`                                 |
-| [pmmp/Color](https://github.com/pmmp/Color)                     | `pocketmine\color`                                                                                                                       |
-| [pmmp/ErrorHandler](https://github.com/pmmp/ErrorHandler)       | `pocketmine\errorhandler`                                                                                                                |
-| [pmmp/Log](https://github.com/pmmp/Log)                         | `AttachableLogger`</br>`BufferedLogger`</br>`GlobalLogger`</br>`LogLevel`</br>`Logger`</br>`PrefixedLogger`</br>`SimpleLogger`           |
-| [pmmp/Math](https://github.com/pmmp/Math)                       | `pocketmine\math`                                                                                                                        |
-| [pmmp/NBT](https://github.com/pmmp/NBT)                         | `pocketmine\nbt`                                                                                                                         |
-| [pmmp/RakLibIpc](https://github.com/pmmp/RakLibIpc)             | `raklib\server\ipc`                                                                                                                      |
-| [pmmp/RakLib](https://github.com/pmmp/RakLib)                   | `raklib`                                                                                                                                 |
-| [pmmp/Snooze](https://github.com/pmmp/Snooze)                   | `pocketmine\snooze`                                                                                                                      |
-| [pmmp/ext-chunkutils2](https://github.com/pmmp/ext-chunkutils2) | `pocketmine\world\format\LightArray`</br>`pocketmine\world\format\PalettedBlockArray`</br>`pocketmine\world\format\io\SubChunkConverter` |
-| [pmmp/ext-morton](https://github.com/pmmp/ext-morton)           | `morton2d_decode`</br>`morton2d_encode`</br>`morton3d_decode`</br>`morton3d_encode`                                                      |
-| [pmmp/ext-libdeflate](https://github.com/pmmp/ext-libdeflate)   | `libdeflate_deflate_compress`</br>`libdeflate_gzip_compress`</br>`libdeflate_zlib_compress`                                              |
+| [quark/BedrockProtocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | `pocketmine\network\mcpe\protocol`                                                                                                       |
+| [quark/BinaryUtils](https://github.com/Bedrock-Phanatics/BinaryUtils)         | `pocketmine\utils\BinaryDataException`</br>`pocketmine\utils\BinaryStream`</br>`pocketmine\utils\Binary`                                 |
+| [quark/Color](https://github.com/Bedrock-Phanatics/Color)                     | `pocketmine\color`                                                                                                                       |
+| [quark/ErrorHandler](https://github.com/Bedrock-Phanatics/ErrorHandler)       | `pocketmine\errorhandler`                                                                                                                |
+| [quark/Log](https://github.com/Bedrock-Phanatics/Log)                         | `AttachableLogger`</br>`BufferedLogger`</br>`GlobalLogger`</br>`LogLevel`</br>`Logger`</br>`PrefixedLogger`</br>`SimpleLogger`           |
+| [quark/Math](https://github.com/Bedrock-Phanatics/Math)                       | `pocketmine\math`                                                                                                                        |
+| [quark/NBT](https://github.com/Bedrock-Phanatics/NBT)                         | `pocketmine\nbt`                                                                                                                         |
+| [quark/RakLibIpc](https://github.com/Bedrock-Phanatics/RakLibIpc)             | `raklib\server\ipc`                                                                                                                      |
+| [quark/RakLib](https://github.com/Bedrock-Phanatics/RakLib)                   | `raklib`                                                                                                                                 |
+| [quark/Snooze](https://github.com/Bedrock-Phanatics/Snooze)                   | `pocketmine\snooze`                                                                                                                      |
+| [quark/ext-chunkutils2](https://github.com/Bedrock-Phanatics/ext-chunkutils2) | `pocketmine\world\format\LightArray`</br>`pocketmine\world\format\PalettedBlockArray`</br>`pocketmine\world\format\io\SubChunkConverter` |
+| [quark/ext-morton](https://github.com/Bedrock-Phanatics/ext-morton)           | `morton2d_decode`</br>`morton2d_encode`</br>`morton3d_decode`</br>`morton3d_encode`                                                      |
+| [quark/ext-libdeflate](https://github.com/Bedrock-Phanatics/ext-libdeflate)   | `libdeflate_deflate_compress`</br>`libdeflate_gzip_compress`</br>`libdeflate_zlib_compress`                                              |
 
 ## Choosing a target branch
-PocketMine-MP has three primary branches of development.
+Quark has three primary branches of development.
 
 | Type of change                                                                                           | `stable` |          `minor-next`           | `major-next` |
 |:---------------------------------------------------------------------------------------------------------|:--------:|:-------------------------------:|:------------:|
@@ -60,7 +60,7 @@ PocketMine-MP has three primary branches of development.
 | Changing API behaviour                                                                                   |    ❌     | 🟡 Only if backwards-compatible |      ✔️      |
 | Removal of API                                                                                           |    ❌     |                ❌                |      ✔️      |
 | Backwards-incompatible API change (e.g. renaming a method)                                               |    ❌     |                ❌                |      ✔️      |
-| Backwards-incompatible internals change (e.g. changing things in `pocketmine\network\mcpe`)              |    ❌     |               ✔️                |      ✔️      |
+| Backwards-incompatible internals change (e.g. changing things in `quark\network\mcpe`)              |    ❌     |               ✔️                |      ✔️      |
 
 ### Notes
 - **Non-disruptive** means that usage should not be significantly altered by the change.
@@ -68,21 +68,21 @@ PocketMine-MP has three primary branches of development.
   - Examples of **disruptive** changes include changing the way the server is run, world format changes (since those require downtime for the user to convert their world).
 - **API** includes all public and protected classes, functions and constants (unless marked as `@internal`).
   - Private members are not part of the API, **unless in a trait**.
-  - The `pocketmine\network\mcpe` package is considered implicitly `@internal` in its entirety (see its [README](src/network/mcpe/README.md) for more details).
+  - The `quark\network\mcpe` package is considered implicitly `@internal` in its entirety (see its [README](src/network/mcpe/README.md) for more details).
 - Minecraft's protocol changes are considered necessary internal changes, and are **not** subject to the same rules.
   - Protocol changes must always be released in a new minor version, since they disrupt user experience by requiring a client update.
 - BC-breaking changes to the internal network API are allowed, but only in new minor versions. This ensures that plugins which use the internal network API will not break (though they shouldn't use such API anyway).
 
 ## Making a pull request
 The basic procedure to create a pull request is:
-1. [Fork the repository on GitHub](https://github.com/pmmp/PocketMine-MP/fork). This gives you your own copy of the repository to make changes to.
+1. [Fork the repository on GitHub](https://github.com/Bedrock-Phanatics/Quark/fork). This gives you your own copy of the repository to make changes to.
 2. Create a branch on your fork for your changes.
 3. Make the changes you want to make on this branch.
-4. You can then make a [pull request](https://github.com/pmmp/PocketMine-MP/pull/new) to the project.
+4. You can then make a [pull request](https://github.com/Bedrock-Phanatics/Quark/pull/new) to the project.
 
 ## Tests and quality checks
 
-PocketMine-MP uses several tools to enforce code quality standards.
+Quark uses several tools to enforce code quality standards.
 You can use these tools to check your code locally before you commit, which helps catch mistakes more quickly, and saves both your energy and maintainers' for reviewing logic, instead of formatting, syntax and other boring stuff.
 
 | Tool | Purpose | Installing | Running |
@@ -111,7 +111,7 @@ Depending on the changes, maintainers might ask you to make changes to the PR to
 > Don't worry about getting a PR perfect on the first try.
 > In fact, it's quite unusual for a PR to be perfect when it's first submitted, and most PRs will get changes requested by reviewers, even when the PR is made by one of our team members.
 >
-> Mistakes are normal, and PMMP team members will review your code and suggest changes to your code as needed.
+> Mistakes are normal, and QUARK team members will review your code and suggest changes to your code as needed.
 > Just make sure to stick with it so you can communicate with reviewers and/or make changes.
 
 ### Requirements
@@ -122,7 +122,7 @@ The following are required as a minimum for pull requests. PRs that don't meet t
 - **Don't make unnecessary changes.** Unnecessary changes make a PR harder to review, more likely to develop conflicts, and more likely to be declined.
 - **Tell us what tests have been done.** Ideally, include PHPUnit tests in your PR. If that's not possible (e.g. for in-game functionality), give details about playtesting (e.g. screenshots and videos).
 - **Code, comments and documentation must be written in American English.**
-- **Code must be in the PocketMine-MP style.**
+- **Code must be in the Quark style.**
   - If you use PhpStorm, a `Project` code style is provided, which you can use to automatically format new code.
   - You can also use [`php-cs-fixer`](https://github.com/FriendsOfPHP/PHP-CS-Fixer) to format your code.
 - **Use `final`, `private` and `readonly` wherever possible**. This allows us to change more things later on if needed without breaking plugins (including making things non-final, writable or increasing visibility).
@@ -132,7 +132,7 @@ The following are required as a minimum for pull requests. PRs that don't meet t
 - **Be patient.** Maintainers are often unavailable or busy. Your PR might not receive attention for a while.
 - **Start small.**
   - This helps you get familiar with the codebase, the contribution process, and the expectations of maintainers.
-  - Check out ["Easy task" issues](https://github.com/pmmp/PocketMine-MP/issues?q=is%3Aissue+is%3Aopen+label%3A%22Easy+task%22) on the issues page for something that you could tackle without too much effort.
+  - Check out ["Easy task" issues](https://github.com/Bedrock-Phanatics/Quark/issues?q=is%3Aissue+is%3Aopen+label%3A%22Easy+task%22) on the issues page for something that you could tackle without too much effort.
 - **Try to keep your PR diff small.** Small PRs can be reviewed and merged much more quickly than bigger ones.
 - **Do not copy-paste other people's code (or code written by AIs like ChatGPT)**. You'll likely be asked to make changes by reviewers. If you don't understand the code you're submitting, your PR is likely to fail.
 - **Do not edit code directly on github.com.** We recommend learning how to use [`git`](https://git-scm.com).
@@ -143,7 +143,7 @@ The following are required as a minimum for pull requests. PRs that don't meet t
 - **Create a new branch on your fork for each pull request.** This allows you to use the same fork to make multiple pull requests at the same time.
 - **Run quality tools like PHPStan locally before you commit.** See the section above about [tests and quality tools](#tests-and-quality-checks).
 
-**Thanks for contributing to PocketMine-MP!**
+**Thanks for contributing to Quark!**
 
 ## RFCs / Change Proposals
 Change Proposals are issues or discussions which describe a new feature proposal or behavioural change.

@@ -2,30 +2,30 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\lang;
+namespace quark\lang;
 
 /**
- * This class contains factory methods for all the translations known to PocketMine-MP as per the used version of
- * pmmp/Language.
+ * This class contains factory methods for all the translations known to Quark as per the used version of
+ * quark/Language.
  * This class is generated automatically, do NOT modify it by hand.
  *
  * @internal
@@ -1458,1418 +1458,6 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::OP_WHO, []);
 	}
 
-	public static function pocketmine_block_bed_incomplete() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_BLOCK_BED_INCOMPLETE, []);
-	}
-
-	public static function pocketmine_command_alias_illegal(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ALIAS_ILLEGAL, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_command_alias_notFound(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ALIAS_NOTFOUND, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_command_alias_recursive(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ALIAS_RECURSIVE, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_command_ban_ip_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_BAN_IP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_ban_player_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_BAN_PLAYER_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_banlist_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_BANLIST_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_clear_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_CLEAR_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_clear_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_CLEAR_USAGE, []);
-	}
-
-	public static function pocketmine_command_defaultgamemode_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_DEFAULTGAMEMODE_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_deop_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_DEOP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_difficulty_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_DIFFICULTY_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_dumpmemory_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_DUMPMEMORY_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_effect_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_EFFECT_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_enchant_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ENCHANT_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_error_permission(Translatable|string $commandName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ERROR_PERMISSION, [
-			"commandName" => $commandName,
-		]);
-	}
-
-	public static function pocketmine_command_error_playerNotFound(Translatable|string $playerName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ERROR_PLAYERNOTFOUND, [
-			"playerName" => $playerName,
-		]);
-	}
-
-	public static function pocketmine_command_error_playerUserOnly() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ERROR_PLAYERUSERONLY, []);
-	}
-
-	public static function pocketmine_command_gamemode_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GAMEMODE_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_gamemode_failure(Translatable|string $playerName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GAMEMODE_FAILURE, [
-			"playerName" => $playerName,
-		]);
-	}
-
-	public static function pocketmine_command_gamemode_unknown(Translatable|string $gameModeName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GAMEMODE_UNKNOWN, [
-			"gameModeName" => $gameModeName,
-		]);
-	}
-
-	public static function pocketmine_command_gc_chunks(Translatable|string $chunksCollected) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GC_CHUNKS, [
-			"chunksCollected" => $chunksCollected,
-		]);
-	}
-
-	public static function pocketmine_command_gc_cycles(Translatable|string $cyclesCollected) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GC_CYCLES, [
-			"cyclesCollected" => $cyclesCollected,
-		]);
-	}
-
-	public static function pocketmine_command_gc_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GC_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_gc_entities(Translatable|string $entitiesCollected) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GC_ENTITIES, [
-			"entitiesCollected" => $entitiesCollected,
-		]);
-	}
-
-	public static function pocketmine_command_gc_header() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GC_HEADER, []);
-	}
-
-	public static function pocketmine_command_gc_memoryFreed(Translatable|string $memoryFreed) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GC_MEMORYFREED, [
-			"memoryFreed" => $memoryFreed,
-		]);
-	}
-
-	public static function pocketmine_command_give_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GIVE_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_give_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_GIVE_USAGE, []);
-	}
-
-	public static function pocketmine_command_help_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_HELP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_help_specificCommand_aliases(Translatable|string $aliasList) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_HELP_SPECIFICCOMMAND_ALIASES, [
-			"aliasList" => $aliasList,
-		]);
-	}
-
-	public static function pocketmine_command_help_specificCommand_description(Translatable|string $description) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_HELP_SPECIFICCOMMAND_DESCRIPTION, [
-			"description" => $description,
-		]);
-	}
-
-	public static function pocketmine_command_help_specificCommand_header(Translatable|string $commandName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_HELP_SPECIFICCOMMAND_HEADER, [
-			"commandName" => $commandName,
-		]);
-	}
-
-	public static function pocketmine_command_help_specificCommand_usage(Translatable|string $usage) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_HELP_SPECIFICCOMMAND_USAGE, [
-			"usage" => $usage,
-		]);
-	}
-
-	public static function pocketmine_command_kick_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_KICK_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_kill_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_KILL_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_kill_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_KILL_USAGE, []);
-	}
-
-	public static function pocketmine_command_list_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_LIST_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_me_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_ME_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_notFound(Translatable|string $commandName, Translatable|string $helpCommand) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_NOTFOUND, [
-			"commandName" => $commandName,
-			"helpCommand" => $helpCommand,
-		]);
-	}
-
-	public static function pocketmine_command_op_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_OP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_particle_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_PARTICLE_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_particle_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_PARTICLE_USAGE, []);
-	}
-
-	public static function pocketmine_command_plugins_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_PLUGINS_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_plugins_success(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_PLUGINS_SUCCESS, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_command_save_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SAVE_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_saveoff_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SAVEOFF_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_saveon_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SAVEON_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_say_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SAY_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_seed_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SEED_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_setworldspawn_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SETWORLDSPAWN_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_spawnpoint_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SPAWNPOINT_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_spawnpoint_success(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2, Translatable|string $param3) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_SPAWNPOINT_SUCCESS, [
-			0 => $param0,
-			1 => $param1,
-			2 => $param2,
-			3 => $param3,
-		]);
-	}
-
-	public static function pocketmine_command_status_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_status_header() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_HEADER, []);
-	}
-
-	public static function pocketmine_command_status_memory_mainThread(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_MEMORY_MAINTHREAD, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_memory_manager(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_MEMORY_MANAGER, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_memory_stat(Translatable|string $megabytes) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_MEMORY_STAT, [
-			"megabytes" => $megabytes,
-		]);
-	}
-
-	public static function pocketmine_command_status_memory_total(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_MEMORY_TOTAL, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_memory_virtual(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_MEMORY_VIRTUAL, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_network_download(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_NETWORK_DOWNLOAD, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_network_stat(Translatable|string $kbps) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_NETWORK_STAT, [
-			"kbps" => $kbps,
-		]);
-	}
-
-	public static function pocketmine_command_status_network_upload(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_NETWORK_UPLOAD, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_threads(Translatable|string $count) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_THREADS, [
-			"count" => $count,
-		]);
-	}
-
-	public static function pocketmine_command_status_tps_average(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_TPS_AVERAGE, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_tps_current(Translatable|string $info) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_TPS_CURRENT, [
-			"info" => $info,
-		]);
-	}
-
-	public static function pocketmine_command_status_tps_stat(Translatable|string $ticksPerSecond, Translatable|string $loadPercent) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_TPS_STAT, [
-			"ticksPerSecond" => $ticksPerSecond,
-			"loadPercent" => $loadPercent,
-		]);
-	}
-
-	public static function pocketmine_command_status_uptime(Translatable|string $uptime) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_UPTIME, [
-			"uptime" => $uptime,
-		]);
-	}
-
-	public static function pocketmine_command_status_uptime_days(Translatable|string $days, Translatable|string $hours, Translatable|string $minutes, Translatable|string $seconds) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_UPTIME_DAYS, [
-			"days" => $days,
-			"hours" => $hours,
-			"minutes" => $minutes,
-			"seconds" => $seconds,
-		]);
-	}
-
-	public static function pocketmine_command_status_uptime_hours(Translatable|string $hours, Translatable|string $minutes, Translatable|string $seconds) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_UPTIME_HOURS, [
-			"hours" => $hours,
-			"minutes" => $minutes,
-			"seconds" => $seconds,
-		]);
-	}
-
-	public static function pocketmine_command_status_uptime_minutes(Translatable|string $minutes, Translatable|string $seconds) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_UPTIME_MINUTES, [
-			"minutes" => $minutes,
-			"seconds" => $seconds,
-		]);
-	}
-
-	public static function pocketmine_command_status_uptime_seconds(Translatable|string $seconds) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_UPTIME_SECONDS, [
-			"seconds" => $seconds,
-		]);
-	}
-
-	public static function pocketmine_command_status_world(Translatable|string $worldName, Translatable|string $loadedChunks, Translatable|string $tickingChunks, Translatable|string $entities, Translatable|string $timeStat) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_WORLD, [
-			"worldName" => $worldName,
-			"loadedChunks" => $loadedChunks,
-			"tickingChunks" => $tickingChunks,
-			"entities" => $entities,
-			"timeStat" => $timeStat,
-		]);
-	}
-
-	public static function pocketmine_command_status_world_timeStat(Translatable|string $milliseconds) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STATUS_WORLD_TIMESTAT, [
-			"milliseconds" => $milliseconds,
-		]);
-	}
-
-	public static function pocketmine_command_stop_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_STOP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_tell_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TELL_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_time_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIME_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_time_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIME_USAGE, []);
-	}
-
-	public static function pocketmine_command_timings_alreadyEnabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_ALREADYENABLED, []);
-	}
-
-	public static function pocketmine_command_timings_collect() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_COLLECT, []);
-	}
-
-	public static function pocketmine_command_timings_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_timings_disable() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_DISABLE, []);
-	}
-
-	public static function pocketmine_command_timings_enable() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_ENABLE, []);
-	}
-
-	public static function pocketmine_command_timings_pasteError() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_PASTEERROR, []);
-	}
-
-	public static function pocketmine_command_timings_reset() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_RESET, []);
-	}
-
-	public static function pocketmine_command_timings_timingsDisabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_TIMINGSDISABLED, []);
-	}
-
-	public static function pocketmine_command_timings_timingsRead(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_TIMINGSREAD, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_command_timings_timingsWrite(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_TIMINGSWRITE, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_command_timings_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TIMINGS_USAGE, []);
-	}
-
-	public static function pocketmine_command_title_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TITLE_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_tp_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_transferserver_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TRANSFERSERVER_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_transferserver_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_TRANSFERSERVER_USAGE, []);
-	}
-
-	public static function pocketmine_command_unban_ip_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_UNBAN_IP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_unban_player_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_UNBAN_PLAYER_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_userDefined_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_USERDEFINED_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_whitelist_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_WHITELIST_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_xp_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_XP_DESCRIPTION, []);
-	}
-
-	public static function pocketmine_command_xp_usage() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_COMMAND_XP_USAGE, []);
-	}
-
-	public static function pocketmine_crash_archive(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_CRASH_ARCHIVE, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_crash_create() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_CRASH_CREATE, []);
-	}
-
-	public static function pocketmine_crash_error(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_CRASH_ERROR, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_crash_submit(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_CRASH_SUBMIT, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_data_playerCorrupted(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DATA_PLAYERCORRUPTED, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_data_saveError(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DATA_SAVEERROR, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_disconnect_ban(Translatable|string $reason) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_BAN, [
-			"reason" => $reason,
-		]);
-	}
-
-	public static function pocketmine_disconnect_ban_hardcore() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_BAN_HARDCORE, []);
-	}
-
-	public static function pocketmine_disconnect_ban_ip() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_BAN_IP, []);
-	}
-
-	public static function pocketmine_disconnect_ban_noReason() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_BAN_NOREASON, []);
-	}
-
-	public static function pocketmine_disconnect_clientDisconnect() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_CLIENTDISCONNECT, []);
-	}
-
-	public static function pocketmine_disconnect_clientReconnect() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_CLIENTRECONNECT, []);
-	}
-
-	public static function pocketmine_disconnect_error(Translatable|string $error, Translatable|string $errorId) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR, [
-			"error" => $error,
-			"errorId" => $errorId,
-		]);
-	}
-
-	public static function pocketmine_disconnect_error_authentication() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR_AUTHENTICATION, []);
-	}
-
-	public static function pocketmine_disconnect_error_badPacket() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR_BADPACKET, []);
-	}
-
-	public static function pocketmine_disconnect_error_internal() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR_INTERNAL, []);
-	}
-
-	public static function pocketmine_disconnect_error_loginTimeout() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR_LOGINTIMEOUT, []);
-	}
-
-	public static function pocketmine_disconnect_error_respawn() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR_RESPAWN, []);
-	}
-
-	public static function pocketmine_disconnect_error_timeout() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_ERROR_TIMEOUT, []);
-	}
-
-	public static function pocketmine_disconnect_incompatibleProtocol(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_INCOMPATIBLEPROTOCOL, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_disconnect_invalidSession(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_INVALIDSESSION, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_disconnect_invalidSession_badSignature() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_INVALIDSESSION_BADSIGNATURE, []);
-	}
-
-	public static function pocketmine_disconnect_invalidSession_missingKey() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_INVALIDSESSION_MISSINGKEY, []);
-	}
-
-	public static function pocketmine_disconnect_invalidSession_tooEarly() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_INVALIDSESSION_TOOEARLY, []);
-	}
-
-	public static function pocketmine_disconnect_invalidSession_tooLate() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_INVALIDSESSION_TOOLATE, []);
-	}
-
-	public static function pocketmine_disconnect_kick(Translatable|string $reason) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_KICK, [
-			"reason" => $reason,
-		]);
-	}
-
-	public static function pocketmine_disconnect_kick_noReason() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_KICK_NOREASON, []);
-	}
-
-	public static function pocketmine_disconnect_transfer() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_TRANSFER, []);
-	}
-
-	public static function pocketmine_disconnect_whitelisted() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_WHITELISTED, []);
-	}
-
-	public static function pocketmine_disconnect_xblImpersonation() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_DISCONNECT_XBLIMPERSONATION, []);
-	}
-
-	public static function pocketmine_level_ambiguousFormat(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_AMBIGUOUSFORMAT, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_level_backgroundGeneration(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_BACKGROUNDGENERATION, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_level_badDefaultFormat(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_BADDEFAULTFORMAT, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_level_conversion_finish(Translatable|string $worldName, Translatable|string $backupPath) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_CONVERSION_FINISH, [
-			"worldName" => $worldName,
-			"backupPath" => $backupPath,
-		]);
-	}
-
-	public static function pocketmine_level_conversion_start(Translatable|string $worldName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_CONVERSION_START, [
-			"worldName" => $worldName,
-		]);
-	}
-
-	public static function pocketmine_level_corrupted(Translatable|string $details) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_CORRUPTED, [
-			"details" => $details,
-		]);
-	}
-
-	public static function pocketmine_level_defaultError() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_DEFAULTERROR, []);
-	}
-
-	public static function pocketmine_level_generationError(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_GENERATIONERROR, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_level_invalidGeneratorOptions(Translatable|string $preset, Translatable|string $generatorName, Translatable|string $details) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_INVALIDGENERATOROPTIONS, [
-			"preset" => $preset,
-			"generatorName" => $generatorName,
-			"details" => $details,
-		]);
-	}
-
-	public static function pocketmine_level_loadError(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_LOADERROR, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_level_preparing(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_PREPARING, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_level_spawnTerrainGenerationProgress(Translatable|string $done, Translatable|string $total, Translatable|string $percentageDone) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_SPAWNTERRAINGENERATIONPROGRESS, [
-			"done" => $done,
-			"total" => $total,
-			"percentageDone" => $percentageDone,
-		]);
-	}
-
-	public static function pocketmine_level_unknownFormat() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_UNKNOWNFORMAT, []);
-	}
-
-	public static function pocketmine_level_unknownGenerator(Translatable|string $generatorName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_UNKNOWNGENERATOR, [
-			"generatorName" => $generatorName,
-		]);
-	}
-
-	public static function pocketmine_level_unloading(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_UNLOADING, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_level_unsupportedFormat(Translatable|string $details) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_LEVEL_UNSUPPORTEDFORMAT, [
-			"details" => $details,
-		]);
-	}
-
-	public static function pocketmine_network_session_close(Translatable|string $reason) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_NETWORK_SESSION_CLOSE, [
-			"reason" => $reason,
-		]);
-	}
-
-	public static function pocketmine_network_session_open() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_NETWORK_SESSION_OPEN, []);
-	}
-
-	public static function pocketmine_network_session_playerName(Translatable|string $playerName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_NETWORK_SESSION_PLAYERNAME, [
-			"playerName" => $playerName,
-		]);
-	}
-
-	public static function pocketmine_permission_broadcast_admin() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_BROADCAST_ADMIN, []);
-	}
-
-	public static function pocketmine_permission_broadcast_user() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_BROADCAST_USER, []);
-	}
-
-	public static function pocketmine_permission_command_ban_ip() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_BAN_IP, []);
-	}
-
-	public static function pocketmine_permission_command_ban_list() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_BAN_LIST, []);
-	}
-
-	public static function pocketmine_permission_command_ban_player() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_BAN_PLAYER, []);
-	}
-
-	public static function pocketmine_permission_command_clear_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_CLEAR_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_clear_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_CLEAR_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_defaultgamemode() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_DEFAULTGAMEMODE, []);
-	}
-
-	public static function pocketmine_permission_command_difficulty() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_DIFFICULTY, []);
-	}
-
-	public static function pocketmine_permission_command_dumpmemory() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_DUMPMEMORY, []);
-	}
-
-	public static function pocketmine_permission_command_effect_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_EFFECT_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_effect_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_EFFECT_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_enchant_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_ENCHANT_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_enchant_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_ENCHANT_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_gamemode_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_GAMEMODE_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_gamemode_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_GAMEMODE_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_gc() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_GC, []);
-	}
-
-	public static function pocketmine_permission_command_give_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_GIVE_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_give_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_GIVE_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_help() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_HELP, []);
-	}
-
-	public static function pocketmine_permission_command_kick() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_KICK, []);
-	}
-
-	public static function pocketmine_permission_command_kill_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_KILL_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_kill_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_KILL_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_list() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_LIST, []);
-	}
-
-	public static function pocketmine_permission_command_me() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_ME, []);
-	}
-
-	public static function pocketmine_permission_command_op_give() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_OP_GIVE, []);
-	}
-
-	public static function pocketmine_permission_command_op_take() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_OP_TAKE, []);
-	}
-
-	public static function pocketmine_permission_command_particle() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_PARTICLE, []);
-	}
-
-	public static function pocketmine_permission_command_plugins() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_PLUGINS, []);
-	}
-
-	public static function pocketmine_permission_command_save_disable() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SAVE_DISABLE, []);
-	}
-
-	public static function pocketmine_permission_command_save_enable() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SAVE_ENABLE, []);
-	}
-
-	public static function pocketmine_permission_command_save_perform() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SAVE_PERFORM, []);
-	}
-
-	public static function pocketmine_permission_command_say() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SAY, []);
-	}
-
-	public static function pocketmine_permission_command_seed() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SEED, []);
-	}
-
-	public static function pocketmine_permission_command_setworldspawn() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SETWORLDSPAWN, []);
-	}
-
-	public static function pocketmine_permission_command_spawnpoint_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SPAWNPOINT_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_spawnpoint_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_SPAWNPOINT_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_status() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_STATUS, []);
-	}
-
-	public static function pocketmine_permission_command_stop() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_STOP, []);
-	}
-
-	public static function pocketmine_permission_command_teleport_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TELEPORT_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_teleport_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TELEPORT_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_tell() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TELL, []);
-	}
-
-	public static function pocketmine_permission_command_time_add() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TIME_ADD, []);
-	}
-
-	public static function pocketmine_permission_command_time_query() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TIME_QUERY, []);
-	}
-
-	public static function pocketmine_permission_command_time_set() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TIME_SET, []);
-	}
-
-	public static function pocketmine_permission_command_time_start() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TIME_START, []);
-	}
-
-	public static function pocketmine_permission_command_time_stop() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TIME_STOP, []);
-	}
-
-	public static function pocketmine_permission_command_timings() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TIMINGS, []);
-	}
-
-	public static function pocketmine_permission_command_title_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TITLE_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_title_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TITLE_SELF, []);
-	}
-
-	public static function pocketmine_permission_command_transferserver() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_TRANSFERSERVER, []);
-	}
-
-	public static function pocketmine_permission_command_unban_ip() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_UNBAN_IP, []);
-	}
-
-	public static function pocketmine_permission_command_unban_player() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_UNBAN_PLAYER, []);
-	}
-
-	public static function pocketmine_permission_command_version() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_VERSION, []);
-	}
-
-	public static function pocketmine_permission_command_whitelist_add() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_WHITELIST_ADD, []);
-	}
-
-	public static function pocketmine_permission_command_whitelist_disable() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_WHITELIST_DISABLE, []);
-	}
-
-	public static function pocketmine_permission_command_whitelist_enable() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_WHITELIST_ENABLE, []);
-	}
-
-	public static function pocketmine_permission_command_whitelist_list() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_WHITELIST_LIST, []);
-	}
-
-	public static function pocketmine_permission_command_whitelist_reload() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_WHITELIST_RELOAD, []);
-	}
-
-	public static function pocketmine_permission_command_whitelist_remove() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_WHITELIST_REMOVE, []);
-	}
-
-	public static function pocketmine_permission_command_xp_other() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_XP_OTHER, []);
-	}
-
-	public static function pocketmine_permission_command_xp_self() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_COMMAND_XP_SELF, []);
-	}
-
-	public static function pocketmine_permission_group_console() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_GROUP_CONSOLE, []);
-	}
-
-	public static function pocketmine_permission_group_operator() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_GROUP_OPERATOR, []);
-	}
-
-	public static function pocketmine_permission_group_user() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PERMISSION_GROUP_USER, []);
-	}
-
-	public static function pocketmine_player_logIn(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2, Translatable|string $param3, Translatable|string $param4, Translatable|string $param5, Translatable|string $param6, Translatable|string $param7) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLAYER_LOGIN, [
-			0 => $param0,
-			1 => $param1,
-			2 => $param2,
-			3 => $param3,
-			4 => $param4,
-			5 => $param5,
-			6 => $param6,
-			7 => $param7,
-		]);
-	}
-
-	public static function pocketmine_plugin_aliasError(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_ALIASERROR, [
-			0 => $param0,
-			1 => $param1,
-			2 => $param2,
-		]);
-	}
-
-	public static function pocketmine_plugin_ambiguousMinAPI(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_AMBIGUOUSMINAPI, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_badDataFolder(Translatable|string $dataFolder) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_BADDATAFOLDER, [
-			"dataFolder" => $dataFolder,
-		]);
-	}
-
-	public static function pocketmine_plugin_circularDependency() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_CIRCULARDEPENDENCY, []);
-	}
-
-	public static function pocketmine_plugin_commandError(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_COMMANDERROR, [
-			0 => $param0,
-			1 => $param1,
-			2 => $param2,
-		]);
-	}
-
-	public static function pocketmine_plugin_disable(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_DISABLE, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_disallowedByBlacklist() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_DISALLOWEDBYBLACKLIST, []);
-	}
-
-	public static function pocketmine_plugin_disallowedByWhitelist() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_DISALLOWEDBYWHITELIST, []);
-	}
-
-	public static function pocketmine_plugin_duplicateError(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_DUPLICATEERROR, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_duplicatePermissionError(Translatable|string $permissionName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_DUPLICATEPERMISSIONERROR, [
-			"permissionName" => $permissionName,
-		]);
-	}
-
-	public static function pocketmine_plugin_emptyExtensionVersionConstraint(Translatable|string $constraintIndex, Translatable|string $extensionName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_EMPTYEXTENSIONVERSIONCONSTRAINT, [
-			"constraintIndex" => $constraintIndex,
-			"extensionName" => $extensionName,
-		]);
-	}
-
-	public static function pocketmine_plugin_enable(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_ENABLE, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_enableError(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_ENABLEERROR, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_plugin_extensionNotLoaded(Translatable|string $extensionName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_EXTENSIONNOTLOADED, [
-			"extensionName" => $extensionName,
-		]);
-	}
-
-	public static function pocketmine_plugin_incompatibleAPI(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INCOMPATIBLEAPI, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_incompatibleExtensionVersion(Translatable|string $extensionVersion, Translatable|string $extensionName, Translatable|string $pluginRequirement) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INCOMPATIBLEEXTENSIONVERSION, [
-			"extensionVersion" => $extensionVersion,
-			"extensionName" => $extensionName,
-			"pluginRequirement" => $pluginRequirement,
-		]);
-	}
-
-	public static function pocketmine_plugin_incompatibleOS(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INCOMPATIBLEOS, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_incompatiblePhpVersion(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INCOMPATIBLEPHPVERSION, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_incompatibleProtocol(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INCOMPATIBLEPROTOCOL, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_invalidAPI(Translatable|string $apiVersion) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INVALIDAPI, [
-			"apiVersion" => $apiVersion,
-		]);
-	}
-
-	public static function pocketmine_plugin_invalidExtensionVersionConstraint(Translatable|string $versionConstraint, Translatable|string $extensionName) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INVALIDEXTENSIONVERSIONCONSTRAINT, [
-			"versionConstraint" => $versionConstraint,
-			"extensionName" => $extensionName,
-		]);
-	}
-
-	public static function pocketmine_plugin_invalidManifest(Translatable|string $details) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_INVALIDMANIFEST, [
-			"details" => $details,
-		]);
-	}
-
-	public static function pocketmine_plugin_load(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_LOAD, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_loadError(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_LOADERROR, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_plugin_mainClassAbstract() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_MAINCLASSABSTRACT, []);
-	}
-
-	public static function pocketmine_plugin_mainClassNotFound() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_MAINCLASSNOTFOUND, []);
-	}
-
-	public static function pocketmine_plugin_mainClassWrongType(Translatable|string $pluginInterface) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_MAINCLASSWRONGTYPE, [
-			"pluginInterface" => $pluginInterface,
-		]);
-	}
-
-	public static function pocketmine_plugin_restrictedName() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_RESTRICTEDNAME, []);
-	}
-
-	public static function pocketmine_plugin_someEnableErrors() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_SOMEENABLEERRORS, []);
-	}
-
-	public static function pocketmine_plugin_someLoadErrors() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_SOMELOADERRORS, []);
-	}
-
-	public static function pocketmine_plugin_spacesDiscouraged(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_SPACESDISCOURAGED, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_plugin_suicide() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_SUICIDE, []);
-	}
-
-	public static function pocketmine_plugin_unknownDependency(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGIN_UNKNOWNDEPENDENCY, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_save_start() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SAVE_START, []);
-	}
-
-	public static function pocketmine_save_success(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SAVE_SUCCESS, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_auth_disabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_AUTH_DISABLED, []);
-	}
-
-	public static function pocketmine_server_auth_enabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_AUTH_ENABLED, []);
-	}
-
-	public static function pocketmine_server_authProperty_disabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_AUTHPROPERTY_DISABLED, []);
-	}
-
-	public static function pocketmine_server_authWarning() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_AUTHWARNING, []);
-	}
-
-	public static function pocketmine_server_defaultGameMode(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEFAULTGAMEMODE, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_devBuild_error1(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_ERROR1, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_devBuild_error2() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_ERROR2, []);
-	}
-
-	public static function pocketmine_server_devBuild_error3() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_ERROR3, []);
-	}
-
-	public static function pocketmine_server_devBuild_error4(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_ERROR4, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_devBuild_error5(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_ERROR5, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_devBuild_warning1(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_WARNING1, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_devBuild_warning2() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_WARNING2, []);
-	}
-
-	public static function pocketmine_server_devBuild_warning3() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_DEVBUILD_WARNING3, []);
-	}
-
-	public static function pocketmine_server_forcingShutdown() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_FORCINGSHUTDOWN, []);
-	}
-
-	public static function pocketmine_server_info(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_INFO, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_server_license(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_LICENSE, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_networkStart(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_NETWORKSTART, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_server_networkStartFailed(Translatable|string $ipAddress, Translatable|string $port, Translatable|string $errorMessage) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_NETWORKSTARTFAILED, [
-			"ipAddress" => $ipAddress,
-			"port" => $port,
-			"errorMessage" => $errorMessage,
-		]);
-	}
-
-	public static function pocketmine_server_obsolete_warning1(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_OBSOLETE_WARNING1, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_server_obsolete_warning2(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_OBSOLETE_WARNING2, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_server_obsolete_warning3(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_OBSOLETE_WARNING3, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_query_running(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_QUERY_RUNNING, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function pocketmine_server_start(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_START, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_startFinished(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_STARTFINISHED, [
-			0 => $param0,
-		]);
-	}
-
-	public static function pocketmine_server_tickOverload() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_TICKOVERLOAD, []);
-	}
-
-	public static function pocketmine_server_url_bugReporting(Translatable|string $bugReportingUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_BUGREPORTING, [
-			"bugReportingUrl" => $bugReportingUrl,
-		]);
-	}
-
-	public static function pocketmine_server_url_discord(Translatable|string $discordUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_DISCORD, [
-			"discordUrl" => $discordUrl,
-		]);
-	}
-
-	public static function pocketmine_server_url_docs(Translatable|string $docsUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_DOCS, [
-			"docsUrl" => $docsUrl,
-		]);
-	}
-
-	public static function pocketmine_server_url_donations(Translatable|string $donationsUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_DONATIONS, [
-			"donationsUrl" => $donationsUrl,
-		]);
-	}
-
-	public static function pocketmine_server_url_freePlugins(Translatable|string $pluginsUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_FREEPLUGINS, [
-			"pluginsUrl" => $pluginsUrl,
-		]);
-	}
-
-	public static function pocketmine_server_url_sourceCode(Translatable|string $sourceUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_SOURCECODE, [
-			"sourceUrl" => $sourceUrl,
-		]);
-	}
-
-	public static function pocketmine_server_url_translations(Translatable|string $translationsUrl) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_SERVER_URL_TRANSLATIONS, [
-			"translationsUrl" => $translationsUrl,
-		]);
-	}
-
-	public static function pocketmine_plugins() : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_PLUGINS, []);
-	}
-
-	public static function pocketmine_will_start(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::POCKETMINE_WILL_START, [
-			0 => $param0,
-		]);
-	}
-
 	public static function port_warning() : Translatable{
 		return new Translatable(KnownTranslationKeys::PORT_WARNING, []);
 	}
@@ -2978,6 +1566,486 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::POTION_WITHER, []);
 	}
 
+	public static function quark_block_bed_incomplete() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_BLOCK_BED_INCOMPLETE, []);
+	}
+
+	public static function quark_command_alias_illegal(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ALIAS_ILLEGAL, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_command_alias_notFound(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ALIAS_NOTFOUND, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_command_alias_recursive(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ALIAS_RECURSIVE, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_command_ban_ip_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_BAN_IP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_ban_player_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_BAN_PLAYER_DESCRIPTION, []);
+	}
+
+	public static function quark_command_banlist_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_BANLIST_DESCRIPTION, []);
+	}
+
+	public static function quark_command_clear_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_CLEAR_DESCRIPTION, []);
+	}
+
+	public static function quark_command_clear_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_CLEAR_USAGE, []);
+	}
+
+	public static function quark_command_defaultgamemode_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_DEFAULTGAMEMODE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_deop_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_DEOP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_difficulty_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_DIFFICULTY_DESCRIPTION, []);
+	}
+
+	public static function quark_command_dumpmemory_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_DUMPMEMORY_DESCRIPTION, []);
+	}
+
+	public static function quark_command_effect_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_EFFECT_DESCRIPTION, []);
+	}
+
+	public static function quark_command_enchant_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ENCHANT_DESCRIPTION, []);
+	}
+
+	public static function quark_command_error_permission(Translatable|string $commandName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_PERMISSION, [
+			"commandName" => $commandName,
+		]);
+	}
+
+	public static function quark_command_error_playerNotFound(Translatable|string $playerName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_PLAYERNOTFOUND, [
+			"playerName" => $playerName,
+		]);
+	}
+
+	public static function quark_command_error_playerUserOnly() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_PLAYERUSERONLY, []);
+	}
+
+	public static function quark_command_gamemode_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GAMEMODE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_gamemode_failure(Translatable|string $playerName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GAMEMODE_FAILURE, [
+			"playerName" => $playerName,
+		]);
+	}
+
+	public static function quark_command_gamemode_unknown(Translatable|string $gameModeName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GAMEMODE_UNKNOWN, [
+			"gameModeName" => $gameModeName,
+		]);
+	}
+
+	public static function quark_command_gc_chunks(Translatable|string $chunksCollected) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GC_CHUNKS, [
+			"chunksCollected" => $chunksCollected,
+		]);
+	}
+
+	public static function quark_command_gc_cycles(Translatable|string $cyclesCollected) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GC_CYCLES, [
+			"cyclesCollected" => $cyclesCollected,
+		]);
+	}
+
+	public static function quark_command_gc_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GC_DESCRIPTION, []);
+	}
+
+	public static function quark_command_gc_entities(Translatable|string $entitiesCollected) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GC_ENTITIES, [
+			"entitiesCollected" => $entitiesCollected,
+		]);
+	}
+
+	public static function quark_command_gc_header() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GC_HEADER, []);
+	}
+
+	public static function quark_command_gc_memoryFreed(Translatable|string $memoryFreed) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GC_MEMORYFREED, [
+			"memoryFreed" => $memoryFreed,
+		]);
+	}
+
+	public static function quark_command_give_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_give_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_USAGE, []);
+	}
+
+	public static function quark_command_help_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_HELP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_help_specificCommand_aliases(Translatable|string $aliasList) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_HELP_SPECIFICCOMMAND_ALIASES, [
+			"aliasList" => $aliasList,
+		]);
+	}
+
+	public static function quark_command_help_specificCommand_description(Translatable|string $description) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_HELP_SPECIFICCOMMAND_DESCRIPTION, [
+			"description" => $description,
+		]);
+	}
+
+	public static function quark_command_help_specificCommand_header(Translatable|string $commandName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_HELP_SPECIFICCOMMAND_HEADER, [
+			"commandName" => $commandName,
+		]);
+	}
+
+	public static function quark_command_help_specificCommand_usage(Translatable|string $usage) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_HELP_SPECIFICCOMMAND_USAGE, [
+			"usage" => $usage,
+		]);
+	}
+
+	public static function quark_command_kick_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_KICK_DESCRIPTION, []);
+	}
+
+	public static function quark_command_kill_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_KILL_DESCRIPTION, []);
+	}
+
+	public static function quark_command_kill_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_KILL_USAGE, []);
+	}
+
+	public static function quark_command_list_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_LIST_DESCRIPTION, []);
+	}
+
+	public static function quark_command_me_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ME_DESCRIPTION, []);
+	}
+
+	public static function quark_command_notFound(Translatable|string $commandName, Translatable|string $helpCommand) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_NOTFOUND, [
+			"commandName" => $commandName,
+			"helpCommand" => $helpCommand,
+		]);
+	}
+
+	public static function quark_command_op_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_OP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_particle_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_PARTICLE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_particle_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_PARTICLE_USAGE, []);
+	}
+
+	public static function quark_command_plugins_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_PLUGINS_DESCRIPTION, []);
+	}
+
+	public static function quark_command_plugins_success(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_PLUGINS_SUCCESS, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_command_save_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SAVE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_saveoff_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SAVEOFF_DESCRIPTION, []);
+	}
+
+	public static function quark_command_saveon_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SAVEON_DESCRIPTION, []);
+	}
+
+	public static function quark_command_say_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SAY_DESCRIPTION, []);
+	}
+
+	public static function quark_command_seed_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SEED_DESCRIPTION, []);
+	}
+
+	public static function quark_command_setworldspawn_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SETWORLDSPAWN_DESCRIPTION, []);
+	}
+
+	public static function quark_command_spawnpoint_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SPAWNPOINT_DESCRIPTION, []);
+	}
+
+	public static function quark_command_spawnpoint_success(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2, Translatable|string $param3) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_SPAWNPOINT_SUCCESS, [
+			0 => $param0,
+			1 => $param1,
+			2 => $param2,
+			3 => $param3,
+		]);
+	}
+
+	public static function quark_command_status_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_DESCRIPTION, []);
+	}
+
+	public static function quark_command_status_header() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_HEADER, []);
+	}
+
+	public static function quark_command_status_memory_mainThread(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_MEMORY_MAINTHREAD, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_memory_manager(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_MEMORY_MANAGER, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_memory_stat(Translatable|string $megabytes) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_MEMORY_STAT, [
+			"megabytes" => $megabytes,
+		]);
+	}
+
+	public static function quark_command_status_memory_total(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_MEMORY_TOTAL, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_memory_virtual(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_MEMORY_VIRTUAL, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_network_download(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_NETWORK_DOWNLOAD, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_network_stat(Translatable|string $kbps) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_NETWORK_STAT, [
+			"kbps" => $kbps,
+		]);
+	}
+
+	public static function quark_command_status_network_upload(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_NETWORK_UPLOAD, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_threads(Translatable|string $count) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_THREADS, [
+			"count" => $count,
+		]);
+	}
+
+	public static function quark_command_status_tps_average(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_TPS_AVERAGE, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_tps_current(Translatable|string $info) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_TPS_CURRENT, [
+			"info" => $info,
+		]);
+	}
+
+	public static function quark_command_status_tps_stat(Translatable|string $ticksPerSecond, Translatable|string $loadPercent) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_TPS_STAT, [
+			"ticksPerSecond" => $ticksPerSecond,
+			"loadPercent" => $loadPercent,
+		]);
+	}
+
+	public static function quark_command_status_uptime(Translatable|string $uptime) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_UPTIME, [
+			"uptime" => $uptime,
+		]);
+	}
+
+	public static function quark_command_status_uptime_days(Translatable|string $days, Translatable|string $hours, Translatable|string $minutes, Translatable|string $seconds) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_UPTIME_DAYS, [
+			"days" => $days,
+			"hours" => $hours,
+			"minutes" => $minutes,
+			"seconds" => $seconds,
+		]);
+	}
+
+	public static function quark_command_status_uptime_hours(Translatable|string $hours, Translatable|string $minutes, Translatable|string $seconds) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_UPTIME_HOURS, [
+			"hours" => $hours,
+			"minutes" => $minutes,
+			"seconds" => $seconds,
+		]);
+	}
+
+	public static function quark_command_status_uptime_minutes(Translatable|string $minutes, Translatable|string $seconds) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_UPTIME_MINUTES, [
+			"minutes" => $minutes,
+			"seconds" => $seconds,
+		]);
+	}
+
+	public static function quark_command_status_uptime_seconds(Translatable|string $seconds) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_UPTIME_SECONDS, [
+			"seconds" => $seconds,
+		]);
+	}
+
+	public static function quark_command_status_world(Translatable|string $worldName, Translatable|string $loadedChunks, Translatable|string $tickingChunks, Translatable|string $entities, Translatable|string $timeStat) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_WORLD, [
+			"worldName" => $worldName,
+			"loadedChunks" => $loadedChunks,
+			"tickingChunks" => $tickingChunks,
+			"entities" => $entities,
+			"timeStat" => $timeStat,
+		]);
+	}
+
+	public static function quark_command_status_world_timeStat(Translatable|string $milliseconds) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STATUS_WORLD_TIMESTAT, [
+			"milliseconds" => $milliseconds,
+		]);
+	}
+
+	public static function quark_command_stop_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_STOP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_tell_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TELL_DESCRIPTION, []);
+	}
+
+	public static function quark_command_time_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIME_DESCRIPTION, []);
+	}
+
+	public static function quark_command_time_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIME_USAGE, []);
+	}
+
+	public static function quark_command_timings_alreadyEnabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_ALREADYENABLED, []);
+	}
+
+	public static function quark_command_timings_collect() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_COLLECT, []);
+	}
+
+	public static function quark_command_timings_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_DESCRIPTION, []);
+	}
+
+	public static function quark_command_timings_disable() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_DISABLE, []);
+	}
+
+	public static function quark_command_timings_enable() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_ENABLE, []);
+	}
+
+	public static function quark_command_timings_pasteError() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_PASTEERROR, []);
+	}
+
+	public static function quark_command_timings_reset() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_RESET, []);
+	}
+
+	public static function quark_command_timings_timingsDisabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_TIMINGSDISABLED, []);
+	}
+
+	public static function quark_command_timings_timingsRead(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_TIMINGSREAD, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_command_timings_timingsWrite(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_TIMINGSWRITE, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_command_timings_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TIMINGS_USAGE, []);
+	}
+
+	public static function quark_command_title_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TITLE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_tp_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_transferserver_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TRANSFERSERVER_DESCRIPTION, []);
+	}
+
+	public static function quark_command_transferserver_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_TRANSFERSERVER_USAGE, []);
+	}
+
+	public static function quark_command_unban_ip_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_UNBAN_IP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_unban_player_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_UNBAN_PLAYER_DESCRIPTION, []);
+	}
+
+	public static function quark_command_userDefined_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_USERDEFINED_DESCRIPTION, []);
+	}
+
 	public static function quark_command_version_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_DESCRIPTION, []);
 	}
@@ -3067,6 +2135,938 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_VERSION_USAGE, []);
 	}
 
+	public static function quark_command_whitelist_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_WHITELIST_DESCRIPTION, []);
+	}
+
+	public static function quark_command_xp_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_XP_DESCRIPTION, []);
+	}
+
+	public static function quark_command_xp_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_XP_USAGE, []);
+	}
+
+	public static function quark_crash_archive(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_CRASH_ARCHIVE, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_crash_create() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_CRASH_CREATE, []);
+	}
+
+	public static function quark_crash_error(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_CRASH_ERROR, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_crash_submit(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_CRASH_SUBMIT, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_data_playerCorrupted(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DATA_PLAYERCORRUPTED, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_data_saveError(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DATA_SAVEERROR, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_disconnect_ban(Translatable|string $reason) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_BAN, [
+			"reason" => $reason,
+		]);
+	}
+
+	public static function quark_disconnect_ban_hardcore() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_BAN_HARDCORE, []);
+	}
+
+	public static function quark_disconnect_ban_ip() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_BAN_IP, []);
+	}
+
+	public static function quark_disconnect_ban_noReason() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_BAN_NOREASON, []);
+	}
+
+	public static function quark_disconnect_clientDisconnect() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_CLIENTDISCONNECT, []);
+	}
+
+	public static function quark_disconnect_clientReconnect() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_CLIENTRECONNECT, []);
+	}
+
+	public static function quark_disconnect_error(Translatable|string $error, Translatable|string $errorId) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR, [
+			"error" => $error,
+			"errorId" => $errorId,
+		]);
+	}
+
+	public static function quark_disconnect_error_authentication() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR_AUTHENTICATION, []);
+	}
+
+	public static function quark_disconnect_error_badPacket() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR_BADPACKET, []);
+	}
+
+	public static function quark_disconnect_error_internal() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR_INTERNAL, []);
+	}
+
+	public static function quark_disconnect_error_loginTimeout() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR_LOGINTIMEOUT, []);
+	}
+
+	public static function quark_disconnect_error_respawn() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR_RESPAWN, []);
+	}
+
+	public static function quark_disconnect_error_timeout() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_ERROR_TIMEOUT, []);
+	}
+
+	public static function quark_disconnect_incompatibleProtocol(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_INCOMPATIBLEPROTOCOL, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_disconnect_invalidSession(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_INVALIDSESSION, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_disconnect_invalidSession_badSignature() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_INVALIDSESSION_BADSIGNATURE, []);
+	}
+
+	public static function quark_disconnect_invalidSession_missingKey() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_INVALIDSESSION_MISSINGKEY, []);
+	}
+
+	public static function quark_disconnect_invalidSession_tooEarly() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_INVALIDSESSION_TOOEARLY, []);
+	}
+
+	public static function quark_disconnect_invalidSession_tooLate() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_INVALIDSESSION_TOOLATE, []);
+	}
+
+	public static function quark_disconnect_kick(Translatable|string $reason) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_KICK, [
+			"reason" => $reason,
+		]);
+	}
+
+	public static function quark_disconnect_kick_noReason() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_KICK_NOREASON, []);
+	}
+
+	public static function quark_disconnect_transfer() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_TRANSFER, []);
+	}
+
+	public static function quark_disconnect_whitelisted() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_WHITELISTED, []);
+	}
+
+	public static function quark_disconnect_xblImpersonation() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_DISCONNECT_XBLIMPERSONATION, []);
+	}
+
+	public static function quark_level_ambiguousFormat(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_AMBIGUOUSFORMAT, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_level_backgroundGeneration(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_BACKGROUNDGENERATION, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_level_badDefaultFormat(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_BADDEFAULTFORMAT, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_level_conversion_finish(Translatable|string $worldName, Translatable|string $backupPath) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_CONVERSION_FINISH, [
+			"worldName" => $worldName,
+			"backupPath" => $backupPath,
+		]);
+	}
+
+	public static function quark_level_conversion_start(Translatable|string $worldName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_CONVERSION_START, [
+			"worldName" => $worldName,
+		]);
+	}
+
+	public static function quark_level_corrupted(Translatable|string $details) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_CORRUPTED, [
+			"details" => $details,
+		]);
+	}
+
+	public static function quark_level_defaultError() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_DEFAULTERROR, []);
+	}
+
+	public static function quark_level_generationError(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_GENERATIONERROR, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_level_invalidGeneratorOptions(Translatable|string $preset, Translatable|string $generatorName, Translatable|string $details) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_INVALIDGENERATOROPTIONS, [
+			"preset" => $preset,
+			"generatorName" => $generatorName,
+			"details" => $details,
+		]);
+	}
+
+	public static function quark_level_loadError(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_LOADERROR, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_level_preparing(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_PREPARING, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_level_spawnTerrainGenerationProgress(Translatable|string $done, Translatable|string $total, Translatable|string $percentageDone) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_SPAWNTERRAINGENERATIONPROGRESS, [
+			"done" => $done,
+			"total" => $total,
+			"percentageDone" => $percentageDone,
+		]);
+	}
+
+	public static function quark_level_unknownFormat() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_UNKNOWNFORMAT, []);
+	}
+
+	public static function quark_level_unknownGenerator(Translatable|string $generatorName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_UNKNOWNGENERATOR, [
+			"generatorName" => $generatorName,
+		]);
+	}
+
+	public static function quark_level_unloading(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_UNLOADING, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_level_unsupportedFormat(Translatable|string $details) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_UNSUPPORTEDFORMAT, [
+			"details" => $details,
+		]);
+	}
+
+	public static function quark_network_session_close(Translatable|string $reason) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_NETWORK_SESSION_CLOSE, [
+			"reason" => $reason,
+		]);
+	}
+
+	public static function quark_network_session_open() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_NETWORK_SESSION_OPEN, []);
+	}
+
+	public static function quark_network_session_playerName(Translatable|string $playerName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_NETWORK_SESSION_PLAYERNAME, [
+			"playerName" => $playerName,
+		]);
+	}
+
+	public static function quark_permission_broadcast_admin() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_BROADCAST_ADMIN, []);
+	}
+
+	public static function quark_permission_broadcast_user() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_BROADCAST_USER, []);
+	}
+
+	public static function quark_permission_command_ban_ip() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_BAN_IP, []);
+	}
+
+	public static function quark_permission_command_ban_list() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_BAN_LIST, []);
+	}
+
+	public static function quark_permission_command_ban_player() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_BAN_PLAYER, []);
+	}
+
+	public static function quark_permission_command_clear_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_CLEAR_OTHER, []);
+	}
+
+	public static function quark_permission_command_clear_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_CLEAR_SELF, []);
+	}
+
+	public static function quark_permission_command_defaultgamemode() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_DEFAULTGAMEMODE, []);
+	}
+
+	public static function quark_permission_command_difficulty() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_DIFFICULTY, []);
+	}
+
+	public static function quark_permission_command_dumpmemory() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_DUMPMEMORY, []);
+	}
+
+	public static function quark_permission_command_effect_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_EFFECT_OTHER, []);
+	}
+
+	public static function quark_permission_command_effect_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_EFFECT_SELF, []);
+	}
+
+	public static function quark_permission_command_enchant_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_ENCHANT_OTHER, []);
+	}
+
+	public static function quark_permission_command_enchant_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_ENCHANT_SELF, []);
+	}
+
+	public static function quark_permission_command_gamemode_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_GAMEMODE_OTHER, []);
+	}
+
+	public static function quark_permission_command_gamemode_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_GAMEMODE_SELF, []);
+	}
+
+	public static function quark_permission_command_gc() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_GC, []);
+	}
+
+	public static function quark_permission_command_give_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_GIVE_OTHER, []);
+	}
+
+	public static function quark_permission_command_give_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_GIVE_SELF, []);
+	}
+
+	public static function quark_permission_command_help() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_HELP, []);
+	}
+
+	public static function quark_permission_command_kick() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_KICK, []);
+	}
+
+	public static function quark_permission_command_kill_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_KILL_OTHER, []);
+	}
+
+	public static function quark_permission_command_kill_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_KILL_SELF, []);
+	}
+
+	public static function quark_permission_command_list() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_LIST, []);
+	}
+
+	public static function quark_permission_command_me() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_ME, []);
+	}
+
+	public static function quark_permission_command_op_give() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_OP_GIVE, []);
+	}
+
+	public static function quark_permission_command_op_take() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_OP_TAKE, []);
+	}
+
+	public static function quark_permission_command_particle() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_PARTICLE, []);
+	}
+
+	public static function quark_permission_command_plugins() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_PLUGINS, []);
+	}
+
+	public static function quark_permission_command_save_disable() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SAVE_DISABLE, []);
+	}
+
+	public static function quark_permission_command_save_enable() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SAVE_ENABLE, []);
+	}
+
+	public static function quark_permission_command_save_perform() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SAVE_PERFORM, []);
+	}
+
+	public static function quark_permission_command_say() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SAY, []);
+	}
+
+	public static function quark_permission_command_seed() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SEED, []);
+	}
+
+	public static function quark_permission_command_setworldspawn() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SETWORLDSPAWN, []);
+	}
+
+	public static function quark_permission_command_spawnpoint_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SPAWNPOINT_OTHER, []);
+	}
+
+	public static function quark_permission_command_spawnpoint_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_SPAWNPOINT_SELF, []);
+	}
+
+	public static function quark_permission_command_status() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_STATUS, []);
+	}
+
+	public static function quark_permission_command_stop() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_STOP, []);
+	}
+
+	public static function quark_permission_command_teleport_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TELEPORT_OTHER, []);
+	}
+
+	public static function quark_permission_command_teleport_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TELEPORT_SELF, []);
+	}
+
+	public static function quark_permission_command_tell() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TELL, []);
+	}
+
+	public static function quark_permission_command_time_add() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TIME_ADD, []);
+	}
+
+	public static function quark_permission_command_time_query() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TIME_QUERY, []);
+	}
+
+	public static function quark_permission_command_time_set() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TIME_SET, []);
+	}
+
+	public static function quark_permission_command_time_start() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TIME_START, []);
+	}
+
+	public static function quark_permission_command_time_stop() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TIME_STOP, []);
+	}
+
+	public static function quark_permission_command_timings() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TIMINGS, []);
+	}
+
+	public static function quark_permission_command_title_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TITLE_OTHER, []);
+	}
+
+	public static function quark_permission_command_title_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TITLE_SELF, []);
+	}
+
+	public static function quark_permission_command_transferserver() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_TRANSFERSERVER, []);
+	}
+
+	public static function quark_permission_command_unban_ip() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_UNBAN_IP, []);
+	}
+
+	public static function quark_permission_command_unban_player() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_UNBAN_PLAYER, []);
+	}
+
+	public static function quark_permission_command_version() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_VERSION, []);
+	}
+
+	public static function quark_permission_command_whitelist_add() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_ADD, []);
+	}
+
+	public static function quark_permission_command_whitelist_disable() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_DISABLE, []);
+	}
+
+	public static function quark_permission_command_whitelist_enable() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_ENABLE, []);
+	}
+
+	public static function quark_permission_command_whitelist_list() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_LIST, []);
+	}
+
+	public static function quark_permission_command_whitelist_reload() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_RELOAD, []);
+	}
+
+	public static function quark_permission_command_whitelist_remove() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_REMOVE, []);
+	}
+
+	public static function quark_permission_command_xp_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_XP_OTHER, []);
+	}
+
+	public static function quark_permission_command_xp_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_XP_SELF, []);
+	}
+
+	public static function quark_permission_group_console() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_GROUP_CONSOLE, []);
+	}
+
+	public static function quark_permission_group_operator() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_GROUP_OPERATOR, []);
+	}
+
+	public static function quark_permission_group_user() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_GROUP_USER, []);
+	}
+
+	public static function quark_player_logIn(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2, Translatable|string $param3, Translatable|string $param4, Translatable|string $param5, Translatable|string $param6, Translatable|string $param7) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLAYER_LOGIN, [
+			0 => $param0,
+			1 => $param1,
+			2 => $param2,
+			3 => $param3,
+			4 => $param4,
+			5 => $param5,
+			6 => $param6,
+			7 => $param7,
+		]);
+	}
+
+	public static function quark_plugin_aliasError(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_ALIASERROR, [
+			0 => $param0,
+			1 => $param1,
+			2 => $param2,
+		]);
+	}
+
+	public static function quark_plugin_ambiguousMinAPI(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_AMBIGUOUSMINAPI, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_badDataFolder(Translatable|string $dataFolder) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_BADDATAFOLDER, [
+			"dataFolder" => $dataFolder,
+		]);
+	}
+
+	public static function quark_plugin_circularDependency() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_CIRCULARDEPENDENCY, []);
+	}
+
+	public static function quark_plugin_commandError(Translatable|string $param0, Translatable|string $param1, Translatable|string $param2) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_COMMANDERROR, [
+			0 => $param0,
+			1 => $param1,
+			2 => $param2,
+		]);
+	}
+
+	public static function quark_plugin_disable(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_DISABLE, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_disallowedByBlacklist() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_DISALLOWEDBYBLACKLIST, []);
+	}
+
+	public static function quark_plugin_disallowedByWhitelist() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_DISALLOWEDBYWHITELIST, []);
+	}
+
+	public static function quark_plugin_duplicateError(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_DUPLICATEERROR, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_duplicatePermissionError(Translatable|string $permissionName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_DUPLICATEPERMISSIONERROR, [
+			"permissionName" => $permissionName,
+		]);
+	}
+
+	public static function quark_plugin_emptyExtensionVersionConstraint(Translatable|string $constraintIndex, Translatable|string $extensionName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_EMPTYEXTENSIONVERSIONCONSTRAINT, [
+			"constraintIndex" => $constraintIndex,
+			"extensionName" => $extensionName,
+		]);
+	}
+
+	public static function quark_plugin_enable(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_ENABLE, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_enableError(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_ENABLEERROR, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_plugin_extensionNotLoaded(Translatable|string $extensionName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_EXTENSIONNOTLOADED, [
+			"extensionName" => $extensionName,
+		]);
+	}
+
+	public static function quark_plugin_incompatibleAPI(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INCOMPATIBLEAPI, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_incompatibleExtensionVersion(Translatable|string $extensionVersion, Translatable|string $extensionName, Translatable|string $pluginRequirement) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INCOMPATIBLEEXTENSIONVERSION, [
+			"extensionVersion" => $extensionVersion,
+			"extensionName" => $extensionName,
+			"pluginRequirement" => $pluginRequirement,
+		]);
+	}
+
+	public static function quark_plugin_incompatibleOS(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INCOMPATIBLEOS, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_incompatiblePhpVersion(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INCOMPATIBLEPHPVERSION, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_incompatibleProtocol(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INCOMPATIBLEPROTOCOL, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_invalidAPI(Translatable|string $apiVersion) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INVALIDAPI, [
+			"apiVersion" => $apiVersion,
+		]);
+	}
+
+	public static function quark_plugin_invalidExtensionVersionConstraint(Translatable|string $versionConstraint, Translatable|string $extensionName) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INVALIDEXTENSIONVERSIONCONSTRAINT, [
+			"versionConstraint" => $versionConstraint,
+			"extensionName" => $extensionName,
+		]);
+	}
+
+	public static function quark_plugin_invalidManifest(Translatable|string $details) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_INVALIDMANIFEST, [
+			"details" => $details,
+		]);
+	}
+
+	public static function quark_plugin_load(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_LOAD, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_loadError(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_LOADERROR, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_plugin_mainClassAbstract() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_MAINCLASSABSTRACT, []);
+	}
+
+	public static function quark_plugin_mainClassNotFound() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_MAINCLASSNOTFOUND, []);
+	}
+
+	public static function quark_plugin_mainClassWrongType(Translatable|string $pluginInterface) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_MAINCLASSWRONGTYPE, [
+			"pluginInterface" => $pluginInterface,
+		]);
+	}
+
+	public static function quark_plugin_restrictedName() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_RESTRICTEDNAME, []);
+	}
+
+	public static function quark_plugin_someEnableErrors() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_SOMEENABLEERRORS, []);
+	}
+
+	public static function quark_plugin_someLoadErrors() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_SOMELOADERRORS, []);
+	}
+
+	public static function quark_plugin_spacesDiscouraged(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_SPACESDISCOURAGED, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_plugin_suicide() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_SUICIDE, []);
+	}
+
+	public static function quark_plugin_unknownDependency(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_UNKNOWNDEPENDENCY, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_save_start() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SAVE_START, []);
+	}
+
+	public static function quark_save_success(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SAVE_SUCCESS, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_auth_disabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_AUTH_DISABLED, []);
+	}
+
+	public static function quark_server_auth_enabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_AUTH_ENABLED, []);
+	}
+
+	public static function quark_server_authProperty_disabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_AUTHPROPERTY_DISABLED, []);
+	}
+
+	public static function quark_server_authWarning() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_AUTHWARNING, []);
+	}
+
+	public static function quark_server_defaultGameMode(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEFAULTGAMEMODE, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_devBuild_error1(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_ERROR1, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_devBuild_error2() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_ERROR2, []);
+	}
+
+	public static function quark_server_devBuild_error3() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_ERROR3, []);
+	}
+
+	public static function quark_server_devBuild_error4(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_ERROR4, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_devBuild_error5(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_ERROR5, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_devBuild_warning1(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_WARNING1, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_devBuild_warning2() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_WARNING2, []);
+	}
+
+	public static function quark_server_devBuild_warning3() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_DEVBUILD_WARNING3, []);
+	}
+
+	public static function quark_server_forcingShutdown() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_FORCINGSHUTDOWN, []);
+	}
+
+	public static function quark_server_info(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_INFO, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_server_license(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_LICENSE, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_networkStart(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETWORKSTART, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_server_networkStartFailed(Translatable|string $ipAddress, Translatable|string $port, Translatable|string $errorMessage) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETWORKSTARTFAILED, [
+			"ipAddress" => $ipAddress,
+			"port" => $port,
+			"errorMessage" => $errorMessage,
+		]);
+	}
+
+	public static function quark_server_obsolete_warning1(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_OBSOLETE_WARNING1, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_server_obsolete_warning2(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_OBSOLETE_WARNING2, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_server_obsolete_warning3(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_OBSOLETE_WARNING3, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_query_running(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_QUERY_RUNNING, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_server_start(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_START, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_startFinished(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_STARTFINISHED, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_tickOverload() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_TICKOVERLOAD, []);
+	}
+
+	public static function quark_server_url_bugReporting(Translatable|string $bugReportingUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_BUGREPORTING, [
+			"bugReportingUrl" => $bugReportingUrl,
+		]);
+	}
+
+	public static function quark_server_url_discord(Translatable|string $discordUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_DISCORD, [
+			"discordUrl" => $discordUrl,
+		]);
+	}
+
+	public static function quark_server_url_docs(Translatable|string $docsUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_DOCS, [
+			"docsUrl" => $docsUrl,
+		]);
+	}
+
+	public static function quark_server_url_donations(Translatable|string $donationsUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_DONATIONS, [
+			"donationsUrl" => $donationsUrl,
+		]);
+	}
+
+	public static function quark_server_url_freePlugins(Translatable|string $pluginsUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_FREEPLUGINS, [
+			"pluginsUrl" => $pluginsUrl,
+		]);
+	}
+
+	public static function quark_server_url_sourceCode(Translatable|string $sourceUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_SOURCECODE, [
+			"sourceUrl" => $sourceUrl,
+		]);
+	}
+
+	public static function quark_server_url_translations(Translatable|string $translationsUrl) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_URL_TRANSLATIONS, [
+			"translationsUrl" => $translationsUrl,
+		]);
+	}
+
+	public static function quark_plugins() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGINS, []);
+	}
+
+	public static function quark_will_start(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_WILL_START, [
+			0 => $param0,
+		]);
+	}
+
 	public static function query_disable() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUERY_DISABLE, []);
 	}
@@ -3133,8 +3133,8 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::VIEW_DISTANCE, []);
 	}
 
-	public static function welcome_to_pocketmine(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::WELCOME_TO_POCKETMINE, [
+	public static function welcome_to_quark(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::WELCOME_TO_QUARK, [
 			0 => $param0,
 		]);
 	}

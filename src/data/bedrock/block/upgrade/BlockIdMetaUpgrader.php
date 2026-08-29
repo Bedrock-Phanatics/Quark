@@ -2,32 +2,32 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\block\upgrade;
+namespace quark\data\bedrock\block\upgrade;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
-use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\block\BlockStateDeserializeException;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\block\BlockStateDeserializeException;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 
 /**
@@ -73,7 +73,7 @@ final class BlockIdMetaUpgrader{
 
 	/**
 	 * Adds a mapping of legacy block ID and meta to modern blockstate data. This may be needed for upgrading data from
-	 * stored custom blocks from older versions of PocketMine-MP.
+	 * stored custom blocks from older versions of Quark.
 	 */
 	public function addIdMetaToStateMapping(string $stringId, int $meta, BlockStateData $stateData) : void{
 		if(isset($this->mappingTable[$stringId][$meta])){

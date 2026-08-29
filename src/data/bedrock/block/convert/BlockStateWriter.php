@@ -2,45 +2,45 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\block\convert;
+namespace quark\data\bedrock\block\convert;
 
-use pocketmine\block\utils\BellAttachmentType;
-use pocketmine\block\utils\SlabType;
-use pocketmine\block\utils\WallConnectionType;
-use pocketmine\data\bedrock\block\BlockLegacyMetadata;
-use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\block\BlockStateNames;
-use pocketmine\data\bedrock\block\BlockStateSerializeException;
-use pocketmine\data\bedrock\block\BlockStateStringValues as StringValues;
-use pocketmine\data\bedrock\block\convert\property\EnumFromRawStateMap;
-use pocketmine\data\bedrock\block\convert\property\IntFromRawStateMap;
-use pocketmine\data\bedrock\block\convert\property\ValueMappings;
+use quark\block\utils\BellAttachmentType;
+use quark\block\utils\SlabType;
+use quark\block\utils\WallConnectionType;
+use quark\data\bedrock\block\BlockLegacyMetadata;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\block\BlockStateNames;
+use quark\data\bedrock\block\BlockStateSerializeException;
+use quark\data\bedrock\block\BlockStateStringValues as StringValues;
+use quark\data\bedrock\block\convert\property\EnumFromRawStateMap;
+use quark\data\bedrock\block\convert\property\IntFromRawStateMap;
+use quark\data\bedrock\block\convert\property\ValueMappings;
 use pocketmine\math\Axis;
 use pocketmine\math\Facing;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
-use pocketmine\utils\AssumptionFailedError;
+use quark\utils\AssumptionFailedError;
 
 final class BlockStateWriter{
 

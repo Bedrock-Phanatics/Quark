@@ -2,43 +2,43 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\handler;
+namespace quark\network\mcpe\handler;
 
-use pocketmine\block\inventory\EnchantInventory;
-use pocketmine\crafting\CraftingGrid;
-use pocketmine\crafting\ShapedRecipe;
-use pocketmine\inventory\Inventory;
-use pocketmine\inventory\transaction\action\CreateItemAction;
-use pocketmine\inventory\transaction\action\DestroyItemAction;
-use pocketmine\inventory\transaction\action\DropItemAction;
-use pocketmine\inventory\transaction\CraftingTransaction;
-use pocketmine\inventory\transaction\EnchantingTransaction;
-use pocketmine\inventory\transaction\InventoryTransaction;
-use pocketmine\inventory\transaction\TransactionBuilder;
-use pocketmine\inventory\transaction\TransactionBuilderInventory;
-use pocketmine\item\Durable;
-use pocketmine\item\Item;
-use pocketmine\network\mcpe\cache\CraftingDataCache;
-use pocketmine\network\mcpe\InventoryManager;
+use quark\block\inventory\EnchantInventory;
+use quark\crafting\CraftingGrid;
+use quark\crafting\ShapedRecipe;
+use quark\inventory\Inventory;
+use quark\inventory\transaction\action\CreateItemAction;
+use quark\inventory\transaction\action\DestroyItemAction;
+use quark\inventory\transaction\action\DropItemAction;
+use quark\inventory\transaction\CraftingTransaction;
+use quark\inventory\transaction\EnchantingTransaction;
+use quark\inventory\transaction\InventoryTransaction;
+use quark\inventory\transaction\TransactionBuilder;
+use quark\inventory\transaction\TransactionBuilderInventory;
+use quark\item\Durable;
+use quark\item\Item;
+use quark\network\mcpe\cache\CraftingDataCache;
+use quark\network\mcpe\InventoryManager;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftingConsumeInputStackRequestAction;
@@ -58,9 +58,9 @@ use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\SwapStackReque
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\TakeStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
 use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
-use pocketmine\player\Player;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Utils;
+use quark\player\Player;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Utils;
 use function array_key_first;
 use function count;
 use function spl_object_id;

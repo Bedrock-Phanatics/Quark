@@ -2,36 +2,36 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\timings;
+namespace quark\timings;
 
-use pocketmine\block\tile\Tile;
-use pocketmine\entity\Entity;
-use pocketmine\event\Event;
+use quark\block\tile\Tile;
+use quark\entity\Entity;
+use quark\event\Event;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
-use pocketmine\player\Player;
-use pocketmine\scheduler\AsyncTask;
-use pocketmine\scheduler\Task;
-use pocketmine\scheduler\TaskHandler;
+use quark\player\Player;
+use quark\scheduler\AsyncTask;
+use quark\scheduler\Task;
+use quark\scheduler\TaskHandler;
 use function get_class;
 use function str_starts_with;
 
@@ -250,7 +250,7 @@ abstract class Timings{
 				//a name it can identify. However, we also want to make it obvious if this is a custom Player class.
 				$displayName = $entity::class !== Player::class ? "Player (" . $entity::class . ")" : "Player";
 			}else{
-				$displayName = self::shortenCoreClassName($entity::class, "pocketmine\\entity\\");
+				$displayName = self::shortenCoreClassName($entity::class, "quark\\entity\\");
 			}
 			self::$entityTypeTimingMap[$entity::class] = new TimingsHandler("Entity Tick - " . $displayName);
 		}
@@ -262,7 +262,7 @@ abstract class Timings{
 		self::init();
 		if(!isset(self::$tileEntityTypeTimingMap[$tile::class])){
 			self::$tileEntityTypeTimingMap[$tile::class] = new TimingsHandler(
-				"Block Entity Tick - " . self::shortenCoreClassName($tile::class, "pocketmine\\block\\tile\\")
+				"Block Entity Tick - " . self::shortenCoreClassName($tile::class, "quark\\block\\tile\\")
 			);
 		}
 
@@ -317,7 +317,7 @@ abstract class Timings{
 	public static function getEventTimings(Event $event) : TimingsHandler{
 		$eventClass = get_class($event);
 		if(!isset(self::$events[$eventClass])){
-			self::$events[$eventClass] = new TimingsHandler(self::shortenCoreClassName($eventClass, "pocketmine\\event\\"), group: "Events");
+			self::$events[$eventClass] = new TimingsHandler(self::shortenCoreClassName($eventClass, "quark\\event\\"), group: "Events");
 		}
 
 		return self::$events[$eventClass];
@@ -328,7 +328,7 @@ abstract class Timings{
 	 */
 	public static function getEventHandlerTimings(string $event, string $handlerName, string $group) : TimingsHandler{
 		if(!isset(self::$eventHandlers[$event][$handlerName])){
-			self::$eventHandlers[$event][$handlerName] = new TimingsHandler($handlerName . "(" . self::shortenCoreClassName($event, "pocketmine\\event\\") . ")", group: $group);
+			self::$eventHandlers[$event][$handlerName] = new TimingsHandler($handlerName . "(" . self::shortenCoreClassName($event, "quark\\event\\") . ")", group: $group);
 		}
 
 		return self::$eventHandlers[$event][$handlerName];
@@ -339,7 +339,7 @@ abstract class Timings{
 		if(!isset(self::$asyncTaskProgressUpdate[$taskClass])){
 			self::init();
 			self::$asyncTaskProgressUpdate[$taskClass] = new TimingsHandler(
-				"AsyncTask - " . self::shortenCoreClassName($taskClass, "pocketmine\\") . " - Progress Updates",
+				"AsyncTask - " . self::shortenCoreClassName($taskClass, "quark\\") . " - Progress Updates",
 				self::$asyncTaskProgressUpdateParent,
 				$group
 			);
@@ -353,7 +353,7 @@ abstract class Timings{
 		if(!isset(self::$asyncTaskCompletion[$taskClass])){
 			self::init();
 			self::$asyncTaskCompletion[$taskClass] = new TimingsHandler(
-				"AsyncTask - " . self::shortenCoreClassName($taskClass, "pocketmine\\") . " - Completion Handler",
+				"AsyncTask - " . self::shortenCoreClassName($taskClass, "quark\\") . " - Completion Handler",
 				self::$asyncTaskCompletionParent,
 				$group
 			);
@@ -370,7 +370,7 @@ abstract class Timings{
 		if(!isset(self::$asyncTaskError[$taskClass])){
 			self::init();
 			self::$asyncTaskError[$taskClass] = new TimingsHandler(
-				"AsyncTask - " . self::shortenCoreClassName($taskClass, "pocketmine\\") . " - Error Handler",
+				"AsyncTask - " . self::shortenCoreClassName($taskClass, "quark\\") . " - Error Handler",
 				self::$asyncTaskErrorParent,
 				$group
 			);
@@ -384,7 +384,7 @@ abstract class Timings{
 		if(!isset(self::$asyncTaskRun[$taskClass])){
 			self::init();
 			self::$asyncTaskRun[$taskClass] = new TimingsHandler(
-				"AsyncTask - " . self::shortenCoreClassName($taskClass, "pocketmine\\") . " - Run",
+				"AsyncTask - " . self::shortenCoreClassName($taskClass, "quark\\") . " - Run",
 				self::$asyncTaskWorkers,
 				$group
 			);

@@ -2,33 +2,33 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\generate_permission_doc;
+namespace quark\generate_permission_doc;
 
-use pocketmine\lang\Language;
-use pocketmine\lang\Translatable;
-use pocketmine\permission\DefaultPermissions;
-use pocketmine\permission\PermissionManager;
-use pocketmine\utils\Utils;
-use pocketmine\VersionInfo;
+use quark\lang\Language;
+use quark\lang\Translatable;
+use quark\permission\DefaultPermissions;
+use quark\permission\PermissionManager;
+use quark\utils\Utils;
+use quark\VersionInfo;
 use Symfony\Component\Filesystem\Path;
 use function count;
 use function dirname;
@@ -126,7 +126,7 @@ if($format === "md"){
 $newline = $format === "md" ? "<br>\n" : "\n\n";
 $code = $format === "md" ? "`" : "``";
 fwrite($doc, "Some permissions automatically grant (or deny) other permissions by default when granted. These are referred to as **implied permissions**.$newline");
-fwrite($doc, "Permissions may imply permissions which in turn imply other permissions (e.g. {$code}pocketmine.group.operator{$code} implies {$code}pocketmine.group.user{$code}, which in turn implies {$code}pocketmine.command.help{$code}).$newline");
+fwrite($doc, "Permissions may imply permissions which in turn imply other permissions (e.g. {$code}quark.group.operator{$code} implies {$code}quark.group.user{$code}, which in turn implies {$code}quark.command.help{$code}).$newline");
 fwrite($doc, "Implied permissions can be overridden by explicit permissions from elsewhere.$newline");
 fwrite($doc, "**Note:** When explicitly denied, implied permissions are inverted. This means that \"granted\" becomes \"denied\" and vice versa.$newline");
 fwrite($doc, "\n\n");

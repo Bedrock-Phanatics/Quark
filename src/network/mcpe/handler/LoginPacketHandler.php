@@ -2,36 +2,36 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\handler;
+namespace quark\network\mcpe\handler;
 
-use pocketmine\entity\InvalidSkinException;
-use pocketmine\event\player\PlayerPreLoginEvent;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\lang\Translatable;
-use pocketmine\network\mcpe\auth\ProcessOpenIdLoginTask;
-use pocketmine\network\mcpe\auth\ProcessSelfSignedLoginTask;
-use pocketmine\network\mcpe\JwtException;
-use pocketmine\network\mcpe\JwtUtils;
-use pocketmine\network\mcpe\NetworkSession;
+use quark\entity\InvalidSkinException;
+use quark\event\player\PlayerPreLoginEvent;
+use quark\lang\KnownTranslationFactory;
+use quark\lang\Translatable;
+use quark\network\mcpe\auth\ProcessOpenIdLoginTask;
+use quark\network\mcpe\auth\ProcessSelfSignedLoginTask;
+use quark\network\mcpe\JwtException;
+use quark\network\mcpe\JwtUtils;
+use quark\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationInfo;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
@@ -40,12 +40,12 @@ use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientDataToSkinData
 use pocketmine\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtHeader;
-use pocketmine\network\PacketHandlingException;
-use pocketmine\player\Player;
-use pocketmine\player\PlayerInfo;
-use pocketmine\player\XboxLivePlayerInfo;
-use pocketmine\Server;
-use pocketmine\utils\Utils;
+use quark\network\PacketHandlingException;
+use quark\player\Player;
+use quark\player\PlayerInfo;
+use quark\player\XboxLivePlayerInfo;
+use quark\Server;
+use quark\utils\Utils;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function base64_decode;
@@ -187,16 +187,16 @@ class LoginPacketHandler extends PacketHandler{
 			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_FULL, KnownTranslationFactory::disconnectionScreen_serverFull());
 		}
 		if(!$this->server->isWhitelisted($playerInfo->getUsername())){
-			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_WHITELISTED, KnownTranslationFactory::pocketmine_disconnect_whitelisted());
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_WHITELISTED, KnownTranslationFactory::quark_disconnect_whitelisted());
 		}
 
 		$banMessage = null;
 		if(($banEntry = $this->server->getNameBans()->getEntry($playerInfo->getUsername())) !== null){
 			$banReason = $banEntry->getReason();
-			$banMessage = $banReason === "" ? KnownTranslationFactory::pocketmine_disconnect_ban_noReason() : KnownTranslationFactory::pocketmine_disconnect_ban($banReason);
+			$banMessage = $banReason === "" ? KnownTranslationFactory::quark_disconnect_ban_noReason() : KnownTranslationFactory::quark_disconnect_ban($banReason);
 		}elseif(($banEntry = $this->server->getIPBans()->getEntry($this->session->getIp())) !== null){
 			$banReason = $banEntry->getReason();
-			$banMessage = KnownTranslationFactory::pocketmine_disconnect_ban($banReason !== "" ? $banReason : KnownTranslationFactory::pocketmine_disconnect_ban_ip());
+			$banMessage = KnownTranslationFactory::quark_disconnect_ban($banReason !== "" ? $banReason : KnownTranslationFactory::quark_disconnect_ban_ip());
 		}
 		if($banMessage !== null){
 			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_BANNED, $banMessage);

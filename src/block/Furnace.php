@@ -2,37 +2,37 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\tile\Furnace as TileFurnace;
-use pocketmine\block\utils\FacesOppositePlacingPlayerTrait;
-use pocketmine\block\utils\HorizontalFacing;
-use pocketmine\block\utils\Lightable;
-use pocketmine\block\utils\LightableTrait;
-use pocketmine\crafting\FurnaceType;
-use pocketmine\data\runtime\RuntimeDataDescriber;
-use pocketmine\item\Item;
+use quark\block\tile\Furnace as TileFurnace;
+use quark\block\utils\FacesOppositePlacingPlayerTrait;
+use quark\block\utils\HorizontalFacing;
+use quark\block\utils\Lightable;
+use quark\block\utils\LightableTrait;
+use quark\crafting\FurnaceType;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\item\Item;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
+use quark\player\Player;
 use function mt_rand;
 
 class Furnace extends Opaque implements Lightable, HorizontalFacing{

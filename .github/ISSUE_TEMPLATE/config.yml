@@ -4,5 +4,5 @@ contact_links:
     url: https://discord.gg/bmSAZBG
     about: We don't accept support requests on the issue tracker. Please try asking on Discord instead.
   - name: Documentation
-    url: https://pmmp.rtfd.io
-    about: PocketMine-MP documentation
+    url: https://quark.rtfd.io
+    about: Quark documentation

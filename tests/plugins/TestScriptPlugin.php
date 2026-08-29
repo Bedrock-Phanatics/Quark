@@ -13,8 +13,8 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pmmp\ScriptTest;
 
-use pocketmine\plugin\PluginBase;
+use quark\plugin\PluginBase;
 
 /**
  * @main pmmp\ScriptTest\Main

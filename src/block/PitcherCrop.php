@@ -2,42 +2,42 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\utils\Ageable;
-use pocketmine\block\utils\AgeableTrait;
-use pocketmine\block\utils\BlockEventHelper;
-use pocketmine\block\utils\CropGrowthHelper;
-use pocketmine\block\utils\StaticSupportTrait;
-use pocketmine\event\block\StructureGrowEvent;
-use pocketmine\item\Fertilizer;
-use pocketmine\item\Item;
-use pocketmine\item\VanillaItems;
+use quark\block\utils\Ageable;
+use quark\block\utils\AgeableTrait;
+use quark\block\utils\BlockEventHelper;
+use quark\block\utils\CropGrowthHelper;
+use quark\block\utils\StaticSupportTrait;
+use quark\event\block\StructureGrowEvent;
+use quark\item\Fertilizer;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\world\BlockTransaction;
+use quark\player\Player;
+use quark\world\BlockTransaction;
 
 final class PitcherCrop extends Flowable implements Ageable{
 	use AgeableTrait;

@@ -2,41 +2,41 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block\tile;
+namespace quark\block\tile;
 
-use pocketmine\block\inventory\BrewingStandInventory;
-use pocketmine\crafting\BrewingRecipe;
-use pocketmine\event\block\BrewingFuelUseEvent;
-use pocketmine\event\block\BrewItemEvent;
-use pocketmine\inventory\CallbackInventoryListener;
-use pocketmine\inventory\Inventory;
-use pocketmine\item\Item;
-use pocketmine\item\VanillaItems;
+use quark\block\inventory\BrewingStandInventory;
+use quark\crafting\BrewingRecipe;
+use quark\event\block\BrewingFuelUseEvent;
+use quark\event\block\BrewItemEvent;
+use quark\inventory\CallbackInventoryListener;
+use quark\inventory\Inventory;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
-use pocketmine\player\Player;
-use pocketmine\world\sound\PotionFinishBrewingSound;
-use pocketmine\world\World;
+use quark\player\Player;
+use quark\world\sound\PotionFinishBrewingSound;
+use quark\world\World;
 use function array_map;
 use function count;
 

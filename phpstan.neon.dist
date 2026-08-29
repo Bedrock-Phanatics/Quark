@@ -10,13 +10,13 @@ includes:
 	- vendor/phpstan/phpstan-strict-rules/rules.neon
 
 rules:
-	- pocketmine\phpstan\rules\DeprecatedLegacyEnumAccessRule
-	- pocketmine\phpstan\rules\DisallowDynamicNewRule
-	- pocketmine\phpstan\rules\DisallowEnumComparisonRule
-	- pocketmine\phpstan\rules\DisallowForeachByReferenceRule
-	- pocketmine\phpstan\rules\ExplodeLimitRule
-	- pocketmine\phpstan\rules\UnsafeForeachRule
-#	- pocketmine\phpstan\rules\ThreadedSupportedTypesRule
+	- quark\phpstan\rules\DeprecatedLegacyEnumAccessRule
+	- quark\phpstan\rules\DisallowDynamicNewRule
+	- quark\phpstan\rules\DisallowEnumComparisonRule
+	- quark\phpstan\rules\DisallowForeachByReferenceRule
+	- quark\phpstan\rules\ExplodeLimitRule
+	- quark\phpstan\rules\UnsafeForeachRule
+#	- quark\phpstan\rules\ThreadedSupportedTypesRule
 
 parameters:
 	level: 9
@@ -30,7 +30,7 @@ parameters:
 		- tests/plugins/TesterPlugin
 		- tools
 	scanFiles:
-		- src/PocketMine.php
+		- src/Quark.php
 	paths:
 		- build
 		- src
@@ -44,10 +44,10 @@ parameters:
 		analyseAndScan:
 			- build/php
 	dynamicConstantNames:
-		- pocketmine\VersionInfo::IS_DEVELOPMENT_BUILD
-		- pocketmine\VersionInfo::BUILD_CHANNEL
-		- pocketmine\DEBUG
-		- pocketmine\IS_DEVELOPMENT_BUILD
+		- quark\VersionInfo::IS_DEVELOPMENT_BUILD
+		- quark\VersionInfo::BUILD_CHANNEL
+		- quark\DEBUG
+		- quark\IS_DEVELOPMENT_BUILD
 		- pocketmine\network\mcpe\protocol\ProtocolInfo::CURRENT_PROTOCOL
 	stubFiles:
 		- tests/phpstan/stubs/chunkutils2.stub

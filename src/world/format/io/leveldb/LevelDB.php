@@ -2,34 +2,34 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world\format\io\leveldb;
+namespace quark\world\format\io\leveldb;
 
 use pmmp\encoding\LE;
 
-use pocketmine\block\Block;
-use pocketmine\data\bedrock\BiomeIds;
-use pocketmine\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\data\bedrock\block\convert\UnsupportedBlockStateException;
-use pocketmine\data\bedrock\WorldDataVersions;
+use quark\block\Block;
+use quark\data\bedrock\BiomeIds;
+use quark\data\bedrock\block\BlockStateDeserializeException;
+use quark\data\bedrock\block\convert\UnsupportedBlockStateException;
+use quark\data\bedrock\WorldDataVersions;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtDataException;
@@ -37,23 +37,23 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
-use pocketmine\utils\Utils;
-use pocketmine\VersionInfo;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\format\io\BaseWorldProvider;
-use pocketmine\world\format\io\ChunkData;
-use pocketmine\world\format\io\ChunkUtils;
-use pocketmine\world\format\io\data\BedrockWorldData;
-use pocketmine\world\format\io\exception\CorruptedChunkException;
-use pocketmine\world\format\io\exception\CorruptedWorldException;
-use pocketmine\world\format\io\exception\UnsupportedWorldFormatException;
-use pocketmine\world\format\io\GlobalBlockStateHandlers;
-use pocketmine\world\format\io\LoadedChunkData;
-use pocketmine\world\format\io\WorldData;
-use pocketmine\world\format\io\WritableWorldProvider;
+use quark\utils\Utils;
+use quark\VersionInfo;
+use quark\world\format\Chunk;
+use quark\world\format\io\BaseWorldProvider;
+use quark\world\format\io\ChunkData;
+use quark\world\format\io\ChunkUtils;
+use quark\world\format\io\data\BedrockWorldData;
+use quark\world\format\io\exception\CorruptedChunkException;
+use quark\world\format\io\exception\CorruptedWorldException;
+use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\GlobalBlockStateHandlers;
+use quark\world\format\io\LoadedChunkData;
+use quark\world\format\io\WorldData;
+use quark\world\format\io\WritableWorldProvider;
 use pocketmine\world\format\PalettedBlockArray;
-use pocketmine\world\format\SubChunk;
-use pocketmine\world\WorldCreationOptions;
+use quark\world\format\SubChunk;
+use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
 use function array_values;
@@ -174,7 +174,7 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 			 *
 			 * References:
 			 * - https://github.com/Refaltor77/CustomItemAPI/issues/68
-			 * - https://github.com/pmmp/PocketMine-MP/issues/5911
+			 * - https://github.com/Bedrock-Phanatics/Quark/issues/5911
 			 */
 			$offset = $stream->getOffset();
 			$byte1 = $stream->getByte();

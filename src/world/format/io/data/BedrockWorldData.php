@@ -2,29 +2,29 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world\format\io\data;
+namespace quark\world\format\io\data;
 
 use pmmp\encoding\LE;
-use pocketmine\data\bedrock\WorldDataVersions;
+use quark\data\bedrock\WorldDataVersions;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
@@ -32,15 +32,15 @@ use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Limits;
-use pocketmine\VersionInfo;
-use pocketmine\world\format\io\exception\CorruptedWorldException;
-use pocketmine\world\format\io\exception\UnsupportedWorldFormatException;
-use pocketmine\world\generator\Flat;
-use pocketmine\world\generator\GeneratorManager;
-use pocketmine\world\World;
-use pocketmine\world\WorldCreationOptions;
+use quark\utils\Filesystem;
+use quark\utils\Limits;
+use quark\VersionInfo;
+use quark\world\format\io\exception\CorruptedWorldException;
+use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\generator\Flat;
+use quark\world\generator\GeneratorManager;
+use quark\world\World;
+use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
 use function file_put_contents;
@@ -124,7 +124,7 @@ class BedrockWorldData extends BaseNbtWorldData{
 			->setByte(self::TAG_COMMANDS_ENABLED, 1)
 			->setTag(self::TAG_LAST_OPENED_WITH_VERSION, new ListTag(array_map(fn(int $v) => new IntTag($v), self::CURRENT_CLIENT_VERSION_TARGET)))
 
-			//Additional PocketMine-MP fields
+			//Additional Quark fields
 			->setString(self::TAG_GENERATOR_NAME, GeneratorManager::getInstance()->getGeneratorName($options->getGeneratorClass()))
 			->setString(self::TAG_GENERATOR_OPTIONS, $options->getGeneratorOptions());
 
@@ -179,7 +179,7 @@ class BedrockWorldData extends BaseNbtWorldData{
 						$this->compoundTag->setString(self::TAG_GENERATOR_OPTIONS, "2;7,3,3,2;1");
 						break;
 					case self::GENERATOR_INFINITE:
-						//TODO: add a null generator which does not generate missing chunks (to allow importing back to MCPE and generating more normal terrain without PocketMine messing things up)
+						//TODO: add a null generator which does not generate missing chunks (to allow importing back to MCPE and generating more normal terrain without Quark messing things up)
 						$this->compoundTag->setString(self::TAG_GENERATOR_NAME, "default");
 						$this->compoundTag->setString(self::TAG_GENERATOR_OPTIONS, "");
 						break;

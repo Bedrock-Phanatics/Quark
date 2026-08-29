@@ -2,42 +2,42 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\block\convert\property;
+namespace quark\data\bedrock\block\convert\property;
 
-use pocketmine\block\Bamboo;
-use pocketmine\block\utils\BellAttachmentType;
-use pocketmine\block\utils\DirtType;
-use pocketmine\block\utils\DripleafState;
-use pocketmine\block\utils\DyeColor;
-use pocketmine\block\utils\FroglightType;
-use pocketmine\block\utils\LeverFacing;
-use pocketmine\block\utils\MobHeadType;
-use pocketmine\block\utils\MushroomBlockType;
-use pocketmine\data\bedrock\block\BlockLegacyMetadata as LegacyMeta;
-use pocketmine\data\bedrock\block\BlockStateStringValues as StringValues;
-use pocketmine\data\bedrock\block\BlockTypeNames as Ids;
+use quark\block\Bamboo;
+use quark\block\utils\BellAttachmentType;
+use quark\block\utils\DirtType;
+use quark\block\utils\DripleafState;
+use quark\block\utils\DyeColor;
+use quark\block\utils\FroglightType;
+use quark\block\utils\LeverFacing;
+use quark\block\utils\MobHeadType;
+use quark\block\utils\MushroomBlockType;
+use quark\data\bedrock\block\BlockLegacyMetadata as LegacyMeta;
+use quark\data\bedrock\block\BlockStateStringValues as StringValues;
+use quark\data\bedrock\block\BlockTypeNames as Ids;
 use pocketmine\math\Axis;
 use pocketmine\math\Facing;
-use pocketmine\utils\SingletonTrait;
+use quark\utils\SingletonTrait;
 
 final class ValueMappings{
 	use SingletonTrait; //???

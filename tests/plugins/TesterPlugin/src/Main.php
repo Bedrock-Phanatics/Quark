@@ -13,8 +13,8 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace pmmp\TesterPlugin;
 
-use pocketmine\event\Listener;
-use pocketmine\event\server\CommandEvent;
-use pocketmine\plugin\PluginBase;
-use pocketmine\plugin\ScriptPluginLoader;
-use pocketmine\scheduler\CancelTaskException;
-use pocketmine\scheduler\ClosureTask;
+use quark\event\Listener;
+use quark\event\server\CommandEvent;
+use quark\plugin\PluginBase;
+use quark\plugin\ScriptPluginLoader;
+use quark\scheduler\CancelTaskException;
+use quark\scheduler\ClosureTask;
 use function array_shift;
 
 class Main extends PluginBase implements Listener{

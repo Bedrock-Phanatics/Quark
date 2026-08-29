@@ -2,53 +2,53 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity;
+namespace quark\entity;
 
 use DaveRandom\CallbackValidator\CallbackType;
 use DaveRandom\CallbackValidator\ParameterType;
 use DaveRandom\CallbackValidator\ReturnType;
-use pocketmine\block\RuntimeBlockStateRegistry;
-use pocketmine\data\bedrock\LegacyEntityIdToStringIdMap;
-use pocketmine\data\bedrock\PotionTypeIdMap;
-use pocketmine\data\bedrock\PotionTypeIds;
-use pocketmine\data\SavedDataLoadingException;
-use pocketmine\entity\EntityDataHelper as Helper;
-use pocketmine\entity\object\AreaEffectCloud;
-use pocketmine\entity\object\EndCrystal;
-use pocketmine\entity\object\ExperienceOrb;
-use pocketmine\entity\object\FallingBlock;
-use pocketmine\entity\object\ItemEntity;
-use pocketmine\entity\object\Painting;
-use pocketmine\entity\object\PaintingMotive;
-use pocketmine\entity\object\PrimedTNT;
-use pocketmine\entity\projectile\Arrow;
-use pocketmine\entity\projectile\Egg;
-use pocketmine\entity\projectile\EnderPearl;
-use pocketmine\entity\projectile\ExperienceBottle;
-use pocketmine\entity\projectile\IceBomb;
-use pocketmine\entity\projectile\Snowball;
-use pocketmine\entity\projectile\SplashPotion;
-use pocketmine\entity\projectile\Trident;
-use pocketmine\item\Item;
+use quark\block\RuntimeBlockStateRegistry;
+use quark\data\bedrock\LegacyEntityIdToStringIdMap;
+use quark\data\bedrock\PotionTypeIdMap;
+use quark\data\bedrock\PotionTypeIds;
+use quark\data\SavedDataLoadingException;
+use quark\entity\EntityDataHelper as Helper;
+use quark\entity\object\AreaEffectCloud;
+use quark\entity\object\EndCrystal;
+use quark\entity\object\ExperienceOrb;
+use quark\entity\object\FallingBlock;
+use quark\entity\object\ItemEntity;
+use quark\entity\object\Painting;
+use quark\entity\object\PaintingMotive;
+use quark\entity\object\PrimedTNT;
+use quark\entity\projectile\Arrow;
+use quark\entity\projectile\Egg;
+use quark\entity\projectile\EnderPearl;
+use quark\entity\projectile\ExperienceBottle;
+use quark\entity\projectile\IceBomb;
+use quark\entity\projectile\Snowball;
+use quark\entity\projectile\SplashPotion;
+use quark\entity\projectile\Trident;
+use quark\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtException;
@@ -57,9 +57,9 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ShortTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\utils\SingletonTrait;
-use pocketmine\utils\Utils;
-use pocketmine\world\World;
+use quark\utils\SingletonTrait;
+use quark\utils\Utils;
+use quark\world\World;
 use function count;
 use function reset;
 

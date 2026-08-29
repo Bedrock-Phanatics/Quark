@@ -2,37 +2,37 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block\inventory;
+namespace quark\block\inventory;
 
-use pocketmine\event\player\PlayerEnchantingOptionsRequestEvent;
-use pocketmine\inventory\Inventory;
-use pocketmine\inventory\SimpleInventory;
-use pocketmine\inventory\TemporaryInventory;
-use pocketmine\inventory\transaction\action\validator\CallbackSlotValidator;
-use pocketmine\inventory\transaction\TransactionValidationException;
-use pocketmine\item\enchantment\EnchantingHelper as Helper;
-use pocketmine\item\enchantment\EnchantingOption;
-use pocketmine\item\Item;
-use pocketmine\world\Position;
+use quark\event\player\PlayerEnchantingOptionsRequestEvent;
+use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
+use quark\inventory\TemporaryInventory;
+use quark\inventory\transaction\action\validator\CallbackSlotValidator;
+use quark\inventory\transaction\TransactionValidationException;
+use quark\item\enchantment\EnchantingHelper as Helper;
+use quark\item\enchantment\EnchantingOption;
+use quark\item\Item;
+use quark\world\Position;
 use function array_values;
 use function count;
 

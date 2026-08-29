@@ -2,33 +2,33 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\cache;
+namespace quark\network\mcpe\cache;
 
-use pocketmine\crafting\CraftingManager;
-use pocketmine\crafting\FurnaceType;
-use pocketmine\crafting\ShapedRecipe;
-use pocketmine\crafting\ShapelessRecipe;
-use pocketmine\crafting\ShapelessRecipeType;
-use pocketmine\network\mcpe\convert\TypeConverter;
+use quark\crafting\CraftingManager;
+use quark\crafting\FurnaceType;
+use quark\crafting\ShapedRecipe;
+use quark\crafting\ShapelessRecipe;
+use quark\crafting\ShapelessRecipeType;
+use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\network\mcpe\protocol\types\recipe\CraftingRecipeBlockName;
 use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipeBlockName;
@@ -39,9 +39,9 @@ use pocketmine\network\mcpe\protocol\types\recipe\RecipeUnlockingRequirement;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapedRecipe as ProtocolShapedRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapelessRecipe as ProtocolShapelessRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
-use pocketmine\timings\Timings;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\SingletonTrait;
+use quark\timings\Timings;
+use quark\utils\AssumptionFailedError;
+use quark\utils\SingletonTrait;
 use Ramsey\Uuid\Uuid;
 use function array_map;
 use function spl_object_id;

@@ -2,61 +2,61 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\inventory\CampfireInventory;
-use pocketmine\block\tile\Campfire as TileCampfire;
-use pocketmine\block\utils\HorizontalFacing;
-use pocketmine\block\utils\HorizontalFacingTrait;
-use pocketmine\block\utils\Lightable;
-use pocketmine\block\utils\LightableTrait;
-use pocketmine\block\utils\SupportType;
-use pocketmine\crafting\FurnaceRecipe;
-use pocketmine\crafting\FurnaceType;
-use pocketmine\data\runtime\RuntimeDataDescriber;
-use pocketmine\entity\Entity;
-use pocketmine\entity\Living;
-use pocketmine\entity\projectile\Projectile;
-use pocketmine\entity\projectile\SplashPotion;
-use pocketmine\event\block\CampfireCookEvent;
-use pocketmine\event\entity\EntityDamageByBlockEvent;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\item\Durable;
-use pocketmine\item\enchantment\VanillaEnchantments;
-use pocketmine\item\Item;
-use pocketmine\item\ItemTypeIds;
-use pocketmine\item\PotionType;
-use pocketmine\item\Shovel;
-use pocketmine\item\VanillaItems;
+use quark\block\inventory\CampfireInventory;
+use quark\block\tile\Campfire as TileCampfire;
+use quark\block\utils\HorizontalFacing;
+use quark\block\utils\HorizontalFacingTrait;
+use quark\block\utils\Lightable;
+use quark\block\utils\LightableTrait;
+use quark\block\utils\SupportType;
+use quark\crafting\FurnaceRecipe;
+use quark\crafting\FurnaceType;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\entity\Entity;
+use quark\entity\Living;
+use quark\entity\projectile\Projectile;
+use quark\entity\projectile\SplashPotion;
+use quark\event\block\CampfireCookEvent;
+use quark\event\entity\EntityDamageByBlockEvent;
+use quark\event\entity\EntityDamageEvent;
+use quark\item\Durable;
+use quark\item\enchantment\VanillaEnchantments;
+use quark\item\Item;
+use quark\item\ItemTypeIds;
+use quark\item\PotionType;
+use quark\item\Shovel;
+use quark\item\VanillaItems;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\world\BlockTransaction;
-use pocketmine\world\sound\BlazeShootSound;
-use pocketmine\world\sound\FireExtinguishSound;
-use pocketmine\world\sound\FlintSteelSound;
-use pocketmine\world\sound\ItemFrameAddItemSound;
+use quark\player\Player;
+use quark\world\BlockTransaction;
+use quark\world\sound\BlazeShootSound;
+use quark\world\sound\FireExtinguishSound;
+use quark\world\sound\FlintSteelSound;
+use quark\world\sound\ItemFrameAddItemSound;
 use function count;
 use function min;
 use function mt_rand;

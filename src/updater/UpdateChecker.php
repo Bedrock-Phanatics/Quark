@@ -2,32 +2,32 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\updater;
+namespace quark\updater;
 
-use pocketmine\event\server\UpdateNotifyEvent;
-use pocketmine\Server;
-use pocketmine\utils\VersionString;
-use pocketmine\VersionInfo;
-use pocketmine\YmlServerProperties;
+use quark\event\server\UpdateNotifyEvent;
+use quark\Server;
+use quark\utils\VersionString;
+use quark\VersionInfo;
+use quark\YmlServerProperties;
 use function date;
 use function strtolower;
 use function ucfirst;
@@ -42,9 +42,9 @@ class UpdateChecker{
 	public function __construct(Server $server, string $endpoint){
 		$this->server = $server;
 		$this->logger = new \PrefixedLogger($server->getLogger(), "Update Checker");
-		$this->endpoint = "http://$endpoint/api/";
+		$this->endpoint = $endpoint !== "" ? "https://$endpoint/api/" : "";
 
-		if($server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_UPDATER_ENABLED, true)){
+		if($this->endpoint !== "" && $server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_UPDATER_ENABLED, false)){
 			$this->doCheck();
 		}
 	}
@@ -100,14 +100,14 @@ class UpdateChecker{
 	protected function showChannelSuggestionStable() : void{
 		$this->printConsoleMessage([
 			"You're running a Stable build, but you're receiving update notifications for " . ucfirst($this->getChannel()) . " builds.",
-			"To get notified about new Stable builds only, change 'preferred-channel' in your pocketmine.yml to 'stable'."
+			"To get notified about new Stable builds only, change 'preferred-channel' in your quark.yml to 'stable'."
 		]);
 	}
 
 	protected function showChannelSuggestionBeta() : void{
 		$this->printConsoleMessage([
 			"You're running a Beta build, but you're receiving update notifications for Stable builds.",
-			"To get notified about new Beta or Development builds, change 'preferred-channel' in your pocketmine.yml to 'beta' or 'development'."
+			"To get notified about new Beta or Development builds, change 'preferred-channel' in your quark.yml to 'beta' or 'development'."
 		]);
 	}
 

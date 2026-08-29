@@ -2,39 +2,39 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\item\upgrade;
+namespace quark\data\bedrock\item\upgrade;
 
-use pocketmine\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\data\bedrock\block\upgrade\BlockDataUpgrader;
-use pocketmine\data\bedrock\item\BlockItemIdMap;
-use pocketmine\data\bedrock\item\SavedItemData;
-use pocketmine\data\bedrock\item\SavedItemStackData;
-use pocketmine\data\SavedDataLoadingException;
+use quark\data\bedrock\block\BlockStateDeserializeException;
+use quark\data\bedrock\block\upgrade\BlockDataUpgrader;
+use quark\data\bedrock\item\BlockItemIdMap;
+use quark\data\bedrock\item\SavedItemData;
+use quark\data\bedrock\item\SavedItemStackData;
+use quark\data\SavedDataLoadingException;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ShortTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\convert\BlockStateDictionary;
+use quark\network\mcpe\convert\BlockStateDictionary;
 use pocketmine\utils\Binary;
 use function array_map;
 
@@ -54,7 +54,7 @@ final class ItemDataUpgrader{
 	 * This function replaces the legacy ItemFactory::get().
 	 *
 	 * Unlike ItemFactory::get(), it returns a SavedItemStackData which you can do with as you please.
-	 * If you want to deserialize it into a PocketMine-MP itemstack, pass it to the ItemDeserializer.
+	 * If you want to deserialize it into a Quark itemstack, pass it to the ItemDeserializer.
 	 *
 	 * @see ItemDataUpgrader::upgradeItemTypeDataInt()
 	 */

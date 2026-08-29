@@ -2,40 +2,40 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\convert;
+namespace quark\network\mcpe\convert;
 
-use pocketmine\data\bedrock\item\BlockItemIdMap;
-use pocketmine\data\bedrock\item\ItemDeserializer;
-use pocketmine\data\bedrock\item\ItemSerializer;
-use pocketmine\data\bedrock\item\ItemTypeDeserializeException;
-use pocketmine\data\bedrock\item\ItemTypeSerializeException;
-use pocketmine\data\bedrock\item\SavedItemData;
-use pocketmine\item\Item;
+use quark\data\bedrock\item\BlockItemIdMap;
+use quark\data\bedrock\item\ItemDeserializer;
+use quark\data\bedrock\item\ItemSerializer;
+use quark\data\bedrock\item\ItemTypeDeserializeException;
+use quark\data\bedrock\item\ItemTypeSerializeException;
+use quark\data\bedrock\item\SavedItemData;
+use quark\item\Item;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
-use pocketmine\utils\AssumptionFailedError;
+use quark\utils\AssumptionFailedError;
 
 /**
- * This class handles translation between network item ID+metadata to PocketMine-MP internal ID+metadata and vice versa.
+ * This class handles translation between network item ID+metadata to Quark internal ID+metadata and vice versa.
  */
 final class ItemTranslator{
 	public const NO_BLOCK_RUNTIME_ID = 0; //this is technically a valid block runtime ID, but is used to represent "no block" (derp mojang)

@@ -2,51 +2,51 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\handler;
+namespace quark\network\mcpe\handler;
 
-use pocketmine\block\BaseSign;
-use pocketmine\block\Lectern;
-use pocketmine\block\tile\Sign;
-use pocketmine\block\utils\SignText;
-use pocketmine\entity\Attribute;
-use pocketmine\entity\InvalidSkinException;
-use pocketmine\event\player\PlayerEditBookEvent;
-use pocketmine\inventory\transaction\action\DropItemAction;
-use pocketmine\inventory\transaction\InventoryTransaction;
-use pocketmine\inventory\transaction\TransactionBuilder;
-use pocketmine\inventory\transaction\TransactionCancelledException;
-use pocketmine\inventory\transaction\TransactionValidationException;
-use pocketmine\item\VanillaItems;
-use pocketmine\item\WritableBook;
-use pocketmine\item\WritableBookPage;
-use pocketmine\item\WrittenBook;
+use quark\block\BaseSign;
+use quark\block\Lectern;
+use quark\block\tile\Sign;
+use quark\block\utils\SignText;
+use quark\entity\Attribute;
+use quark\entity\InvalidSkinException;
+use quark\event\player\PlayerEditBookEvent;
+use quark\inventory\transaction\action\DropItemAction;
+use quark\inventory\transaction\InventoryTransaction;
+use quark\inventory\transaction\TransactionBuilder;
+use quark\inventory\transaction\TransactionCancelledException;
+use quark\inventory\transaction\TransactionValidationException;
+use quark\item\VanillaItems;
+use quark\item\WritableBook;
+use quark\item\WritableBookPage;
+use quark\item\WrittenBook;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\FilterNoisyPacketException;
-use pocketmine\network\mcpe\convert\ItemTranslator;
-use pocketmine\network\mcpe\InventoryManager;
-use pocketmine\network\mcpe\NetworkSession;
+use quark\network\FilterNoisyPacketException;
+use quark\network\mcpe\convert\ItemTranslator;
+use quark\network\mcpe\InventoryManager;
+use quark\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\ActorPickRequestPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
@@ -91,13 +91,13 @@ use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\network\mcpe\protocol\types\PlayerBlockAction;
-use pocketmine\network\PacketHandlingException;
-use pocketmine\player\Player;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Limits;
-use pocketmine\utils\TextFormat;
-use pocketmine\utils\Utils;
-use pocketmine\world\format\Chunk;
+use quark\network\PacketHandlingException;
+use quark\player\Player;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Limits;
+use quark\utils\TextFormat;
+use quark\utils\Utils;
+use quark\world\format\Chunk;
 use function array_push;
 use function count;
 use function fmod;

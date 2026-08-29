@@ -2,45 +2,45 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\raklib;
+namespace quark\network\mcpe\raklib;
 
 use pmmp\thread\ThreadSafeArray;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\network\AdvancedNetworkInterface;
-use pocketmine\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\EntityEventBroadcaster;
-use pocketmine\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\PacketBroadcaster;
+use quark\lang\KnownTranslationFactory;
+use quark\network\AdvancedNetworkInterface;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\PacketBroadcaster;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\Network;
-use pocketmine\network\NetworkInterfaceStartException;
-use pocketmine\network\PacketHandlingException;
-use pocketmine\player\GameMode;
-use pocketmine\Server;
-use pocketmine\thread\ThreadCrashException;
-use pocketmine\timings\Timings;
-use pocketmine\utils\Utils;
-use pocketmine\YmlServerProperties;
+use quark\network\Network;
+use quark\network\NetworkInterfaceStartException;
+use quark\network\PacketHandlingException;
+use quark\player\GameMode;
+use quark\Server;
+use quark\thread\ThreadCrashException;
+use quark\timings\Timings;
+use quark\utils\Utils;
+use quark\YmlServerProperties;
 use raklib\generic\DisconnectReason;
 use raklib\generic\SocketException;
 use raklib\protocol\EncapsulatedPacket;
@@ -165,9 +165,9 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			$session = $this->sessions[$sessionId];
 			unset($this->sessions[$sessionId]);
 			$session->onClientDisconnect(match($reason){
-				DisconnectReason::CLIENT_DISCONNECT => KnownTranslationFactory::pocketmine_disconnect_clientDisconnect(),
-				DisconnectReason::PEER_TIMEOUT => KnownTranslationFactory::pocketmine_disconnect_error_timeout(),
-				DisconnectReason::CLIENT_RECONNECT => KnownTranslationFactory::pocketmine_disconnect_clientReconnect(),
+				DisconnectReason::CLIENT_DISCONNECT => KnownTranslationFactory::quark_disconnect_clientDisconnect(),
+				DisconnectReason::PEER_TIMEOUT => KnownTranslationFactory::quark_disconnect_error_timeout(),
+				DisconnectReason::CLIENT_RECONNECT => KnownTranslationFactory::quark_disconnect_clientReconnect(),
 				default => "Unknown RakLib disconnect reason (ID $reason)"
 			});
 		}
@@ -219,7 +219,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 
 				$session->disconnectWithError(
 					reason: "Bad packet: " . $e->getMessage(),
-					disconnectScreenMessage: KnownTranslationFactory::pocketmine_disconnect_error_badPacket()
+					disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_badPacket()
 				);
 				//intentionally doesn't use logException, we don't want spammy packet error traces to appear in release mode
 				$logger->debug(implode("\n", Utils::printableExceptionInfo($e)));

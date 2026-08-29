@@ -2,26 +2,26 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
 */
 
 declare(strict_types=1);
 
-namespace pocketmine\build\generate_known_translation_apis;
+namespace quark\build\generate_known_translation_apis;
 
 use function array_fill_keys;
 use function count;
@@ -122,10 +122,10 @@ function parse_mojang_language_defs(string $contents) : array{
 }
 
 /**
- * @param string[] $pocketmine
+ * @param string[] $quark
  * @param string[] $mojang
  * @param string[] $knownBadKeys
- * @phpstan-param array<string, string> $pocketmine
+ * @phpstan-param array<string, string> $quark
  * @phpstan-param array<string, string> $mojang
  * @phpstan-param array<string, bool> $knownBadKeys
  *
@@ -135,7 +135,7 @@ function parse_mojang_language_defs(string $contents) : array{
 function verify_keys(array $translations, array $mojang, array $knownBadKeys) : array{
 	$wrong = [];
 	foreach($translations as $k => $v){
-		if(str_starts_with($k, "pocketmine.") || str_starts_with($k, "quark.")){
+		if(str_starts_with($k, "quark.") || str_starts_with($k, "quark.")){
 			continue;
 		}
 
@@ -193,7 +193,7 @@ $badKeys = verify_keys($eng, $mojang, array_fill_keys($knownBadKeys, true));
 if(count($badKeys) !== 0){
 	fwrite(STDERR, "The following server translation keys are not matched by Mojang sources and are not whitelisted:\n");
 	fwrite(STDERR, json_encode($badKeys, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n");
-	fwrite(STDERR, "Keys must either match Mojang sources, or be prefixed with \"pocketmine.\" or \"quark.\"\n");
+	fwrite(STDERR, "Keys must either match Mojang sources, or be prefixed with \"quark.\" or \"quark.\"\n");
 	fwrite(STDERR, "Failure to do so will cause these to be shown incorrectly on clients, as the server won't translate them\n");
 	exit(1);
 }

@@ -1,137 +1,114 @@
-# Quark
+<p align="center">
+  <img src="assets/quark-logo.png" alt="Quark" width="256">
+</p>
 
-Quark is a performance-focused Minecraft: Bedrock Edition server derived from PocketMine-MP and Axolotl. It keeps the PocketMine plugin model where practical while reducing overhead in frequently executed code paths.
+<h1 align="center">Quark</h1>
+
+<p align="center">
+  A performance-first, PvP-first Minecraft: Bedrock Edition server written in PHP.
+</p>
+
+Quark is built for servers where tick stability and responsive combat matter equally. It keeps expensive work bounded, removes avoidable hot-path overhead, and prioritizes latency-sensitive PvP feedback without changing Minecraft's combat rules. Quark 6 also introduces native redstone, bounded TNT processing, optional Snappy network compression, and an independent API namespace.
 
 > [!IMPORTANT]
-> Quark currently supports **64-bit PHP 8.4 only** for production use. PHP 8.5 is exercised in CI for forward compatibility, but is not yet a supported production runtime.
+> Quark 6 requires **64-bit PHP 8.4** and Quark-compatible native extensions. It is a breaking release and does not load PocketMine-MP plugins without migration.
 
----
+## Features
 
-## Table of contents
+- Performance-first runtime design focused on stable tick times under real server load.
+- PvP-first networking that flushes synchronous hit feedback before the normal end-of-tick packet flush.
+- Native redstone with world policies, runtime overrides, and per-tick safety limits.
+- Optional Snappy packet compression with automatic zlib fallback.
+- Configurable TNT limits across all core ignition sources.
+- Configurable synchronous and asynchronous packet compression.
+- Adaptive garbage collection and memory controls.
+- Hardened inventory transactions and damage handling.
+- Quark-owned PHP namespace, root Composer package, configuration, tooling, and release artifact.
 
-- [Getting started](#getting-started)
-- [Project repositories](#project-repositories)
-- [Goals](#goals)
-- [Notable changes](#notable-changes)
-- [Runtime redstone API](#runtime-redstone-api)
-- [Compatibility](#compatibility)
-- [Development](#development)
-- [License and credits](#license-and-credits)
+### Faster combat feedback
 
----
+When `network.combat-low-latency-feedback` is enabled, Quark immediately flushes the synchronous effects of a successful hit to the involved players instead of always waiting for the normal end-of-tick network flush. At 20 TPS, this can save most of one 50 ms tick in the best case, depending on when the hit occurs, server load, and network conditions.
 
-## Getting started
+This improves how quickly hits feel visible to players; it does not reduce Minecraft's attack cooldown, alter hit registration rules, or guarantee a fixed millisecond improvement.
 
-Use a prebuilt PHP runtime from [Bedrock-Phanatics/PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries). Quark requires the extensions declared in `composer.json`; optional features such as Snappy network compression also require their corresponding native extension.
+See the complete [Quark 6.0.0 changelog](CHANGELOG.md) and [PocketMine-MP 5.47 migration guide](docs/MIGRATING-FROM-POCKETMINE-5.md).
 
-Install dependencies and start the server using the same workflow as other PocketMine-derived servers:
+## Requirements
+
+- A 64-bit operating system
+- PHP 8.4
+- The extensions listed in `composer.json`
+- `ext-snappy` when using Snappy compression
+
+Supported PHP builds are published through [Bedrock-Phanatics/PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries).
+
+## Installation
+
+Install dependencies for development:
 
 ```bash
-composer install --no-dev --classmap-authoritative
-php PocketMine-MP.phar
+composer install
 ```
 
-For development, omit `--no-dev` so PHPUnit and PHPStan are installed.
+Build the production server:
 
----
-
-## Project repositories
-
-| Repository | Description |
-|---|---|
-| [Quark](https://github.com/Bedrock-Phanatics/Quark) | Server source, workflows, and releases |
-| [BedrockProtocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | Quark's Bedrock packet and login protocol implementation |
-| [PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries) | Supported PHP runtimes and required native extensions |
-| [PocketMine-MP](https://github.com/pmmp/PocketMine-MP) | Primary upstream project |
-
----
-
-## Goals
-
-- Improve throughput and reduce latency in hot paths.
-- Prefer measurable optimizations to speculative complexity.
-- Use native extensions for compression, encoding, serialization, database, and networking workloads when they provide a meaningful benefit.
-- Preserve PocketMine plugin compatibility where it does not conflict with correctness or performance.
-- Keep runtime behavior configurable when different server workloads need different tradeoffs.
-- Move non-essential vanilla mechanics out of unconditional tick paths.
-
----
-
-## Notable changes
-
-### Performance
-
-- Optional Snappy compression for Bedrock network packet batches.
-- Greater use of native encoding and serialization extensions.
-- Reduced unnecessary work in entity, armor, world-storage, and networking paths.
-
-### Runtime and tooling
-
-- PHP 8.4 is the minimum and currently supported production runtime.
-- CI validates PHP 8.4 and checks PHP 8.5 compatibility.
-- Quark uses the [Bedrock-Phanatics BedrockProtocol fork](https://github.com/Bedrock-Phanatics/BedrockProtocol).
-
-### Gameplay
-
-- Thorns and Frost Walker runtime effects and acquisition paths are removed. Existing items retain inert enchantment data for save and network compatibility.
-- Per-tick worn-item callbacks are removed from armor processing.
-- Turtle helmets behave as ordinary helmets and do not grant Water Breathing.
-
-### Correctness and API
-
-- Fixed absorption-heart client/server desynchronization.
-- Hardened enchanting, anvil, and crafting transaction validation.
-- Added configurable garbage-collector behavior, including the option to disable Quark-managed collection.
-- Expanded protected- and final-damage APIs.
-- Updated selected `EntityDamageEvent` modifier constant values.
-
-> [!NOTE]
-> Plugins using the provided damage constants should continue to work. Plugins depending on previous raw integer values or undocumented internals may require changes.
-
----
-
-## Runtime redstone API
-
-Plugins can apply non-persistent world or chunk overrides on the main thread without loading chunks:
-
-```php
-$redstone = $server->getRedstoneManager();
-$redstone->setWorldEnabled($world, false);
-$redstone->setChunkEnabled($world, $chunkX, $chunkZ, true);
-
-$redstone->clearChunkOverride($world, $chunkX, $chunkZ);
-$redstone->clearWorldOverride($world);
+```bash
+composer make-server
 ```
 
-Chunk overrides take precedence over world policy. Policy data may be loaded asynchronously, but overrides and world access must be applied on the main thread.
+Start Quark:
 
----
+```bash
+php Quark.phar
+```
 
-## Compatibility
+On first launch, review the generated `quark.yml` before exposing the server publicly.
 
-Quark aims to support PocketMine plugins where practical, but performance and correctness changes may alter internal or undocumented behavior. Plugins should avoid hardcoded internal constants, direct dependency on implementation details, and assumptions about removed vanilla mechanics.
+## Configuration
 
-The `pocketmine` PHP namespace, world compatibility tags, and other persisted identifiers remain unchanged where renaming them would break plugins or existing worlds.
+The primary configuration is `quark.yml`. Notable sections include:
 
----
+- `network` — compression, batching, latency, encryption, and MTU behavior
+- `memory` — limits, garbage collection, and memory dumps
+- `redstone` — world policy and component-processing limits
+- `tnt-limits` — active entity and ignition limits
+- `crash-dumps` — local crash-dump contents
+- `auto-report` — optional PMMP crash-archive upload (disabled by default)
+- `auto-updater` and `timings` — external services
 
-## Development
+The source template is available at [resources/quark.yml](resources/quark.yml).
+
+## Plugin development
+
+Quark plugins use the `quark\` PHP namespace and target `quark/quark` through Composer. Plugins written for PocketMine-MP 5.x must be migrated and rebuilt.
 
 Before submitting changes, run:
 
 ```bash
-composer install
 vendor/bin/phpstan analyze --no-progress --memory-limit=2G
 vendor/bin/phpunit --bootstrap vendor/autoload.php --fail-on-warning tests/phpunit
 composer update-codegen
 ```
 
-Performance changes should include evidence that they target a real bottleneck, preserve correctness, and avoid trading stability for negligible gains.
+## Project repositories
 
----
+| Repository | Purpose |
+|---|---|
+| [Quark](https://github.com/Bedrock-Phanatics/Quark) | Server source and releases |
+| [BedrockProtocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | Bedrock protocol implementation |
+| [PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries) | Supported PHP runtimes |
 
-## License and credits
+### Upstream PMMP resources
 
-Quark builds on PocketMine-MP, Axolotl, BedrockProtocol, and the wider PocketMine ecosystem. It retains the licensing requirements of upstream projects and incorporated components.
+These links belong to PocketMine-MP and are useful as upstream references; they are not Quark services or Quark release channels.
 
-Quark's redstone system is based substantially on [**Cosmoverse/Redstone**](https://github.com/Cosmoverse/Redstone), a PocketMine-MP plugin bringing redstone mechanics to PocketMine-MP servers, created by [**@Muqsit**](https://github.com/Muqsit).
+- [PocketMine-MP API documentation](https://apidoc.pmmp.io/)
+- [PocketMine-MP translations on Crowdin](https://crowdin.com/project/pocketmine)
+- [PocketMine-MP releases and downloads](https://github.com/pmmp/PocketMine-MP/releases)
+- [PMMP crash archive](https://crash.pmmp.io/)
+
+## License
+
+Quark is distributed under the GNU Lesser General Public License v3.0. It incorporates and derives from open-source projects whose copyright and license terms remain applicable.
+
+The redstone implementation is based substantially on [Cosmoverse/Redstone](https://github.com/Cosmoverse/Redstone), created by [Muqsit](https://github.com/Muqsit).

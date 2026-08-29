@@ -2,48 +2,48 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity\projectile;
+namespace quark\entity\projectile;
 
-use pocketmine\block\BlockTypeTags;
-use pocketmine\block\VanillaBlocks;
+use quark\block\BlockTypeTags;
+use quark\block\VanillaBlocks;
 use pocketmine\color\Color;
-use pocketmine\data\bedrock\PotionTypeIdMap;
-use pocketmine\entity\effect\EffectInstance;
-use pocketmine\entity\effect\InstantEffect;
-use pocketmine\entity\Entity;
-use pocketmine\entity\Living;
-use pocketmine\entity\Location;
-use pocketmine\entity\object\AreaEffectCloud;
-use pocketmine\event\entity\ProjectileHitBlockEvent;
-use pocketmine\event\entity\ProjectileHitEntityEvent;
-use pocketmine\event\entity\ProjectileHitEvent;
-use pocketmine\item\PotionType;
+use quark\data\bedrock\PotionTypeIdMap;
+use quark\entity\effect\EffectInstance;
+use quark\entity\effect\InstantEffect;
+use quark\entity\Entity;
+use quark\entity\Living;
+use quark\entity\Location;
+use quark\entity\object\AreaEffectCloud;
+use quark\event\entity\ProjectileHitBlockEvent;
+use quark\event\entity\ProjectileHitEntityEvent;
+use quark\event\entity\ProjectileHitEvent;
+use quark\item\PotionType;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\world\particle\PotionSplashParticle;
-use pocketmine\world\sound\PotionSplashSound;
+use quark\world\particle\PotionSplashParticle;
+use quark\world\sound\PotionSplashSound;
 use function count;
 use function round;
 use function sqrt;

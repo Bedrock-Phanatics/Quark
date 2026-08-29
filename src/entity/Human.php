@@ -2,54 +2,54 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity;
+namespace quark\entity;
 
-use pocketmine\data\bedrock\item\SavedItemStackData;
-use pocketmine\data\SavedDataLoadingException;
-use pocketmine\entity\animation\TotemUseAnimation;
-use pocketmine\entity\effect\EffectInstance;
-use pocketmine\entity\effect\VanillaEffects;
-use pocketmine\entity\projectile\ProjectileSource;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\event\player\PlayerExhaustEvent;
-use pocketmine\inventory\CallbackInventoryListener;
-use pocketmine\inventory\Inventory;
-use pocketmine\inventory\InventoryHolder;
-use pocketmine\inventory\PlayerEnderInventory;
-use pocketmine\inventory\PlayerInventory;
-use pocketmine\inventory\PlayerOffHandInventory;
-use pocketmine\item\enchantment\EnchantingHelper;
-use pocketmine\item\enchantment\VanillaEnchantments;
-use pocketmine\item\Item;
-use pocketmine\item\Totem;
+use quark\data\bedrock\item\SavedItemStackData;
+use quark\data\SavedDataLoadingException;
+use quark\entity\animation\TotemUseAnimation;
+use quark\entity\effect\EffectInstance;
+use quark\entity\effect\VanillaEffects;
+use quark\entity\projectile\ProjectileSource;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\player\PlayerExhaustEvent;
+use quark\inventory\CallbackInventoryListener;
+use quark\inventory\Inventory;
+use quark\inventory\InventoryHolder;
+use quark\inventory\PlayerEnderInventory;
+use quark\inventory\PlayerInventory;
+use quark\inventory\PlayerOffHandInventory;
+use quark\item\enchantment\EnchantingHelper;
+use quark\item\enchantment\VanillaEnchantments;
+use quark\item\Item;
+use quark\item\Totem;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\EntityEventBroadcaster;
-use pocketmine\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
@@ -65,9 +65,9 @@ use pocketmine\network\mcpe\protocol\types\GameMode;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
-use pocketmine\player\Player;
-use pocketmine\world\sound\TotemUseSound;
-use pocketmine\world\World;
+use quark\player\Player;
+use quark\world\sound\TotemUseSound;
+use quark\world\World;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function array_fill;

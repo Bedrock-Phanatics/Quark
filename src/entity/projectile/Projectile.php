@@ -2,48 +2,48 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity\projectile;
+namespace quark\entity\projectile;
 
-use pocketmine\block\Block;
-use pocketmine\data\SavedDataLoadingException;
-use pocketmine\entity\Entity;
-use pocketmine\entity\Living;
-use pocketmine\entity\Location;
-use pocketmine\entity\object\EndCrystal;
-use pocketmine\event\entity\EntityCombustByEntityEvent;
-use pocketmine\event\entity\EntityDamageByChildEntityEvent;
-use pocketmine\event\entity\EntityDamageByEntityEvent;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\event\entity\ProjectileHitBlockEvent;
-use pocketmine\event\entity\ProjectileHitEntityEvent;
-use pocketmine\event\entity\ProjectileHitEvent;
+use quark\block\Block;
+use quark\data\SavedDataLoadingException;
+use quark\entity\Entity;
+use quark\entity\Living;
+use quark\entity\Location;
+use quark\entity\object\EndCrystal;
+use quark\event\entity\EntityCombustByEntityEvent;
+use quark\event\entity\EntityDamageByChildEntityEvent;
+use quark\event\entity\EntityDamageByEntityEvent;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\ProjectileHitBlockEvent;
+use quark\event\entity\ProjectileHitEntityEvent;
+use quark\event\entity\ProjectileHitEvent;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
 use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
-use pocketmine\player\Player;
-use pocketmine\timings\Timings;
+use quark\player\Player;
+use quark\timings\Timings;
 use function atan2;
 use function ceil;
 use function count;

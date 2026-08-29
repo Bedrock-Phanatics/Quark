@@ -2,35 +2,35 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace quark\item;
 
-use pocketmine\data\bedrock\item\ItemDeserializer;
-use pocketmine\data\bedrock\item\ItemTypeDeserializeException;
-use pocketmine\data\bedrock\item\upgrade\ItemDataUpgrader;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\SingletonTrait;
-use pocketmine\utils\Utils;
-use pocketmine\world\format\io\GlobalItemDataHandlers;
+use quark\data\bedrock\item\ItemDeserializer;
+use quark\data\bedrock\item\ItemTypeDeserializeException;
+use quark\data\bedrock\item\upgrade\ItemDataUpgrader;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
+use quark\utils\SingletonTrait;
+use quark\utils\Utils;
+use quark\world\format\io\GlobalItemDataHandlers;
 use Symfony\Component\Filesystem\Path;
 use function explode;
 use function is_array;
@@ -51,7 +51,7 @@ use function trim;
  * item IDs (e.g. "351"), you should prefer the newer StringToItemParser, which is much more user-friendly, more
  * flexible, and also supports registering custom aliases for any item in any state.
  *
- * WARNING: This class does NOT support items added during or after PocketMine-MP 5.0.0. Use StringToItemParser for
+ * WARNING: This class does NOT support items added during or after Quark 5.0.0. Use StringToItemParser for
  * modern items.
  */
 final class LegacyStringToItemParser{
@@ -63,7 +63,7 @@ final class LegacyStringToItemParser{
 			GlobalItemDataHandlers::getDeserializer()
 		);
 
-		$mappingsRaw = Filesystem::fileGetContents(Path::join(\pocketmine\RESOURCE_PATH, 'item_from_string_bc_map.json'));
+		$mappingsRaw = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, 'item_from_string_bc_map.json'));
 
 		$mappings = json_decode($mappingsRaw, true);
 		if(!is_array($mappings)) throw new AssumptionFailedError("Invalid mappings format, expected array");

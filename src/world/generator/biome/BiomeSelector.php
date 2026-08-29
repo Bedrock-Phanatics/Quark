@@ -2,32 +2,32 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world\generator\biome;
+namespace quark\world\generator\biome;
 
-use pocketmine\utils\Random;
-use pocketmine\world\biome\Biome;
-use pocketmine\world\biome\BiomeRegistry;
-use pocketmine\world\biome\UnknownBiome;
-use pocketmine\world\generator\noise\Simplex;
+use quark\utils\Random;
+use quark\world\biome\Biome;
+use quark\world\biome\BiomeRegistry;
+use quark\world\biome\UnknownBiome;
+use quark\world\generator\noise\Simplex;
 
 abstract class BiomeSelector{
 	private Simplex $temperature;

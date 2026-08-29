@@ -2,26 +2,26 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\utils;
+namespace quark\utils;
 
 use pocketmine\errorhandler\ErrorToExceptionHandler;
 use Symfony\Component\Filesystem\Path;
@@ -68,7 +68,7 @@ final class Filesystem{
 	 * @phpstan-var array<string, string>
 	 */
 	private static array $cleanedPaths = [
-		\pocketmine\PATH => self::CLEAN_PATH_SRC_PREFIX
+		\quark\PATH => self::CLEAN_PATH_SRC_PREFIX
 	];
 
 	public const CLEAN_PATH_SRC_PREFIX = "pmsrc";

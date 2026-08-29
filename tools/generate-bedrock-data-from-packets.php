@@ -2,48 +2,48 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\tools\generate_bedrock_data_from_packets;
+namespace quark\tools\generate_bedrock_data_from_packets;
 
 use pmmp\encoding\ByteBufferReader;
-use pocketmine\crafting\json\ItemStackData;
-use pocketmine\crafting\json\PotionContainerChangeRecipeData;
-use pocketmine\crafting\json\PotionTypeRecipeData;
-use pocketmine\crafting\json\RecipeIngredientData;
-use pocketmine\crafting\json\ShapedRecipeData;
-use pocketmine\crafting\json\ShapelessRecipeData;
-use pocketmine\crafting\json\SmithingTransformRecipeData;
-use pocketmine\crafting\json\SmithingTrimRecipeData;
-use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\item\BlockItemIdMap;
-use pocketmine\data\bedrock\item\ItemTypeNames;
-use pocketmine\inventory\json\CreativeGroupData;
+use quark\crafting\json\ItemStackData;
+use quark\crafting\json\PotionContainerChangeRecipeData;
+use quark\crafting\json\PotionTypeRecipeData;
+use quark\crafting\json\RecipeIngredientData;
+use quark\crafting\json\ShapedRecipeData;
+use quark\crafting\json\ShapelessRecipeData;
+use quark\crafting\json\SmithingTransformRecipeData;
+use quark\crafting\json\SmithingTrimRecipeData;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\item\BlockItemIdMap;
+use quark\data\bedrock\item\ItemTypeNames;
+use quark\inventory\json\CreativeGroupData;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\convert\BlockStateDictionary;
-use pocketmine\network\mcpe\convert\BlockTranslator;
-use pocketmine\network\mcpe\convert\ItemTranslator;
-use pocketmine\network\mcpe\handler\PacketHandler;
+use quark\network\mcpe\convert\BlockStateDictionary;
+use quark\network\mcpe\convert\BlockTranslator;
+use quark\network\mcpe\convert\ItemTranslator;
+use quark\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\AvailableActorIdentifiersPacket;
 use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
@@ -65,13 +65,13 @@ use pocketmine\network\mcpe\protocol\types\recipe\SmithingTransformRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\SmithingTrimRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
-use pocketmine\network\PacketHandlingException;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Utils;
-use pocketmine\world\biome\model\BiomeDefinitionEntryData;
-use pocketmine\world\biome\model\ColorData;
-use pocketmine\world\format\io\GlobalBlockStateHandlers;
+use quark\network\PacketHandlingException;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
+use quark\utils\Utils;
+use quark\world\biome\model\BiomeDefinitionEntryData;
+use quark\world\biome\model\ColorData;
+use quark\world\format\io\GlobalBlockStateHandlers;
 use Ramsey\Uuid\Exception\InvalidArgumentException;
 use Symfony\Component\Filesystem\Path;
 use function array_map;

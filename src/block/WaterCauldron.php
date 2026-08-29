@@ -2,49 +2,49 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\tile\Cauldron as TileCauldron;
-use pocketmine\block\utils\DyeColor;
+use quark\block\tile\Cauldron as TileCauldron;
+use quark\block\utils\DyeColor;
 use pocketmine\color\Color;
-use pocketmine\entity\Entity;
-use pocketmine\event\entity\EntityExtinguishEvent;
-use pocketmine\item\Armor;
-use pocketmine\item\Banner;
-use pocketmine\item\Dye;
-use pocketmine\item\Item;
-use pocketmine\item\ItemTypeIds;
-use pocketmine\item\Potion;
-use pocketmine\item\PotionType;
-use pocketmine\item\SplashPotion;
-use pocketmine\item\VanillaItems;
+use quark\entity\Entity;
+use quark\event\entity\EntityExtinguishEvent;
+use quark\item\Armor;
+use quark\item\Banner;
+use quark\item\Dye;
+use quark\item\Item;
+use quark\item\ItemTypeIds;
+use quark\item\Potion;
+use quark\item\PotionType;
+use quark\item\SplashPotion;
+use quark\item\VanillaItems;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\world\sound\CauldronAddDyeSound;
-use pocketmine\world\sound\CauldronCleanItemSound;
-use pocketmine\world\sound\CauldronDyeItemSound;
-use pocketmine\world\sound\CauldronEmptyWaterSound;
-use pocketmine\world\sound\CauldronFillWaterSound;
-use pocketmine\world\sound\Sound;
+use quark\player\Player;
+use quark\world\sound\CauldronAddDyeSound;
+use quark\world\sound\CauldronCleanItemSound;
+use quark\world\sound\CauldronDyeItemSound;
+use quark\world\sound\CauldronEmptyWaterSound;
+use quark\world\sound\CauldronFillWaterSound;
+use quark\world\sound\Sound;
 use function array_pop;
 use function assert;
 use function count;

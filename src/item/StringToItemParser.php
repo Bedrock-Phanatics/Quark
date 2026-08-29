@@ -2,41 +2,41 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace quark\item;
 
-use pocketmine\block\AmethystCluster;
-use pocketmine\block\Block;
-use pocketmine\block\Light;
-use pocketmine\block\utils\CopperOxidation;
-use pocketmine\block\utils\CoralType;
-use pocketmine\block\utils\DirtType;
-use pocketmine\block\utils\DyeColor;
-use pocketmine\block\utils\FroglightType;
-use pocketmine\block\utils\MobHeadType;
-use pocketmine\block\utils\SlabType;
-use pocketmine\block\VanillaBlocks as Blocks;
-use pocketmine\item\VanillaItems as Items;
-use pocketmine\utils\SingletonTrait;
-use pocketmine\utils\StringToTParser;
+use quark\block\AmethystCluster;
+use quark\block\Block;
+use quark\block\Light;
+use quark\block\utils\CopperOxidation;
+use quark\block\utils\CoralType;
+use quark\block\utils\DirtType;
+use quark\block\utils\DyeColor;
+use quark\block\utils\FroglightType;
+use quark\block\utils\MobHeadType;
+use quark\block\utils\SlabType;
+use quark\block\VanillaBlocks as Blocks;
+use quark\item\VanillaItems as Items;
+use quark\utils\SingletonTrait;
+use quark\utils\StringToTParser;
 use function array_keys;
 use function count;
 use function strtolower;

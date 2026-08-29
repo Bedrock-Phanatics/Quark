@@ -2,127 +2,127 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\block\convert;
+namespace quark\data\bedrock\block\convert;
 
-use pocketmine\block\ActivatorRail;
-use pocketmine\block\AmethystCluster;
-use pocketmine\block\Anvil;
-use pocketmine\block\Bamboo;
-use pocketmine\block\BambooSapling;
-use pocketmine\block\Barrel;
-use pocketmine\block\Bed;
-use pocketmine\block\Bedrock;
-use pocketmine\block\Bell;
-use pocketmine\block\BigDripleafHead;
-use pocketmine\block\Block;
-use pocketmine\block\BrewingStand;
-use pocketmine\block\Cactus;
-use pocketmine\block\Cake;
-use pocketmine\block\Candle;
-use pocketmine\block\CaveVines;
-use pocketmine\block\ChiseledBookshelf;
-use pocketmine\block\ChorusFlower;
-use pocketmine\block\CocoaBlock;
-use pocketmine\block\Copper;
-use pocketmine\block\CopperLantern;
-use pocketmine\block\DaylightSensor;
-use pocketmine\block\DetectorRail;
-use pocketmine\block\Dirt;
-use pocketmine\block\DoublePitcherCrop;
-use pocketmine\block\DoublePlant;
-use pocketmine\block\EndPortalFrame;
-use pocketmine\block\EndRod;
-use pocketmine\block\Farmland;
-use pocketmine\block\FillableCauldron;
-use pocketmine\block\Fire;
-use pocketmine\block\FloorCoralFan;
-use pocketmine\block\Froglight;
-use pocketmine\block\FrostedIce;
-use pocketmine\block\GlazedTerracotta;
-use pocketmine\block\Hopper;
-use pocketmine\block\Lantern;
-use pocketmine\block\Leaves;
-use pocketmine\block\Lectern;
-use pocketmine\block\Lever;
-use pocketmine\block\Light;
-use pocketmine\block\MobHead;
-use pocketmine\block\NetherPortal;
-use pocketmine\block\NetherVines;
-use pocketmine\block\NetherWartPlant;
-use pocketmine\block\PinkPetals;
-use pocketmine\block\PitcherCrop;
-use pocketmine\block\PoweredRail;
-use pocketmine\block\Rail;
-use pocketmine\block\RedMushroomBlock;
-use pocketmine\block\RedstoneComparator;
-use pocketmine\block\RedstoneRepeater;
-use pocketmine\block\RedstoneTorch;
-use pocketmine\block\RespawnAnchor;
-use pocketmine\block\Sapling;
-use pocketmine\block\SeaPickle;
-use pocketmine\block\SmallDripleaf;
-use pocketmine\block\SnowLayer;
-use pocketmine\block\Sponge;
-use pocketmine\block\StraightOnlyRail;
-use pocketmine\block\Sugarcane;
-use pocketmine\block\SweetBerryBush;
-use pocketmine\block\TNT;
-use pocketmine\block\TorchflowerCrop;
-use pocketmine\block\Tripwire;
-use pocketmine\block\TripwireHook;
-use pocketmine\block\utils\BellAttachmentType;
-use pocketmine\block\utils\BrewingStandSlot;
-use pocketmine\block\utils\ChiseledBookshelfSlot;
-use pocketmine\block\utils\CopperOxidation;
-use pocketmine\block\utils\DirtType;
-use pocketmine\block\utils\DripleafState;
-use pocketmine\block\utils\DyeColor;
-use pocketmine\block\utils\FroglightType;
-use pocketmine\block\utils\HorizontalFacing;
-use pocketmine\block\utils\LeverFacing;
-use pocketmine\block\utils\MobHeadType;
-use pocketmine\block\utils\MushroomBlockType;
-use pocketmine\block\utils\PoweredByRedstone;
-use pocketmine\block\VanillaBlocks as Blocks;
-use pocketmine\block\Vine;
-use pocketmine\data\bedrock\block\BlockLegacyMetadata;
-use pocketmine\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\data\bedrock\block\BlockStateNames as StateNames;
-use pocketmine\data\bedrock\block\BlockStateStringValues as StringValues;
-use pocketmine\data\bedrock\block\BlockTypeNames as Ids;
-use pocketmine\data\bedrock\block\convert\BlockStateReader as Reader;
-use pocketmine\data\bedrock\block\convert\BlockStateWriter as Writer;
-use pocketmine\data\bedrock\block\convert\property\BoolFromStringProperty;
-use pocketmine\data\bedrock\block\convert\property\BoolProperty;
-use pocketmine\data\bedrock\block\convert\property\CommonProperties;
-use pocketmine\data\bedrock\block\convert\property\DummyProperty;
-use pocketmine\data\bedrock\block\convert\property\EnumFromRawStateMap;
-use pocketmine\data\bedrock\block\convert\property\FlattenedCaveVinesVariant;
-use pocketmine\data\bedrock\block\convert\property\IntFromRawStateMap;
-use pocketmine\data\bedrock\block\convert\property\IntProperty;
-use pocketmine\data\bedrock\block\convert\property\ValueFromIntProperty;
-use pocketmine\data\bedrock\block\convert\property\ValueFromStringProperty;
-use pocketmine\data\bedrock\block\convert\property\ValueMappings;
-use pocketmine\data\bedrock\block\convert\property\ValueSetFromIntProperty;
+use quark\block\ActivatorRail;
+use quark\block\AmethystCluster;
+use quark\block\Anvil;
+use quark\block\Bamboo;
+use quark\block\BambooSapling;
+use quark\block\Barrel;
+use quark\block\Bed;
+use quark\block\Bedrock;
+use quark\block\Bell;
+use quark\block\BigDripleafHead;
+use quark\block\Block;
+use quark\block\BrewingStand;
+use quark\block\Cactus;
+use quark\block\Cake;
+use quark\block\Candle;
+use quark\block\CaveVines;
+use quark\block\ChiseledBookshelf;
+use quark\block\ChorusFlower;
+use quark\block\CocoaBlock;
+use quark\block\Copper;
+use quark\block\CopperLantern;
+use quark\block\DaylightSensor;
+use quark\block\DetectorRail;
+use quark\block\Dirt;
+use quark\block\DoublePitcherCrop;
+use quark\block\DoublePlant;
+use quark\block\EndPortalFrame;
+use quark\block\EndRod;
+use quark\block\Farmland;
+use quark\block\FillableCauldron;
+use quark\block\Fire;
+use quark\block\FloorCoralFan;
+use quark\block\Froglight;
+use quark\block\FrostedIce;
+use quark\block\GlazedTerracotta;
+use quark\block\Hopper;
+use quark\block\Lantern;
+use quark\block\Leaves;
+use quark\block\Lectern;
+use quark\block\Lever;
+use quark\block\Light;
+use quark\block\MobHead;
+use quark\block\NetherPortal;
+use quark\block\NetherVines;
+use quark\block\NetherWartPlant;
+use quark\block\PinkPetals;
+use quark\block\PitcherCrop;
+use quark\block\PoweredRail;
+use quark\block\Rail;
+use quark\block\RedMushroomBlock;
+use quark\block\RedstoneComparator;
+use quark\block\RedstoneRepeater;
+use quark\block\RedstoneTorch;
+use quark\block\RespawnAnchor;
+use quark\block\Sapling;
+use quark\block\SeaPickle;
+use quark\block\SmallDripleaf;
+use quark\block\SnowLayer;
+use quark\block\Sponge;
+use quark\block\StraightOnlyRail;
+use quark\block\Sugarcane;
+use quark\block\SweetBerryBush;
+use quark\block\TNT;
+use quark\block\TorchflowerCrop;
+use quark\block\Tripwire;
+use quark\block\TripwireHook;
+use quark\block\utils\BellAttachmentType;
+use quark\block\utils\BrewingStandSlot;
+use quark\block\utils\ChiseledBookshelfSlot;
+use quark\block\utils\CopperOxidation;
+use quark\block\utils\DirtType;
+use quark\block\utils\DripleafState;
+use quark\block\utils\DyeColor;
+use quark\block\utils\FroglightType;
+use quark\block\utils\HorizontalFacing;
+use quark\block\utils\LeverFacing;
+use quark\block\utils\MobHeadType;
+use quark\block\utils\MushroomBlockType;
+use quark\block\utils\PoweredByRedstone;
+use quark\block\VanillaBlocks as Blocks;
+use quark\block\Vine;
+use quark\data\bedrock\block\BlockLegacyMetadata;
+use quark\data\bedrock\block\BlockStateDeserializeException;
+use quark\data\bedrock\block\BlockStateNames as StateNames;
+use quark\data\bedrock\block\BlockStateStringValues as StringValues;
+use quark\data\bedrock\block\BlockTypeNames as Ids;
+use quark\data\bedrock\block\convert\BlockStateReader as Reader;
+use quark\data\bedrock\block\convert\BlockStateWriter as Writer;
+use quark\data\bedrock\block\convert\property\BoolFromStringProperty;
+use quark\data\bedrock\block\convert\property\BoolProperty;
+use quark\data\bedrock\block\convert\property\CommonProperties;
+use quark\data\bedrock\block\convert\property\DummyProperty;
+use quark\data\bedrock\block\convert\property\EnumFromRawStateMap;
+use quark\data\bedrock\block\convert\property\FlattenedCaveVinesVariant;
+use quark\data\bedrock\block\convert\property\IntFromRawStateMap;
+use quark\data\bedrock\block\convert\property\IntProperty;
+use quark\data\bedrock\block\convert\property\ValueFromIntProperty;
+use quark\data\bedrock\block\convert\property\ValueFromStringProperty;
+use quark\data\bedrock\block\convert\property\ValueMappings;
+use quark\data\bedrock\block\convert\property\ValueSetFromIntProperty;
 use pocketmine\math\Facing;
 use function array_map;
 use function min;

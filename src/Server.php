@@ -2,19 +2,19 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -22,114 +22,113 @@
 declare(strict_types=1);
 
 /**
- * PocketMine-MP is the Minecraft: PE multiplayer server software
- * Homepage: http://www.pocketmine.net/
+ * Quark is the Minecraft: PE multiplayer server software
+ * Homepage: https://github.com/Bedrock-Phanatics/Quark
  */
-namespace pocketmine;
+namespace quark;
 
-use pocketmine\block\tile\comparator\ComparatorWeightRegistry;
-use pocketmine\block\tile\dispenser\DispensableItemManager;
-use pocketmine\command\Command;
-use pocketmine\command\CommandSender;
-use pocketmine\command\SimpleCommandMap;
-use pocketmine\console\ConsoleCommandSender;
-use pocketmine\console\ConsoleReaderChildProcessDaemon;
-use pocketmine\crafting\CraftingManager;
-use pocketmine\crafting\CraftingManagerFromDataHelper;
-use pocketmine\crash\CrashDump;
-use pocketmine\crash\CrashDumpRenderer;
-use pocketmine\data\bedrock\BedrockDataFiles;
-use pocketmine\entity\EntityDataHelper;
-use pocketmine\entity\Location;
-use pocketmine\event\HandlerListManager;
-use pocketmine\event\player\PlayerCreationEvent;
-use pocketmine\event\player\PlayerDataSaveEvent;
-use pocketmine\event\player\PlayerLoginEvent;
-use pocketmine\event\server\CommandEvent;
-use pocketmine\event\server\QueryRegenerateEvent;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\lang\Language;
-use pocketmine\lang\LanguageNotFoundException;
-use pocketmine\lang\Translatable;
+use quark\block\tile\comparator\ComparatorWeightRegistry;
+use quark\block\tile\dispenser\DispensableItemManager;
+use quark\command\Command;
+use quark\command\CommandSender;
+use quark\command\SimpleCommandMap;
+use quark\console\ConsoleCommandSender;
+use quark\console\ConsoleReaderChildProcessDaemon;
+use quark\crafting\CraftingManager;
+use quark\crafting\CraftingManagerFromDataHelper;
+use quark\crash\CrashDump;
+use quark\crash\CrashDumpRenderer;
+use quark\data\bedrock\BedrockDataFiles;
+use quark\entity\EntityDataHelper;
+use quark\entity\Location;
+use quark\event\HandlerListManager;
+use quark\event\player\PlayerCreationEvent;
+use quark\event\player\PlayerDataSaveEvent;
+use quark\event\player\PlayerLoginEvent;
+use quark\event\server\CommandEvent;
+use quark\event\server\QueryRegenerateEvent;
+use quark\lang\KnownTranslationFactory;
+use quark\lang\Language;
+use quark\lang\LanguageNotFoundException;
+use quark\lang\Translatable;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\auth\AuthKeyProvider;
-use pocketmine\network\mcpe\compression\CompressBatchPromise;
-use pocketmine\network\mcpe\compression\CompressBatchTask;
-use pocketmine\network\mcpe\compression\Compressor;
-use pocketmine\network\mcpe\compression\SnappyCompressor;
-use pocketmine\network\mcpe\compression\ZlibCompressor;
-use pocketmine\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\encryption\EncryptionContext;
-use pocketmine\network\mcpe\EntityEventBroadcaster;
-use pocketmine\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\PacketBroadcaster;
+use quark\network\mcpe\auth\AuthKeyProvider;
+use quark\network\mcpe\compression\CompressBatchPromise;
+use quark\network\mcpe\compression\CompressBatchTask;
+use quark\network\mcpe\compression\Compressor;
+use quark\network\mcpe\compression\SnappyCompressor;
+use quark\network\mcpe\compression\ZlibCompressor;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\encryption\EncryptionContext;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\PacketBroadcaster;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
-use pocketmine\network\mcpe\raklib\RakLibInterface;
-use pocketmine\network\mcpe\StandardEntityEventBroadcaster;
-use pocketmine\network\mcpe\StandardPacketBroadcaster;
-use pocketmine\network\Network;
-use pocketmine\network\NetworkInterfaceStartException;
-use pocketmine\network\query\DedicatedQueryNetworkInterface;
-use pocketmine\network\query\QueryHandler;
-use pocketmine\network\query\QueryInfo;
-use pocketmine\network\upnp\UPnPNetworkInterface;
-use pocketmine\permission\BanList;
-use pocketmine\permission\DefaultPermissions;
-use pocketmine\player\DatFilePlayerDataProvider;
-use pocketmine\player\GameMode;
-use pocketmine\player\OfflinePlayer;
-use pocketmine\player\Player;
-use pocketmine\player\PlayerDataLoadException;
-use pocketmine\player\PlayerDataProvider;
-use pocketmine\player\PlayerDataSaveException;
-use pocketmine\player\PlayerInfo;
-use pocketmine\plugin\PharPluginLoader;
-use pocketmine\plugin\PluginEnableOrder;
-use pocketmine\plugin\PluginGraylist;
-use pocketmine\plugin\PluginManager;
-use pocketmine\plugin\PluginOwned;
-use pocketmine\plugin\ScriptPluginLoader;
-use pocketmine\promise\Promise;
-use pocketmine\promise\PromiseResolver;
-use pocketmine\resourcepacks\ResourcePackManager;
-use pocketmine\scheduler\AsyncPool;
-use pocketmine\scheduler\TimingsCollectionTask;
-use pocketmine\scheduler\TimingsControlTask;
+use quark\network\mcpe\raklib\RakLibInterface;
+use quark\network\mcpe\StandardEntityEventBroadcaster;
+use quark\network\mcpe\StandardPacketBroadcaster;
+use quark\network\Network;
+use quark\network\NetworkInterfaceStartException;
+use quark\network\query\DedicatedQueryNetworkInterface;
+use quark\network\query\QueryHandler;
+use quark\network\query\QueryInfo;
+use quark\network\upnp\UPnPNetworkInterface;
+use quark\permission\BanList;
+use quark\permission\DefaultPermissions;
+use quark\player\DatFilePlayerDataProvider;
+use quark\player\GameMode;
+use quark\player\OfflinePlayer;
+use quark\player\Player;
+use quark\player\PlayerDataLoadException;
+use quark\player\PlayerDataProvider;
+use quark\player\PlayerDataSaveException;
+use quark\player\PlayerInfo;
+use quark\plugin\PharPluginLoader;
+use quark\plugin\PluginEnableOrder;
+use quark\plugin\PluginGraylist;
+use quark\plugin\PluginManager;
+use quark\plugin\PluginOwned;
+use quark\plugin\ScriptPluginLoader;
+use quark\promise\Promise;
+use quark\promise\PromiseResolver;
+use quark\resourcepacks\ResourcePackManager;
+use quark\scheduler\AsyncPool;
+use quark\scheduler\TimingsCollectionTask;
+use quark\scheduler\TimingsControlTask;
 use pocketmine\snooze\SleeperHandler;
-use pocketmine\stats\SendUsageTask;
-use pocketmine\thread\log\AttachableThreadSafeLogger;
-use pocketmine\thread\ThreadCrashException;
-use pocketmine\thread\ThreadSafeClassLoader;
-use pocketmine\timings\Timings;
-use pocketmine\timings\TimingsHandler;
-use pocketmine\updater\UpdateChecker;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\BroadcastLoggerForwarder;
-use pocketmine\utils\Config;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Internet;
-use pocketmine\utils\MainLogger;
-use pocketmine\utils\NotCloneable;
-use pocketmine\utils\NotSerializable;
-use pocketmine\utils\Process;
-use pocketmine\utils\SignalHandler;
-use pocketmine\utils\Terminal;
-use pocketmine\utils\TextFormat;
-use pocketmine\utils\Utils;
-use pocketmine\world\format\io\WorldProviderManager;
-use pocketmine\world\format\io\WritableWorldProviderManagerEntry;
-use pocketmine\world\generator\Generator;
-use pocketmine\world\generator\GeneratorManager;
-use pocketmine\world\generator\InvalidGeneratorOptionsException;
-use pocketmine\world\Position;
-use pocketmine\world\redstone\RedstoneConfig;
-use pocketmine\world\redstone\RedstoneManager;
-use pocketmine\world\tnt\TntConfig;
-use pocketmine\world\World;
-use pocketmine\world\WorldCreationOptions;
-use pocketmine\world\WorldManager;
-use pocketmine\YmlServerProperties as Yml;
+use quark\thread\log\AttachableThreadSafeLogger;
+use quark\thread\ThreadCrashException;
+use quark\thread\ThreadSafeClassLoader;
+use quark\timings\Timings;
+use quark\timings\TimingsHandler;
+use quark\updater\UpdateChecker;
+use quark\utils\AssumptionFailedError;
+use quark\utils\BroadcastLoggerForwarder;
+use quark\utils\Config;
+use quark\utils\Filesystem;
+use quark\utils\Internet;
+use quark\utils\MainLogger;
+use quark\utils\NotCloneable;
+use quark\utils\NotSerializable;
+use quark\utils\Process;
+use quark\utils\SignalHandler;
+use quark\utils\Terminal;
+use quark\utils\TextFormat;
+use quark\utils\Utils;
+use quark\world\format\io\WorldProviderManager;
+use quark\world\format\io\WritableWorldProviderManagerEntry;
+use quark\world\generator\Generator;
+use quark\world\generator\GeneratorManager;
+use quark\world\generator\InvalidGeneratorOptionsException;
+use quark\world\Position;
+use quark\world\redstone\RedstoneConfig;
+use quark\world\redstone\RedstoneManager;
+use quark\world\tnt\TntConfig;
+use quark\world\World;
+use quark\world\WorldCreationOptions;
+use quark\world\WorldManager;
+use quark\YmlServerProperties as Yml;
 use Ramsey\Uuid\UuidInterface;
 use Symfony\Component\Filesystem\Path;
 use function array_fill;
@@ -193,8 +192,8 @@ class Server{
 	use NotCloneable;
 	use NotSerializable;
 
-	public const BROADCAST_CHANNEL_ADMINISTRATIVE = "pocketmine.broadcast.admin";
-	public const BROADCAST_CHANNEL_USERS = "pocketmine.broadcast.user";
+	public const BROADCAST_CHANNEL_ADMINISTRATIVE = "quark.broadcast.admin";
+	public const BROADCAST_CHANNEL_USERS = "quark.broadcast.user";
 
 	public const DEFAULT_SERVER_NAME = VersionInfo::NAME . " Server";
 	public const DEFAULT_MAX_PLAYERS = 20;
@@ -221,7 +220,6 @@ class Server{
 
 	private const TICKS_PER_WORLD_CACHE_CLEAR = 5 * self::TARGET_TICKS_PER_SECOND;
 	private const TICKS_PER_TPS_OVERLOAD_WARNING = 5 * self::TARGET_TICKS_PER_SECOND;
-	private const TICKS_PER_STATS_REPORT = 300 * self::TARGET_TICKS_PER_SECOND;
 
 	private const DEFAULT_ASYNC_COMPRESSION_THRESHOLD = 10_000;
 
@@ -262,8 +260,6 @@ class Server{
 
 	private bool $doTitleTick = true;
 
-	private int $sendUsageTicker = 0;
-
 	private MemoryManager $memoryManager;
 
 	private ?ConsoleReaderChildProcessDaemon $console = null;
@@ -298,12 +294,6 @@ class Server{
 
 	private PlayerDataProvider $playerDataProvider;
 
-	/**
-	 * @var string[]
-	 * @phpstan-var array<string, string>
-	 */
-	private array $uniquePlayers = [];
-
 	private QueryInfo $queryInfo;
 
 	private ServerConfigGroup $configGroup;
@@ -328,7 +318,7 @@ class Server{
 		return $this->isRunning;
 	}
 
-	public function getPocketMineVersion() : string{
+	public function getQuarkVersion() : string{
 		return VersionInfo::VERSION()->getFullVersion(true);
 	}
 
@@ -341,11 +331,11 @@ class Server{
 	}
 
 	public function getFilePath() : string{
-		return \pocketmine\PATH;
+		return \quark\PATH;
 	}
 
 	public function getResourcePath() : string{
-		return \pocketmine\RESOURCE_PATH;
+		return \quark\RESOURCE_PATH;
 	}
 
 	public function getDataPath() : string{
@@ -547,7 +537,7 @@ class Server{
 				return $this->playerDataProvider->loadData($name);
 			}catch(PlayerDataLoadException $e){
 				$this->logger->debug("Failed to load player data for $name: " . $e->getMessage());
-				$this->logger->error($this->language->translate(KnownTranslationFactory::pocketmine_data_playerCorrupted($name)));
+				$this->logger->error($this->language->translate(KnownTranslationFactory::quark_data_playerCorrupted($name)));
 				return null;
 			}
 		});
@@ -566,7 +556,7 @@ class Server{
 				try{
 					$this->playerDataProvider->saveData($name, $ev->getSaveData());
 				}catch(PlayerDataSaveException $e){
-					$this->logger->critical($this->language->translate(KnownTranslationFactory::pocketmine_data_saveError($name, $e->getMessage())));
+					$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
 					$this->logger->logException($e);
 				}
 			});
@@ -613,7 +603,7 @@ class Server{
 				},
 				function() use ($playerPromiseResolver, $session) : void{
 					if($session->isConnected()){
-						$session->disconnectWithError(KnownTranslationFactory::pocketmine_disconnect_error_respawn());
+						$session->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_respawn());
 					}
 					$playerPromiseResolver->reject();
 				}
@@ -826,17 +816,17 @@ class Server{
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
 
 			$this->logger->info("Loading server configuration");
-			$pocketmineYmlPath = Path::join($this->dataPath, "pocketmine.yml");
-			if(!file_exists($pocketmineYmlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\pocketmine\RESOURCE_PATH, "pocketmine.yml"));
+			$quarkYmlPath = Path::join($this->dataPath, "quark.yml");
+			if(!file_exists($quarkYmlPath)){
+				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "quark.yml"));
 				if(VersionInfo::IS_DEVELOPMENT_BUILD){
 					$content = str_replace("preferred-channel: stable", "preferred-channel: beta", $content);
 				}
-				@file_put_contents($pocketmineYmlPath, $content);
+				@file_put_contents($quarkYmlPath, $content);
 			}
 
 			$this->configGroup = new ServerConfigGroup(
-				new Config($pocketmineYmlPath, Config::YAML, []),
+				new Config($quarkYmlPath, Config::YAML, []),
 				new Config(Path::join($this->dataPath, "server.properties"), Config::PROPERTIES, [
 					ServerProperties::MOTD => self::DEFAULT_SERVER_NAME,
 					ServerProperties::SERVER_PORT_IPV4 => self::DEFAULT_PORT_IPV4,
@@ -886,26 +876,26 @@ class Server{
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
 				if(!$this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_DEV_BUILDS, false)){
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error1(VersionInfo::NAME)));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error2()));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error3()));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error4(Yml::SETTINGS_ENABLE_DEV_BUILDS)));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_error5(VersionInfo::GITHUB_URL . "/releases")));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error1(VersionInfo::NAME)));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error2()));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error3()));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error4(Yml::SETTINGS_ENABLE_DEV_BUILDS)));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error5(VersionInfo::GITHUB_URL . "/releases")));
 					$this->forceShutdownExit();
 
 					return;
 				}
 
 				$this->logger->warning(str_repeat("-", 40));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_warning1(VersionInfo::NAME)));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_warning2()));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_devBuild_warning3()));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_devBuild_warning1(VersionInfo::NAME)));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_devBuild_warning2()));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_devBuild_warning3()));
 				$this->logger->warning(str_repeat("-", 40));
 			}
 
 			$this->memoryManager = new MemoryManager($this);
 
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
 
 			if(($poolSize = $this->configGroup->getPropertyString(Yml::SETTINGS_ASYNC_WORKERS, "auto")) === "auto"){
 				$poolSize = 2;
@@ -1012,11 +1002,11 @@ class Server{
 
 			$this->onlineMode = $this->configGroup->getConfigBool(ServerProperties::XBOX_AUTH, true);
 			if($this->onlineMode){
-				$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_auth_enabled()));
+				$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_auth_enabled()));
 			}else{
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_auth_disabled()));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_authWarning()));
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_authProperty_disabled()));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_auth_disabled()));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_authWarning()));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_authProperty_disabled()));
 			}
 
 			$this->authKeyProvider = new AuthKeyProvider(new \PrefixedLogger($this->logger, "Minecraft Auth Key Provider"), $this->asyncPool);
@@ -1025,7 +1015,7 @@ class Server{
 				$this->configGroup->setConfigInt(ServerProperties::DIFFICULTY, World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
+			@cli_set_process_title($this->getName() . " " . $this->getQuarkVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -1035,11 +1025,11 @@ class Server{
 			$this->network = new Network($this->logger);
 			$this->network->setName($this->getMotd());
 
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_info(
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_info(
 				$this->getName(),
-				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
+				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getQuarkVersion() . TextFormat::RESET
 			)));
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_license($this->getName())));
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_license($this->getName())));
 
 			DefaultPermissions::registerCorePermissions();
 
@@ -1077,7 +1067,7 @@ class Server{
 			$pluginGraylist = null;
 			$graylistFile = Path::join($this->dataPath, "plugin_list.yml");
 			if(!file_exists($graylistFile)){
-				copy(Path::join(\pocketmine\RESOURCE_PATH, 'plugin_list.yml'), $graylistFile);
+				copy(Path::join(\quark\RESOURCE_PATH, 'plugin_list.yml'), $graylistFile);
 			}
 			try{
 				$array = yaml_parse(Filesystem::fileGetContents($graylistFile));
@@ -1101,7 +1091,7 @@ class Server{
 			){
 				$providerManager->setDefault($format);
 			}elseif($formatName !== ""){
-				$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_level_badDefaultFormat($formatName)));
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_level_badDefaultFormat($formatName)));
 			}
 
 			$this->worldManager = new WorldManager($this, Path::join($this->dataPath, "worlds"), $providerManager);
@@ -1109,7 +1099,7 @@ class Server{
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
 
-			$this->updater = new UpdateChecker($this, $this->configGroup->getPropertyString(Yml::AUTO_UPDATER_HOST, "update.axolotl-pm.org"));
+			$this->updater = new UpdateChecker($this, $this->configGroup->getPropertyString(Yml::AUTO_UPDATER_HOST, ""));
 
 			$this->queryInfo = new QueryInfo($this);
 
@@ -1120,12 +1110,12 @@ class Server{
 			$loadErrorCount = 0;
 			$this->pluginManager->loadPlugins($this->pluginPath, $loadErrorCount);
 			if($loadErrorCount > 0){
-				$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_plugin_someLoadErrors()));
+				$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_plugin_someLoadErrors()));
 				$this->forceShutdownExit();
 				return;
 			}
 			if(!$this->enablePlugins(PluginEnableOrder::STARTUP)){
-				$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_plugin_someEnableErrors()));
+				$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_plugin_someEnableErrors()));
 				$this->forceShutdownExit();
 				return;
 			}
@@ -1136,7 +1126,7 @@ class Server{
 			}
 
 			if(!$this->enablePlugins(PluginEnableOrder::POSTWORLD)){
-				$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_plugin_someEnableErrors()));
+				$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_plugin_someEnableErrors()));
 				$this->forceShutdownExit();
 				return;
 			}
@@ -1146,32 +1136,23 @@ class Server{
 				return;
 			}
 
-			if($this->configGroup->getPropertyBool(Yml::ANONYMOUS_STATISTICS_ENABLED, true)){
-				$this->sendUsageTicker = self::TICKS_PER_STATS_REPORT;
-				$this->sendUsage(SendUsageTask::TYPE_OPEN);
-			}
-
 			$this->configGroup->save();
 
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_defaultGameMode($this->getGamemode()->getTranslatableName())));
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_defaultGameMode($this->getGamemode()->getTranslatableName())));
 			$highlight = TextFormat::AQUA;
 			$reset = TextFormat::RESET;
 			$github = VersionInfo::GITHUB_URL;
 			$splash = "\n\n";
 			foreach([
-				KnownTranslationFactory::pocketmine_server_url_discord("{$highlight}https://discord.pmmp.io{$reset}"),
-				KnownTranslationFactory::pocketmine_server_url_docs("{$highlight}https://doc.pmmp.io{$reset}"),
-				KnownTranslationFactory::pocketmine_server_url_sourceCode("{$highlight}{$github}{$reset}"),
-				KnownTranslationFactory::pocketmine_server_url_freePlugins("{$highlight}https://poggit.pmmp.io/plugins{$reset}"),
-				KnownTranslationFactory::pocketmine_server_url_donations("{$highlight}https://patreon.com/pocketminemp{$reset}"),
-				KnownTranslationFactory::pocketmine_server_url_translations("{$highlight}https://translate.pocketmine.net{$reset}"),
-				KnownTranslationFactory::pocketmine_server_url_bugReporting("{$highlight}{$github}/issues{$reset}")
+				KnownTranslationFactory::quark_server_url_discord("{$highlight}https://discord.gg/vrPugybpJF{$reset}"),
+				KnownTranslationFactory::quark_server_url_sourceCode("{$highlight}{$github}{$reset}"),
+				KnownTranslationFactory::quark_server_url_bugReporting("{$highlight}{$github}/issues{$reset}")
 			] as $link){
 				$splash .= "- " . $this->language->translate($link) . "\n";
 			}
 			$this->logger->info($splash);
 
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_startFinished(strval(round(microtime(true) - $this->startTime, 3)))));
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_startFinished(strval(round(microtime(true) - $this->startTime, 3)))));
 
 			$forwarder = new BroadcastLoggerForwarder($this, $this->logger, $this->language);
 			$this->subscribeToBroadcastChannel(self::BROADCAST_CHANNEL_ADMINISTRATIVE, $forwarder);
@@ -1193,18 +1174,18 @@ class Server{
 		$getGenerator = function(string $generatorName, string $generatorOptions, string $worldName) : ?string{
 			$generatorEntry = GeneratorManager::getInstance()->getGenerator($generatorName);
 			if($generatorEntry === null){
-				$this->logger->error($this->language->translate(KnownTranslationFactory::pocketmine_level_generationError(
+				$this->logger->error($this->language->translate(KnownTranslationFactory::quark_level_generationError(
 					$worldName,
-					KnownTranslationFactory::pocketmine_level_unknownGenerator($generatorName)
+					KnownTranslationFactory::quark_level_unknownGenerator($generatorName)
 				)));
 				return null;
 			}
 			try{
 				$generatorEntry->validateGeneratorOptions($generatorOptions);
 			}catch(InvalidGeneratorOptionsException $e){
-				$this->logger->error($this->language->translate(KnownTranslationFactory::pocketmine_level_generationError(
+				$this->logger->error($this->language->translate(KnownTranslationFactory::quark_level_generationError(
 					$worldName,
-					KnownTranslationFactory::pocketmine_level_invalidGeneratorOptions($generatorOptions, $generatorName, $e->getMessage())
+					KnownTranslationFactory::quark_level_invalidGeneratorOptions($generatorOptions, $generatorName, $e->getMessage())
 				)));
 				return null;
 			}
@@ -1269,7 +1250,7 @@ class Server{
 			}
 			if(!$this->worldManager->loadWorld($default, true)){
 				if($this->worldManager->isWorldGenerated($default)){
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_level_defaultError()));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_level_defaultError()));
 
 					return false;
 				}
@@ -1278,7 +1259,7 @@ class Server{
 				$generatorClass = $getGenerator($generatorName, $generatorOptions, $default);
 
 				if($generatorClass === null){
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_level_defaultError()));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_level_defaultError()));
 					return false;
 				}
 				$creationOptions = WorldCreationOptions::create()
@@ -1315,7 +1296,7 @@ class Server{
 		try{
 			$rakLibRegistered = $this->network->registerInterface(new RakLibInterface($this, $ip, $port, $ipV6, $packetBroadcaster, $entityEventBroadcaster, $typeConverter));
 		}catch(NetworkInterfaceStartException $e){
-			$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_networkStartFailed(
+			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_networkStartFailed(
 				$ip,
 				(string) $port,
 				$e->getMessage()
@@ -1323,7 +1304,7 @@ class Server{
 			return false;
 		}
 		if($rakLibRegistered){
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_networkStart($prettyIp, (string) $port)));
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_networkStart($prettyIp, (string) $port)));
 		}
 		if($useQuery){
 			if(!$rakLibRegistered){
@@ -1331,7 +1312,7 @@ class Server{
 				//if it's not registered we need to make sure Query still works
 				$this->network->registerInterface(new DedicatedQueryNetworkInterface($ip, $port, $ipV6, new \PrefixedLogger($this->logger, "Dedicated Query Interface")));
 			}
-			$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_server_query_running($prettyIp, (string) $port)));
+			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_query_running($prettyIp, (string) $port)));
 		}
 		return true;
 	}
@@ -1565,7 +1546,7 @@ class Server{
 			if(TimingsHandler::isEnabled()){
 				TimingsHandler::createReportFile(Path::join($this->getDataPath(), "timings"))->onCompletion(
 					function(string $timingsFile) : void{
-						$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_command_timings_timingsWrite($timingsFile)));
+						$this->logger->info($this->language->translate(KnownTranslationFactory::quark_command_timings_timingsWrite($timingsFile)));
 						TimingsHandler::setEnabled(false);
 					},
 					fn() => $this->logger->error("Failed to create timings report file")
@@ -1589,13 +1570,9 @@ class Server{
 		}
 
 		if($this->isRunning){
-			$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_server_forcingShutdown()));
+			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_forcingShutdown()));
 		}
 		try{
-			if(!$this->isRunning()){
-				$this->sendUsage(SendUsageTask::TYPE_CLOSE);
-			}
-
 			$this->hasStopped = true;
 
 			$this->shutdown();
@@ -1728,70 +1705,49 @@ class Server{
 		if(!$this->isRunning){
 			return;
 		}
-		if($this->sendUsageTicker > 0){
-			$this->sendUsage(SendUsageTask::TYPE_CLOSE);
-		}
 		$this->hasStopped = false;
 
 		ini_set("error_reporting", '0');
 		ini_set("memory_limit", '-1'); //Fix error dump not dumped on memory problems
 		try{
-			$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_crash_create()));
+			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_crash_create()));
 			$dump = new CrashDump($this, $this->pluginManager ?? null);
 
 			$crashDumpPath = $this->writeCrashDumpFile($dump);
 
-			$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_crash_submit($crashDumpPath)));
+			$this->logger->emergency("Crash dump saved to: $crashDumpPath");
 
-			if($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_ENABLED, true)){
+			if($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_ENABLED, false)){
 				$report = true;
-
 				$stamp = Path::join($this->dataPath, "crashdumps", ".last_crash");
-				$crashInterval = 120; //2 minutes
+				$crashInterval = 120;
 				if(($lastReportTime = @filemtime($stamp)) !== false && $lastReportTime + $crashInterval >= time()){
 					$report = false;
-					$this->logger->debug("Not sending crashdump due to last crash less than $crashInterval seconds ago");
+					$this->logger->debug("Not sending crash dump because another crash was reported less than $crashInterval seconds ago");
 				}
-				@touch($stamp); //update file timestamp
-
-				if($dump->getData()->error["type"] === \ParseError::class){
+				@touch($stamp);
+				if($dump->getData()->error["type"] === \ParseError::class){ $report = false; }
+				if(strrpos(VersionInfo::GIT_HASH(), "-dirty") !== false || VersionInfo::GIT_HASH() === str_repeat("00", 20)){
+					$this->logger->debug("Not sending crash dump from a locally modified build");
 					$report = false;
 				}
-
-				if(strrpos(VersionInfo::GIT_HASH(), "-dirty") !== false || VersionInfo::GIT_HASH() === str_repeat("00", 20)){
-					$this->logger->debug("Not sending crashdump due to locally modified");
-					$report = false; //Don't send crashdumps for locally modified builds
-				}
-
 				if($report){
 					$url = ($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_USE_HTTPS, true) ? "https" : "http") . "://" . $this->configGroup->getPropertyString(Yml::AUTO_REPORT_HOST, "crash.pmmp.io") . "/submit/api";
 					$postUrlError = "Unknown error";
-					$reply = Internet::postURL($url, [
-						"report" => "yes",
-						"name" => $this->getName() . " " . $this->getPocketMineVersion(),
-						"email" => "crash@pocketmine.net",
-						"reportPaste" => base64_encode($dump->getEncodedData())
-					], 10, [], $postUrlError);
-
+					$reply = Internet::postURL($url, ["report" => "yes", "name" => $this->getName() . " " . $this->getQuarkVersion(), "email" => "", "reportPaste" => base64_encode($dump->getEncodedData())], 10, [], $postUrlError);
 					if($reply !== null && is_object($data = json_decode($reply->getBody()))){
 						if(isset($data->crashId) && is_int($data->crashId) && isset($data->crashUrl) && is_string($data->crashUrl)){
-							$reportId = $data->crashId;
-							$reportUrl = $data->crashUrl;
-							$this->logger->emergency($this->language->translate(KnownTranslationFactory::pocketmine_crash_archive($reportUrl, (string) $reportId)));
-						}elseif(isset($data->error) && is_string($data->error)){
-							$this->logger->emergency("Automatic crash report submission failed: $data->error");
-						}else{
-							$this->logger->emergency("Invalid JSON response received from crash archive: " . $reply->getBody());
-						}
-					}else{
-						$this->logger->emergency("Failed to communicate with crash archive: $postUrlError");
-					}
+							$this->logger->emergency("Crash dump archived by PMMP: $data->crashUrl (ID: $data->crashId)");
+						}elseif(isset($data->error) && is_string($data->error)){ $this->logger->emergency("Automatic crash report submission failed: $data->error"); }
+						else{ $this->logger->emergency("Invalid response received from the PMMP crash archive"); }
+					}else{ $this->logger->emergency("Failed to communicate with the PMMP crash archive: $postUrlError"); }
 				}
 			}
+
 		}catch(\Throwable $e){
 			$this->logger->logException($e);
 			try{
-				$this->logger->critical($this->language->translate(KnownTranslationFactory::pocketmine_crash_error($e->getMessage())));
+				$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_crash_error($e->getMessage())));
 			}catch(\Throwable $e){}
 		}
 
@@ -1843,7 +1799,7 @@ class Server{
 
 		$session = $player->getNetworkSession();
 		$position = $player->getPosition();
-		$this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_player_logIn(
+		$this->logger->info($this->language->translate(KnownTranslationFactory::quark_player_logIn(
 			TextFormat::AQUA . $player->getName() . TextFormat::RESET,
 			$session->getIp(),
 			(string) $session->getPort(),
@@ -1860,9 +1816,6 @@ class Server{
 		$rawUUID = $player->getUniqueId()->getBytes();
 		$this->playerList[$rawUUID] = $player;
 
-		if($this->sendUsageTicker > 0){
-			$this->uniquePlayers[$rawUUID] = $rawUUID;
-		}
 
 		return true;
 	}
@@ -1874,13 +1827,6 @@ class Server{
 				$p->getNetworkSession()->onPlayerRemoved($player);
 			}
 		}
-	}
-
-	public function sendUsage(int $type = SendUsageTask::TYPE_STATUS) : void{
-		if($this->configGroup->getPropertyBool(Yml::ANONYMOUS_STATISTICS_ENABLED, true)){
-			$this->asyncPool->submitTask(new SendUsageTask($this, $type, $this->uniquePlayers));
-		}
-		$this->uniquePlayers = [];
 	}
 
 	public function getLanguage() : Language{
@@ -1921,7 +1867,7 @@ class Server{
 		$bandwidthStats = $this->network->getBandwidthTracker();
 
 		echo "\x1b]0;" . $this->getName() . " " .
-			$this->getPocketMineVersion() .
+			$this->getQuarkVersion() .
 			" | Online $online/" . $this->maxPlayers .
 			($connecting > 0 ? " (+$connecting connecting)" : "") .
 			" | Memory " . $usage .
@@ -1976,11 +1922,6 @@ class Server{
 			$this->network->getBandwidthTracker()->rotateAverageHistory();
 		}
 
-		if($this->sendUsageTicker > 0 && --$this->sendUsageTicker === 0){
-			$this->sendUsageTicker = self::TICKS_PER_STATS_REPORT;
-			$this->sendUsage(SendUsageTask::TYPE_STATUS);
-		}
-
 		if(($this->tickCounter % self::TICKS_PER_WORLD_CACHE_CLEAR) === 0){
 			foreach($this->worldManager->getWorlds() as $world){
 				$world->clearCache();
@@ -1988,7 +1929,7 @@ class Server{
 		}
 
 		if(($this->tickCounter % self::TICKS_PER_TPS_OVERLOAD_WARNING) === 0 && $this->getTicksPerSecondAverage() < self::TPS_OVERLOAD_WARNING_THRESHOLD){
-			$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_tickOverload()));
+			$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_tickOverload()));
 		}
 
 		$this->memoryManager->check();

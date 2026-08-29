@@ -2,33 +2,33 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\command;
+namespace quark\command;
 
-use pocketmine\command\utils\CommandStringHelper;
-use pocketmine\command\utils\InvalidCommandSyntaxException;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\timings\Timings;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\TextFormat;
+use quark\command\utils\CommandStringHelper;
+use quark\command\utils\InvalidCommandSyntaxException;
+use quark\lang\KnownTranslationFactory;
+use quark\timings\Timings;
+use quark\utils\AssumptionFailedError;
+use quark\utils\TextFormat;
 use function array_shift;
 use function count;
 use function implode;
@@ -39,8 +39,8 @@ use function substr;
 
 /**
  * @internal
- * Used to register commands defined in the `aliases` section of pocketmine.yml.
- * See the comments in resources/pocketmine.yml in the `aliases` section for configuration instructions and examples.
+ * Used to register commands defined in the `aliases` section of quark.yml.
+ * See the comments in resources/quark.yml in the `aliases` section for configuration instructions and examples.
  */
 class FormattedCommandAlias extends Command{
 	/**
@@ -58,7 +58,7 @@ class FormattedCommandAlias extends Command{
 		string $alias,
 		private array $formatStrings
 	){
-		parent::__construct($alias, KnownTranslationFactory::pocketmine_command_userDefined_description());
+		parent::__construct($alias, KnownTranslationFactory::quark_command_userDefined_description());
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
@@ -112,7 +112,7 @@ class FormattedCommandAlias extends Command{
 					$timings->stopTiming();
 				}
 			}else{
-				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::pocketmine_command_notFound($commandLabel, "/help")->prefix(TextFormat::RED)));
+				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::quark_command_notFound($commandLabel, "/help")->prefix(TextFormat::RED)));
 
 				//to match the behaviour of SimpleCommandMap::dispatch()
 				//this shouldn't normally happen, but might happen if the command was unregistered or modified after

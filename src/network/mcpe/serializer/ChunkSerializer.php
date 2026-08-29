@@ -2,40 +2,40 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\serializer;
+namespace quark\network\mcpe\serializer;
 
 use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
-use pocketmine\block\tile\Spawnable;
-use pocketmine\data\bedrock\BiomeIds;
-use pocketmine\data\bedrock\LegacyBiomeIdToStringIdMap;
+use quark\block\tile\Spawnable;
+use quark\data\bedrock\BiomeIds;
+use quark\data\bedrock\LegacyBiomeIdToStringIdMap;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\convert\BlockTranslator;
+use quark\network\mcpe\convert\BlockTranslator;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
-use pocketmine\world\format\Chunk;
+use quark\world\format\Chunk;
 use pocketmine\world\format\PalettedBlockArray;
-use pocketmine\world\format\SubChunk;
+use quark\world\format\SubChunk;
 use function count;
 
 final class ChunkSerializer{

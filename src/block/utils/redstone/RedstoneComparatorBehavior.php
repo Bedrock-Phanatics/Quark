@@ -2,45 +2,45 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block\utils\redstone;
+namespace quark\block\utils\redstone;
 
 use Generator;
-use pocketmine\block\Block;
-use pocketmine\block\Flowable;
-use pocketmine\block\Glowstone;
-use pocketmine\block\Slab;
-use pocketmine\block\tile\comparator\ComparatorInventoryListener;
-use pocketmine\block\tile\comparator\ComparatorWeightRegistry;
-use pocketmine\block\tile\Container;
-use pocketmine\block\utils\SlabType;
-use pocketmine\item\Item;
+use quark\block\Block;
+use quark\block\Flowable;
+use quark\block\Glowstone;
+use quark\block\Slab;
+use quark\block\tile\comparator\ComparatorInventoryListener;
+use quark\block\tile\comparator\ComparatorWeightRegistry;
+use quark\block\tile\Container;
+use quark\block\utils\SlabType;
+use quark\item\Item;
 use pocketmine\math\Axis;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\world\BlockTransaction;use pocketmine\world\redstone\RedstoneManager;
-use pocketmine\world\redstone\RedstoneWorldState;
-use pocketmine\world\sound\RedstonePowerOffSound;
-use pocketmine\world\sound\RedstonePowerOnSound;
+use quark\player\Player;
+use quark\world\BlockTransaction;use quark\world\redstone\RedstoneManager;
+use quark\world\redstone\RedstoneWorldState;
+use quark\world\sound\RedstonePowerOffSound;
+use quark\world\sound\RedstonePowerOnSound;
 use function floor;
 use function max;
 use function min;

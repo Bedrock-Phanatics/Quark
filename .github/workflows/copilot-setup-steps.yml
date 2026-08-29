@@ -43,5 +43,5 @@ jobs:
       - name: Clone extension stubs
         uses: actions/checkout@v7
         with:
-          repository: pmmp/phpstorm-stubs
+          repository: quark/phpstorm-stubs
           path: extension-stubs

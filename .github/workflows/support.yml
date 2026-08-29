@@ -1,5 +1,9 @@
 name: 'Manage support request issues'
 
+permissions:
+  contents: read
+  issues: write
+
 on:
   issues:
     types: [labeled, unlabeled, reopened]
@@ -18,7 +22,7 @@ jobs:
 
             Instead of creating an issue, try the following:
 
-            - Check our [Documentation](https://doc.pmmp.io) to see if you can find answers there
+            - Check the repository [README and docs](https://github.com/Bedrock-Phanatics/Quark) to see if you can find answers there
 
             - Ask the community on our [Discord server](https://discord.gg/vrPugybpJF)
 

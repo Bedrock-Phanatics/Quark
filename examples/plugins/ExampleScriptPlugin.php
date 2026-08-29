@@ -1,18 +1,18 @@
 <?php
 
-namespace pmmp\ExampleScriptPlugin;
+namespace quark\ExampleScriptPlugin;
 
-use pocketmine\event\Listener;
-use pocketmine\event\world\WorldLoadEvent;
-use pocketmine\plugin\PluginBase;
+use quark\event\Listener;
+use quark\event\world\WorldLoadEvent;
+use quark\plugin\PluginBase;
 
 /**
  * Script plugins are self-contained .php files. They are intended for quick testing only.
  * They don't support all the features of a normal plugin.
- * See the documentation at https://doc.pmmp.io/en/rtfd/developers/plugin-docs/plugin-formats/development.html#script
+ * See the documentation at https://github.com/Bedrock-Phanatics/Quark/tree/stable/docs
  *
  * Required fields
- * @main pmmp\ExampleScriptPlugin\Main
+ * @main quark\ExampleScriptPlugin\Main
  * @api 5.37.0
  *
  * Optional fields

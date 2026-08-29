@@ -2,115 +2,115 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\player;
+namespace quark\player;
 
-use pocketmine\block\BaseSign;
-use pocketmine\block\Bed;
-use pocketmine\block\BlockTypeTags;
-use pocketmine\block\RespawnAnchor;
-use pocketmine\block\UnknownBlock;
-use pocketmine\block\VanillaBlocks;
-use pocketmine\command\CommandSender;
-use pocketmine\crafting\CraftingGrid;
-use pocketmine\data\java\GameModeIdMap;
-use pocketmine\entity\animation\Animation;
-use pocketmine\entity\animation\ArmSwingAnimation;
-use pocketmine\entity\animation\ConsumingItemAnimation;
-use pocketmine\entity\animation\CriticalHitAnimation;
-use pocketmine\entity\animation\MagicHitAnimation;
-use pocketmine\entity\Attribute;
-use pocketmine\entity\effect\VanillaEffects;
-use pocketmine\entity\Entity;
-use pocketmine\entity\Human;
-use pocketmine\entity\Living;
-use pocketmine\entity\Location;
-use pocketmine\entity\NeverSavedWithChunkEntity;
-use pocketmine\entity\object\ItemEntity;
-use pocketmine\entity\projectile\Arrow;
-use pocketmine\entity\Skin;
-use pocketmine\event\entity\EntityDamageByEntityEvent;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\event\entity\EntityExtinguishEvent;
-use pocketmine\event\inventory\InventoryCloseEvent;
-use pocketmine\event\inventory\InventoryOpenEvent;
-use pocketmine\event\player\PlayerBedEnterEvent;
-use pocketmine\event\player\PlayerBedLeaveEvent;
-use pocketmine\event\player\PlayerBlockPickEvent;
-use pocketmine\event\player\PlayerChangeSkinEvent;
-use pocketmine\event\player\PlayerChatEvent;
-use pocketmine\event\player\PlayerDeathEvent;
-use pocketmine\event\player\PlayerDisplayNameChangeEvent;
-use pocketmine\event\player\PlayerDropItemEvent;
-use pocketmine\event\player\PlayerEmoteEvent;
-use pocketmine\event\player\PlayerEntityInteractEvent;
-use pocketmine\event\player\PlayerEntityPickEvent;
-use pocketmine\event\player\PlayerExhaustEvent;
-use pocketmine\event\player\PlayerGameModeChangeEvent;
-use pocketmine\event\player\PlayerInteractEvent;
-use pocketmine\event\player\PlayerItemConsumeEvent;
-use pocketmine\event\player\PlayerItemHeldEvent;
-use pocketmine\event\player\PlayerItemUseEvent;
-use pocketmine\event\player\PlayerJoinEvent;
-use pocketmine\event\player\PlayerJumpEvent;
-use pocketmine\event\player\PlayerKickEvent;
-use pocketmine\event\player\PlayerMissSwingEvent;
-use pocketmine\event\player\PlayerMoveEvent;
-use pocketmine\event\player\PlayerPostChunkSendEvent;
-use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\event\player\PlayerRespawnEvent;
-use pocketmine\event\player\PlayerToggleFlightEvent;
-use pocketmine\event\player\PlayerToggleGlideEvent;
-use pocketmine\event\player\PlayerToggleSneakEvent;
-use pocketmine\event\player\PlayerToggleSprintEvent;
-use pocketmine\event\player\PlayerToggleSwimEvent;
-use pocketmine\event\player\PlayerTransferEvent;
-use pocketmine\event\player\PlayerViewDistanceChangeEvent;
-use pocketmine\form\Form;
-use pocketmine\form\FormValidationException;
-use pocketmine\inventory\CallbackInventoryListener;
-use pocketmine\inventory\CreativeInventory;
-use pocketmine\inventory\Inventory;
-use pocketmine\inventory\PlayerCraftingInventory;
-use pocketmine\inventory\PlayerCursorInventory;
-use pocketmine\inventory\TemporaryInventory;
-use pocketmine\inventory\transaction\action\DropItemAction;
-use pocketmine\inventory\transaction\InventoryTransaction;
-use pocketmine\inventory\transaction\TransactionBuilder;
-use pocketmine\inventory\transaction\TransactionCancelledException;
-use pocketmine\inventory\transaction\TransactionValidationException;
-use pocketmine\item\ConsumableItem;
-use pocketmine\item\Durable;
-use pocketmine\item\enchantment\EnchantmentInstance;
-use pocketmine\item\enchantment\MeleeWeaponEnchantment;
-use pocketmine\item\Item;
-use pocketmine\item\ItemUseResult;
-use pocketmine\item\Releasable;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\lang\Language;
-use pocketmine\lang\Translatable;
+use quark\block\BaseSign;
+use quark\block\Bed;
+use quark\block\BlockTypeTags;
+use quark\block\RespawnAnchor;
+use quark\block\UnknownBlock;
+use quark\block\VanillaBlocks;
+use quark\command\CommandSender;
+use quark\crafting\CraftingGrid;
+use quark\data\java\GameModeIdMap;
+use quark\entity\animation\Animation;
+use quark\entity\animation\ArmSwingAnimation;
+use quark\entity\animation\ConsumingItemAnimation;
+use quark\entity\animation\CriticalHitAnimation;
+use quark\entity\animation\MagicHitAnimation;
+use quark\entity\Attribute;
+use quark\entity\effect\VanillaEffects;
+use quark\entity\Entity;
+use quark\entity\Human;
+use quark\entity\Living;
+use quark\entity\Location;
+use quark\entity\NeverSavedWithChunkEntity;
+use quark\entity\object\ItemEntity;
+use quark\entity\projectile\Arrow;
+use quark\entity\Skin;
+use quark\event\entity\EntityDamageByEntityEvent;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\EntityExtinguishEvent;
+use quark\event\inventory\InventoryCloseEvent;
+use quark\event\inventory\InventoryOpenEvent;
+use quark\event\player\PlayerBedEnterEvent;
+use quark\event\player\PlayerBedLeaveEvent;
+use quark\event\player\PlayerBlockPickEvent;
+use quark\event\player\PlayerChangeSkinEvent;
+use quark\event\player\PlayerChatEvent;
+use quark\event\player\PlayerDeathEvent;
+use quark\event\player\PlayerDisplayNameChangeEvent;
+use quark\event\player\PlayerDropItemEvent;
+use quark\event\player\PlayerEmoteEvent;
+use quark\event\player\PlayerEntityInteractEvent;
+use quark\event\player\PlayerEntityPickEvent;
+use quark\event\player\PlayerExhaustEvent;
+use quark\event\player\PlayerGameModeChangeEvent;
+use quark\event\player\PlayerInteractEvent;
+use quark\event\player\PlayerItemConsumeEvent;
+use quark\event\player\PlayerItemHeldEvent;
+use quark\event\player\PlayerItemUseEvent;
+use quark\event\player\PlayerJoinEvent;
+use quark\event\player\PlayerJumpEvent;
+use quark\event\player\PlayerKickEvent;
+use quark\event\player\PlayerMissSwingEvent;
+use quark\event\player\PlayerMoveEvent;
+use quark\event\player\PlayerPostChunkSendEvent;
+use quark\event\player\PlayerQuitEvent;
+use quark\event\player\PlayerRespawnEvent;
+use quark\event\player\PlayerToggleFlightEvent;
+use quark\event\player\PlayerToggleGlideEvent;
+use quark\event\player\PlayerToggleSneakEvent;
+use quark\event\player\PlayerToggleSprintEvent;
+use quark\event\player\PlayerToggleSwimEvent;
+use quark\event\player\PlayerTransferEvent;
+use quark\event\player\PlayerViewDistanceChangeEvent;
+use quark\form\Form;
+use quark\form\FormValidationException;
+use quark\inventory\CallbackInventoryListener;
+use quark\inventory\CreativeInventory;
+use quark\inventory\Inventory;
+use quark\inventory\PlayerCraftingInventory;
+use quark\inventory\PlayerCursorInventory;
+use quark\inventory\TemporaryInventory;
+use quark\inventory\transaction\action\DropItemAction;
+use quark\inventory\transaction\InventoryTransaction;
+use quark\inventory\transaction\TransactionBuilder;
+use quark\inventory\transaction\TransactionCancelledException;
+use quark\inventory\transaction\TransactionValidationException;
+use quark\item\ConsumableItem;
+use quark\item\Durable;
+use quark\item\enchantment\EnchantmentInstance;
+use quark\item\enchantment\MeleeWeaponEnchantment;
+use quark\item\Item;
+use quark\item\ItemUseResult;
+use quark\item\Releasable;
+use quark\lang\KnownTranslationFactory;
+use quark\lang\Language;
+use quark\lang\Translatable;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\network\mcpe\NetworkSession;
+use quark\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
@@ -120,30 +120,30 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
-use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\permission\DefaultPermissions;
-use pocketmine\permission\PermissibleBase;
-use pocketmine\permission\PermissibleDelegateTrait;
-use pocketmine\player\chat\StandardChatFormatter;
-use pocketmine\Server;
-use pocketmine\ServerProperties;
-use pocketmine\timings\Timings;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\TextFormat;
-use pocketmine\world\ChunkListener;
-use pocketmine\world\ChunkListenerNoOpTrait;
-use pocketmine\world\ChunkLoader;
-use pocketmine\world\ChunkTicker;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\Position;
-use pocketmine\world\sound\EntityAttackNoDamageSound;
-use pocketmine\world\sound\EntityAttackSound;
-use pocketmine\world\sound\FireExtinguishSound;
-use pocketmine\world\sound\ItemBreakSound;
-use pocketmine\world\sound\RespawnAnchorDepleteSound;
-use pocketmine\world\sound\Sound;
-use pocketmine\world\World;
-use pocketmine\YmlServerProperties;
+use quark\permission\DefaultPermissionNames;
+use quark\permission\DefaultPermissions;
+use quark\permission\PermissibleBase;
+use quark\permission\PermissibleDelegateTrait;
+use quark\player\chat\StandardChatFormatter;
+use quark\Server;
+use quark\ServerProperties;
+use quark\timings\Timings;
+use quark\utils\AssumptionFailedError;
+use quark\utils\TextFormat;
+use quark\world\ChunkListener;
+use quark\world\ChunkListenerNoOpTrait;
+use quark\world\ChunkLoader;
+use quark\world\ChunkTicker;
+use quark\world\format\Chunk;
+use quark\world\Position;
+use quark\world\sound\EntityAttackNoDamageSound;
+use quark\world\sound\EntityAttackSound;
+use quark\world\sound\FireExtinguishSound;
+use quark\world\sound\ItemBreakSound;
+use quark\world\sound\RespawnAnchorDepleteSound;
+use quark\world\sound\Sound;
+use quark\world\World;
+use quark\YmlServerProperties;
 use Ramsey\Uuid\UuidInterface;
 use function abs;
 use function array_filter;
@@ -2332,7 +2332,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @return bool if transfer was successful.
 	 */
 	public function transfer(string $address, int $port = 19132, Translatable|string|null $message = null) : bool{
-		$ev = new PlayerTransferEvent($this, $address, $port, $message ?? KnownTranslationFactory::pocketmine_disconnect_transfer());
+		$ev = new PlayerTransferEvent($this, $address, $port, $message ?? KnownTranslationFactory::quark_disconnect_transfer());
 		$ev->call();
 		if(!$ev->isCancelled()){
 			$this->getNetworkSession()->transfer($ev->getAddress(), $ev->getPort(), $ev->getMessage());
@@ -2567,7 +2567,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	public function respawn() : void{
 		if($this->server->isHardcore()){
-			if($this->kick(KnownTranslationFactory::pocketmine_disconnect_ban(KnownTranslationFactory::pocketmine_disconnect_ban_hardcore()))){ //this allows plugins to prevent the ban by cancelling PlayerKickEvent
+			if($this->kick(KnownTranslationFactory::quark_disconnect_ban(KnownTranslationFactory::quark_disconnect_ban_hardcore()))){ //this allows plugins to prevent the ban by cancelling PlayerKickEvent
 				$this->server->getNameBans()->addBan($this->getName(), "Died in hardcore mode");
 			}
 			return;
@@ -2638,7 +2638,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			},
 			function() : void{
 				if($this->isConnected()){
-					$this->getNetworkSession()->disconnectWithError(KnownTranslationFactory::pocketmine_disconnect_error_respawn());
+					$this->getNetworkSession()->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_respawn());
 				}
 			}
 		);

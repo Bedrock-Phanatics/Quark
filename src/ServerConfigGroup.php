@@ -2,28 +2,28 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine;
+namespace quark;
 
-use pocketmine\utils\Config;
+use quark\utils\Config;
 use function array_key_exists;
 use function getopt;
 use function is_bool;
@@ -39,7 +39,7 @@ final class ServerConfigGroup{
 	private array $propertyCache = [];
 
 	public function __construct(
-		private Config $pocketmineYml,
+		private Config $quarkYml,
 		private Config $serverProperties
 	){}
 
@@ -49,7 +49,7 @@ final class ServerConfigGroup{
 			if(isset($v[$variable])){
 				$this->propertyCache[$variable] = $v[$variable];
 			}else{
-				$this->propertyCache[$variable] = $this->pocketmineYml->getNested($variable);
+				$this->propertyCache[$variable] = $this->quarkYml->getNested($variable);
 			}
 		}
 
@@ -128,8 +128,8 @@ final class ServerConfigGroup{
 		if($this->serverProperties->hasChanged()){
 			$this->serverProperties->save();
 		}
-		if($this->pocketmineYml->hasChanged()){
-			$this->pocketmineYml->save();
+		if($this->quarkYml->hasChanged()){
+			$this->quarkYml->save();
 		}
 	}
 }

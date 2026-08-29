@@ -2,31 +2,31 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\plugin;
+namespace quark\plugin;
 
-use pocketmine\permission\Permission;
-use pocketmine\permission\PermissionParser;
-use pocketmine\permission\PermissionParserException;
-use pocketmine\utils\Utils;
+use quark\permission\Permission;
+use quark\permission\PermissionParser;
+use quark\permission\PermissionParserException;
+use quark\utils\Utils;
 use function array_map;
 use function array_values;
 use function get_debug_type;
@@ -150,8 +150,8 @@ class PluginDescription{
 		$this->name = str_replace(" ", "_", $this->name);
 		$this->version = (string) $plugin[self::KEY_VERSION];
 		$this->main = $plugin[self::KEY_MAIN];
-		if(stripos($this->main, "pocketmine\\") === 0){
-			throw new PluginDescriptionParseException("Invalid Plugin main, cannot start within the PocketMine namespace");
+		if(stripos($this->main, "quark\\") === 0){
+			throw new PluginDescriptionParseException("Invalid Plugin main, cannot start within the Quark namespace");
 		}
 
 		$this->srcNamespacePrefix = $plugin[self::KEY_SRC_NAMESPACE_PREFIX] ?? "";

@@ -2,44 +2,44 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity\object;
+namespace quark\entity\object;
 
-use pocketmine\data\bedrock\EffectIdMap;
-use pocketmine\data\bedrock\PotionTypeIds;
-use pocketmine\entity\effect\EffectCollection;
-use pocketmine\entity\effect\EffectInstance;
-use pocketmine\entity\effect\InstantEffect;
-use pocketmine\entity\Entity;
-use pocketmine\entity\EntitySizeInfo;
-use pocketmine\entity\Living;
-use pocketmine\entity\Location;
-use pocketmine\event\entity\AreaEffectCloudApplyEvent;
+use quark\data\bedrock\EffectIdMap;
+use quark\data\bedrock\PotionTypeIds;
+use quark\entity\effect\EffectCollection;
+use quark\entity\effect\EffectInstance;
+use quark\entity\effect\InstantEffect;
+use quark\entity\Entity;
+use quark\entity\EntitySizeInfo;
+use quark\entity\Living;
+use quark\entity\Location;
+use quark\event\entity\AreaEffectCloudApplyEvent;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\utils\Binary;
-use pocketmine\world\particle\PotionSplashParticle;
+use quark\world\particle\PotionSplashParticle;
 use function count;
 use function max;
 use function round;

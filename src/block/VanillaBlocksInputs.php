@@ -2,76 +2,76 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\BlockBreakInfo as BreakInfo;
-use pocketmine\block\BlockIdentifier as BID;
-use pocketmine\block\BlockToolType as ToolType;
-use pocketmine\block\BlockTypeInfo as Info;
-use pocketmine\block\BlockTypeTags as Tags;
-use pocketmine\block\tile\Banner as TileBanner;
-use pocketmine\block\tile\Barrel as TileBarrel;
-use pocketmine\block\tile\Beacon as TileBeacon;
-use pocketmine\block\tile\Bed as TileBed;
-use pocketmine\block\tile\Bell as TileBell;
-use pocketmine\block\tile\BlastFurnace as TileBlastFurnace;
-use pocketmine\block\tile\BrewingStand as TileBrewingStand;
-use pocketmine\block\tile\Campfire as TileCampfire;
-use pocketmine\block\tile\Cauldron as TileCauldron;
-use pocketmine\block\tile\Chest as TileChest;
-use pocketmine\block\tile\ChiseledBookshelf as TileChiseledBookshelf;
-use pocketmine\block\tile\Comparator as TileComparator;
-use pocketmine\block\tile\DaylightSensor as TileDaylightSensor;
-use pocketmine\block\tile\dispenser\Dispenser as TileDispenser;
-use pocketmine\block\tile\EnchantTable as TileEnchantingTable;
-use pocketmine\block\tile\EnderChest as TileEnderChest;
-use pocketmine\block\tile\FlowerPot as TileFlowerPot;
-use pocketmine\block\tile\GlowingItemFrame as TileGlowingItemFrame;
-use pocketmine\block\tile\HangingSign as TileHangingSign;
-use pocketmine\block\tile\Hopper as TileHopper;
-use pocketmine\block\tile\ItemFrame as TileItemFrame;
-use pocketmine\block\tile\Jukebox as TileJukebox;
-use pocketmine\block\tile\Lectern as TileLectern;
-use pocketmine\block\tile\MobHead as TileMobHead;
-use pocketmine\block\tile\MonsterSpawner as TileMonsterSpawner;
-use pocketmine\block\tile\NormalFurnace as TileNormalFurnace;
-use pocketmine\block\tile\Note as TileNote;
-use pocketmine\block\tile\piston\PistonArm as TilePistonArm;
-use pocketmine\block\tile\ShulkerBox as TileShulkerBox;
-use pocketmine\block\tile\Sign as TileSign;
-use pocketmine\block\tile\Smoker as TileSmoker;
-use pocketmine\block\tile\Tile;
-use pocketmine\block\utils\AmethystTrait;
-use pocketmine\block\utils\LeavesType;
-use pocketmine\block\utils\SaplingType;
-use pocketmine\block\utils\WoodType;
-use pocketmine\crafting\FurnaceType;
-use pocketmine\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
-use pocketmine\item\Item;
-use pocketmine\item\ToolTier;
-use pocketmine\item\VanillaItems;
+use quark\block\BlockBreakInfo as BreakInfo;
+use quark\block\BlockIdentifier as BID;
+use quark\block\BlockToolType as ToolType;
+use quark\block\BlockTypeInfo as Info;
+use quark\block\BlockTypeTags as Tags;
+use quark\block\tile\Banner as TileBanner;
+use quark\block\tile\Barrel as TileBarrel;
+use quark\block\tile\Beacon as TileBeacon;
+use quark\block\tile\Bed as TileBed;
+use quark\block\tile\Bell as TileBell;
+use quark\block\tile\BlastFurnace as TileBlastFurnace;
+use quark\block\tile\BrewingStand as TileBrewingStand;
+use quark\block\tile\Campfire as TileCampfire;
+use quark\block\tile\Cauldron as TileCauldron;
+use quark\block\tile\Chest as TileChest;
+use quark\block\tile\ChiseledBookshelf as TileChiseledBookshelf;
+use quark\block\tile\Comparator as TileComparator;
+use quark\block\tile\DaylightSensor as TileDaylightSensor;
+use quark\block\tile\dispenser\Dispenser as TileDispenser;
+use quark\block\tile\EnchantTable as TileEnchantingTable;
+use quark\block\tile\EnderChest as TileEnderChest;
+use quark\block\tile\FlowerPot as TileFlowerPot;
+use quark\block\tile\GlowingItemFrame as TileGlowingItemFrame;
+use quark\block\tile\HangingSign as TileHangingSign;
+use quark\block\tile\Hopper as TileHopper;
+use quark\block\tile\ItemFrame as TileItemFrame;
+use quark\block\tile\Jukebox as TileJukebox;
+use quark\block\tile\Lectern as TileLectern;
+use quark\block\tile\MobHead as TileMobHead;
+use quark\block\tile\MonsterSpawner as TileMonsterSpawner;
+use quark\block\tile\NormalFurnace as TileNormalFurnace;
+use quark\block\tile\Note as TileNote;
+use quark\block\tile\piston\PistonArm as TilePistonArm;
+use quark\block\tile\ShulkerBox as TileShulkerBox;
+use quark\block\tile\Sign as TileSign;
+use quark\block\tile\Smoker as TileSmoker;
+use quark\block\tile\Tile;
+use quark\block\utils\AmethystTrait;
+use quark\block\utils\LeavesType;
+use quark\block\utils\SaplingType;
+use quark\block\utils\WoodType;
+use quark\crafting\FurnaceType;
+use quark\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
+use quark\item\Item;
+use quark\item\ToolTier;
+use quark\item\VanillaItems;
 use pocketmine\math\Facing;
-use pocketmine\utils\RegistrySource;
-use pocketmine\world\generator\object\TreeType;
+use quark\utils\RegistrySource;
+use quark\world\generator\object\TreeType;
 use function is_int;
 use function mb_strtolower;
 use function mb_strtoupper;
@@ -92,7 +92,7 @@ final class VanillaBlocksInputs extends RegistrySource{
 
 	public function getTargetClassDocComment() : array{
 		return [
-			"Allows getting a new instance of any block implemented by PocketMine-MP",
+			"Allows getting a new instance of any block implemented by Quark",
 			"Every block here also has a constant of the same name in {@link BlockTypeIds} to enable blocks to be identified"
 		];
 	}

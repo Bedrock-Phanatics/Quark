@@ -2,31 +2,31 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\world\generator;
+namespace quark\world\generator;
 
-use pocketmine\utils\SingletonTrait;
-use pocketmine\utils\Utils;
-use pocketmine\world\generator\hell\Nether;
-use pocketmine\world\generator\normal\Normal;
+use quark\utils\SingletonTrait;
+use quark\utils\Utils;
+use quark\world\generator\hell\Nether;
+use quark\world\generator\normal\Normal;
 use function array_keys;
 use function strtolower;
 
@@ -58,7 +58,7 @@ final class GeneratorManager{
 	}
 
 	/**
-	 * @param string   $class           Fully qualified name of class that extends \pocketmine\world\generator\Generator
+	 * @param string   $class           Fully qualified name of class that extends \quark\world\generator\Generator
 	 * @param string   $name            Alias for this generator type that can be written in configs
 	 * @param \Closure $presetValidator Callback to validate generator options for new worlds
 	 * @param bool     $overwrite       Whether to force overwriting any existing registered generator with the same name
@@ -116,7 +116,7 @@ final class GeneratorManager{
 	/**
 	 * Returns the registered name of the given Generator class.
 	 *
-	 * @param string $class Fully qualified name of class that extends \pocketmine\world\generator\Generator
+	 * @param string $class Fully qualified name of class that extends \quark\world\generator\Generator
 	 * @phpstan-param class-string<Generator> $class
 	 *
 	 * @throws \InvalidArgumentException if the class type cannot be matched to a known alias

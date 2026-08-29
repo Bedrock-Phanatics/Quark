@@ -2,41 +2,41 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace quark\item;
 
-use pocketmine\block\utils\RecordType;
-use pocketmine\block\VanillaBlocks as Blocks;
-use pocketmine\entity\Entity;
-use pocketmine\entity\Location;
-use pocketmine\entity\Squid;
-use pocketmine\entity\Villager;
-use pocketmine\entity\Zombie;
-use pocketmine\inventory\ArmorInventory;
-use pocketmine\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
-use pocketmine\item\ItemIdentifier as IID;
-use pocketmine\item\VanillaArmorMaterials as ArmorMaterials;
+use quark\block\utils\RecordType;
+use quark\block\VanillaBlocks as Blocks;
+use quark\entity\Entity;
+use quark\entity\Location;
+use quark\entity\Squid;
+use quark\entity\Villager;
+use quark\entity\Zombie;
+use quark\inventory\ArmorInventory;
+use quark\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
+use quark\item\ItemIdentifier as IID;
+use quark\item\VanillaArmorMaterials as ArmorMaterials;
 use pocketmine\math\Vector3;
-use pocketmine\utils\RegistrySource;
-use pocketmine\world\World;
+use quark\utils\RegistrySource;
+use quark\world\World;
 use function is_int;
 use function mb_strtoupper;
 use function strtolower;
@@ -52,7 +52,7 @@ final class VanillaItemsInputs extends RegistrySource{
 
 	public function getTargetClassDocComment() : array{
 		return [
-			"Allows getting a new instance of any item implemented by PocketMine-MP",
+			"Allows getting a new instance of any item implemented by Quark",
 			"Every item here also has a constant of the same name in {@link ItemTypeIds} to enable items to be identified"
 		];
 	}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 echo "--- Installing BedrockProtocol, BedrockData, BedrockBlockUpgradeSchema, BedrockItemUpgradeSchema dependencies from local repositories."
-echo "--- This allows you to perform integration tests using PocketMine-MP, without immediately publishing new versions of these libraries."
+echo "--- This allows you to perform integration tests using Quark, without immediately publishing new versions of these libraries."
 
 cp composer.json composer-local-protocol.json
 cp composer.lock composer-local-protocol.lock

@@ -2,19 +2,19 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -24,91 +24,91 @@ declare(strict_types=1);
 /**
  * All World related classes are here, like Generators, Populators, Noise, ...
  */
-namespace pocketmine\world;
+namespace quark\world;
 
-use pocketmine\block\Air;
-use pocketmine\block\Block;
-use pocketmine\block\BlockTypeIds;
-use pocketmine\block\RuntimeBlockStateRegistry;
-use pocketmine\block\tile\Spawnable;
-use pocketmine\block\tile\Tile;
-use pocketmine\block\tile\TileFactory;
-use pocketmine\block\UnknownBlock;
-use pocketmine\block\VanillaBlocks;
-use pocketmine\data\bedrock\BiomeIds;
-use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\data\SavedDataLoadingException;
-use pocketmine\entity\Entity;
-use pocketmine\entity\EntityFactory;
-use pocketmine\entity\Location;
-use pocketmine\entity\NeverSavedWithChunkEntity;
-use pocketmine\entity\object\ExperienceOrb;
-use pocketmine\entity\object\ItemEntity;
-use pocketmine\event\block\BlockBreakEvent;
-use pocketmine\event\block\BlockPlaceEvent;
-use pocketmine\event\block\BlockUpdateEvent;
-use pocketmine\event\player\PlayerInteractEvent;
-use pocketmine\event\world\ChunkLoadEvent;
-use pocketmine\event\world\ChunkPopulateEvent;
-use pocketmine\event\world\ChunkUnloadEvent;
-use pocketmine\event\world\SpawnChangeEvent;
-use pocketmine\event\world\WorldDifficultyChangeEvent;
-use pocketmine\event\world\WorldDisplayNameChangeEvent;
-use pocketmine\event\world\WorldParticleEvent;
-use pocketmine\event\world\WorldSaveEvent;
-use pocketmine\event\world\WorldSoundEvent;
-use pocketmine\item\Item;
-use pocketmine\item\ItemUseResult;
-use pocketmine\item\LegacyStringToItemParser;
-use pocketmine\item\StringToItemParser;
-use pocketmine\item\VanillaItems;
-use pocketmine\lang\KnownTranslationFactory;
+use quark\block\Air;
+use quark\block\Block;
+use quark\block\BlockTypeIds;
+use quark\block\RuntimeBlockStateRegistry;
+use quark\block\tile\Spawnable;
+use quark\block\tile\Tile;
+use quark\block\tile\TileFactory;
+use quark\block\UnknownBlock;
+use quark\block\VanillaBlocks;
+use quark\data\bedrock\BiomeIds;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\block\BlockStateDeserializeException;
+use quark\data\SavedDataLoadingException;
+use quark\entity\Entity;
+use quark\entity\EntityFactory;
+use quark\entity\Location;
+use quark\entity\NeverSavedWithChunkEntity;
+use quark\entity\object\ExperienceOrb;
+use quark\entity\object\ItemEntity;
+use quark\event\block\BlockBreakEvent;
+use quark\event\block\BlockPlaceEvent;
+use quark\event\block\BlockUpdateEvent;
+use quark\event\player\PlayerInteractEvent;
+use quark\event\world\ChunkLoadEvent;
+use quark\event\world\ChunkPopulateEvent;
+use quark\event\world\ChunkUnloadEvent;
+use quark\event\world\SpawnChangeEvent;
+use quark\event\world\WorldDifficultyChangeEvent;
+use quark\event\world\WorldDisplayNameChangeEvent;
+use quark\event\world\WorldParticleEvent;
+use quark\event\world\WorldSaveEvent;
+use quark\event\world\WorldSoundEvent;
+use quark\item\Item;
+use quark\item\ItemUseResult;
+use quark\item\LegacyStringToItemParser;
+use quark\item\StringToItemParser;
+use quark\item\VanillaItems;
+use quark\lang\KnownTranslationFactory;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
-use pocketmine\player\Player;
-use pocketmine\promise\Promise;
-use pocketmine\promise\PromiseResolver;
-use pocketmine\scheduler\AsyncPool;
-use pocketmine\Server;
-use pocketmine\ServerConfigGroup;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Limits;
-use pocketmine\utils\ReversePriorityQueue;
-use pocketmine\utils\Utils;
-use pocketmine\world\biome\Biome;
-use pocketmine\world\biome\BiomeRegistry;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\format\io\ChunkData;
-use pocketmine\world\format\io\exception\CorruptedChunkException;
-use pocketmine\world\format\io\GlobalBlockStateHandlers;
-use pocketmine\world\format\io\WritableWorldProvider;
+use quark\player\Player;
+use quark\promise\Promise;
+use quark\promise\PromiseResolver;
+use quark\scheduler\AsyncPool;
+use quark\Server;
+use quark\ServerConfigGroup;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Limits;
+use quark\utils\ReversePriorityQueue;
+use quark\utils\Utils;
+use quark\world\biome\Biome;
+use quark\world\biome\BiomeRegistry;
+use quark\world\format\Chunk;
+use quark\world\format\io\ChunkData;
+use quark\world\format\io\exception\CorruptedChunkException;
+use quark\world\format\io\GlobalBlockStateHandlers;
+use quark\world\format\io\WritableWorldProvider;
 use pocketmine\world\format\LightArray;
-use pocketmine\world\format\SubChunk;
-use pocketmine\world\generator\executor\AsyncGeneratorExecutor;
-use pocketmine\world\generator\executor\GeneratorExecutor;
-use pocketmine\world\generator\executor\GeneratorExecutorSetupParameters;
-use pocketmine\world\generator\executor\SyncGeneratorExecutor;
-use pocketmine\world\generator\GeneratorManager;
-use pocketmine\world\generator\PopulationTask;
-use pocketmine\world\light\BlockLightUpdate;
-use pocketmine\world\light\LightPopulationTask;
-use pocketmine\world\light\SkyLightUpdate;
-use pocketmine\world\particle\BlockBreakParticle;
-use pocketmine\world\particle\Particle;
-use pocketmine\world\sound\BlockPlaceSound;
-use pocketmine\world\sound\Sound;
-use pocketmine\world\utils\SubChunkExplorer;
-use pocketmine\YmlServerProperties;
+use quark\world\format\SubChunk;
+use quark\world\generator\executor\AsyncGeneratorExecutor;
+use quark\world\generator\executor\GeneratorExecutor;
+use quark\world\generator\executor\GeneratorExecutorSetupParameters;
+use quark\world\generator\executor\SyncGeneratorExecutor;
+use quark\world\generator\GeneratorManager;
+use quark\world\generator\PopulationTask;
+use quark\world\light\BlockLightUpdate;
+use quark\world\light\LightPopulationTask;
+use quark\world\light\SkyLightUpdate;
+use quark\world\particle\BlockBreakParticle;
+use quark\world\particle\Particle;
+use quark\world\sound\BlockPlaceSound;
+use quark\world\sound\Sound;
+use quark\world\utils\SubChunkExplorer;
+use quark\YmlServerProperties;
 use function abs;
 use function array_filter;
 use function array_key_exists;
@@ -496,7 +496,7 @@ class World implements ChunkManager{
 		$this->minY = $this->provider->getWorldMinY();
 		$this->maxY = $this->provider->getWorldMaxY();
 
-		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_level_preparing($this->displayName)));
+		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_preparing($this->displayName)));
 		$generator = GeneratorManager::getInstance()->getGenerator($this->provider->getWorldData()->getGenerator()) ??
 			throw new AssumptionFailedError("WorldManager should already have checked that the generator exists");
 		$generator->validateGeneratorOptions($this->provider->getWorldData()->getGeneratorOptions());
@@ -543,7 +543,7 @@ class World implements ChunkManager{
 		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 4)));
 		if($cfg->getPropertyInt("chunk-ticking.per-tick", 40) <= 0){
 			//TODO: this needs l10n
-			$this->logger->warning("\"chunk-ticking.per-tick\" setting is deprecated, but you've used it to disable chunk ticking. Set \"chunk-ticking.tick-radius\" to 0 in \"pocketmine.yml\" instead.");
+			$this->logger->warning("\"chunk-ticking.per-tick\" setting is deprecated, but you've used it to disable chunk ticking. Set \"chunk-ticking.tick-radius\" to 0 in \"quark.yml\" instead.");
 			$this->chunkTickRadius = 0;
 		}
 		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);

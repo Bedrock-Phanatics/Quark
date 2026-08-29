@@ -1,9 +1,9 @@
-# PocketMine-Language
+# Quark-Language
 
-These files contain translation strings used in PocketMine-MP.
+These files contain translation strings used in Quark.
 
 ## Contributing translations (non-English)
-To contribute translations, please use the [Crowdin Translation Page](http://translate.pocketmine.net/), select the language you want to translate and go to PocketMine-MP and select "PocketMine core strings". There may be multiple branches available - if in doubt, stick with `stable`.
+Quark-specific translation changes should be submitted as a pull request. For inherited upstream strings and language work, see the [PocketMine-MP Crowdin project](https://crowdin.com/project/pocketmine).
 
 ## For maintainers
 ### Adding new strings
@@ -14,8 +14,8 @@ To contribute translations, please use the [Crowdin Translation Page](http://tra
 
 To add new strings, add them ONLY to `eng.ini`.
 
-- Vanilla strings should use the same keys as used by [Mojang](https://raw.githubusercontent.com/Mojang/bedrock-samples/refs/heads/main/resource_pack/texts/en_US.lang). However, PocketMine-MP currently uses `{%paramName}` for parameters instead of `%1$s` `%2$s` etc, so you can't copy-paste them directly. Make sure to adapt these.
-- Strings specifically for PocketMine-MP can have any keys you like, but they must start with `pocketmine.`
+- Vanilla strings should use the same keys as used by [Mojang](https://raw.githubusercontent.com/Mojang/bedrock-samples/refs/heads/main/resource_pack/texts/en_US.lang). However, Quark currently uses `{%paramName}` for parameters instead of `%1$s` `%2$s` etc, so you can't copy-paste them directly. Make sure to adapt these.
+- Strings specifically for Quark can have any keys you like, but they must start with `quark.`
 
 > [!TIP]
 > You don't need to worry about translating newly added strings into other languages.
@@ -24,7 +24,7 @@ To add new strings, add them ONLY to `eng.ini`.
 Once you update `eng.ini`, run `composer update-codegen` to regenerate `KnownTranslationFactory` et al.
 This will generate a function that you can use to create a parameterised `Translatable` instance for the string.
 
-Crowdin will synchronize `eng.ini` every time it's updated on `stable`, `minor-next` and `major-next` to put up new strings for translation.
+The bundled workflow may synchronize `eng.ini` when a Quark Crowdin integration is configured. PMMP's Crowdin project is an upstream reference and does not automatically publish Quark-specific strings.
 
 ### Pitfalls
 - If you have issues with translation files being deleted, add a language mapping in the Crowdin config. Some issues arose with Chinese due to Chinese Simplified and Chinese Traditional both mapping to `zho`, requiring a mapping to `zho-cn` for simplified.

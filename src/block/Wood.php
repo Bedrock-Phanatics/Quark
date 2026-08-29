@@ -2,37 +2,37 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\utils\PillarRotation;
-use pocketmine\block\utils\PillarRotationTrait;
-use pocketmine\block\utils\WoodMaterial;
-use pocketmine\block\utils\WoodTypeTrait;
-use pocketmine\data\runtime\RuntimeDataDescriber;
-use pocketmine\item\Axe;
-use pocketmine\item\Item;
+use quark\block\utils\PillarRotation;
+use quark\block\utils\PillarRotationTrait;
+use quark\block\utils\WoodMaterial;
+use quark\block\utils\WoodTypeTrait;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\item\Axe;
+use quark\item\Item;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\world\sound\ItemUseOnBlockSound;
+use quark\player\Player;
+use quark\world\sound\ItemUseOnBlockSound;
 
 class Wood extends Opaque implements PillarRotation, WoodMaterial{
 	use PillarRotationTrait;

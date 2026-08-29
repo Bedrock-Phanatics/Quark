@@ -2,63 +2,63 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe;
+namespace quark\network\mcpe;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
-use pocketmine\entity\effect\EffectInstance;
-use pocketmine\event\player\PlayerDuplicateLoginEvent;
-use pocketmine\event\player\PlayerResourcePackOfferEvent;
-use pocketmine\event\server\DataPacketDecodeEvent;
-use pocketmine\event\server\DataPacketReceiveEvent;
-use pocketmine\event\server\DataPacketSendEvent;
-use pocketmine\form\Form;
-use pocketmine\item\Item;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\lang\Translatable;
+use quark\entity\effect\EffectInstance;
+use quark\event\player\PlayerDuplicateLoginEvent;
+use quark\event\player\PlayerResourcePackOfferEvent;
+use quark\event\server\DataPacketDecodeEvent;
+use quark\event\server\DataPacketReceiveEvent;
+use quark\event\server\DataPacketSendEvent;
+use quark\form\Form;
+use quark\item\Item;
+use quark\lang\KnownTranslationFactory;
+use quark\lang\Translatable;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\FilterNoisyPacketException;
-use pocketmine\network\mcpe\cache\ChunkCache;
-use pocketmine\network\mcpe\compression\CompressBatchPromise;
-use pocketmine\network\mcpe\compression\Compressor;
-use pocketmine\network\mcpe\compression\DecompressionException;
-use pocketmine\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\encryption\DecryptionException;
-use pocketmine\network\mcpe\encryption\EncryptionContext;
-use pocketmine\network\mcpe\encryption\PrepareEncryptionTask;
-use pocketmine\network\mcpe\handler\DeathPacketHandler;
-use pocketmine\network\mcpe\handler\HandshakePacketHandler;
-use pocketmine\network\mcpe\handler\InGamePacketHandler;
-use pocketmine\network\mcpe\handler\LoginPacketHandler;
-use pocketmine\network\mcpe\handler\PacketHandler;
-use pocketmine\network\mcpe\handler\PacketHandlerAction;
-use pocketmine\network\mcpe\handler\PacketHandlerInspector;
-use pocketmine\network\mcpe\handler\PreSpawnPacketHandler;
-use pocketmine\network\mcpe\handler\ResourcePacksPacketHandler;
-use pocketmine\network\mcpe\handler\SessionStartPacketHandler;
-use pocketmine\network\mcpe\handler\SpawnResponsePacketHandler;
+use quark\network\FilterNoisyPacketException;
+use quark\network\mcpe\cache\ChunkCache;
+use quark\network\mcpe\compression\CompressBatchPromise;
+use quark\network\mcpe\compression\Compressor;
+use quark\network\mcpe\compression\DecompressionException;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\encryption\DecryptionException;
+use quark\network\mcpe\encryption\EncryptionContext;
+use quark\network\mcpe\encryption\PrepareEncryptionTask;
+use quark\network\mcpe\handler\DeathPacketHandler;
+use quark\network\mcpe\handler\HandshakePacketHandler;
+use quark\network\mcpe\handler\InGamePacketHandler;
+use quark\network\mcpe\handler\LoginPacketHandler;
+use quark\network\mcpe\handler\PacketHandler;
+use quark\network\mcpe\handler\PacketHandlerAction;
+use quark\network\mcpe\handler\PacketHandlerInspector;
+use quark\network\mcpe\handler\PreSpawnPacketHandler;
+use quark\network\mcpe\handler\ResourcePacksPacketHandler;
+use quark\network\mcpe\handler\SessionStartPacketHandler;
+use quark\network\mcpe\handler\SpawnResponsePacketHandler;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
@@ -101,26 +101,26 @@ use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
-use pocketmine\network\NetworkSessionManager;
-use pocketmine\network\PacketHandlingException;
-use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\permission\DefaultPermissions;
-use pocketmine\player\GameMode;
-use pocketmine\player\Player;
-use pocketmine\player\PlayerInfo;
-use pocketmine\player\UsedChunkStatus;
-use pocketmine\player\XboxLivePlayerInfo;
-use pocketmine\promise\Promise;
-use pocketmine\promise\PromiseResolver;
-use pocketmine\Server;
-use pocketmine\timings\Timings;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\ObjectSet;
-use pocketmine\utils\TextFormat;
-use pocketmine\world\format\io\GlobalItemDataHandlers;
-use pocketmine\world\Position;
-use pocketmine\world\World;
-use pocketmine\YmlServerProperties;
+use quark\network\NetworkSessionManager;
+use quark\network\PacketHandlingException;
+use quark\permission\DefaultPermissionNames;
+use quark\permission\DefaultPermissions;
+use quark\player\GameMode;
+use quark\player\Player;
+use quark\player\PlayerInfo;
+use quark\player\UsedChunkStatus;
+use quark\player\XboxLivePlayerInfo;
+use quark\promise\Promise;
+use quark\promise\PromiseResolver;
+use quark\Server;
+use quark\timings\Timings;
+use quark\utils\AssumptionFailedError;
+use quark\utils\ObjectSet;
+use quark\utils\TextFormat;
+use quark\world\format\io\GlobalItemDataHandlers;
+use quark\world\Position;
+use quark\world\World;
+use quark\YmlServerProperties;
 use function array_map;
 use function array_slice;
 use function array_values;
@@ -241,7 +241,7 @@ class NetworkSession{
 		));
 
 		$this->manager->add($this);
-		$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_open()));
+		$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_network_session_open()));
 	}
 
 	private function getLogPrefix() : string{
@@ -261,7 +261,7 @@ class NetworkSession{
 			$this,
 			function(PlayerInfo $info) : void{
 				$this->info = $info;
-				$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_playerName(TextFormat::AQUA . $info->getUsername() . TextFormat::RESET)));
+				$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_network_session_playerName(TextFormat::AQUA . $info->getUsername() . TextFormat::RESET)));
 				$this->logger->setPrefix($this->getLogPrefix());
 				$this->manager->markLoginReceived($this);
 			},
@@ -276,7 +276,7 @@ class NetworkSession{
 				//TODO: this should never actually occur... right?
 				$this->disconnectWithError(
 					reason: "Failed to create player",
-					disconnectScreenMessage: KnownTranslationFactory::pocketmine_disconnect_error_internal()
+					disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
 				);
 			}
 		);
@@ -841,7 +841,7 @@ class NetworkSession{
 				$resolver->reject();
 			}
 
-			$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_close($reason)));
+			$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_network_session_close($reason)));
 		}
 	}
 
@@ -883,8 +883,8 @@ class NetworkSession{
 		$errorId = implode("-", str_split(bin2hex(random_bytes(6)), 4));
 
 		$this->disconnect(
-			reason: KnownTranslationFactory::pocketmine_disconnect_error($reason, $errorId)->prefix(TextFormat::RED),
-			disconnectScreenMessage: KnownTranslationFactory::pocketmine_disconnect_error($disconnectScreenMessage ?? $reason, $errorId),
+			reason: KnownTranslationFactory::quark_disconnect_error($reason, $errorId)->prefix(TextFormat::RED),
+			disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error($disconnectScreenMessage ?? $reason, $errorId),
 		);
 	}
 
@@ -893,7 +893,7 @@ class NetworkSession{
 			function() use ($protocolVersion) : void{
 				$this->sendDataPacket(PlayStatusPacket::create($protocolVersion < ProtocolInfo::CURRENT_PROTOCOL ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER), true);
 			},
-			KnownTranslationFactory::pocketmine_disconnect_incompatibleProtocol((string) $protocolVersion)
+			KnownTranslationFactory::quark_disconnect_incompatibleProtocol((string) $protocolVersion)
 		);
 	}
 
@@ -901,7 +901,7 @@ class NetworkSession{
 	 * Instructs the remote client to connect to a different server.
 	 */
 	public function transfer(string $ip, int $port, Translatable|string|null $reason = null) : void{
-		$reason ??= KnownTranslationFactory::pocketmine_disconnect_transfer();
+		$reason ??= KnownTranslationFactory::quark_disconnect_transfer();
 		$this->tryDisconnect(function() use ($ip, $port, $reason) : void{
 			$this->sendDataPacket(TransferPacket::create($ip, $port, false, null), true);
 			if($this->player !== null){
@@ -945,8 +945,8 @@ class NetworkSession{
 
 		if($error !== null){
 			$this->disconnectWithError(
-				reason: KnownTranslationFactory::pocketmine_disconnect_invalidSession($error),
-				disconnectScreenMessage: KnownTranslationFactory::pocketmine_disconnect_error_authentication()
+				reason: KnownTranslationFactory::quark_disconnect_invalidSession($error),
+				disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_authentication()
 			);
 
 			return;
@@ -1248,7 +1248,7 @@ class NetworkSession{
 		$language = $this->player->getLanguage();
 		$parameters = array_map(fn(string|Translatable $p) => $p instanceof Translatable ? $language->translate($p) : $p, $message->getParameters());
 		$untranslatedParameterCount = 0;
-		$translated = $language->translateString($message->getText(), $parameters, "pocketmine.", $untranslatedParameterCount);
+		$translated = $language->translateString($message->getText(), $parameters, "quark.", $untranslatedParameterCount);
 		return [$translated, array_slice($parameters, 0, $untranslatedParameterCount)];
 	}
 
@@ -1433,7 +1433,7 @@ class NetworkSession{
 
 		if($this->info === null){
 			if(time() >= $this->connectTime + 10){
-				$this->disconnectWithError(KnownTranslationFactory::pocketmine_disconnect_error_loginTimeout());
+				$this->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_loginTimeout());
 			}
 
 			return;

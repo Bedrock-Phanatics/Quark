@@ -2,42 +2,42 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine;
+namespace quark;
 
-use pocketmine\utils\Git;
-use pocketmine\utils\VersionString;
+use quark\utils\Git;
+use quark\utils\VersionString;
 use function is_array;
 use function is_int;
 use function str_repeat;
 
 final class VersionInfo{
 	public const string NAME = "Quark";
-	public const string BASE_VERSION = "5.47.0";
+	public const string BASE_VERSION = "6.0.0";
 	public const bool IS_DEVELOPMENT_BUILD = false;
 	public const string BUILD_CHANNEL = "stable";
 	public const string GITHUB_URL = "https://github.com/Bedrock-Phanatics/Quark";
 
 	/**
-	 * PocketMine-MP-specific version ID for world data. Used to determine what fixes need to be applied to old world
+	 * Quark-specific version ID for world data. Used to determine what fixes need to be applied to old world
 	 * data (e.g. stuff saved wrongly by past versions).
 	 * This version supplements the Minecraft vanilla world version.
 	 *
@@ -49,7 +49,7 @@ final class VersionInfo{
 	/**
 	 * Name of the NBT tag used to store the world data version.
 	 */
-	public const string TAG_WORLD_DATA_VERSION = "PMMPDataVersion"; //TAG_Long
+	public const string TAG_WORLD_DATA_VERSION = "QUARKDataVersion"; //TAG_Long
 
 	private function __construct(){
 		//NOOP
@@ -62,7 +62,7 @@ final class VersionInfo{
 			$gitHash = str_repeat("00", 20);
 
 			if(\Phar::running(true) === ""){
-				$gitHash = Git::getRepositoryStatePretty(\pocketmine\PATH);
+				$gitHash = Git::getRepositoryStatePretty(\quark\PATH);
 			}else{
 				$pharPath = \Phar::running(false);
 				$phar = \Phar::isValidPharFilename($pharPath) ? new \Phar($pharPath) : new \PharData($pharPath);

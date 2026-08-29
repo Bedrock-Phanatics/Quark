@@ -1,8 +1,8 @@
 {
-   "name": "axolotl-pm/pocketmine-mp",
+   "name": "quark/quark",
    "description": "A server software for Minecraft: Bedrock Edition written in PHP",
    "type": "project",
-   "homepage": "https://pmmp.io",
+   "homepage": "https://github.com/Bedrock-Phanatics/Quark",
    "license": "LGPL-3.0",
    "repositories": [
       {
@@ -65,12 +65,14 @@
    },
    "replace": {
       "pocketmine/pocketmine-mp": "*",
+
+
       "symfony/polyfill-ctype": "*",
       "symfony/polyfill-mbstring": "*"
    },
    "autoload": {
       "psr-4": {
-         "pocketmine\\": [
+         "quark\\": [
             "src/",
             "generated/"
          ]
@@ -81,8 +83,10 @@
    },
    "autoload-dev": {
       "psr-4": {
-         "pocketmine\\": "tests/phpunit/",
-         "pocketmine\\phpstan\\rules\\": "tests/phpstan/rules"
+         "quark\\world\\redstone\\": "tests/phpunit/redstone/",
+         "quark\\world\\tnt\\": "tests/phpunit/tnt/",
+         "quark\\": "tests/phpunit/",
+         "quark\\phpstan\\rules\\": "tests/phpstan/rules"
       }
    },
    "config": {
@@ -103,7 +107,7 @@
          "@php build/codegen/block-serializer-consts.php vendor/axolotl-pm/bedrock-data/canonical_block_states.nbt",
          "@php build/codegen/item-type-names.php vendor/axolotl-pm/bedrock-data/required_item_list.json",
          "@php build/codegen/known-translation-apis.php",
-         "@php build/codegen/pocketmine-yml-property-consts.php",
+         "@php build/codegen/quark-yml-property-consts.php",
          "@php build/codegen/registry-interface.php src generated"
       ]
    }

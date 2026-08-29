@@ -1,5 +1,5 @@
 name: Crash
-description: Report a crash in PocketMine-MP (not plugins)
+description: Report a crash in Quark (not plugins)
 title: Server crashed
 body:
   - type: markdown
@@ -8,12 +8,12 @@ body:
         > [!CAUTION]
         > If the crash can be triggered over the network (e.g. by a player / hack client), DO NOT report it here.
         > 
-        > Read our [Security Policy](https://github.com/pmmp/PocketMine-MP/blob/stable/SECURITY.md) first.
+        > Read our [Security Policy](https://github.com/Bedrock-Phanatics/Quark/blob/stable/SECURITY.md) first.
 
         > [!TIP]
         > Don't paste raw crashdump data into the issue.
         >
-        > Instead, submit the crashdump `.log` file to the [Crash Archive](https://crash.pmmp.io/submit).
+        > Attach the local crashdump `.log` file to the issue after checking it for sensitive information.
         > If you can't submit the crashdump to the Crash Archive, paste it on a site like [GitHub Gist](https://gist.github.com) or [Pastebin](https://pastebin.com).
 
   - type: input

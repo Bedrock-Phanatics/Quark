@@ -2,69 +2,69 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\entity;
+namespace quark\entity;
 
-use pocketmine\block\Block;
-use pocketmine\block\BlockTypeIds;
-use pocketmine\block\Water;
-use pocketmine\data\bedrock\EffectIdMap;
-use pocketmine\entity\animation\DeathAnimation;
-use pocketmine\entity\animation\HurtAnimation;
-use pocketmine\entity\animation\RespawnAnimation;
-use pocketmine\entity\effect\EffectInstance;
-use pocketmine\entity\effect\EffectManager;
-use pocketmine\entity\effect\VanillaEffects;
-use pocketmine\event\entity\EntityDamageByChildEntityEvent;
-use pocketmine\event\entity\EntityDamageByEntityEvent;
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\event\entity\EntityDeathEvent;
-use pocketmine\inventory\ArmorInventory;
-use pocketmine\inventory\CallbackInventoryListener;
-use pocketmine\item\Armor;
-use pocketmine\item\Durable;
-use pocketmine\item\enchantment\Enchantment;
-use pocketmine\item\enchantment\VanillaEnchantments;
-use pocketmine\item\Item;
+use quark\block\Block;
+use quark\block\BlockTypeIds;
+use quark\block\Water;
+use quark\data\bedrock\EffectIdMap;
+use quark\entity\animation\DeathAnimation;
+use quark\entity\animation\HurtAnimation;
+use quark\entity\animation\RespawnAnimation;
+use quark\entity\effect\EffectInstance;
+use quark\entity\effect\EffectManager;
+use quark\entity\effect\VanillaEffects;
+use quark\event\entity\EntityDamageByChildEntityEvent;
+use quark\event\entity\EntityDamageByEntityEvent;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\EntityDeathEvent;
+use quark\inventory\ArmorInventory;
+use quark\inventory\CallbackInventoryListener;
+use quark\item\Armor;
+use quark\item\Durable;
+use quark\item\enchantment\Enchantment;
+use quark\item\enchantment\VanillaEnchantments;
+use quark\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\ShortTag;
-use pocketmine\network\mcpe\EntityEventBroadcaster;
-use pocketmine\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\player\Player;
-use pocketmine\timings\Timings;
+use quark\player\Player;
+use quark\timings\Timings;
 use pocketmine\utils\Binary;
-use pocketmine\utils\Limits;
-use pocketmine\utils\Utils;
-use pocketmine\world\sound\BurpSound;
-use pocketmine\world\sound\EntityLandSound;
-use pocketmine\world\sound\EntityLongFallSound;
-use pocketmine\world\sound\EntityShortFallSound;
-use pocketmine\world\sound\ItemBreakSound;
+use quark\utils\Limits;
+use quark\utils\Utils;
+use quark\world\sound\BurpSound;
+use quark\world\sound\EntityLandSound;
+use quark\world\sound\EntityLongFallSound;
+use quark\world\sound\EntityShortFallSound;
+use quark\world\sound\ItemBreakSound;
 use function array_shift;
 use function atan2;
 use function ceil;
@@ -158,7 +158,7 @@ abstract class Living extends Entity{
 		if(($healFTag = $nbt->getTag(self::TAG_LEGACY_HEALTH)) instanceof FloatTag){
 			$health = $healFTag->getValue();
 		}elseif(($healthTag = $nbt->getTag(self::TAG_HEALTH)) instanceof ShortTag){
-			$health = $healthTag->getValue(); //Older versions of PocketMine-MP incorrectly saved this as a short instead of a float
+			$health = $healthTag->getValue(); //Older versions of Quark incorrectly saved this as a short instead of a float
 		}elseif($healthTag instanceof FloatTag){
 			$health = $healthTag->getValue();
 		}

@@ -2,54 +2,54 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\tile\piston\PistonArm;
-use pocketmine\block\tile\piston\PistonMovement;
+use quark\block\tile\piston\PistonArm;
+use quark\block\tile\piston\PistonMovement;
 
-use pocketmine\block\utils\AnyFacing;
-use pocketmine\block\utils\redstone\Movable;
-use pocketmine\block\utils\redstone\Powerable;
-use pocketmine\block\utils\redstone\PowerableTrait;
-use pocketmine\block\utils\redstone\RedstoneBlockAccessTrait;
-use pocketmine\block\utils\redstone\RedstoneBlockUtils;
-use pocketmine\data\runtime\RuntimeDataDescriber;
-use pocketmine\event\block\BlockTeleportEvent;
-use pocketmine\event\block\PistonPullBlockEvent;
-use pocketmine\event\block\PistonPushBlockEvent;
-use pocketmine\item\Item;
+use quark\block\utils\AnyFacing;
+use quark\block\utils\redstone\Movable;
+use quark\block\utils\redstone\Powerable;
+use quark\block\utils\redstone\PowerableTrait;
+use quark\block\utils\redstone\RedstoneBlockAccessTrait;
+use quark\block\utils\redstone\RedstoneBlockUtils;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\event\block\BlockTeleportEvent;
+use quark\event\block\PistonPullBlockEvent;
+use quark\event\block\PistonPushBlockEvent;
+use quark\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\timings\Timings;
-use pocketmine\timings\TimingsHandler;
-use pocketmine\world\BlockTransaction;
-use pocketmine\world\redstone\RedstoneConfig;
-use pocketmine\world\redstone\RedstoneManager;
-use pocketmine\world\redstone\RedstoneWorldState;
-use pocketmine\world\sound\PistonInSound;
-use pocketmine\world\sound\PistonOutSound;
-use pocketmine\world\World;
+use quark\player\Player;
+use quark\timings\Timings;
+use quark\timings\TimingsHandler;
+use quark\world\BlockTransaction;
+use quark\world\redstone\RedstoneConfig;
+use quark\world\redstone\RedstoneManager;
+use quark\world\redstone\RedstoneWorldState;
+use quark\world\sound\PistonInSound;
+use quark\world\sound\PistonOutSound;
+use quark\world\World;
 use RuntimeException;
 use function abs;
 use function assert;

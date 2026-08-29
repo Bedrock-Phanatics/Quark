@@ -2,53 +2,53 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\item;
+namespace quark\data\bedrock\item;
 
-use pocketmine\block\Bed;
-use pocketmine\block\Block;
-use pocketmine\block\CopperDoor;
-use pocketmine\block\tile\Banner as TileBanner;
-use pocketmine\block\utils\CopperOxidation;
-use pocketmine\block\utils\DyeColor;
-use pocketmine\block\VanillaBlocks as Blocks;
-use pocketmine\data\bedrock\block\BlockTypeNames as BlockIds;
-use pocketmine\data\bedrock\CompoundTypeIds;
-use pocketmine\data\bedrock\DyeColorIdMap;
-use pocketmine\data\bedrock\GoatHornTypeIdMap;
-use pocketmine\data\bedrock\item\ItemTypeNames as Ids;
-use pocketmine\data\bedrock\item\SavedItemData as Data;
-use pocketmine\data\bedrock\MedicineTypeIdMap;
-use pocketmine\data\bedrock\PotionTypeIdMap;
-use pocketmine\data\bedrock\SuspiciousStewTypeIdMap;
-use pocketmine\item\Banner;
-use pocketmine\item\Dye;
-use pocketmine\item\FireworkStar;
-use pocketmine\item\GoatHorn;
-use pocketmine\item\Item;
-use pocketmine\item\Medicine;
-use pocketmine\item\Potion;
-use pocketmine\item\SplashPotion;
-use pocketmine\item\SuspiciousStew;
-use pocketmine\item\VanillaItems as Items;
+use quark\block\Bed;
+use quark\block\Block;
+use quark\block\CopperDoor;
+use quark\block\tile\Banner as TileBanner;
+use quark\block\utils\CopperOxidation;
+use quark\block\utils\DyeColor;
+use quark\block\VanillaBlocks as Blocks;
+use quark\data\bedrock\block\BlockTypeNames as BlockIds;
+use quark\data\bedrock\CompoundTypeIds;
+use quark\data\bedrock\DyeColorIdMap;
+use quark\data\bedrock\GoatHornTypeIdMap;
+use quark\data\bedrock\item\ItemTypeNames as Ids;
+use quark\data\bedrock\item\SavedItemData as Data;
+use quark\data\bedrock\MedicineTypeIdMap;
+use quark\data\bedrock\PotionTypeIdMap;
+use quark\data\bedrock\SuspiciousStewTypeIdMap;
+use quark\item\Banner;
+use quark\item\Dye;
+use quark\item\FireworkStar;
+use quark\item\GoatHorn;
+use quark\item\Item;
+use quark\item\Medicine;
+use quark\item\Potion;
+use quark\item\SplashPotion;
+use quark\item\SuspiciousStew;
+use quark\item\VanillaItems as Items;
 use pocketmine\nbt\tag\CompoundTag;
 
 final class ItemSerializerDeserializerRegistrar{
@@ -131,7 +131,7 @@ final class ItemSerializerDeserializerRegistrar{
 	}
 
 	/**
-	 * Registers mappings for item IDs which directly correspond to PocketMine-MP blockitems.
+	 * Registers mappings for item IDs which directly correspond to Quark blockitems.
 	 * Mappings here are only necessary when the item has a dedicated item ID; in these cases, the blockstate is not
 	 * included in the itemstack, and the item ID may be different from the block ID.
 	 */
@@ -169,7 +169,7 @@ final class ItemSerializerDeserializerRegistrar{
 	}
 
 	/**
-	 * Registers mappings for item IDs which directly correspond to PocketMine-MP items.
+	 * Registers mappings for item IDs which directly correspond to Quark items.
 	 */
 	private function register1to1ItemMappings() : void{
 		$this->map1to1Item(Ids::ACACIA_BOAT, Items::ACACIA_BOAT());
@@ -447,7 +447,7 @@ final class ItemSerializerDeserializerRegistrar{
 	}
 
 	/**
-	 * Registers mappings for item IDs which map to different PocketMine-MP item types, depending on their meta
+	 * Registers mappings for item IDs which map to different Quark item types, depending on their meta
 	 * values.
 	 * This can only be used if the target item type doesn't require any additional properties, since the items are
 	 * indexed by their base type ID.
@@ -583,7 +583,7 @@ final class ItemSerializerDeserializerRegistrar{
 	 * Registers serializers and deserializers for items that don't fit any other pattern.
 	 * Ideally we want to get rid of this completely, if possible.
 	 *
-	 * Most of these are single PocketMine-MP items which map to multiple IDs depending on their properties, which is
+	 * Most of these are single Quark items which map to multiple IDs depending on their properties, which is
 	 * complex to implement in a generic way.
 	 */
 	private function registerMiscItemMappings() : void{
@@ -610,10 +610,10 @@ final class ItemSerializerDeserializerRegistrar{
 	}
 
 	/**
-	 * Registers serializers and deserializers for PocketMine-MP blockitems that don't fit any other pattern.
+	 * Registers serializers and deserializers for Quark blockitems that don't fit any other pattern.
 	 * Ideally we want to get rid of this completely, if possible.
 	 *
-	 * Most of these are single PocketMine-MP blocks which map to multiple IDs depending on their properties, which is
+	 * Most of these are single Quark blocks which map to multiple IDs depending on their properties, which is
 	 * complex to implement in a generic way.
 	 */
 	private function registerMiscBlockMappings() : void{

@@ -2,61 +2,61 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\block\convert\property;
+namespace quark\data\bedrock\block\convert\property;
 
-use pocketmine\block\Button;
-use pocketmine\block\Door;
-use pocketmine\block\DoublePlant;
-use pocketmine\block\FenceGate;
-use pocketmine\block\ItemFrame;
-use pocketmine\block\Liquid;
-use pocketmine\block\SimplePressurePlate;
-use pocketmine\block\Slab;
-use pocketmine\block\Stair;
-use pocketmine\block\Stem;
-use pocketmine\block\Torch;
-use pocketmine\block\Trapdoor;
-use pocketmine\block\utils\Ageable;
-use pocketmine\block\utils\AnalogRedstoneSignalEmitter;
-use pocketmine\block\utils\AnyFacing;
-use pocketmine\block\utils\Colored;
-use pocketmine\block\utils\CopperMaterial;
-use pocketmine\block\utils\CopperOxidation;
-use pocketmine\block\utils\CoralMaterial;
-use pocketmine\block\utils\CoralType;
-use pocketmine\block\utils\DyeColor;
-use pocketmine\block\utils\HorizontalFacing;
-use pocketmine\block\utils\Lightable;
-use pocketmine\block\utils\MultiAnyFacing;
-use pocketmine\block\utils\PillarRotation;
-use pocketmine\block\utils\SignLikeRotation;
-use pocketmine\block\utils\SlabType;
-use pocketmine\block\Wall;
-use pocketmine\block\Wood;
-use pocketmine\data\bedrock\block\BlockLegacyMetadata;
-use pocketmine\data\bedrock\block\BlockStateNames as StateNames;
-use pocketmine\data\bedrock\block\BlockStateStringValues;
+use quark\block\Button;
+use quark\block\Door;
+use quark\block\DoublePlant;
+use quark\block\FenceGate;
+use quark\block\ItemFrame;
+use quark\block\Liquid;
+use quark\block\SimplePressurePlate;
+use quark\block\Slab;
+use quark\block\Stair;
+use quark\block\Stem;
+use quark\block\Torch;
+use quark\block\Trapdoor;
+use quark\block\utils\Ageable;
+use quark\block\utils\AnalogRedstoneSignalEmitter;
+use quark\block\utils\AnyFacing;
+use quark\block\utils\Colored;
+use quark\block\utils\CopperMaterial;
+use quark\block\utils\CopperOxidation;
+use quark\block\utils\CoralMaterial;
+use quark\block\utils\CoralType;
+use quark\block\utils\DyeColor;
+use quark\block\utils\HorizontalFacing;
+use quark\block\utils\Lightable;
+use quark\block\utils\MultiAnyFacing;
+use quark\block\utils\PillarRotation;
+use quark\block\utils\SignLikeRotation;
+use quark\block\utils\SlabType;
+use quark\block\Wall;
+use quark\block\Wood;
+use quark\data\bedrock\block\BlockLegacyMetadata;
+use quark\data\bedrock\block\BlockStateNames as StateNames;
+use quark\data\bedrock\block\BlockStateStringValues;
 use pocketmine\math\Facing;
-use pocketmine\utils\SingletonTrait;
+use quark\utils\SingletonTrait;
 
 final class CommonProperties{
 	use SingletonTrait;

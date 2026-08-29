@@ -2,34 +2,34 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe\raklib;
+namespace quark\network\mcpe\raklib;
 
 use pmmp\thread\Thread as NativeThread;
 use pmmp\thread\ThreadSafeArray;
 use pocketmine\snooze\SleeperHandlerEntry;
-use pocketmine\thread\log\ThreadSafeLogger;
-use pocketmine\thread\NonThreadSafeValue;
-use pocketmine\thread\Thread;
-use pocketmine\thread\ThreadCrashException;
+use quark\thread\log\ThreadSafeLogger;
+use quark\thread\NonThreadSafeValue;
+use quark\thread\Thread;
+use quark\thread\ThreadCrashException;
 use raklib\generic\SocketException;
 use raklib\server\ipc\RakLibToUserThreadMessageSender;
 use raklib\server\ipc\UserToRakLibThreadMessageReceiver;
@@ -61,7 +61,7 @@ class RakLibServer extends Thread{
 		protected int $protocolVersion,
 		protected SleeperHandlerEntry $sleeperEntry
 	){
-		$this->mainPath = \pocketmine\PATH;
+		$this->mainPath = \quark\PATH;
 		$this->address = new NonThreadSafeValue($address);
 	}
 

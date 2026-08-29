@@ -2,36 +2,36 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace quark\item;
 
-use pocketmine\utils\RegistrySource;
-use pocketmine\world\sound\ArmorEquipChainSound;
-use pocketmine\world\sound\ArmorEquipCopperSound;
-use pocketmine\world\sound\ArmorEquipDiamondSound;
-use pocketmine\world\sound\ArmorEquipGenericSound;
-use pocketmine\world\sound\ArmorEquipGoldSound;
-use pocketmine\world\sound\ArmorEquipIronSound;
-use pocketmine\world\sound\ArmorEquipLeatherSound;
-use pocketmine\world\sound\ArmorEquipNetheriteSound;
+use quark\utils\RegistrySource;
+use quark\world\sound\ArmorEquipChainSound;
+use quark\world\sound\ArmorEquipCopperSound;
+use quark\world\sound\ArmorEquipDiamondSound;
+use quark\world\sound\ArmorEquipGenericSound;
+use quark\world\sound\ArmorEquipGoldSound;
+use quark\world\sound\ArmorEquipIronSound;
+use quark\world\sound\ArmorEquipLeatherSound;
+use quark\world\sound\ArmorEquipNetheriteSound;
 
 /**
  * @internal
@@ -43,7 +43,7 @@ final class VanillaArmorMaterialsInputs extends RegistrySource{
 	}
 
 	public function getTargetClassDocComment() : array{
-		return ["Allows getting any vanilla armor material implemented by PocketMine-MP"];
+		return ["Allows getting any vanilla armor material implemented by Quark"];
 	}
 
 	protected function register(string $name, ArmorMaterial $armorMaterial) : void{

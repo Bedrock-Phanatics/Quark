@@ -2,35 +2,35 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\command\defaults;
+namespace quark\command\defaults;
 
-use pocketmine\command\Command;
-use pocketmine\command\CommandSender;
-use pocketmine\command\utils\InvalidCommandSyntaxException;
-use pocketmine\lang\KnownTranslationFactory;
-use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\player\Player;
-use pocketmine\Server;
-use pocketmine\ServerProperties;
+use quark\command\Command;
+use quark\command\CommandSender;
+use quark\command\utils\InvalidCommandSyntaxException;
+use quark\lang\KnownTranslationFactory;
+use quark\permission\DefaultPermissionNames;
+use quark\player\Player;
+use quark\Server;
+use quark\ServerProperties;
 use function count;
 use function implode;
 use function sort;
@@ -42,7 +42,7 @@ class WhitelistCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"whitelist",
-			KnownTranslationFactory::pocketmine_command_whitelist_description(),
+			KnownTranslationFactory::quark_command_whitelist_description(),
 			KnownTranslationFactory::commands_whitelist_usage()
 		);
 		$this->setPermissions([
@@ -123,7 +123,7 @@ class WhitelistCommand extends VanillaCommand{
 						$server = $sender->getServer();
 						$server->removeWhitelist($args[1]);
 						if(!$server->isWhitelisted($args[1])){
-							$server->getPlayerExact($args[1])?->kick(KnownTranslationFactory::pocketmine_disconnect_kick(KnownTranslationFactory::pocketmine_disconnect_whitelisted()));
+							$server->getPlayerExact($args[1])?->kick(KnownTranslationFactory::quark_disconnect_kick(KnownTranslationFactory::quark_disconnect_whitelisted()));
 						}
 						Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_whitelist_remove_success($args[1]));
 					}
@@ -136,7 +136,7 @@ class WhitelistCommand extends VanillaCommand{
 	}
 
 	private function kickNonWhitelistedPlayers(Server $server) : void{
-		$message = KnownTranslationFactory::pocketmine_disconnect_kick(KnownTranslationFactory::pocketmine_disconnect_whitelisted());
+		$message = KnownTranslationFactory::quark_disconnect_kick(KnownTranslationFactory::quark_disconnect_whitelisted());
 		foreach($server->getOnlinePlayers() as $player){
 			if(!$server->isWhitelisted($player->getName())){
 				$player->kick($message);

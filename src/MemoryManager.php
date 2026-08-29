@@ -2,34 +2,34 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine;
+namespace quark;
 
-use pocketmine\event\server\LowMemoryEvent;
-use pocketmine\network\mcpe\cache\ChunkCache;
-use pocketmine\scheduler\DumpWorkerMemoryTask;
-use pocketmine\scheduler\GarbageCollectionTask;
-use pocketmine\timings\Timings;
-use pocketmine\utils\Process;
-use pocketmine\YmlServerProperties as Yml;
+use quark\event\server\LowMemoryEvent;
+use quark\network\mcpe\cache\ChunkCache;
+use quark\scheduler\DumpWorkerMemoryTask;
+use quark\scheduler\GarbageCollectionTask;
+use quark\timings\Timings;
+use quark\utils\Process;
+use quark\YmlServerProperties as Yml;
 use function gc_collect_cycles;
 use function gc_mem_caches;
 use function ini_set;

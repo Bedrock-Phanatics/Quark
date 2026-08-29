@@ -2,34 +2,34 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\network\query;
+namespace quark\network\query;
 
 use pmmp\encoding\LE;
-use pocketmine\player\GameMode;
-use pocketmine\player\Player;
-use pocketmine\plugin\Plugin;
-use pocketmine\Server;
-use pocketmine\utils\Utils;
-use pocketmine\YmlServerProperties;
+use quark\player\GameMode;
+use quark\player\Player;
+use quark\plugin\Plugin;
+use quark\Server;
+use quark\utils\Utils;
+use quark\YmlServerProperties;
 use function array_map;
 use function chr;
 use function count;
@@ -73,7 +73,7 @@ final class QueryInfo{
 
 		$this->gametype = ($server->getGamemode() === GameMode::SURVIVAL || $server->getGamemode() === GameMode::ADVENTURE) ? "SMP" : "CMP";
 		$this->version = $server->getVersion();
-		$this->server_engine = $server->getName() . " " . $server->getPocketMineVersion();
+		$this->server_engine = $server->getName() . " " . $server->getQuarkVersion();
 		$world = $server->getWorldManager()->getDefaultWorld();
 		$this->map = $world === null ? "unknown" : $world->getDisplayName();
 		$this->numPlayers = count($this->players);

@@ -10,7 +10,7 @@ on:
 
       #these are parameterized to ease updating
       pm-version-major:
-        description: 'PocketMine-MP major version'
+        description: 'Quark major version'
         default: 5
         type: number
       image:

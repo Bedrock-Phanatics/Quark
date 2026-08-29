@@ -2,70 +2,70 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\command\defaults;
+namespace quark\command\defaults;
 
-use pocketmine\block\BlockTypeIds;
+use quark\block\BlockTypeIds;
 use pocketmine\color\Color;
-use pocketmine\command\CommandSender;
-use pocketmine\command\utils\InvalidCommandSyntaxException;
-use pocketmine\item\StringToItemParser;
-use pocketmine\item\VanillaItems;
-use pocketmine\lang\KnownTranslationFactory;
+use quark\command\CommandSender;
+use quark\command\utils\InvalidCommandSyntaxException;
+use quark\item\StringToItemParser;
+use quark\item\VanillaItems;
+use quark\lang\KnownTranslationFactory;
 use pocketmine\math\Vector3;
-use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\player\Player;
-use pocketmine\utils\Random;
-use pocketmine\utils\TextFormat;
-use pocketmine\world\particle\AngryVillagerParticle;
-use pocketmine\world\particle\BlockForceFieldParticle;
-use pocketmine\world\particle\BubbleParticle;
-use pocketmine\world\particle\CriticalParticle;
-use pocketmine\world\particle\DustParticle;
-use pocketmine\world\particle\EnchantmentTableParticle;
-use pocketmine\world\particle\EnchantParticle;
-use pocketmine\world\particle\EntityFlameParticle;
-use pocketmine\world\particle\ExplodeParticle;
-use pocketmine\world\particle\FlameParticle;
-use pocketmine\world\particle\HappyVillagerParticle;
-use pocketmine\world\particle\HeartParticle;
-use pocketmine\world\particle\HugeExplodeParticle;
-use pocketmine\world\particle\HugeExplodeSeedParticle;
-use pocketmine\world\particle\InkParticle;
-use pocketmine\world\particle\InstantEnchantParticle;
-use pocketmine\world\particle\ItemBreakParticle;
-use pocketmine\world\particle\LavaDripParticle;
-use pocketmine\world\particle\LavaParticle;
-use pocketmine\world\particle\Particle;
-use pocketmine\world\particle\PortalParticle;
-use pocketmine\world\particle\RainSplashParticle;
-use pocketmine\world\particle\RedstoneParticle;
-use pocketmine\world\particle\SmokeParticle;
-use pocketmine\world\particle\SonicExplosionParticle;
-use pocketmine\world\particle\SplashParticle;
-use pocketmine\world\particle\SporeParticle;
-use pocketmine\world\particle\TerrainParticle;
-use pocketmine\world\particle\WaterDripParticle;
-use pocketmine\world\particle\WaterParticle;
-use pocketmine\world\World;
+use quark\permission\DefaultPermissionNames;
+use quark\player\Player;
+use quark\utils\Random;
+use quark\utils\TextFormat;
+use quark\world\particle\AngryVillagerParticle;
+use quark\world\particle\BlockForceFieldParticle;
+use quark\world\particle\BubbleParticle;
+use quark\world\particle\CriticalParticle;
+use quark\world\particle\DustParticle;
+use quark\world\particle\EnchantmentTableParticle;
+use quark\world\particle\EnchantParticle;
+use quark\world\particle\EntityFlameParticle;
+use quark\world\particle\ExplodeParticle;
+use quark\world\particle\FlameParticle;
+use quark\world\particle\HappyVillagerParticle;
+use quark\world\particle\HeartParticle;
+use quark\world\particle\HugeExplodeParticle;
+use quark\world\particle\HugeExplodeSeedParticle;
+use quark\world\particle\InkParticle;
+use quark\world\particle\InstantEnchantParticle;
+use quark\world\particle\ItemBreakParticle;
+use quark\world\particle\LavaDripParticle;
+use quark\world\particle\LavaParticle;
+use quark\world\particle\Particle;
+use quark\world\particle\PortalParticle;
+use quark\world\particle\RainSplashParticle;
+use quark\world\particle\RedstoneParticle;
+use quark\world\particle\SmokeParticle;
+use quark\world\particle\SonicExplosionParticle;
+use quark\world\particle\SplashParticle;
+use quark\world\particle\SporeParticle;
+use quark\world\particle\TerrainParticle;
+use quark\world\particle\WaterDripParticle;
+use quark\world\particle\WaterParticle;
+use quark\world\World;
 use function count;
 use function explode;
 use function max;
@@ -78,8 +78,8 @@ class ParticleCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"particle",
-			KnownTranslationFactory::pocketmine_command_particle_description(),
-			KnownTranslationFactory::pocketmine_command_particle_usage()
+			KnownTranslationFactory::quark_command_particle_description(),
+			KnownTranslationFactory::quark_command_particle_usage()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_PARTICLE);
 	}

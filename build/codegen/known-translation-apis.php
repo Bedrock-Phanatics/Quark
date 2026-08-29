@@ -2,31 +2,31 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\build\generate_known_translation_apis;
+namespace quark\build\generate_known_translation_apis;
 
-use pocketmine\lang\Translatable;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\utils\Filesystem;
-use pocketmine\utils\Utils;
+use quark\lang\Translatable;
+use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
+use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
 use function count;
@@ -79,7 +79,7 @@ function safe_fopen(string $file, string $flags){
 
 const NS_HEADER = <<<'HEADER'
 
-namespace pocketmine\lang;
+namespace quark\lang;
 
 
 HEADER;
@@ -95,7 +95,7 @@ function generate_known_translation_keys(array $languageDefinitions, string $fil
 	fwrite($file, NS_HEADER);
 	fwrite($file, <<<'HEADER'
 /**
- * This class contains constants for all the translations known to PocketMine-MP as per the used version of pmmp/Language.
+ * This class contains constants for all the translations known to Quark as per the used version of quark/Language.
  * This class is generated automatically, do NOT modify it by hand.
  *
  * @internal
@@ -125,10 +125,10 @@ function generate_known_translation_parameter_info(array $languageDefinitions, s
 	fwrite($file, $fileHeader);
 	fwrite($file, NS_HEADER);
 	fwrite($file, <<<'HEADER'
-use pocketmine\lang\KnownTranslationKeys as Keys;
+use quark\lang\KnownTranslationKeys as Keys;
 
 /**
- * This class contains constants for all the translations known to PocketMine-MP as per the used version of pmmp/Language.
+ * This class contains constants for all the translations known to Quark as per the used version of quark/Language.
  * This class is generated automatically, do NOT modify it by hand.
  *
  * @internal
@@ -169,8 +169,8 @@ function generate_known_translation_factory(array $languageDefinitions, string $
 	fwrite($file, NS_HEADER);
 	fwrite($file, <<<'HEADER'
 /**
- * This class contains factory methods for all the translations known to PocketMine-MP as per the used version of
- * pmmp/Language.
+ * This class contains factory methods for all the translations known to Quark as per the used version of
+ * quark/Language.
  * This class is generated automatically, do NOT modify it by hand.
  *
  * @internal
@@ -221,7 +221,7 @@ HEADER);
 
 $fileHeader = Filesystem::fileGetContents(__DIR__ . "/templates/header.php");
 
-$lang = parse_ini_file(Path::join(\pocketmine\LOCALE_DATA_PATH, "eng.ini"), false, INI_SCANNER_RAW);
+$lang = parse_ini_file(Path::join(\quark\LOCALE_DATA_PATH, "eng.ini"), false, INI_SCANNER_RAW);
 if($lang === false){
 	fwrite(STDERR, "Missing language files!\n");
 	exit(1);

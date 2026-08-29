@@ -2,19 +2,19 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -24,19 +24,19 @@ declare(strict_types=1);
 /**
  * All the Item classes
  */
-namespace pocketmine\item;
+namespace quark\item;
 
-use pocketmine\block\Block;
-use pocketmine\block\BlockBreakInfo;
-use pocketmine\block\BlockToolType;
-use pocketmine\block\VanillaBlocks;
-use pocketmine\data\bedrock\EnchantmentIdMap;
-use pocketmine\data\bedrock\item\ItemTypeDeserializeException;
-use pocketmine\data\runtime\RuntimeDataDescriber;
-use pocketmine\data\runtime\RuntimeDataWriter;
-use pocketmine\data\SavedDataLoadingException;
-use pocketmine\entity\Entity;
-use pocketmine\item\enchantment\EnchantmentInstance;
+use quark\block\Block;
+use quark\block\BlockBreakInfo;
+use quark\block\BlockToolType;
+use quark\block\VanillaBlocks;
+use quark\data\bedrock\EnchantmentIdMap;
+use quark\data\bedrock\item\ItemTypeDeserializeException;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\data\runtime\RuntimeDataWriter;
+use quark\data\SavedDataLoadingException;
+use quark\entity\Entity;
+use quark\item\enchantment\EnchantmentInstance;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
@@ -45,10 +45,10 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\player\Player;
-use pocketmine\utils\Utils;
-use pocketmine\world\BlockTransaction;
-use pocketmine\world\format\io\GlobalItemDataHandlers;
+use quark\player\Player;
+use quark\utils\Utils;
+use quark\world\BlockTransaction;
+use quark\world\format\io\GlobalItemDataHandlers;
 use function base64_decode;
 use function base64_encode;
 use function count;
@@ -707,7 +707,7 @@ class Item implements \JsonSerializable{
 	}
 
 	/**
-	 * Deserializes item JSON data produced by json_encode()ing Item instances in older versions of PocketMine-MP.
+	 * Deserializes item JSON data produced by json_encode()ing Item instances in older versions of Quark.
 	 * This method exists solely to allow upgrading old JSON data stored by plugins.
 	 *
 	 * @param mixed[] $data

@@ -2,19 +2,19 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
@@ -24,37 +24,37 @@ declare(strict_types=1);
 /**
  * All Block classes are in here
  */
-namespace pocketmine\block;
+namespace quark\block;
 
 use pmmp\encoding\BE;
 use pmmp\encoding\LE;
-use pocketmine\block\tile\Spawnable;
-use pocketmine\block\tile\Tile;
-use pocketmine\block\utils\SupportType;
-use pocketmine\data\runtime\InvalidSerializedRuntimeDataException;
-use pocketmine\data\runtime\RuntimeDataDescriber;
-use pocketmine\data\runtime\RuntimeDataReader;
-use pocketmine\data\runtime\RuntimeDataSizeCalculator;
-use pocketmine\data\runtime\RuntimeDataWriter;
-use pocketmine\entity\Entity;
-use pocketmine\entity\projectile\Projectile;
-use pocketmine\item\enchantment\AvailableEnchantmentRegistry;
-use pocketmine\item\enchantment\ItemEnchantmentTagRegistry;
-use pocketmine\item\enchantment\ItemEnchantmentTags;
-use pocketmine\item\enchantment\VanillaEnchantments;
-use pocketmine\item\Item;
-use pocketmine\item\ItemBlock;
+use quark\block\tile\Spawnable;
+use quark\block\tile\Tile;
+use quark\block\utils\SupportType;
+use quark\data\runtime\InvalidSerializedRuntimeDataException;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\data\runtime\RuntimeDataReader;
+use quark\data\runtime\RuntimeDataSizeCalculator;
+use quark\data\runtime\RuntimeDataWriter;
+use quark\entity\Entity;
+use quark\entity\projectile\Projectile;
+use quark\item\enchantment\AvailableEnchantmentRegistry;
+use quark\item\enchantment\ItemEnchantmentTagRegistry;
+use quark\item\enchantment\ItemEnchantmentTags;
+use quark\item\enchantment\VanillaEnchantments;
+use quark\item\Item;
+use quark\item\ItemBlock;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\player\Player;
-use pocketmine\utils\AssumptionFailedError;
-use pocketmine\world\BlockTransaction;
-use pocketmine\world\format\Chunk;
-use pocketmine\world\Position;
-use pocketmine\world\World;
+use quark\player\Player;
+use quark\utils\AssumptionFailedError;
+use quark\world\BlockTransaction;
+use quark\world\format\Chunk;
+use quark\world\Position;
+use quark\world\World;
 use function count;
 use function get_class;
 use function hash;

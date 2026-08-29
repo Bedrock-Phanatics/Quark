@@ -2,35 +2,35 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\tile\Jukebox as JukeboxTile;
-use pocketmine\item\Item;
-use pocketmine\item\Record;
-use pocketmine\lang\KnownTranslationFactory;
+use quark\block\tile\Jukebox as JukeboxTile;
+use quark\item\Item;
+use quark\item\Record;
+use quark\lang\KnownTranslationFactory;
 use pocketmine\math\Vector3;
-use pocketmine\player\Player;
-use pocketmine\world\sound\RecordSound;
-use pocketmine\world\sound\RecordStopSound;
+use quark\player\Player;
+use quark\world\sound\RecordSound;
+use quark\world\sound\RecordStopSound;
 
 class Jukebox extends Opaque{
 

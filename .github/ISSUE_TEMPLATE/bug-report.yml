@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a feature of PocketMine-MP not working as expected
+description: Report a feature of Quark not working as expected
 body:
   - type: markdown
     attributes:
@@ -8,7 +8,7 @@ body:
 
         > [!IMPORTANT]
         > It's strongly recommended to test for bugs without plugins before reporting an issue.
-        > This helps avoid wasting maintainers' time on bugs that are not actually caused by PocketMine-MP.
+        > This helps avoid wasting maintainers' time on bugs that are not actually caused by Quark.
         >
         > If you're not sure whether a plugin might be causing your issue, please seek help on our [Discord](https://discord.gg/bmSAZBG) before writing an issue.
 
@@ -70,20 +70,20 @@ body:
 
   - type: input
     attributes:
-      label: PocketMine-MP version
-      placeholder: Use the /version command in PocketMine-MP
+      label: Quark version
+      placeholder: Use the /version command in Quark
     validations:
       required: true
   - type: input
     attributes:
       label: PHP version
-      placeholder: Use the /version command in PocketMine-MP
+      placeholder: Use the /version command in Quark
     validations:
       required: true
   - type: input
     attributes:
       label: Server OS
-      placeholder: Use the /version command in PocketMine-MP
+      placeholder: Use the /version command in Quark
     validations:
       required: true
   - type: input

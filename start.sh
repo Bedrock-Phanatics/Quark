@@ -8,7 +8,7 @@ while getopts "p:f:l" OPTION 2> /dev/null; do
 			PHP_BINARY="$OPTARG"
 			;;
 		f)
-			POCKETMINE_FILE="$OPTARG"
+			QUARK_FILE="$OPTARG"
 			;;
 		l)
 			DO_LOOP="yes"
@@ -27,17 +27,17 @@ if [ "$PHP_BINARY" == "" ]; then
 		PHP_BINARY=$(type -p php)
 	else
 		echo "Couldn't find a PHP binary in system PATH or $PWD/bin/php7/bin"
-		echo "Please refer to the installation instructions at https://doc.pmmp.io/en/rtfd/installation.html"
+		echo "Please refer to the installation instructions at https://github.com/Bedrock-Phanatics/Quark#installation"
 		exit 1
 	fi
 fi
 
-if [ "$POCKETMINE_FILE" == "" ]; then
-	if [ -f ./PocketMine-MP.phar ]; then
-		POCKETMINE_FILE="./PocketMine-MP.phar"
+if [ "$QUARK_FILE" == "" ]; then
+	if [ -f ./Quark.phar ]; then
+		QUARK_FILE="./Quark.phar"
 	else
-		echo "PocketMine-MP.phar not found"
-		echo "Downloads can be found at https://github.com/pmmp/PocketMine-MP/releases"
+		echo "Quark.phar not found"
+		echo "Downloads can be found at https://github.com/Bedrock-Phanatics/Quark/releases"
 		exit 1
 	fi
 fi
@@ -72,7 +72,7 @@ if [ "$DO_LOOP" == "yes" ]; then
 		if [ ${LOOPS} -gt 0 ]; then
 			echo "Restarted $LOOPS times"
 		fi
-		"$PHP_BINARY" "$POCKETMINE_FILE" "$@"
+		"$PHP_BINARY" "$QUARK_FILE" "$@"
 		handle_exit_code $?
 		echo "To escape the loop, press CTRL+C now. Otherwise, wait 5 seconds for the server to restart."
 		echo ""
@@ -80,7 +80,7 @@ if [ "$DO_LOOP" == "yes" ]; then
 		((LOOPS++))
 	done
 else
-	"$PHP_BINARY" "$POCKETMINE_FILE" "$@"
+	"$PHP_BINARY" "$QUARK_FILE" "$@"
 	exitcode=$?
 	handle_exit_code $exitcode
 	exit $exitcode

@@ -2,37 +2,37 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace quark\block;
 
-use pocketmine\block\utils\Fallable;
-use pocketmine\block\utils\FallableTrait;
-use pocketmine\block\utils\SupportType;
-use pocketmine\event\block\BlockTeleportEvent;
-use pocketmine\item\Item;
+use quark\block\utils\Fallable;
+use quark\block\utils\FallableTrait;
+use quark\block\utils\SupportType;
+use quark\event\block\BlockTeleportEvent;
+use quark\item\Item;
 use pocketmine\math\Vector3;
-use pocketmine\player\GameMode;
-use pocketmine\player\Player;
-use pocketmine\world\particle\DragonEggTeleportParticle;
-use pocketmine\world\World;
+use quark\player\GameMode;
+use quark\player\Player;
+use quark\world\particle\DragonEggTeleportParticle;
+use quark\world\World;
 use function max;
 use function min;
 use function mt_rand;

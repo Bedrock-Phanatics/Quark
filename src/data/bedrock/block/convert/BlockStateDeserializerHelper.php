@@ -2,62 +2,62 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\data\bedrock\block\convert;
+namespace quark\data\bedrock\block\convert;
 
-use pocketmine\block\Block;
-use pocketmine\block\Button;
-use pocketmine\block\Candle;
-use pocketmine\block\Crops;
-use pocketmine\block\DaylightSensor;
-use pocketmine\block\Door;
-use pocketmine\block\DoublePlant;
-use pocketmine\block\FenceGate;
-use pocketmine\block\FloorCoralFan;
-use pocketmine\block\FloorSign;
-use pocketmine\block\ItemFrame;
-use pocketmine\block\Leaves;
-use pocketmine\block\Liquid;
-use pocketmine\block\RedMushroomBlock;
-use pocketmine\block\RedstoneComparator;
-use pocketmine\block\RedstoneRepeater;
-use pocketmine\block\Sapling;
-use pocketmine\block\SimplePressurePlate;
-use pocketmine\block\Slab;
-use pocketmine\block\Stair;
-use pocketmine\block\Stem;
-use pocketmine\block\Trapdoor;
-use pocketmine\block\utils\CopperMaterial;
-use pocketmine\block\utils\CopperOxidation;
-use pocketmine\block\utils\SlabType;
-use pocketmine\block\Wall;
-use pocketmine\block\WallSign;
-use pocketmine\block\WeightedPressurePlate;
-use pocketmine\block\Wood;
-use pocketmine\data\bedrock\block\BlockLegacyMetadata;
-use pocketmine\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\data\bedrock\block\BlockStateNames;
-use pocketmine\data\bedrock\block\BlockStateNames as StateNames;
-use pocketmine\data\bedrock\block\convert\property\ValueMappings;
-use pocketmine\data\bedrock\MushroomBlockTypeIdMap;
+use quark\block\Block;
+use quark\block\Button;
+use quark\block\Candle;
+use quark\block\Crops;
+use quark\block\DaylightSensor;
+use quark\block\Door;
+use quark\block\DoublePlant;
+use quark\block\FenceGate;
+use quark\block\FloorCoralFan;
+use quark\block\FloorSign;
+use quark\block\ItemFrame;
+use quark\block\Leaves;
+use quark\block\Liquid;
+use quark\block\RedMushroomBlock;
+use quark\block\RedstoneComparator;
+use quark\block\RedstoneRepeater;
+use quark\block\Sapling;
+use quark\block\SimplePressurePlate;
+use quark\block\Slab;
+use quark\block\Stair;
+use quark\block\Stem;
+use quark\block\Trapdoor;
+use quark\block\utils\CopperMaterial;
+use quark\block\utils\CopperOxidation;
+use quark\block\utils\SlabType;
+use quark\block\Wall;
+use quark\block\WallSign;
+use quark\block\WeightedPressurePlate;
+use quark\block\Wood;
+use quark\data\bedrock\block\BlockLegacyMetadata;
+use quark\data\bedrock\block\BlockStateDeserializeException;
+use quark\data\bedrock\block\BlockStateNames;
+use quark\data\bedrock\block\BlockStateNames as StateNames;
+use quark\data\bedrock\block\convert\property\ValueMappings;
+use quark\data\bedrock\MushroomBlockTypeIdMap;
 use pocketmine\math\Facing;
 
 /**

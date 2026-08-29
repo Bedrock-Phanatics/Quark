@@ -2,33 +2,33 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author PocketMine Team
- * @link http://www.pocketmine.net/
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
  *
  *
  */
 
 declare(strict_types=1);
 
-namespace pocketmine\command\defaults;
+namespace quark\command\defaults;
 
-use pocketmine\command\CommandSender;
-use pocketmine\lang\KnownTranslationFactory as l10n;
-use pocketmine\lang\Translatable;
-use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\utils\Process;
-use pocketmine\utils\TextFormat;
+use quark\command\CommandSender;
+use quark\lang\KnownTranslationFactory as l10n;
+use quark\lang\Translatable;
+use quark\permission\DefaultPermissionNames;
+use quark\utils\Process;
+use quark\utils\TextFormat;
 use function count;
 use function floor;
 use function microtime;
@@ -41,7 +41,7 @@ class StatusCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"status",
-			l10n::pocketmine_command_status_description()
+			l10n::quark_command_status_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_STATUS);
 	}
@@ -51,23 +51,23 @@ class StatusCommand extends VanillaCommand{
 	}
 
 	private static function formatTPS(float $tps, float $usage, string $tpsColor) : Translatable{
-		return l10n::pocketmine_command_status_tps_stat(strval($tps), strval($usage))->prefix($tpsColor);
+		return l10n::quark_command_status_tps_stat(strval($tps), strval($usage))->prefix($tpsColor);
 	}
 
 	private static function formatBandwidth(float $bytes) : Translatable{
 		//TODO: this should probably be number formatted?
-		return l10n::pocketmine_command_status_network_stat(strval(round($bytes / 1024, 2)))->prefix(TextFormat::RED);
+		return l10n::quark_command_status_network_stat(strval(round($bytes / 1024, 2)))->prefix(TextFormat::RED);
 	}
 
 	private static function formatMemory(int $bytes) : Translatable{
-		return l10n::pocketmine_command_status_memory_stat(number_format(round(($bytes / 1024) / 1024, 2), 2))->prefix(TextFormat::RED);
+		return l10n::quark_command_status_memory_stat(number_format(round(($bytes / 1024) / 1024, 2), 2))->prefix(TextFormat::RED);
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		$mUsage = Process::getAdvancedMemoryUsage();
 
 		$server = $sender->getServer();
-		$sender->sendMessage(l10n::pocketmine_command_status_header()->format(
+		$sender->sendMessage(l10n::quark_command_status_header()->format(
 			TextFormat::GREEN . "---- " . TextFormat::RESET,
 			TextFormat::GREEN . " ----" . TextFormat::RESET
 		));
@@ -80,16 +80,16 @@ class StatusCommand extends VanillaCommand{
 			if($time >= 3600){
 				$hours = strval(floor(($time % (3600 * 24)) / 3600));
 				$message = $time >= 3600 * 24 ?
-					l10n::pocketmine_command_status_uptime_days(strval(floor($time / (3600 * 24))), $hours, $minutes, $seconds) :
-					l10n::pocketmine_command_status_uptime_hours($hours, $minutes, $seconds);
+					l10n::quark_command_status_uptime_days(strval(floor($time / (3600 * 24))), $hours, $minutes, $seconds) :
+					l10n::quark_command_status_uptime_hours($hours, $minutes, $seconds);
 			}else{
-				$message = l10n::pocketmine_command_status_uptime_minutes($minutes, $seconds);
+				$message = l10n::quark_command_status_uptime_minutes($minutes, $seconds);
 			}
 		}else{
-			$message = l10n::pocketmine_command_status_uptime_seconds($seconds);
+			$message = l10n::quark_command_status_uptime_seconds($seconds);
 		}
 
-		self::send($sender, l10n::pocketmine_command_status_uptime($message->prefix(TextFormat::RED)));
+		self::send($sender, l10n::quark_command_status_uptime($message->prefix(TextFormat::RED)));
 
 		$tpsColor = TextFormat::GREEN;
 		$tps = $server->getTicksPerSecond();
@@ -99,33 +99,33 @@ class StatusCommand extends VanillaCommand{
 			$tpsColor = TextFormat::GOLD;
 		}
 
-		self::send($sender, l10n::pocketmine_command_status_tps_current(self::formatTPS($tps, $server->getTickUsage(), $tpsColor)));
-		self::send($sender, l10n::pocketmine_command_status_tps_average(self::formatTPS($server->getTicksPerSecondAverage(), $server->getTickUsageAverage(), $tpsColor)));
+		self::send($sender, l10n::quark_command_status_tps_current(self::formatTPS($tps, $server->getTickUsage(), $tpsColor)));
+		self::send($sender, l10n::quark_command_status_tps_average(self::formatTPS($server->getTicksPerSecondAverage(), $server->getTickUsageAverage(), $tpsColor)));
 
 		$bandwidth = $server->getNetwork()->getBandwidthTracker();
-		self::send($sender, l10n::pocketmine_command_status_network_upload(self::formatBandwidth($bandwidth->getSend()->getAverageBytes())));
-		self::send($sender, l10n::pocketmine_command_status_network_download(self::formatBandwidth($bandwidth->getReceive()->getAverageBytes())));
+		self::send($sender, l10n::quark_command_status_network_upload(self::formatBandwidth($bandwidth->getSend()->getAverageBytes())));
+		self::send($sender, l10n::quark_command_status_network_download(self::formatBandwidth($bandwidth->getReceive()->getAverageBytes())));
 
-		self::send($sender, l10n::pocketmine_command_status_threads(TextFormat::RED . Process::getThreadCount()));
+		self::send($sender, l10n::quark_command_status_threads(TextFormat::RED . Process::getThreadCount()));
 
-		self::send($sender, l10n::pocketmine_command_status_memory_mainThread(self::formatMemory($mUsage[0])));
-		self::send($sender, l10n::pocketmine_command_status_memory_total(self::formatMemory($mUsage[1])));
-		self::send($sender, l10n::pocketmine_command_status_memory_virtual(self::formatMemory($mUsage[2])));
+		self::send($sender, l10n::quark_command_status_memory_mainThread(self::formatMemory($mUsage[0])));
+		self::send($sender, l10n::quark_command_status_memory_total(self::formatMemory($mUsage[1])));
+		self::send($sender, l10n::quark_command_status_memory_virtual(self::formatMemory($mUsage[2])));
 
 		$globalLimit = $server->getMemoryManager()->getGlobalMemoryLimit();
 		if($globalLimit > 0){
-			self::send($sender, l10n::pocketmine_command_status_memory_manager(self::formatMemory($globalLimit)));
+			self::send($sender, l10n::quark_command_status_memory_manager(self::formatMemory($globalLimit)));
 		}
 
 		foreach($server->getWorldManager()->getWorlds() as $world){
 			$worldName = $world->getFolderName() !== $world->getDisplayName() ? " (" . $world->getDisplayName() . ")" : "";
 			$timeColor = $world->getTickRateTime() > 40 ? TextFormat::RED : TextFormat::YELLOW;
-			self::send($sender, l10n::pocketmine_command_status_world(
+			self::send($sender, l10n::quark_command_status_world(
 				"\"{$world->getFolderName()}\"$worldName",
 				TextFormat::RED . number_format(count($world->getLoadedChunks())) . TextFormat::GREEN,
 				TextFormat::RED . number_format(count($world->getTickingChunks())) . TextFormat::GREEN,
 				TextFormat::RED . number_format(count($world->getEntities())) . TextFormat::GREEN,
-				l10n::pocketmine_command_status_world_timeStat(strval(round($world->getTickRateTime(), 2)))->prefix($timeColor)
+				l10n::quark_command_status_world_timeStat(strval(round($world->getTickRateTime(), 2)))->prefix($timeColor)
 			));
 		}
 
