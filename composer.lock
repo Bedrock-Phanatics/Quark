@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3fc96f87b6a1a6e3b257ad49256ba526",
+    "content-hash": "b7a3803d947f722907eac6f12b24427e",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -149,12 +149,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol.git",
-                "reference": "7779cb6a24e4230a9d4249a57da35cbb293d15e7"
+                "reference": "61d0b67968a664048a0a8dc6e1ecf5e9d7e4b8a6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/7779cb6a24e4230a9d4249a57da35cbb293d15e7",
-                "reference": "7779cb6a24e4230a9d4249a57da35cbb293d15e7",
+                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/61d0b67968a664048a0a8dc6e1ecf5e9d7e4b8a6",
+                "reference": "61d0b67968a664048a0a8dc6e1ecf5e9d7e4b8a6",
                 "shasum": ""
             },
             "require": {
@@ -197,7 +197,7 @@
             "support": {
                 "source": "https://github.com/Bedrock-Phanatics/BedrockProtocol/tree/master"
             },
-            "time": "2026-08-22T16:51:06+00:00"
+            "time": "2026-08-29T02:17:07+00:00"
         },
         {
             "name": "brick/math",

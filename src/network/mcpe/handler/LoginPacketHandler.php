@@ -68,10 +68,10 @@ class LoginPacketHandler extends PacketHandler{
 	 * @phpstan-param \Closure(bool $isAuthenticated, bool $authRequired, Translatable|string|null $error, ?string $clientPubKey) : void $authCallback
 	 */
 	public function __construct(
-		private Server $server,
-		private NetworkSession $session,
-		private \Closure $playerInfoConsumer,
-		private \Closure $authCallback
+		private readonly Server $server,
+		private readonly NetworkSession $session,
+		private readonly \Closure $playerInfoConsumer,
+		private readonly \Closure $authCallback
 	){}
 
 	private static function calculateUuidFromXuid(string $xuid) : UuidInterface{
@@ -146,17 +146,6 @@ class LoginPacketHandler extends PacketHandler{
 		}
 
 		$clientData = $this->parseClientData($packet->clientDataJwt);
-		//TODO: HACK! Remove this check after protocol version 2168.
-		//This is a temporary measure because Mojang made breaking protocol changes in v26.44
-		try{
-			$version = new VersionString($clientData->GameVersion);
-		}catch(\InvalidArgumentException $e){
-			throw PacketHandlingException::wrap($e);
-		}
-		if($version->getPatch() < 44){
-			$this->session->disconnectWithError(KnownTranslationFactory::disconnectionScreen_outdatedClient());
-			return null;
-		}
 
 		try{
 			$skin = $this->session->getTypeConverter()->getSkinAdapter()->fromSkinData(ClientDataToSkinDataHelper::fromClientData($clientData));
