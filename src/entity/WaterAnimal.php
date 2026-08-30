@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use quark\event\entity\EntityDamageEvent;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use quark\event\entity\EntityDamageEvent;
 
 abstract class WaterAnimal extends Living implements Ageable{
 	protected bool $baby = false;

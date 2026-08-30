@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\event\entity;
 
+use pocketmine\math\RayTraceResult;
 use quark\entity\Entity;
 use quark\entity\projectile\Projectile;
-use pocketmine\math\RayTraceResult;
 
 class ProjectileHitEntityEvent extends ProjectileHitEvent{
 	public function __construct(

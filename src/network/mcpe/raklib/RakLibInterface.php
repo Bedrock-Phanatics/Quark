@@ -24,14 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\raklib;
 
 use pmmp\thread\ThreadSafeArray;
+use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\lang\KnownTranslationFactory;
 use quark\network\AdvancedNetworkInterface;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketBroadcaster;
-use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\network\Network;
 use quark\network\NetworkInterfaceStartException;
 use quark\network\PacketHandlingException;

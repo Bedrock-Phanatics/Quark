@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
+use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeGroup;
-use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
 
 final class CreativeInventoryCacheEntry{
 

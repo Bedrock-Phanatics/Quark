@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\RayTraceResult;
+use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\block\Block;
 use quark\block\BlockTypeIds;
 use quark\block\VanillaBlocks;
 use quark\event\entity\ProjectileHitEvent;
 use quark\item\VanillaItems;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\world\particle\ItemBreakParticle;
 use quark\world\sound\IceBombHitSound;
 

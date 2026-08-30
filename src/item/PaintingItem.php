@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\entity\Location;
 use quark\entity\object\Painting;
 use quark\entity\object\PaintingMotive;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\PaintingPlaceSound;
 use function array_rand;

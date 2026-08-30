@@ -24,13 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use pmmp\encoding\ByteBufferWriter;
-use quark\network\mcpe\compression\CompressBatchPromise;
-use quark\network\mcpe\compression\Compressor;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\ChunkPosition;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use quark\network\mcpe\compression\CompressBatchPromise;
+use quark\network\mcpe\compression\Compressor;
+use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\serializer\ChunkSerializer;
 use quark\scheduler\AsyncTask;
 use quark\thread\NonThreadSafeValue;

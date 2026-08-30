@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use quark\item\Item;
-use quark\item\VanillaItems;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use quark\item\Item;
+use quark\item\VanillaItems;
 
 class Villager extends Living implements Ageable{
 	public const PROFESSION_FARMER = 0;

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
+use pocketmine\network\mcpe\protocol\types\skin\SkinData;
 use quark\entity\InvalidSkinException;
 use quark\entity\Skin;
-use pocketmine\network\mcpe\protocol\types\skin\SkinData;
 
 /**
  * Used to convert new skin data to the skin entity or old skin entity to skin data.

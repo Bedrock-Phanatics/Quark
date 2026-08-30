@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\event\player;
 
+use pocketmine\nbt\tag\CompoundTag;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\event\Event;
-use pocketmine\nbt\tag\CompoundTag;
 use quark\player\Player;
 
 /**

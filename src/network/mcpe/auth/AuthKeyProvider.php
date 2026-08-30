@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\auth;
 
+use pocketmine\network\mcpe\protocol\types\login\openid\api\AuthServiceKey;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
-use pocketmine\network\mcpe\protocol\types\login\openid\api\AuthServiceKey;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
 use quark\scheduler\AsyncPool;

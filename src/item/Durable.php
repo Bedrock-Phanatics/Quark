@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use quark\item\enchantment\VanillaEnchantments;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\item\enchantment\VanillaEnchantments;
 use quark\utils\Utils;
 use function min;
 

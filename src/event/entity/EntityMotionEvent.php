@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\event\entity;
 
+use pocketmine\math\Vector3;
 use quark\entity\Entity;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
-use pocketmine\math\Vector3;
 
 /**
  * @phpstan-extends EntityEvent<Entity>

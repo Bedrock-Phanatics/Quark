@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use quark\entity\Entity;
 use pocketmine\math\Vector3;
+use quark\entity\Entity;
 use quark\player\Player;
 
 class NameTag extends Item{

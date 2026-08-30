@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\event\block;
 
+use pocketmine\math\Vector3;
 use quark\block\Piston;
 use quark\block\tile\piston\PistonMovement;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
-use pocketmine\math\Vector3;
 use function array_map;
 
 final class PistonPushBlockEvent extends BlockEvent implements Cancellable{

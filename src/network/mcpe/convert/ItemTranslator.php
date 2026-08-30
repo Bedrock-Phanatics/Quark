@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\data\bedrock\item\BlockItemIdMap;
 use quark\data\bedrock\item\ItemDeserializer;
 use quark\data\bedrock\item\ItemSerializer;
@@ -30,8 +32,6 @@ use quark\data\bedrock\item\ItemTypeDeserializeException;
 use quark\data\bedrock\item\ItemTypeSerializeException;
 use quark\data\bedrock\item\SavedItemData;
 use quark\item\Item;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\utils\AssumptionFailedError;
 
 /**

@@ -23,12 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use quark\crafting\CraftingManager;
-use quark\crafting\FurnaceType;
-use quark\crafting\ShapedRecipe;
-use quark\crafting\ShapelessRecipe;
-use quark\crafting\ShapelessRecipeType;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\network\mcpe\protocol\types\recipe\CraftingRecipeBlockName;
 use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipeBlockName;
@@ -39,6 +33,12 @@ use pocketmine\network\mcpe\protocol\types\recipe\RecipeUnlockingRequirement;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapedRecipe as ProtocolShapedRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapelessRecipe as ProtocolShapelessRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
+use quark\crafting\CraftingManager;
+use quark\crafting\FurnaceType;
+use quark\crafting\ShapedRecipe;
+use quark\crafting\ShapelessRecipe;
+use quark\crafting\ShapelessRecipeType;
+use quark\network\mcpe\convert\TypeConverter;
 use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use quark\utils\SingletonTrait;

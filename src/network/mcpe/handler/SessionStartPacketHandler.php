@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use quark\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
+use quark\network\mcpe\NetworkSession;
 
 final class SessionStartPacketHandler extends PacketHandler{
 

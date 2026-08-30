@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\auth;
 
-use quark\lang\KnownTranslationFactory;
-use quark\network\mcpe\JwtException;
-use quark\network\mcpe\JwtUtils;
 use pocketmine\network\mcpe\protocol\types\login\JwtBodyRfc7519;
 use pocketmine\network\mcpe\protocol\types\login\legacy\LegacyAuthJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\SelfSignedJwtHeader;
+use quark\lang\KnownTranslationFactory;
+use quark\network\mcpe\JwtException;
+use quark\network\mcpe\JwtUtils;
 use function base64_decode;
 use function time;
 

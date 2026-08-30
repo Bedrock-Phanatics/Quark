@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\event\server;
 
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\utils\Utils;
 
 /**

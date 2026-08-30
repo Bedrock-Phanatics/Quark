@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
+use pocketmine\network\mcpe\protocol\CreativeContentPacket;
+use pocketmine\network\mcpe\protocol\types\inventory\CreativeGroupEntry;
+use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeInventory;
 use quark\lang\Translatable;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\protocol\CreativeContentPacket;
-use pocketmine\network\mcpe\protocol\types\inventory\CreativeGroupEntry;
-use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\utils\SingletonTrait;
 use function is_string;
 use function spl_object_id;

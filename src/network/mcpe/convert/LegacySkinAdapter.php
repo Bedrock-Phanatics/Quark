@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
-use quark\entity\InvalidSkinException;
-use quark\entity\Skin;
 use pocketmine\network\mcpe\protocol\types\skin\SkinData;
 use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
+use quark\entity\InvalidSkinException;
+use quark\entity\Skin;
 use function is_array;
 use function is_string;
 use function json_decode;

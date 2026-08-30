@@ -23,9 +23,14 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
+use pocketmine\color\Color;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\BlockTypeTags;
 use quark\block\VanillaBlocks;
-use pocketmine\color\Color;
 use quark\data\bedrock\PotionTypeIdMap;
 use quark\entity\effect\EffectInstance;
 use quark\entity\effect\InstantEffect;
@@ -37,11 +42,6 @@ use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
 use quark\item\PotionType;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\world\particle\PotionSplashParticle;
 use quark\world\sound\PotionSplashSound;
 use function count;

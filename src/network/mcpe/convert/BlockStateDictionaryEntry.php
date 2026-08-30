@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
-use quark\data\bedrock\block\BlockStateData;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
+use quark\data\bedrock\block\BlockStateData;
 use quark\utils\Utils;
 use function count;
 use function ksort;

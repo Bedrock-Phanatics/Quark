@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\Vector3;
 use quark\block\Liquid;
 use quark\entity\Living;
-use pocketmine\math\Vector3;
 use quark\world\sound\EndermanTeleportSound;
 use function min;
 use function mt_rand;

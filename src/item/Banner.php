@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
 use quark\block\tile\Banner as TileBanner;
 use quark\block\utils\BannerPatternLayer;
 use quark\block\utils\DyeColor;
 use quark\data\bedrock\BannerPatternTypeIdMap;
 use quark\data\bedrock\DyeColorIdMap;
 use quark\data\runtime\RuntimeDataDescriber;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ListTag;
 use function count;
 
 class Banner extends ItemBlockWallOrFloor{

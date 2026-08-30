@@ -19,7 +19,7 @@ parameters:
 			path: ../../../src/Server.php
 
 		-
-			message: '#^Method pocketmine\\crafting\\ShapedRecipe\:\:getIngredientMap\(\) should return list\<list\<pocketmine\\crafting\\RecipeIngredient\|null\>\> but returns array\<int\<0, max\>, non\-empty\-array\<int\<0, max\>, pocketmine\\crafting\\RecipeIngredient\|null\>\>\.$#'
+			message: '#^Method quark\\crafting\\ShapedRecipe\:\:getIngredientMap\(\) should return list\<list\<quark\\crafting\\RecipeIngredient\|null\>\> but returns array\<int\<0, max\>, non\-empty\-array\<int\<0, max\>, quark\\crafting\\RecipeIngredient\|null\>\>\.$#'
 			identifier: return.type
 			count: 1
 			path: ../../../src/crafting/ShapedRecipe.php
@@ -31,13 +31,13 @@ parameters:
 			path: ../../../src/crafting/json/ItemStackData.php
 
 		-
-			message: '#^Property pocketmine\\crash\\CrashDumpData\:\:\$parameters \(list\<string\>\) does not accept array\.$#'
+			message: '#^Property quark\\crash\\CrashDumpData\:\:\$parameters \(list\<string\>\) does not accept array\.$#'
 			identifier: assign.propertyType
 			count: 1
 			path: ../../../src/crash/CrashDump.php
 
 		-
-			message: '#^Property pocketmine\\item\\WritableBookBase\:\:\$pages \(list\<pocketmine\\item\\WritableBookPage\>\) does not accept non\-empty\-array\<int, pocketmine\\item\\WritableBookPage\>\.$#'
+			message: '#^Property quark\\item\\WritableBookBase\:\:\$pages \(list\<quark\\item\\WritableBookPage\>\) does not accept non\-empty\-array\<int, quark\\item\\WritableBookPage\>\.$#'
 			identifier: assign.propertyType
 			count: 1
 			path: ../../../src/item/WritableBookBase.php
@@ -49,7 +49,7 @@ parameters:
 			path: ../../../src/network/mcpe/cache/CraftingDataCache.php
 
 		-
-			message: '#^Parameter \#1 \$states of class pocketmine\\network\\mcpe\\convert\\BlockStateDictionary constructor expects list\<pocketmine\\network\\mcpe\\convert\\BlockStateDictionaryEntry\>, array\<int\<0, max\>, pocketmine\\network\\mcpe\\convert\\BlockStateDictionaryEntry\> given\.$#'
+			message: '#^Parameter \#1 \$states of class quark\\network\\mcpe\\convert\\BlockStateDictionary constructor expects list\<quark\\network\\mcpe\\convert\\BlockStateDictionaryEntry\>, array\<int\<0, max\>, quark\\network\\mcpe\\convert\\BlockStateDictionaryEntry\> given\.$#'
 			identifier: argument.type
 			count: 1
 			path: ../../../src/network/mcpe/convert/BlockStateDictionary.php
@@ -79,13 +79,13 @@ parameters:
 			path: ../../../src/thread/ThreadSafeClassLoader.php
 
 		-
-			message: '#^Method pocketmine\\timings\\TimingsHandler\:\:lazyGetSet\(\) should return pocketmine\\utils\\ObjectSet\<T of object\> but returns pocketmine\\utils\\ObjectSet\<object\>\.$#'
+			message: '#^Method quark\\timings\\TimingsHandler\:\:lazyGetSet\(\) should return quark\\utils\\ObjectSet\<T of object\> but returns quark\\utils\\ObjectSet\<object\>\.$#'
 			identifier: return.type
 			count: 1
 			path: ../../../src/timings/TimingsHandler.php
 
 		-
-			message: '#^Parameter &\$where @param\-out type of method pocketmine\\timings\\TimingsHandler\:\:lazyGetSet\(\) expects pocketmine\\utils\\ObjectSet\<T of object\>, pocketmine\\utils\\ObjectSet\<object\> given\.$#'
+			message: '#^Parameter &\$where @param\-out type of method quark\\timings\\TimingsHandler\:\:lazyGetSet\(\) expects quark\\utils\\ObjectSet\<T of object\>, quark\\utils\\ObjectSet\<object\> given\.$#'
 			identifier: paramOut.type
 			count: 1
 			path: ../../../src/timings/TimingsHandler.php
@@ -109,19 +109,19 @@ parameters:
 			path: ../../../src/utils/Timezone.php
 
 		-
-			message: '#^Property pocketmine\\world\\format\\io\\region\\RegionLoader\:\:\$locationTable \(list\<pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\) does not accept non\-empty\-array\<int, pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\.$#'
+			message: '#^Property quark\\world\\format\\io\\region\\RegionLoader\:\:\$locationTable \(list\<quark\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\) does not accept non\-empty\-array\<int, quark\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\.$#'
 			identifier: assign.propertyType
 			count: 2
 			path: ../../../src/world/format/io/region/RegionLoader.php
 
 		-
-			message: '#^Property pocketmine\\world\\format\\io\\region\\RegionLoader\:\:\$locationTable \(list\<pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\) does not accept non\-empty\-array\<int\<0, max\>, pocketmine\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\.$#'
+			message: '#^Property quark\\world\\format\\io\\region\\RegionLoader\:\:\$locationTable \(list\<quark\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\) does not accept non\-empty\-array\<int\<0, max\>, quark\\world\\format\\io\\region\\RegionLocationTableEntry\|null\>\.$#'
 			identifier: assign.propertyType
 			count: 3
 			path: ../../../src/world/format/io/region/RegionLoader.php
 
 		-
-			message: '#^Method pocketmine\\world\\format\\io\\region\\RegionWorldProvider\:\:createRegionIterator\(\) should return RegexIterator\<mixed, string, FilesystemIterator\> but returns RegexIterator\<mixed, mixed, Traversable\<TKey, TValue\>\>\.$#'
+			message: '#^Method quark\\world\\format\\io\\region\\RegionWorldProvider\:\:createRegionIterator\(\) should return RegexIterator\<mixed, string, FilesystemIterator\> but returns RegexIterator\<mixed, mixed, Traversable\<TKey, TValue\>\>\.$#'
 			identifier: return.type
 			count: 1
 			path: ../../../src/world/format/io/region/RegionWorldProvider.php

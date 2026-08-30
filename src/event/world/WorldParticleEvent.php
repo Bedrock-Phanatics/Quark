@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\event\world;
 
+use pocketmine\math\Vector3;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\particle\Particle;
 use quark\world\World;

@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use pocketmine\network\mcpe\protocol\types\entity\MetadataProperty;
 use quark\entity\Attribute;
 use quark\entity\effect\EffectInstance;
 use quark\entity\Entity;
 use quark\entity\Human;
 use quark\entity\Living;
-use pocketmine\network\mcpe\protocol\types\entity\MetadataProperty;
 
 /**
  * This class allows broadcasting entity events to many viewers on the server network.

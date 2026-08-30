@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\BlockTypeIds;
 use quark\entity\Location;
 use quark\entity\object\EndCrystal as EntityEndCrystal;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use function count;
 

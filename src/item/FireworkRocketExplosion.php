@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use quark\block\utils\DyeColor;
 use pocketmine\color\Color;
+use pocketmine\nbt\tag\CompoundTag;
+use quark\block\utils\DyeColor;
 use quark\data\bedrock\DyeColorIdMap;
 use quark\data\bedrock\FireworkRocketTypeIdMap;
 use quark\data\SavedDataLoadingException;
-use pocketmine\nbt\tag\CompoundTag;
 use quark\utils\Utils;
 use function array_key_first;
 use function chr;

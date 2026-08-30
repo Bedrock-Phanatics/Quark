@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\event\entity\ProjectileHitEvent;
 use quark\item\VanillaItems;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\world\particle\ItemBreakParticle;
 
 class Egg extends Throwable{

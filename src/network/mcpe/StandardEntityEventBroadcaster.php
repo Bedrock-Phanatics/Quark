@@ -23,13 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use quark\data\bedrock\EffectIdMap;
-use quark\entity\Attribute;
-use quark\entity\effect\EffectInstance;
-use quark\entity\Entity;
-use quark\entity\Human;
-use quark\entity\Living;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\EmotePacket;
 use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
@@ -44,6 +37,13 @@ use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
+use quark\data\bedrock\EffectIdMap;
+use quark\entity\Attribute;
+use quark\entity\effect\EffectInstance;
+use quark\entity\Entity;
+use quark\entity\Human;
+use quark\entity\Living;
+use quark\network\mcpe\convert\TypeConverter;
 use function array_map;
 use function count;
 use function ksort;

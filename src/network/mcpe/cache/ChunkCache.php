@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\network\mcpe\cache;
 
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\ChunkRequestTask;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\Compressor;
-use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\world\ChunkListener;
 use quark\world\ChunkListenerNoOpTrait;
 use quark\world\format\Chunk;

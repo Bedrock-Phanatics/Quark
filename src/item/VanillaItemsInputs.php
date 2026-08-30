@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\Vector3;
 use quark\block\utils\RecordType;
 use quark\block\VanillaBlocks as Blocks;
 use quark\entity\Entity;
@@ -34,7 +35,6 @@ use quark\inventory\ArmorInventory;
 use quark\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
 use quark\item\ItemIdentifier as IID;
 use quark\item\VanillaArmorMaterials as ArmorMaterials;
-use pocketmine\math\Vector3;
 use quark\utils\RegistrySource;
 use quark\world\World;
 use function is_int;

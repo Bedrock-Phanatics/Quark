@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\Vector3;
 use quark\entity\Location;
 use quark\entity\projectile\Throwable;
 use quark\event\entity\ProjectileLaunchEvent;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\ThrowSound;
 

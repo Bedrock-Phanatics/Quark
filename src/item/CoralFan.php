@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\utils\CoralTypeTrait;
 use quark\block\VanillaBlocks;
 use quark\data\runtime\RuntimeDataDescriber;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
 
 final class CoralFan extends Item{
 	use CoralTypeTrait {

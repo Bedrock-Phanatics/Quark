@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use quark\lang\Translatable;
-use quark\network\mcpe\InventoryManager;
-use quark\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\DeathInfoPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
 use pocketmine\network\mcpe\protocol\RespawnPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
+use quark\lang\Translatable;
+use quark\network\mcpe\InventoryManager;
+use quark\network\mcpe\NetworkSession;
 use quark\player\Player;
 
 class DeathPacketHandler extends PacketHandler{

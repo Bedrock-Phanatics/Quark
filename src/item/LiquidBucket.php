@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\Lava;
 use quark\block\Liquid;
 use quark\event\player\PlayerBucketEmptyEvent;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 class LiquidBucket extends Item{

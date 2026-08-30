@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
-use quark\event\entity\ProjectileHitEvent;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use quark\event\entity\ProjectileHitEvent;
 use quark\world\particle\SnowballPoofParticle;
 
 class Snowball extends Throwable{

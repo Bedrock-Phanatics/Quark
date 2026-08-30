@@ -23,6 +23,12 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
+use pocketmine\math\RayTraceResult;
+use pocketmine\math\Vector3;
+use pocketmine\math\VoxelRayTrace;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\ListTag;
 use quark\block\Block;
 use quark\data\SavedDataLoadingException;
 use quark\entity\Entity;
@@ -36,12 +42,6 @@ use quark\event\entity\EntityDamageEvent;
 use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
-use pocketmine\math\VoxelRayTrace;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\IntTag;
-use pocketmine\nbt\tag\ListTag;
 use quark\player\Player;
 use quark\timings\Timings;
 use function atan2;

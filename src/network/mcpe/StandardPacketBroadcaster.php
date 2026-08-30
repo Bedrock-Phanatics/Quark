@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use pmmp\encoding\ByteBufferWriter;
-use quark\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
+use quark\event\server\DataPacketSendEvent;
 use quark\Server;
 use quark\timings\Timings;
 use function count;

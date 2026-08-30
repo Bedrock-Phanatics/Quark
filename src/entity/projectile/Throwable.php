@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
+use pocketmine\math\RayTraceResult;
 use quark\block\Block;
 use quark\entity\EntitySizeInfo;
-use pocketmine\math\RayTraceResult;
 
 abstract class Throwable extends Projectile{
 

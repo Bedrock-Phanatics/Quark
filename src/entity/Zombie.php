@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use function mt_rand;
 
 class Zombie extends Living{

@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\event\block;
 
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
-use pocketmine\math\Vector3;
 use quark\utils\Utils;
 
 class BlockTeleportEvent extends BlockEvent implements Cancellable{

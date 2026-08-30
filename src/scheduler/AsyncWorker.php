@@ -24,9 +24,9 @@ declare(strict_types=1);
 namespace quark\scheduler;
 
 use pmmp\thread\Thread as NativeThread;
-use quark\GarbageCollectorManager;
 use pocketmine\snooze\SleeperHandlerEntry;
 use pocketmine\snooze\SleeperNotifier;
+use quark\GarbageCollectorManager;
 use quark\thread\log\ThreadSafeLogger;
 use quark\thread\Worker;
 use quark\timings\Timings;

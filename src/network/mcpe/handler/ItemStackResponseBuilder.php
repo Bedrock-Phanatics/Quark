@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use quark\inventory\Inventory;
-use quark\item\Durable;
-use quark\network\mcpe\InventoryManager;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseContainerInfo;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseSlotInfo;
+use quark\inventory\Inventory;
+use quark\item\Durable;
+use quark\network\mcpe\InventoryManager;
 use quark\utils\AssumptionFailedError;
 
 final class ItemStackResponseBuilder{
