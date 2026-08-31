@@ -31,7 +31,7 @@ use function str_repeat;
 
 final class VersionInfo{
 	public const string NAME = "Quark";
-	public const string BASE_VERSION = "5.47.0";
+	public const string BASE_VERSION = "5.48.0";
 	public const bool IS_DEVELOPMENT_BUILD = false;
 	public const string BUILD_CHANNEL = "stable";
 	public const string GITHUB_URL = "https://github.com/Bedrock-Phanatics/Quark";
