@@ -2,6 +2,10 @@
 
 Quark is a performance-focused Minecraft: Bedrock Edition server derived from PocketMine-MP and Axolotl. It keeps the PocketMine plugin model where practical while reducing overhead in frequently executed code paths.
 
+<p align="center">
+    Join our <a href="https://discord.gg/Yv9qPRQNc3">Discord</a>!
+</p>
+
 > [!IMPORTANT]
 > Quark currently supports **64-bit PHP 8.4 only** for production use. PHP 8.5 is exercised in CI for forward compatibility, but is not yet a supported production runtime.
 
