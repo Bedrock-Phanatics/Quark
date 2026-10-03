@@ -1,9 +1,10 @@
-# Quark 6.0.0
+# Quark 6.0.0 (development)
 
-Quark 6.0.0 is the first release under the Quark identity. It is based on PocketMine-MP 5.47.0 and introduces a new namespace, performance-oriented networking, native redstone, TNT safeguards, configuration controls, and intentional API changes.
+Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolotl-PM 5.49.2 development code and introduces a new namespace, performance-oriented networking, native redstone, TNT safeguards, configuration controls, and intentional API changes.
 
 ## Highlights
 
+- Synced upstream changes through October 1, 2026, including Bedrock 1.26.50 support, sulfur and heavy core blocks, a void generator, translation corrections, and the dragon egg world-boundary fix.
 - Rebranded the server, executable, configuration, packages, namespaces, tooling, and services as Quark.
 - Added native redstone simulation with configurable world policies and per-tick safety limits.
 - Added optional Snappy packet compression with automatic zlib fallback.

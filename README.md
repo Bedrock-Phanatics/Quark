@@ -10,6 +10,10 @@
 
 Quark is built for servers where tick stability and responsive combat matter equally. It keeps expensive work bounded, removes avoidable hot-path overhead, and prioritizes latency-sensitive PvP feedback without changing Minecraft's combat rules. Quark 6 also introduces native redstone, bounded TNT processing, optional Snappy network compression, and an independent API namespace.
 
+<p align="center">
+    Join our <a href="https://discord.gg/Yv9qPRQNc3">Discord</a>!
+</p>
+
 > [!IMPORTANT]
 > Quark 6 requires **64-bit PHP 8.4** and Quark-compatible native extensions. It is a breaking release and does not load PocketMine-MP plugins without migration.
 

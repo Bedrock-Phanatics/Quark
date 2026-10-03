@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
 use quark\entity\Living;
@@ -58,7 +59,7 @@ class Farmland extends Transparent{
 	 * will be recorded if water is found, otherwise it will be set to unknown and future searches will search the full
 	 * 9x2x9 volume again.
 	 *
-	 * This property is not exposed to the API or saved on disk. It is only used by Quark at runtime as a cache.
+	 * This property is not exposed to the API or saved on disk. It is only used by PocketMine-MP at runtime as a cache.
 	 */
 	private int $waterPositionIndex = self::WATER_POSITION_INDEX_UNKNOWN;
 
@@ -96,6 +97,13 @@ class Farmland extends Transparent{
 
 	protected function recalculateCollisionBoxes() : array{
 		return [AxisAlignedBB::one()->trim(Facing::UP, 1 / 16)];
+	}
+
+	public function getSupportType(int $facing) : SupportType{
+		return match($facing){
+			Facing::DOWN => SupportType::FULL,
+			default => SupportType::NONE,
+		};
 	}
 
 	public function onNearbyBlockChange() : void{
