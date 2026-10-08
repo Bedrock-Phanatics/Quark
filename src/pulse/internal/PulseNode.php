@@ -37,6 +37,11 @@ final class PulseNode{
 	public int $started = 0;
 	public int $childTime = 0;
 	public int $scope = 0;
+	public int $activeTicks = 0;
+	public int $lastTick = 0;
+	public int $tickCalls = 0;
+	public int $tickTotal = 0;
+	public int $tickSelf = 0;
 
 	public function __construct(
 		public readonly int $id,
@@ -46,5 +51,6 @@ final class PulseNode{
 
 	public function reset() : void{
 		$this->calls = $this->total = $this->self = $this->max = 0;
+		$this->activeTicks = $this->lastTick = 0;
 	}
 }

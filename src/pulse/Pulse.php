@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\pulse;
 
 use quark\pulse\internal\PulseContext;
+use function hrtime;
 
 final class Pulse{
 	// pmmpthread statics are thread-local.
@@ -34,8 +35,11 @@ final class Pulse{
 		return (self::$context ??= new PulseContext())->zone($name);
 	}
 
-	public static function start(string $threadName = "main") : PulseSession{
-		$session = new PulseSession(self::$context ??= new PulseContext(), $threadName);
+	public static function start(string $threadName = "main", int $durationNs = 0, int $spikeThresholdNs = 0, int $maxSpikes = 32) : PulseSession{
+		if(self::$session !== null && !self::$session->isRecording()){
+			self::$session->stop();
+		}
+		$session = new PulseSession(self::$context ??= new PulseContext(), $threadName, $durationNs, $spikeThresholdNs, $maxSpikes);
 		return self::$session = $session;
 	}
 
@@ -49,5 +53,35 @@ final class Pulse{
 
 	public static function getSession() : ?PulseSession{
 		return self::$session;
+	}
+
+	public static function beginTick() : void{
+		$context = self::$context;
+		if($context !== null && $context->recording){
+			$context->beginTick((int) hrtime(true));
+			self::finishExpiredSession();
+		}
+	}
+
+	public static function endTick() : void{
+		$context = self::$context;
+		if($context !== null && $context->recording){
+			$context->endTick((int) hrtime(true));
+			self::finishExpiredSession();
+		}
+	}
+
+	public static function checkDuration() : void{
+		$context = self::$context;
+		if($context !== null && $context->recording){
+			$context->checkDuration((int) hrtime(true));
+			self::finishExpiredSession();
+		}
+	}
+
+	private static function finishExpiredSession() : void{
+		if(!(self::$context->recording ?? false)){
+			self::$session?->stop();
+		}
 	}
 }

@@ -34,12 +34,12 @@ final class PulseSession{
 	private ?array $capture = null;
 
 	/** @internal */
-	public function __construct(private readonly PulseContext $context, string $threadName){
-		$this->context->start($threadName, hrtime(true));
+	public function __construct(private readonly PulseContext $context, string $threadName, int $durationNs = 0, int $spikeThresholdNs = 0, int $maxSpikes = 32){
+		$this->context->start($threadName, hrtime(true), $durationNs, $spikeThresholdNs, $maxSpikes);
 	}
 
 	public function isRecording() : bool{
-		return $this->capture === null;
+		return $this->capture === null && $this->context->recording;
 	}
 
 	public function stop() : void{
@@ -51,6 +51,14 @@ final class PulseSession{
 
 	/** @return Capture */
 	public function getCapture() : array{
+		if(!$this->context->recording){
+			$this->stop();
+		}
 		return $this->capture ?? $this->context->capture();
+	}
+
+	/** @param array<string, mixed> $metadata */
+	public function getReport(array $metadata = []) : PulseReport{
+		return PulseReport::create([$this->getCapture()], $metadata);
 	}
 }

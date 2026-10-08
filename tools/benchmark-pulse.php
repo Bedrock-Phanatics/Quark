@@ -22,6 +22,7 @@
 declare(strict_types=1);
 
 use quark\pulse\Pulse;
+use quark\pulse\PulseReport;
 use quark\timings\TimingsHandler;
 use quark\utils\Utils;
 
@@ -122,4 +123,43 @@ benchmarkPulse(["Pulse capture (258 nodes)" => static function(int $n) use ($ses
 	}
 }], 1000);
 Pulse::stop();
-echo "Worker and .qpulse report benchmarks require the later integration/report batches.\n";
+
+$tick = static function(int $n) use ($single) : void{
+	for($i = 0; $i < $n; ++$i){
+		Pulse::beginTick();
+		$single(8);
+		Pulse::endTick();
+	}
+};
+Pulse::start();
+benchmarkPulse(["Pulse tick (8 pairs)" => $tick], 20000);
+Pulse::stop();
+Pulse::start(spikeThresholdNs: 60000000000);
+benchmarkPulse(["Spike mode below threshold" => $tick], 20000);
+Pulse::stop();
+$session = Pulse::start(spikeThresholdNs: 1);
+benchmarkPulse(["Retained spike (8 pairs)" => $tick], 20000);
+Pulse::stop();
+
+$capture = $session->getCapture();
+$report = $session->getReport();
+$json = $report->encode();
+printf("Report: %d bytes, %d nodes, %d ticks, %d spikes\n", strlen($json), count($capture["nodes"]), count($capture["ticks"]), count($capture["spikes"]));
+benchmarkPulse([
+	"Pulse report creation" => static function(int $n) use ($capture) : void{
+		for($i = 0; $i < $n; ++$i){
+			PulseReport::create([$capture]);
+		}
+	},
+	"Pulse report encoding" => static function(int $n) use ($report) : void{
+		for($i = 0; $i < $n; ++$i){
+			$report->encode();
+		}
+	},
+	"Pulse report decoding" => static function(int $n) use ($json) : void{
+		for($i = 0; $i < $n; ++$i){
+			PulseReport::decode($json);
+		}
+	}
+], 100);
+echo "Worker benchmarks require the integration batch and pmmpthread.\n";
