@@ -20,6 +20,9 @@ server.lock
 /docker/test_data/
 tests/*
 !tests/build-plugin-phar.php
+!tests/phpunit/
+tests/phpunit/*
+!tests/phpunit/pulse/
 
 # Common IDEs
 .idea/*
