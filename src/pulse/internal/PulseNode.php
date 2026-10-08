@@ -33,6 +33,10 @@ final class PulseNode{
 	public int $total = 0;
 	public int $self = 0;
 	public int $max = 0;
+	// Each parent path has its own node, including recursive calls.
+	public int $started = 0;
+	public int $childTime = 0;
+	public int $scope = 0;
 
 	public function __construct(
 		public readonly int $id,

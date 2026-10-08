@@ -23,24 +23,34 @@ declare(strict_types=1);
 
 use quark\pulse\Pulse;
 use quark\timings\TimingsHandler;
+use quark\utils\Utils;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
 /**
- * @param Closure(int) : void $work
+ * @param array<string, Closure(int) : void> $workloads
  */
-function benchmarkPulse(string $name, int $iterations, Closure $work) : void{
-	$work(1000);
-	$samples = array_fill(0, 7, 0.0);
-	$before = memory_get_usage();
-	for($round = 0; $round < 7; ++$round){
-		$started = hrtime(true);
-		$work($iterations);
-		$samples[$round] = (hrtime(true) - $started) / $iterations;
+function benchmarkPulse(array $workloads, int $iterations) : void{
+	$samples = [];
+	$growth = [];
+	foreach(Utils::stringifyKeys($workloads) as $name => $work){
+		$work(min(10000, $iterations));
+		$samples[$name] = array_fill(0, 9, 0.0);
 	}
-	$growth = memory_get_usage() - $before;
-	sort($samples, SORT_NUMERIC);
-	printf("%-24s %9.1f ns/op  retained delta: %d B\n", $name, $samples[3], $growth);
+	for($round = 0; $round < 9; ++$round){
+		foreach(Utils::stringifyKeys($round % 2 === 0 ? $workloads : array_reverse($workloads, true)) as $name => $work){
+			$before = memory_get_usage();
+			$started = hrtime(true);
+			$work($iterations);
+			$elapsed = (hrtime(true) - $started) / $iterations;
+			$growth[$name] = memory_get_usage() - $before;
+			$samples[$name][$round] = $elapsed;
+		}
+	}
+	foreach(Utils::stringifyKeys($samples) as $name => $values){
+		sort($values, SORT_NUMERIC);
+		printf("%-26s %8.1f ns/op (%8.1f-%8.1f) retained: %d B; %d iterations\n", $name, $values[4], $values[0], $values[8], $growth[$name], $iterations);
+	}
 }
 
 $zone = Pulse::zone("benchmark.zone");
@@ -60,21 +70,6 @@ $nested = static function(int $n) use ($zone, $child) : void{
 	}
 };
 
-printf("PHP %s; %s; JIT=%s; median of 7 rounds, 200000 iterations\n", PHP_VERSION, PHP_OS_FAMILY, ini_get("opcache.jit"));
-benchmarkPulse("empty loop", 200000, static function(int $n) : void{
-	for($i = 0; $i < $n; ++$i){}
-});
-benchmarkPulse("Pulse disabled pair", 200000, $single);
-$session = Pulse::start();
-benchmarkPulse("Pulse repeated pair", 200000, $single);
-benchmarkPulse("Pulse nested (2 pairs)", 200000, $nested);
-benchmarkPulse("Pulse capture (2 nodes)", 10000, static function(int $n) use ($session) : void{
-	for($i = 0; $i < $n; ++$i){
-		$session->getCapture();
-	}
-});
-Pulse::stop();
-
 $legacy = new TimingsHandler("benchmark.legacy");
 $legacyChild = new TimingsHandler("benchmark.legacy.child");
 $legacySingle = static function(int $n) use ($legacy) : void{
@@ -83,16 +78,48 @@ $legacySingle = static function(int $n) use ($legacy) : void{
 		$legacy->stopTiming();
 	}
 };
-benchmarkPulse("Timings disabled pair", 200000, $legacySingle);
-TimingsHandler::setEnabled(true);
-benchmarkPulse("Timings repeated pair", 200000, $legacySingle);
-benchmarkPulse("Timings nested (2 pairs)", 200000, static function(int $n) use ($legacy, $legacyChild) : void{
+$legacyNested = static function(int $n) use ($legacy, $legacyChild) : void{
 	for($i = 0; $i < $n; ++$i){
 		$legacy->startTiming();
 		$legacyChild->startTiming();
 		$legacyChild->stopTiming();
 		$legacy->stopTiming();
 	}
-});
+};
+
+printf("PHP %s; %s; OPcache CLI=%s; JIT=%s; median (min-max), 9 alternating rounds\n", PHP_VERSION, PHP_OS_FAMILY, ini_get("opcache.enable_cli"), ini_get("opcache.jit"));
+benchmarkPulse([
+	"empty loop" => static function(int $n) : void{
+		for($i = 0; $i < $n; ++$i){}
+	},
+	"Pulse disabled pair" => $single,
+	"Timings disabled pair" => $legacySingle
+], 200000);
+$session = Pulse::start();
+TimingsHandler::setEnabled(true);
+benchmarkPulse([
+	"Pulse repeated pair" => $single,
+	"Timings repeated pair" => $legacySingle,
+	"Pulse nested (2 pairs)" => $nested,
+	"Timings nested (2 pairs)" => $legacyNested
+], 200000);
 TimingsHandler::setEnabled(false);
+
+$zones = [];
+for($i = 0; $i < 256; ++$i){
+	$zones[] = Pulse::zone("benchmark.zone.$i");
+}
+benchmarkPulse(["Pulse rotating 256 zones" => static function(int $n) use ($zones) : void{
+	for($i = 0; $i < $n; ++$i){
+		$zone = $zones[$i & 255];
+		$scope = $zone->start();
+		$zone->stop($scope);
+	}
+}], 200000);
+benchmarkPulse(["Pulse capture (258 nodes)" => static function(int $n) use ($session) : void{
+	for($i = 0; $i < $n; ++$i){
+		$session->getCapture();
+	}
+}], 1000);
+Pulse::stop();
 echo "Worker and .qpulse report benchmarks require the later integration/report batches.\n";

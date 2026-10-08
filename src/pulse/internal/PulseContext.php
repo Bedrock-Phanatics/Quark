@@ -24,10 +24,8 @@ declare(strict_types=1);
 namespace quark\pulse\internal;
 
 use quark\pulse\PulseZone;
-use function array_fill;
 use function count;
 use function hrtime;
-use function max;
 use function preg_match;
 use function strlen;
 
@@ -44,14 +42,7 @@ final class PulseContext{
 	private array $names = [];
 	/** @var list<PulseNode> */
 	private array $nodes;
-	/** @var array<int, PulseNode> */
-	private array $frames;
-	/** @var array<int, int> */
-	private array $starts;
-	/** @var array<int, int> */
-	private array $children;
-	/** @var array<int, int> */
-	private array $scopes;
+	private PulseNode $current;
 	private int $depth = 0;
 	private int $sequence = 0;
 	private int $firstScope = 1;
@@ -71,8 +62,7 @@ final class PulseContext{
 		}
 		$root = new PulseNode(0, -1, 0);
 		$this->nodes = [$root];
-		$this->frames = array_fill(0, $maxDepth, $root);
-		$this->starts = $this->children = $this->scopes = array_fill(0, $maxDepth, 0);
+		$this->current = $root;
 	}
 
 	public function zone(string $name) : PulseZone{
@@ -101,6 +91,7 @@ final class PulseContext{
 			$node->reset();
 		}
 		$this->threadName = $threadName;
+		$this->current = $this->nodes[0];
 		$this->depth = $this->unbalanced = $this->dropped = $this->ended = 0;
 		$this->firstScope = $this->sequence + 1;
 		$this->started = $now;
@@ -115,7 +106,7 @@ final class PulseContext{
 			++$this->dropped;
 			return 0;
 		}
-		$parent = $this->depth === 0 ? $this->nodes[0] : $this->frames[$this->depth - 1];
+		$parent = $this->current;
 		$node = $parent->children[$zone] ?? null;
 		if($node === null){
 			if(count($this->nodes) - 1 >= $this->maxNodes){
@@ -126,11 +117,11 @@ final class PulseContext{
 			$node = new PulseNode($id, $zone, $parent->id);
 			$this->nodes[] = $parent->children[$zone] = $node;
 		}
-		$depth = $this->depth++;
-		$this->frames[$depth] = $node;
-		$this->starts[$depth] = $now;
-		$this->children[$depth] = 0;
-		return $this->scopes[$depth] = ++$this->sequence;
+		++$this->depth;
+		$this->current = $node;
+		$node->started = $now;
+		$node->childTime = 0;
+		return $node->scope = ++$this->sequence;
 	}
 
 	public function end(int $zone, int $scope, int $now) : void{
@@ -138,18 +129,16 @@ final class PulseContext{
 		if(!$this->recording || $scope < $this->firstScope){
 			return;
 		}
-		$depth = $this->depth - 1;
-		if($depth < 0 || $this->scopes[$depth] !== $scope || $this->frames[$depth]->zone !== $zone){
-			for(; $depth >= 0; --$depth){
-				if($this->scopes[$depth] === $scope && $this->frames[$depth]->zone === $zone){
-					break;
-				}
+		$node = $this->current;
+		if($node->scope !== $scope || $node->zone !== $zone){
+			while($node->id !== 0 && ($node->scope !== $scope || $node->zone !== $zone)){
+				$node = $this->nodes[$node->parent];
 			}
-			if($depth < 0){
+			if($node->id === 0){
 				++$this->unbalanced;
 				return;
 			}
-			while($this->depth - 1 > $depth){
+			while($this->current !== $node){
 				++$this->unbalanced;
 				$this->close($now);
 			}
@@ -158,15 +147,22 @@ final class PulseContext{
 	}
 
 	private function close(int $now) : void{
-		$depth = --$this->depth;
-		$node = $this->frames[$depth];
-		$elapsed = max(0, $now - $this->starts[$depth]);
+		--$this->depth;
+		$node = $this->current;
+		$this->current = $this->nodes[$node->parent];
+		$elapsed = $now - $node->started;
+		if($elapsed < 0){
+			$elapsed = 0;
+		}
+		$self = $elapsed - $node->childTime;
 		++$node->calls;
 		$node->total += $elapsed;
-		$node->self += max(0, $elapsed - $this->children[$depth]);
-		$node->max = max($node->max, $elapsed);
-		if($depth > 0){
-			$this->children[$depth - 1] += $elapsed;
+		$node->self += $self > 0 ? $self : 0;
+		if($elapsed > $node->max){
+			$node->max = $elapsed;
+		}
+		if($this->depth > 0){
+			$this->current->childTime += $elapsed;
 		}
 	}
 

@@ -26,6 +26,7 @@ namespace quark\pulse;
 use PHPUnit\Framework\TestCase;
 use quark\pulse\internal\PulseContext;
 use function array_column;
+use function array_fill;
 use function memory_get_usage;
 use function str_repeat;
 
@@ -276,5 +277,53 @@ final class PulseTest extends TestCase{
 		}
 		self::assertSame($before, memory_get_usage());
 		self::assertCount(1, $context->capture()["nodes"]);
+	}
+
+	public function testFullDepthRecursiveFramesCanBeReused() : void{
+		$context = new PulseContext();
+		$zone = $context->zone("recursive")->getId();
+		$scopes = array_fill(0, 256, 0);
+		$context->start("main", 0);
+		for($round = 0; $round < 2; ++$round){
+			for($depth = 0; $depth < 256; ++$depth){
+				$scopes[$depth] = $context->begin($zone, $depth);
+			}
+			self::assertSame(0, $context->begin($zone, 256));
+			for($depth = 255; $depth >= 0; --$depth){
+				$context->end($zone, $scopes[$depth], 512 - $depth);
+			}
+		}
+		$rows = $context->capture()["nodes"];
+		self::assertCount(256, $rows);
+		self::assertSame([1, $zone, 0, 2, 1024, 4, 512], $rows[0]);
+		self::assertSame([256, $zone, 255, 2, 4, 4, 2], $rows[255]);
+		self::assertSame(2, $context->capture()["dropped_scopes"]);
+		self::assertSame(0, $context->capture()["unbalanced_scopes"]);
+	}
+
+	public function testAccountingClampsNegativeElapsedAndSelfTime() : void{
+		$context = new PulseContext();
+		$zone = $context->zone("clamped")->getId();
+		$context->start("main", 0);
+		$scope = $context->begin($zone, 10);
+		$context->end($zone, $scope, 5);
+		$outer = $context->begin($zone, 100);
+		$inner = $context->begin($zone, 110);
+		$context->end($zone, $inner, 150);
+		$context->end($zone, $outer, 120);
+		self::assertSame([[1, $zone, 0, 2, 20, 0, 20], [2, $zone, 1, 1, 40, 40, 40]], $context->capture()["nodes"]);
+	}
+
+	public function testCompletedTokenCannotCloseAReusedNode() : void{
+		$context = new PulseContext();
+		$zone = $context->zone("reused")->getId();
+		$context->start("main", 0);
+		$old = $context->begin($zone, 0);
+		$context->end($zone, $old, 20);
+		$current = $context->begin($zone, 30);
+		$context->end($zone, $old, 40);
+		$context->end($zone, $current, 60);
+		self::assertSame([[1, $zone, 0, 2, 50, 50, 30]], $context->capture()["nodes"]);
+		self::assertSame(1, $context->capture()["unbalanced_scopes"]);
 	}
 }
