@@ -25,8 +25,10 @@ namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
 use quark\pulse\internal\PulseContext;
+use function gzencode;
 use function str_repeat;
 use function str_replace;
+use function strlen;
 use function substr;
 
 final class PulseReportTest extends TestCase{
@@ -50,6 +52,43 @@ final class PulseReportTest extends TestCase{
 		self::assertSame("ns", $data["time_unit"]);
 		self::assertSame([["name" => "SkyWars", "version" => "1.0"]], $data["metadata"]["plugins"]);
 		self::assertSame(["Lobby"], $data["metadata"]["worlds"]);
+	}
+
+	public function testCompressedAndPlainReportsDecodeToIdenticalData() : void{
+		$report = $this->report();
+		$json = $report->encode();
+		$gzip = $report->encode(true);
+		self::assertStringStartsWith("\x1f\x8b", $gzip);
+		self::assertLessThan(strlen($json), strlen($gzip));
+		self::assertSame($report->getData(), PulseReport::decode($gzip)->getData());
+		self::assertSame($report->getData(), PulseReport::decode($json)->getData());
+	}
+
+	public function testTruncatedCorruptAndInvalidCompressedReportsAreRejected() : void{
+		$gzip = $this->report()->encode(true);
+		$corrupt = $gzip;
+		$corrupt[strlen($corrupt) - 8] = $corrupt[strlen($corrupt) - 8] ^ "\xff";
+		$invalidJson = gzencode('{"invalid":true}', 1);
+		self::assertIsString($invalidJson);
+		foreach(["\x1f\x8b", substr($gzip, 0, -1), $corrupt, $invalidJson, $gzip . "garbage", $gzip . $gzip] as $invalid){
+			try{ PulseReport::decode($invalid); self::fail("Invalid compressed report accepted"); }catch(\InvalidArgumentException){}
+		}
+	}
+
+	public function testCompressedSizeLimitsBoundInflation() : void{
+		$report = $this->report();
+		$json = $report->encode();
+		$maximum = gzencode($json . str_repeat(" ", PulseReport::MAX_BYTES - strlen($json)), 1);
+		self::assertIsString($maximum);
+		self::assertSame($report->getData(), PulseReport::decode($maximum)->getData());
+		$border = gzencode(str_repeat(" ", PulseReport::MAX_BYTES + 1), 1);
+		self::assertIsString($border);
+		try{ PulseReport::decode($border); self::fail("Oversized decompressed report accepted"); }catch(\LengthException){}
+		$bomb = gzencode(str_repeat(" ", PulseReport::MAX_BYTES * 4), 1);
+		self::assertIsString($bomb);
+		self::assertLessThan(PulseReport::MAX_BYTES, strlen($bomb));
+		$this->expectException(\LengthException::class);
+		PulseReport::decode($bomb);
 	}
 
 	public function testEmptyAndIndependentThreadCapturesAreSupported() : void{

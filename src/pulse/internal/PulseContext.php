@@ -38,10 +38,11 @@ use function strlen;
  * @phpstan-type SpikeRow array{int, int, int, int}
  * @phpstan-type Spike array{tick: TickRow, nodes: list<SpikeRow>}
  * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int}
+ * @phpstan-type Stats array{recording: bool, elapsed_ns: int, duration_ns: int, spike_threshold_ns: int, tick_count: int, tick_total_ns: int, tick_max_ns: int, retained_spikes: int, spikes_dropped: int, dropped_scopes: int, unbalanced_scopes: int, unbalanced_ticks: int}
  */
 final class PulseContext{
 	public const MAX_SPIKE_ROWS = 65536;
-	public bool $recording = false;
+	private(set) bool $recording = false;
 	/** @var array<string, PulseZone> */
 	private array $zones = [];
 	/** @var list<string> */
@@ -305,6 +306,24 @@ final class PulseContext{
 			$this->spikes[] = ["tick" => [$id, $offset, $duration], "nodes" => $rows];
 			$this->spikeRows += count($rows);
 		}
+	}
+
+	/** @return Stats */
+	public function stats() : array{
+		return [
+			"recording" => $this->recording,
+			"elapsed_ns" => ($this->recording ? (int) hrtime(true) : $this->ended) - $this->started,
+			"duration_ns" => $this->duration,
+			"spike_threshold_ns" => $this->spikeThreshold,
+			"tick_count" => $this->tickCount,
+			"tick_total_ns" => $this->tickTotal,
+			"tick_max_ns" => $this->tickMax,
+			"retained_spikes" => count($this->spikes),
+			"spikes_dropped" => $this->spikesDropped,
+			"dropped_scopes" => $this->dropped,
+			"unbalanced_scopes" => $this->unbalanced,
+			"unbalanced_ticks" => $this->unbalancedTicks
+		];
 	}
 
 	/** @return Capture */

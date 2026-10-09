@@ -27,6 +27,7 @@ use PHPUnit\Framework\TestCase;
 use quark\pulse\internal\PulseContext;
 use function array_column;
 use function array_fill;
+use function hrtime;
 use function memory_get_usage;
 use function str_repeat;
 
@@ -156,12 +157,16 @@ final class PulseTest extends TestCase{
 		$zone->stop($scope);
 		Pulse::stop();
 		$capture = $session->getCapture();
+		$stats = $session->getStats();
+		$top = $session->getTopZones();
 		$next = Pulse::start("worker-test");
 		$scope = $zone->start();
 		$zone->stop($scope);
 		$session->stop();
 		self::assertTrue($next->isRecording());
 		self::assertSame($capture, $session->getCapture());
+		self::assertSame($stats, $session->getStats());
+		self::assertSame($top, $session->getTopZones());
 		self::assertSame("worker-test", $next->getCapture()["thread"]);
 	}
 
@@ -325,5 +330,50 @@ final class PulseTest extends TestCase{
 		$context->end($zone, $current, 60);
 		self::assertSame([[1, $zone, 0, 2, 50, 50, 30]], $context->capture()["nodes"]);
 		self::assertSame(1, $context->capture()["unbalanced_scopes"]);
+	}
+
+	public function testStatsAndTopCombineParentPathsWithoutCountingChildrenTwice() : void{
+		$context = new PulseContext();
+		$a = $context->zone("a")->getId();
+		$b = $context->zone("b")->getId();
+		$context->zone("unused");
+		$session = new PulseSession($context, "main", spikeThresholdNs: 1, maxSpikes: 1);
+		$now = (int) hrtime(true);
+		for($tick = 0; $tick < 2; ++$tick){
+			$start = $now + $tick * 100;
+			$context->beginTick($start);
+			$root = $context->begin($a, $start);
+			$inner = $context->begin($a, $start + 10);
+			$context->end($a, $inner, $start + 30);
+			$context->end($a, $root, $start + 40);
+			$root = $context->begin($b, $start + 40);
+			$inner = $context->begin($a, $start + 50);
+			$context->end($a, $inner, $start + 60);
+			$context->end($b, $root, $start + 90);
+			$context->endTick($start + 90);
+		}
+		self::assertSame([
+			["name" => "a", "calls" => 6, "self_ns" => 100, "max_ns" => 40],
+			["name" => "b", "calls" => 2, "self_ns" => 80, "max_ns" => 50]
+		], $session->getTopZones());
+		self::assertCount(1, $session->getTopZones(1));
+		$stats = $session->getStats();
+		self::assertTrue($stats["recording"]);
+		self::assertSame(2, $stats["tick_count"]);
+		self::assertSame(180, $stats["tick_total_ns"]);
+		self::assertSame(90, $stats["tick_max_ns"]);
+		self::assertSame(1, $stats["retained_spikes"]);
+		self::assertSame(1, $stats["spikes_dropped"]);
+		for($i = 0; $i < 10; ++$i){ $session->getStats(); $session->getTopZones(); }
+		$before = memory_get_usage();
+		for($i = 0; $i < 1000; ++$i){ $session->getStats(); $session->getTopZones(); }
+		self::assertSame($before, memory_get_usage());
+		$session->stop();
+		$stats = $session->getStats();
+		self::assertFalse($stats["recording"]);
+		self::assertSame($stats, $session->getStats());
+		foreach([0, 51] as $limit){
+			try{ $session->getTopZones($limit); self::fail("Invalid top limit accepted"); }catch(\InvalidArgumentException){}
+		}
 	}
 }

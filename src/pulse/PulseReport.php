@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\pulse;
 
+use pocketmine\errorhandler\ErrorToExceptionHandler;
 use quark\pulse\internal\PulseContext;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
@@ -33,6 +34,11 @@ use function bin2hex;
 use function count;
 use function date;
 use function get_object_vars;
+use function gzencode;
+use function inflate_add;
+use function inflate_get_read_len;
+use function inflate_get_status;
+use function inflate_init;
 use function intdiv;
 use function is_array;
 use function is_bool;
@@ -47,12 +53,16 @@ use function mkdir;
 use function php_uname;
 use function preg_match;
 use function random_bytes;
+use function str_starts_with;
 use function strlen;
+use function substr;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
 use const JSON_UNESCAPED_UNICODE;
 use const PHP_INT_MAX;
 use const PHP_VERSION;
+use const ZLIB_ENCODING_GZIP;
+use const ZLIB_STREAM_END;
 
 /**
  * @phpstan-import-type Capture from PulseContext
@@ -60,7 +70,7 @@ use const PHP_VERSION;
  * @phpstan-type ReportData array{format: string, version: int, time_unit: string, metadata: Metadata, threads: list<Capture>}
  */
 final class PulseReport{
-	// v1 is UTF-8 JSON; durations and offsets are nanoseconds.
+	// v1 is UTF-8 JSON, gzip-wrapped on disk; times are nanoseconds.
 	// Node: id, zone, parent, calls, total, self, max. active_ticks follows node order.
 	// Tick: id, session offset, duration. Spike node: id, calls, total, self.
 	public const FORMAT_VERSION = 1;
@@ -97,17 +107,24 @@ final class PulseReport{
 	/** @return ReportData */
 	public function getData() : array{ return $this->data; }
 
-	public function encode() : string{
+	public function encode(bool $compress = false) : string{
 		$json = json_encode($this->data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 		if(strlen($json) > self::MAX_BYTES){
 			throw new \LengthException("Pulse report exceeds the size limit");
 		}
-		return $json;
+		if(!$compress){ return $json; }
+		$gzip = gzencode($json, 1);
+		if($gzip === false){ throw new \RuntimeException("Failed to compress Pulse report"); }
+		if(strlen($gzip) > self::MAX_BYTES){ throw new \LengthException("Pulse report exceeds the size limit"); }
+		return $gzip;
 	}
 
 	public static function decode(string $json) : self{
 		if(strlen($json) > self::MAX_BYTES){
 			throw new \LengthException("Pulse report exceeds the size limit");
+		}
+		if(str_starts_with($json, "\x1f\x8b")){
+			$json = self::decompress($json);
 		}
 		self::checkJsonBudget($json);
 		try{
@@ -117,6 +134,31 @@ final class PulseReport{
 		}
 		self::validate($data);
 		return new self($data);
+	}
+
+	private static function decompress(string $gzip) : string{
+		try{
+			return ErrorToExceptionHandler::trap(static function() use ($gzip) : string{
+				$context = inflate_init(ZLIB_ENCODING_GZIP);
+				if($context === false){ throw new \InvalidArgumentException("Failed to initialize Pulse gzip decoder"); }
+				$json = "";
+				$length = strlen($gzip);
+				// Small input chunks bound temporary output on highly compressed input.
+				for($offset = 0; $offset < $length; $offset += 1024){
+					$part = inflate_add($context, substr($gzip, $offset, 1024));
+					if($part === false){ throw new \InvalidArgumentException("Invalid Pulse gzip data"); }
+					if(strlen($part) > self::MAX_BYTES - strlen($json)){ throw new \LengthException("Decompressed Pulse report exceeds the size limit"); }
+					$json .= $part;
+					if(inflate_get_status($context) === ZLIB_STREAM_END){
+						if(inflate_get_read_len($context) !== $length){ throw new \InvalidArgumentException("Unexpected data after Pulse gzip stream"); }
+						return $json;
+					}
+				}
+				throw new \InvalidArgumentException("Truncated Pulse gzip stream");
+			});
+		}catch(\ErrorException $e){
+			throw new \InvalidArgumentException("Invalid Pulse gzip data", 0, $e);
+		}
 	}
 
 	private static function normalizeJson(mixed $value) : mixed{
@@ -136,7 +178,7 @@ final class PulseReport{
 	}
 
 	public function write(string $directory) : string{
-		$json = $this->encode();
+		$json = $this->encode(true);
 		if(!@mkdir($directory, 0777, true) && !is_dir($directory)){
 			throw new \RuntimeException("Failed to create Pulse report directory");
 		}

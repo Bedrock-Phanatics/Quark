@@ -30,7 +30,10 @@ use quark\pulse\PulseReport;
 use quark\pulse\PulseSession;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\PulseControlTask;
+use function array_values;
+use function count;
 use function hrtime;
+use function ksort;
 
 /**
  * @internal Main-thread session coordination; workers keep their own counters.
@@ -40,7 +43,14 @@ final class PulseRecorder{
 	private ?PulseSession $session = null;
 	private int $generation = 0;
 	private int $controls = 0;
-	private bool $collecting = false;
+	/** @var PromiseResolver<PulseReport>|null */
+	private ?PromiseResolver $collection = null;
+	private int $collectionDeadline = 0;
+	private int $pendingCollections = 0;
+	/** @var array<int, Capture> */
+	private array $captures = [];
+	/** @var array<string, mixed> */
+	private array $metadata = [];
 	private bool $running = false;
 	private int $deadline = 0;
 	private int $duration = 0;
@@ -57,6 +67,7 @@ final class PulseRecorder{
 
 	public function isRecording() : bool{ return $this->session?->isRecording() ?? false; }
 	public function getSession() : ?PulseSession{ return $this->session; }
+	public function getPendingOperations() : int{ return $this->controls + $this->pendingCollections; }
 
 	public function start(int $durationNs = 0, int $spikeThresholdNs = 0, int $maxSpikes = 32) : void{
 		$this->requireIdleControls();
@@ -105,6 +116,9 @@ final class PulseRecorder{
 		if($this->running && !$this->isRecording()){
 			$this->stop();
 		}
+		if($this->collection !== null && hrtime(true) >= $this->collectionDeadline){
+			$this->finishCollection(false);
+		}
 	}
 
 	public function reset() : void{
@@ -126,7 +140,7 @@ final class PulseRecorder{
 	}
 
 	private function requireIdleControls() : void{
-		if($this->controls > 0 || $this->collecting){
+		if($this->getPendingOperations() > 0 || $this->collection !== null){
 			throw new \LogicException("Pulse is waiting for workers; try again after they finish");
 		}
 	}
@@ -136,42 +150,54 @@ final class PulseRecorder{
 	 * @return Promise<PulseReport>
 	 */
 	public function collect(array $metadata = []) : Promise{
-		if($this->collecting){ throw new \LogicException("Pulse is already collecting a report"); }
+		if($this->collection !== null){ throw new \LogicException("Pulse is already collecting a report"); }
+		if($this->pendingCollections > 0){ throw new \LogicException("Pulse is still waiting for the previous report's workers"); }
 		if($this->session === null){ throw new \LogicException("No Pulse session to report"); }
-		$this->collecting = true;
 		$main = $this->session->getCapture();
-		$promises = [];
-		try{
-			foreach($this->pool->getRunningWorkers() as $worker){
-				/** @var PromiseResolver<Capture|null> $workerResult */
-				$workerResult = new PromiseResolver();
-				$this->pool->submitTaskToWorker(new PulseControlTask(
-					PulseControlTask::COLLECT, $this->generation,
-					fn(?array $capture) => $workerResult->resolve($capture)
-				), $worker);
-				$promises[] = $workerResult->getPromise();
-			}
-		}catch(\Throwable $e){
-			$this->collecting = false;
-			throw $e;
-		}
+		$workers = $this->pool->getRunningWorkers();
 		/** @var PromiseResolver<PulseReport> $result */
 		$result = new PromiseResolver();
-		Promise::all($promises)->onCompletion(
-			function(array $captures) use ($main, $metadata, $result) : void{
-				$this->collecting = false;
-				$threads = [$main];
-				foreach($captures as $capture){ if($capture !== null){ $threads[] = $capture; } }
-				try{
-					$report = PulseReport::create($threads, $metadata);
-				}catch(\InvalidArgumentException|\LengthException){
-					$result->reject();
-					return;
-				}
-				$result->resolve($report);
-			},
-			function() use ($result) : void{ $this->collecting = false; $result->reject(); }
-		);
+		$this->collection = $result;
+		$this->captures = [$main];
+		$this->metadata = $metadata;
+		$this->collectionDeadline = (int) hrtime(true) + 30000000000;
+		$this->pendingCollections = count($workers);
+		$submitted = 0;
+		try{
+			foreach($workers as $worker){
+				$this->pool->submitTaskToWorker(new PulseControlTask(
+					PulseControlTask::COLLECT, $this->generation,
+					function(?array $capture) use ($worker) : void{
+						--$this->pendingCollections;
+						if($this->collection === null){ return; }
+						if(hrtime(true) >= $this->collectionDeadline){ $this->finishCollection(false); return; }
+						if($capture !== null){ $this->captures[$worker + 1] = $capture; }
+						if($this->pendingCollections === 0){ $this->finishCollection(true); }
+					}
+				), $worker);
+				++$submitted;
+			}
+		}catch(\Throwable $e){
+			$this->pendingCollections -= count($workers) - $submitted;
+			$this->finishCollection(false);
+			throw $e;
+		}
+		if($this->pendingCollections === 0){ $this->finishCollection(true); }
 		return $result->getPromise();
+	}
+
+	private function finishCollection(bool $success) : void{
+		$result = $this->collection;
+		if($result === null){ return; }
+		$report = null;
+		if($success){
+			ksort($this->captures);
+			try{ $report = PulseReport::create(array_values($this->captures), $this->metadata); }catch(\InvalidArgumentException|\LengthException){}
+		}
+		// Release report payloads before invoking callbacks or accepting another collection.
+		$this->collection = null;
+		$this->captures = $this->metadata = [];
+		$this->collectionDeadline = 0;
+		if($report !== null){ $result->resolve($report); }else{ $result->reject(); }
 	}
 }

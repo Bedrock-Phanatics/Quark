@@ -100,11 +100,17 @@ benchmarkPulse(["Pulse rotating 256 zones" => static function(int $n) use ($zone
 		$zone->stop($scope);
 	}
 }], 200000);
-benchmarkPulse(["Pulse capture (258 nodes)" => static function(int $n) use ($session) : void{
-	for($i = 0; $i < $n; ++$i){
-		$session->getCapture();
+benchmarkPulse([
+	"Pulse capture (258 nodes)" => static function(int $n) use ($session) : void{
+		for($i = 0; $i < $n; ++$i){ $session->getCapture(); }
+	},
+	"Pulse status (258 nodes)" => static function(int $n) use ($session) : void{
+		for($i = 0; $i < $n; ++$i){ $session->getStats(); }
+	},
+	"Pulse top 5 (258 nodes)" => static function(int $n) use ($session) : void{
+		for($i = 0; $i < $n; ++$i){ $session->getTopZones(); }
 	}
-}], 1000);
+], 1000);
 Pulse::stop();
 
 $tick = static function(int $n) use ($single) : void{
@@ -127,7 +133,8 @@ Pulse::stop();
 $capture = $session->getCapture();
 $report = $session->getReport();
 $json = $report->encode();
-printf("Report: %d bytes, %d nodes, %d ticks, %d spikes\n", strlen($json), count($capture["nodes"]), count($capture["ticks"]), count($capture["spikes"]));
+$gzip = $report->encode(true);
+printf("Report: %d JSON bytes, %d gzip bytes, %d nodes, %d ticks, %d spikes\n", strlen($json), strlen($gzip), count($capture["nodes"]), count($capture["ticks"]), count($capture["spikes"]));
 benchmarkPulse([
 	"Pulse report creation" => static function(int $n) use ($capture) : void{
 		for($i = 0; $i < $n; ++$i){
@@ -143,6 +150,12 @@ benchmarkPulse([
 		for($i = 0; $i < $n; ++$i){
 			PulseReport::decode($json);
 		}
+	},
+	"Pulse gzip encoding" => static function(int $n) use ($report) : void{
+		for($i = 0; $i < $n; ++$i){ $report->encode(true); }
+	},
+	"Pulse gzip decoding" => static function(int $n) use ($gzip) : void{
+		for($i = 0; $i < $n; ++$i){ PulseReport::decode($gzip); }
 	}
 ], 100);
 if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){
