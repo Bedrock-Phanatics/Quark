@@ -44,7 +44,7 @@ final class PulseZone{
 	}
 
 	public function stop(int $scope) : void{
-		if($scope !== 0 && $this->context->recording){
+		if($scope !== 0){
 			$this->context->end($this->id, $scope, hrtime(true));
 		}
 	}

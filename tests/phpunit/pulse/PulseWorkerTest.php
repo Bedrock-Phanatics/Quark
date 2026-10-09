@@ -30,9 +30,6 @@ use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
 use quark\thread\ThreadSafeClassLoader;
 use quark\utils\MainLogger;
-use function define;
-use function defined;
-use function dirname;
 use function extension_loaded;
 use function microtime;
 use function usleep;
@@ -50,13 +47,14 @@ final class PulseWorkerTest extends TestCase{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){
 			self::markTestSkipped("Requires pmmpthread and igbinary");
 		}
-		if(!defined('quark\\COMPOSER_AUTOLOADER_PATH')){ define('quark\\COMPOSER_AUTOLOADER_PATH', dirname(__DIR__, 3) . '/vendor/autoload.php'); }
 		$logger = new MainLogger(null, false, "Pulse test", new \DateTimeZone("UTC"));
 		$pool = new AsyncPool(2, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0);
 		$recorder = new PulseRecorder($pool);
 		try{
-			for($round = 0; $round < 2; ++$round){
-				$recorder->start();
+			for($round = 0; $round < 3; ++$round){
+				$recorder->start(durationNs: $round === 2 ? 1 : 0);
+				$this->drain($pool);
+				if($round === 1){ $recorder->reset(); }
 				for($worker = 0; $worker < 2; ++$worker){
 					$pool->submitTaskToWorker(new class extends AsyncTask{
 						public function onRun() : void{
@@ -66,13 +64,23 @@ final class PulseWorkerTest extends TestCase{
 					}, $worker);
 				}
 				$this->drain($pool);
+				if($round === 1){
+					$live = null;
+					$recorder->collect()->onCompletion(function(PulseReport $value) use (&$live) : void{ $live = $value; }, fn() => self::fail("Live report rejected"));
+					try{ $recorder->collect(); self::fail("Parallel collection accepted"); }catch(\LogicException){}
+					$this->drain($pool);
+					self::assertNotNull($live);
+					foreach($live->getData()["threads"] as $thread){ self::assertTrue($thread["recording"]); }
+				}
+				Pulse::checkDuration();
+				$recorder->checkDuration();
 				$recorder->stop();
 				$report = null;
 				$recorder->collect()->onCompletion(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Worker report rejected"));
 				$this->drain($pool);
 				self::assertNotNull($report);
 				$data = PulseReport::decode($report->encode())->getData();
-				self::assertCount(3, $data["threads"]);
+				self::assertCount($round === 2 ? 1 : 3, $data["threads"]);
 				foreach($data["threads"] as $thread){
 					self::assertFalse($thread["recording"]);
 					self::assertSame(0, $thread["unbalanced_scopes"]);

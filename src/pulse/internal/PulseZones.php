@@ -32,6 +32,7 @@ use quark\pulse\Pulse;
 use quark\pulse\PulseZone;
 use quark\scheduler\AsyncTask;
 use quark\scheduler\TaskHandler;
+use function count;
 use function hash;
 use function preg_match;
 use function strlen;
@@ -41,6 +42,7 @@ use function strlen;
  */
 final class PulseZones{
 	private static bool $initialized = false;
+	private static ?PulseZone $overflow = null;
 	public static PulseZone $serverTick;
 	public static PulseZone $serverInterrupts;
 	public static PulseZone $memoryManager;
@@ -93,6 +95,7 @@ final class PulseZones{
 
 	public static function init() : void{
 		if(self::$initialized){ return; }
+		self::$overflow ??= Pulse::zone("pulse.zone_limit");
 		self::$serverTick = Pulse::zone("server.tick");
 		self::$serverInterrupts = Pulse::zone("server.interrupts");
 		self::$memoryManager = Pulse::zone("server.memory");
@@ -159,7 +162,10 @@ final class PulseZones{
 	}
 
 	public static function getEventZone(Event $event) : PulseZone{
-		return self::$dynamic[$event::class] ??= self::dynamic("event." . $event::class);
+		$zone = self::$dynamic[$event::class] ?? null;
+		if($zone !== null){ return $zone; }
+		if(count(self::$dynamic) >= 4096){ return self::dynamic("pulse.zone_limit"); }
+		return self::$dynamic[$event::class] = self::dynamic("event." . $event::class);
 	}
 
 	public static function getReceiveDataPacketZone(ServerboundPacket $packet) : PulseZone{ return self::packet($packet, "receive"); }
@@ -169,7 +175,10 @@ final class PulseZones{
 	public static function getEncodeDataPacketZone(ClientboundPacket $packet) : PulseZone{ return self::packet($packet, "encode"); }
 
 	private static function packet(ClientboundPacket|ServerboundPacket $packet, string $phase) : PulseZone{
-		return self::$packets[$phase][$packet::class] ??= self::dynamic("network.$phase." . $packet->getName());
+		$zone = self::$packets[$phase][$packet::class] ?? null;
+		if($zone !== null){ return $zone; }
+		if(count(self::$packets[$phase] ?? []) >= 4096){ return self::dynamic("pulse.zone_limit"); }
+		return self::$packets[$phase][$packet::class] = self::dynamic("network.$phase." . $packet->getName());
 	}
 
 	public static function getAsyncTaskRunZone(AsyncTask $task) : PulseZone{ return self::task($task, "run"); }
@@ -177,13 +186,21 @@ final class PulseZones{
 	public static function getAsyncTaskProgressUpdateZone(AsyncTask $task) : PulseZone{ return self::task($task, "progress"); }
 
 	private static function task(AsyncTask $task, string $phase) : PulseZone{
-		return self::$tasks[$phase][$task::class] ??= self::dynamic("worker.$phase." . $task::class);
+		$zone = self::$tasks[$phase][$task::class] ?? null;
+		if($zone !== null){ return $zone; }
+		if(count(self::$tasks[$phase] ?? []) >= 4096){ return self::dynamic("pulse.zone_limit"); }
+		return self::$tasks[$phase][$task::class] = self::dynamic("worker.$phase." . $task::class);
 	}
 
 	public static function dynamic(string $name) : PulseZone{
+		$overflow = self::$overflow ??= Pulse::zone("pulse.zone_limit");
 		if(strlen($name) > 256 || preg_match('//u', $name) !== 1){
 			$name = "dynamic." . hash("sha256", $name);
 		}
-		return Pulse::zone($name);
+		try{
+			return Pulse::zone($name);
+		}catch(\LengthException){
+			return $overflow;
+		}
 	}
 }

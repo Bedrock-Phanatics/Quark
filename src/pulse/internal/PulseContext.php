@@ -182,10 +182,6 @@ final class PulseContext{
 				$this->close($now);
 			}
 		}
-		$this->close($now);
-	}
-
-	private function close(int $now) : void{
 		--$this->depth;
 		$node = $this->current;
 		$this->current = $this->nodes[$node->parent];
@@ -213,6 +209,11 @@ final class PulseContext{
 		if($this->depth > 0){
 			$this->current->childTime += $elapsed;
 		}
+	}
+
+	private function close(int $now) : void{
+		$node = $this->current;
+		$this->end($node->zone, $node->scope, $now);
 	}
 
 	public function stop(int $now) : void{

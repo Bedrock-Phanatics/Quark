@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\pulse;
 
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use quark\command\defaults\PulseCommand;
 use quark\command\utils\InvalidCommandSyntaxException;
@@ -32,6 +34,8 @@ use quark\permission\PermissionManager;
 use quark\pulse\internal\PulseRecorder;
 use quark\pulse\internal\PulseZones;
 use quark\scheduler\AsyncPool;
+use quark\Server;
+use function extension_loaded;
 use function file_get_contents;
 use function glob;
 use function rmdir;
@@ -65,6 +69,24 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertSame(PulseZones::dynamic($long), PulseZones::dynamic($long));
 		self::assertNotSame(PulseZones::dynamic($long), PulseZones::dynamic($long . "2"));
 		self::assertStringStartsWith("dynamic.", PulseZones::dynamic("world.\xff.tick")->getName());
+	}
+
+	#[RunInSeparateProcess]
+	#[PreserveGlobalState(false)]
+	public function testInternalZoneExhaustionKeepsServerWorkRecordable() : void{
+		PulseZones::init();
+		for($i = 0; $i < 4096; ++$i){
+			try{ Pulse::zone("capacity.$i"); }catch(\LengthException){ break; }
+		}
+		$zone = PulseZones::dynamic("capacity.overflow");
+		self::assertSame("pulse.zone_limit", $zone->getName());
+		$session = Pulse::start();
+		$scope = $zone->start();
+		$zone->stop($scope);
+		$session->stop();
+		self::assertCount(4096, $session->getCapture()["zones"]);
+		self::assertSame(1, $session->getCapture()["nodes"][0][3]);
+		PulseReport::decode($session->getReport()->encode());
 	}
 
 	public function testCommandOptionsValidateUnitsLimitsAndDuplicates() : void{
@@ -127,6 +149,32 @@ final class PulseIntegrationTest extends TestCase{
 		$this->recorder()->collect();
 	}
 
+	public function testFailedWorkerSubmissionDoesNotLockTheRecorder() : void{
+		if(!extension_loaded("pmmpthread")){
+			self::markTestSkipped("Requires pmmpthread");
+		}
+		$workers = [];
+		$pool = self::createStub(AsyncPool::class);
+		$pool->method("getSize")->willReturn(1);
+		$pool->method("getRunningWorkers")->willReturnCallback(static function() use (&$workers) : array{ return $workers; });
+		$pool->method("submitTaskToWorker")->willThrowException(new \RuntimeException("submission failed"));
+		$recorder = new PulseRecorder($pool);
+		$recorder->start();
+		foreach(["collect", "stop"] as $operation){
+			$workers = [0];
+			try{
+				if($operation === "collect"){ $recorder->collect(); }else{ $recorder->stop(); }
+				self::fail("Submission must fail");
+			}catch(\RuntimeException $e){ self::assertSame("submission failed", $e->getMessage()); }
+			$workers = [];
+			$recorder->stop();
+			$recorder->start();
+			$report = null;
+			$recorder->collect()->onCompletion(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
+			self::assertNotNull($report);
+		}
+	}
+
 	public function testClosureMeasurementClosesOnException() : void{
 		$session = Pulse::start();
 		$zone = Pulse::zone("integration.exception");
@@ -156,6 +204,31 @@ final class PulseIntegrationTest extends TestCase{
 		}finally{
 			$files = glob($directory . "/*");
 			if($files !== false){ foreach($files as $file){ unlink($file); } }
+			rmdir($directory);
+		}
+	}
+
+	public function testServerReportWorksBeforeManagersAreInitialized() : void{
+		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-startup-", true);
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server->method("getQuarkVersion")->willReturn("test");
+		$server->method("getDataPath")->willReturn($directory);
+		$recorder = $this->recorder();
+		$recorder->start();
+		$recorder->stop();
+		(new \ReflectionProperty(Server::class, "pulse"))->setValue($server, $recorder);
+		$file = null;
+		try{
+			$server->createPulseReport()->onCompletion(function(string $value) use (&$file) : void{ $file = $value; }, fn() => self::fail("Startup report rejected"));
+			self::assertNotNull($file);
+			$json = file_get_contents($file);
+			self::assertIsString($json);
+			$metadata = PulseReport::decode($json)->getData()["metadata"];
+			self::assertSame([], $metadata["plugins"]);
+			self::assertSame([], $metadata["worlds"]);
+		}finally{
+			if($file !== null){ unlink($file); }
+			rmdir($directory . "/pulse");
 			rmdir($directory);
 		}
 	}

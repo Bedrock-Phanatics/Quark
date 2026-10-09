@@ -510,12 +510,16 @@ class Server{
 	/** @return Promise<string> */
 	public function createPulseReport() : Promise{
 		$plugins = [];
-		foreach($this->pluginManager->getPlugins() as $plugin){
-			$description = $plugin->getDescription();
-			$plugins[] = ["name" => $description->getName(), "version" => $description->getVersion()];
+		if(isset($this->pluginManager)){
+			foreach($this->pluginManager->getPlugins() as $plugin){
+				$description = $plugin->getDescription();
+				$plugins[] = ["name" => $description->getName(), "version" => $description->getVersion()];
+			}
 		}
 		$worlds = [];
-		foreach($this->worldManager->getWorlds() as $world){ $worlds[] = $world->getFolderName(); }
+		if(isset($this->worldManager)){
+			foreach($this->worldManager->getWorlds() as $world){ $worlds[] = $world->getFolderName(); }
+		}
 		/** @var PromiseResolver<string> $result */
 		$result = new PromiseResolver();
 		$this->pulse->collect(["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds])->onCompletion(

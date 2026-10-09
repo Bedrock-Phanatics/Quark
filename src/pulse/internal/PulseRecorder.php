@@ -50,7 +50,7 @@ final class PulseRecorder{
 	public function __construct(private readonly AsyncPool $pool){
 		$pool->addWorkerStartHook(function(int $worker) : void{
 			if($this->isRecording()){
-				$this->startWorker($worker);
+				$this->control(PulseControlTask::START, $worker);
 			}
 		});
 	}
@@ -74,17 +74,22 @@ final class PulseRecorder{
 		++$this->generation;
 		$this->running = true;
 		foreach($this->pool->getRunningWorkers() as $worker){
-			$this->startWorker($worker);
+			$this->control(PulseControlTask::START, $worker);
 		}
 	}
 
-	private function startWorker(int $worker) : void{
+	private function control(int $operation, int $worker) : void{
 		++$this->controls;
-		$this->pool->submitTaskToWorker(new PulseControlTask(
-			PulseControlTask::START, $this->generation,
-			function(?array $capture) : void{ --$this->controls; },
-			"worker#$worker", $this->deadline, $this->threshold, $this->maxSpikes
-		), $worker);
+		try{
+			$this->pool->submitTaskToWorker(new PulseControlTask(
+				$operation, $this->generation,
+				function(?array $capture) : void{ --$this->controls; },
+				"worker#$worker", $this->deadline, $this->threshold, $this->maxSpikes
+			), $worker);
+		}catch(\Throwable $e){
+			--$this->controls;
+			throw $e;
+		}
 	}
 
 	public function stop() : void{
@@ -92,11 +97,7 @@ final class PulseRecorder{
 		if(!$this->running){ return; }
 		$this->running = false;
 		foreach($this->pool->getRunningWorkers() as $worker){
-			++$this->controls;
-			$this->pool->submitTaskToWorker(new PulseControlTask(
-				PulseControlTask::STOP, $this->generation,
-				function(?array $capture) : void{ --$this->controls; }
-			), $worker);
+			$this->control(PulseControlTask::STOP, $worker);
 		}
 	}
 
@@ -116,7 +117,7 @@ final class PulseRecorder{
 			++$this->generation;
 			$this->deadline = $this->duration === 0 ? 0 : (int) hrtime(true) + $this->duration;
 			$this->running = true;
-			foreach($this->pool->getRunningWorkers() as $worker){ $this->startWorker($worker); }
+			foreach($this->pool->getRunningWorkers() as $worker){ $this->control(PulseControlTask::START, $worker); }
 		}else{
 			Pulse::reset();
 			$this->session = null;
@@ -140,14 +141,19 @@ final class PulseRecorder{
 		$this->collecting = true;
 		$main = $this->session->getCapture();
 		$promises = [];
-		foreach($this->pool->getRunningWorkers() as $worker){
-			/** @var PromiseResolver<Capture|null> $workerResult */
-			$workerResult = new PromiseResolver();
-			$this->pool->submitTaskToWorker(new PulseControlTask(
-				PulseControlTask::COLLECT, $this->generation,
-				fn(?array $capture) => $workerResult->resolve($capture)
-			), $worker);
-			$promises[] = $workerResult->getPromise();
+		try{
+			foreach($this->pool->getRunningWorkers() as $worker){
+				/** @var PromiseResolver<Capture|null> $workerResult */
+				$workerResult = new PromiseResolver();
+				$this->pool->submitTaskToWorker(new PulseControlTask(
+					PulseControlTask::COLLECT, $this->generation,
+					fn(?array $capture) => $workerResult->resolve($capture)
+				), $worker);
+				$promises[] = $workerResult->getPromise();
+			}
+		}catch(\Throwable $e){
+			$this->collecting = false;
+			throw $e;
 		}
 		/** @var PromiseResolver<PulseReport> $result */
 		$result = new PromiseResolver();

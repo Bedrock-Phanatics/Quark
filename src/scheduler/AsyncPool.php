@@ -279,9 +279,13 @@ class AsyncPool{
 					 * been consumed before completing.
 					 */
 					$this->checkTaskProgressUpdates($task);
-					PulseZones::getAsyncTaskCompletionZone($task)->time(function() use ($task) : void{
+					if($task instanceof PulseControlTask || !Pulse::isRecording()){
 						$task->onCompletion();
-					});
+					}else{
+						PulseZones::getAsyncTaskCompletionZone($task)->time(function() use ($task) : void{
+							$task->onCompletion();
+						});
+					}
 				}
 			}else{
 				$this->checkTaskProgressUpdates($task);
@@ -336,8 +340,12 @@ class AsyncPool{
 	}
 
 	private function checkTaskProgressUpdates(AsyncTask $task) : void{
-		PulseZones::getAsyncTaskProgressUpdateZone($task)->time(function() use ($task) : void{
+		if($task instanceof PulseControlTask || !Pulse::isRecording()){
 			$task->checkProgressUpdates();
-		});
+		}else{
+			PulseZones::getAsyncTaskProgressUpdateZone($task)->time(function() use ($task) : void{
+				$task->checkProgressUpdates();
+			});
+		}
 	}
 }
