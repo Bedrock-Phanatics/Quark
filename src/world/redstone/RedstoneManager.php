@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world\redstone;
 
+use quark\pulse\internal\PulseZones;
 use quark\Server;
-use quark\timings\Timings;
 use quark\world\Position;
 use quark\world\World;
 
@@ -54,7 +54,7 @@ final class RedstoneManager{
 	}
 
 	public function tick() : void{
-		Timings::$redstone->time(function() : void{
+		PulseZones::$redstone->time(function() : void{
 			foreach($this->worlds as $worldId => $world){
 				if($this->isWorldEnabled($world->world) || ($this->enabledChunkOverrideCounts[$worldId] ?? 0) > 0){
 					$world->tick();

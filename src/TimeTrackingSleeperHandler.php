@@ -25,7 +25,8 @@ namespace quark;
 
 use pocketmine\snooze\SleeperHandler;
 use pocketmine\snooze\SleeperHandlerEntry;
-use quark\timings\TimingsHandler;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\PulseZone;
 use quark\utils\Utils;
 use function hrtime;
 
@@ -37,28 +38,22 @@ final class TimeTrackingSleeperHandler extends SleeperHandler{
 
 	private int $notificationProcessingTimeNs = 0;
 
-	/**
-	 * @var TimingsHandler[]
-	 * @phpstan-var array<string, TimingsHandler>
-	 */
-	private static array $handlerTimings = [];
-
 	public function __construct(
-		private TimingsHandler $timings
+		private PulseZone $pulse
 	){
 		parent::__construct();
 	}
 
 	public function addNotifier(\Closure $handler) : SleeperHandlerEntry{
 		$name = Utils::getNiceClosureName($handler);
-		$timings = self::$handlerTimings[$name] ??= new TimingsHandler("Snooze Handler: " . $name, $this->timings);
+		$pulse = PulseZones::dynamic("server.notifier." . $name);
 
-		return parent::addNotifier(function() use ($timings, $handler) : void{
-			$timings->startTiming();
+		return parent::addNotifier(function() use ($pulse, $handler) : void{
+			$scope = $pulse->start();
 			try{
 				$handler();
 			}finally{
-				$timings->stopTiming();
+				$pulse->stop($scope);
 			}
 		});
 	}
@@ -75,12 +70,12 @@ final class TimeTrackingSleeperHandler extends SleeperHandler{
 
 	public function processNotifications() : void{
 		$startTime = hrtime(true);
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 		try{
 			parent::processNotifications();
 		}finally{
 			$this->notificationProcessingTimeNs += hrtime(true) - $startTime;
-			$this->timings->stopTiming();
+			$this->pulse->stop($scope);
 		}
 	}
 }

@@ -105,7 +105,7 @@ class ChunkCache implements ChunkListener{
 		}
 		++$this->misses;
 
-		$this->world->timings->syncChunkSendPrepare->startTiming();
+		$syncChunkSendPrepareScope = $this->world->pulse->syncChunkSendPrepare->start();
 		try{
 			$promise = new CompressBatchPromise();
 
@@ -129,7 +129,7 @@ class ChunkCache implements ChunkListener{
 
 			return $promise;
 		}finally{
-			$this->world->timings->syncChunkSendPrepare->stopTiming();
+			$this->world->pulse->syncChunkSendPrepare->stop($syncChunkSendPrepareScope);
 		}
 	}
 

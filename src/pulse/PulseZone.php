@@ -48,4 +48,18 @@ final class PulseZone{
 			$this->context->end($this->id, $scope, hrtime(true));
 		}
 	}
+
+	/**
+	 * @template T
+	 * @param \Closure() : T $work
+	 * @return T
+	 */
+	public function time(\Closure $work) : mixed{
+		$scope = $this->start();
+		try{
+			return $work();
+		}finally{
+			$this->stop($scope);
+		}
+	}
 }

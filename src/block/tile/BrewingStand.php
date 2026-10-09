@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\inventory\BrewingStandInventory;
 use quark\crafting\BrewingRecipe;
 use quark\event\block\BrewingFuelUseEvent;
@@ -31,9 +34,6 @@ use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\player\Player;
 use quark\world\sound\PotionFinishBrewingSound;
 use quark\world\World;
@@ -168,7 +168,7 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 			return false;
 		}
 
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 
 		$prevBrewTime = $this->brewTime;
 		$prevRemainingFuelTime = $this->remainingFuelTime;
@@ -248,7 +248,7 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 			}
 		}
 
-		$this->timings->stopTiming();
+		$this->pulse->stop($scope);
 
 		return $ret;
 	}

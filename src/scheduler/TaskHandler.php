@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\scheduler;
 
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\PulseZone;
 
 /**
  * @template TTask of Task
@@ -34,7 +34,7 @@ class TaskHandler{
 
 	protected bool $cancelled = false;
 
-	private TimingsHandler $timings;
+	private PulseZone $pulse;
 
 	private string $taskName;
 	private string $ownerName;
@@ -53,7 +53,7 @@ class TaskHandler{
 		}
 		$this->taskName = $task->getName();
 		$this->ownerName = $ownerName ?? "Unknown";
-		$this->timings = Timings::getScheduledTaskTimings($this, $period);
+		$this->pulse = PulseZones::getScheduledTaskZone($this);
 		$this->task->setHandler($this);
 	}
 
@@ -117,13 +117,13 @@ class TaskHandler{
 	 * @internal
 	 */
 	public function run() : void{
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 		try{
 			$this->task->onRun();
 		}catch(CancelTaskException $e){
 			$this->cancel();
 		}finally{
-			$this->timings->stopTiming();
+			$this->pulse->stop($scope);
 		}
 	}
 

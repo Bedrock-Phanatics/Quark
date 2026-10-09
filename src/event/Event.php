@@ -26,7 +26,7 @@ declare(strict_types=1);
  */
 namespace quark\event;
 
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use function count;
 use function get_class;
 
@@ -52,8 +52,8 @@ abstract class Event{
 			throw new \RuntimeException("Recursive event call detected (reached max depth of " . self::MAX_EVENT_CALL_DEPTH . " calls)");
 		}
 
-		$timings = Timings::getEventTimings($this);
-		$timings->startTiming();
+		$pulse = PulseZones::getEventZone($this);
+		$scope = $pulse->start();
 
 		$handlers = HandlerListManager::global()->getHandlersFor(static::class);
 
@@ -64,7 +64,7 @@ abstract class Event{
 			}
 		}finally{
 			--self::$eventCallDepth;
-			$timings->stopTiming();
+			$pulse->stop($scope);
 		}
 	}
 

@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace quark;
 
-use quark\timings\TimingsHandler;
+use quark\pulse\Pulse;
+use quark\pulse\PulseZone;
 use function gc_collect_cycles;
 use function gc_disable;
 use function gc_status;
@@ -54,18 +55,17 @@ final class GarbageCollectorManager{
 	private int $runs = 0;
 
 	private \Logger $logger;
-	private TimingsHandler $timings;
+	private PulseZone $pulse;
 
 	public function __construct(
 		\Logger $logger,
-		?TimingsHandler $parentTimings,
 		int $threshold = self::DEFAULT_THRESHOLD,
 	){
 		gc_disable();
 		$this->threshold = min(self::GC_THRESHOLD_MAX, max(0, $threshold));
 		$this->minimumThreshold = $this->threshold;
 		$this->logger = new \PrefixedLogger($logger, "Cyclic Garbage Collector");
-		$this->timings = new TimingsHandler("Cyclic Garbage Collector", $parentTimings);
+		$this->pulse = Pulse::zone("runtime.gc");
 	}
 
 	private function adjustGcThreshold(int $cyclesCollected, int $rootsAfterGC) : void{
@@ -93,7 +93,7 @@ final class GarbageCollectorManager{
 			return 0;
 		}
 
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 
 		$start = hrtime(true);
 		$cycles = gc_collect_cycles();
@@ -102,7 +102,7 @@ final class GarbageCollectorManager{
 		$rootsAfter = gc_status()["roots"];
 		$this->adjustGcThreshold($cycles, $rootsAfter);
 
-		$this->timings->stopTiming();
+		$this->pulse->stop($scope);
 
 		$time = $end - $start;
 		$this->collectionTimeTotalNs += $time;

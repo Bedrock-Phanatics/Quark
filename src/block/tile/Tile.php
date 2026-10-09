@@ -27,13 +27,13 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\Block;
-use quark\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
+use quark\block\Block;
+use quark\item\Item;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\PulseZone;
 use quark\VersionInfo;
 use quark\world\Position;
 use quark\world\World;
@@ -48,11 +48,11 @@ abstract class Tile{
 
 	protected Position $position;
 	public bool $closed = false;
-	protected TimingsHandler $timings;
+	protected PulseZone $pulse;
 
 	public function __construct(World $world, Vector3 $pos){
 		$this->position = Position::fromObject($pos, $world);
-		$this->timings = Timings::getTileEntityTimings($this);
+		$this->pulse = PulseZones::getTileEntityZone($this);
 	}
 
 	/**

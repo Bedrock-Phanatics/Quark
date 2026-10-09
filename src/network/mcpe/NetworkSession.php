@@ -112,8 +112,8 @@ use quark\player\UsedChunkStatus;
 use quark\player\XboxLivePlayerInfo;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
-use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use quark\utils\ObjectSet;
 use quark\utils\TextFormat;
@@ -394,19 +394,19 @@ class NetworkSession{
 			return;
 		}
 
-		Timings::$playerNetworkReceive->startTiming();
+		$playerNetworkReceiveScope = PulseZones::$playerNetworkReceive->start();
 		try{
 			$this->packetBatchLimiter->decrement();
 
 			if($this->cipher !== null){
-				Timings::$playerNetworkReceiveDecrypt->startTiming();
+				$playerNetworkReceiveDecryptScope = PulseZones::$playerNetworkReceiveDecrypt->start();
 				try{
 					$payload = $this->cipher->decrypt($payload);
 				}catch(DecryptionException $e){
 					$this->logger->debug("Encrypted packet: " . base64_encode($payload));
 					throw PacketHandlingException::wrap($e, "Packet decryption error");
 				}finally{
-					Timings::$playerNetworkReceiveDecrypt->stopTiming();
+					PulseZones::$playerNetworkReceiveDecrypt->stop($playerNetworkReceiveDecryptScope);
 				}
 			}
 
@@ -420,14 +420,14 @@ class NetworkSession{
 				if($compressionType === CompressionAlgorithm::NONE){
 					$decompressed = $compressed;
 				}elseif($compressionType === $this->compressor->getNetworkId()){
-					Timings::$playerNetworkReceiveDecompress->startTiming();
+					$playerNetworkReceiveDecompressScope = PulseZones::$playerNetworkReceiveDecompress->start();
 					try{
 						$decompressed = $this->compressor->decompress($compressed);
 					}catch(DecompressionException $e){
 						$this->logger->debug("Failed to decompress packet: " . base64_encode($compressed));
 						throw PacketHandlingException::wrap($e, "Compressed packet batch decode error");
 					}finally{
-						Timings::$playerNetworkReceiveDecompress->stopTiming();
+						PulseZones::$playerNetworkReceiveDecompress->stop($playerNetworkReceiveDecompressScope);
 					}
 				}else{
 					throw new PacketHandlingException("Packet compressed with unexpected compression type $compressionType");
@@ -476,7 +476,7 @@ class NetworkSession{
 				throw PacketHandlingException::wrap($e, "Packet batch decode error");
 			}
 		}finally{
-			Timings::$playerNetworkReceive->stopTiming();
+			PulseZones::$playerNetworkReceive->stop($playerNetworkReceiveScope);
 		}
 	}
 
@@ -497,8 +497,8 @@ class NetworkSession{
 			throw new PacketHandlingException("Unexpected non-serverbound packet");
 		}
 
-		$timings = Timings::getReceiveDataPacketTimings($packet);
-		$timings->startTiming();
+		$pulse = PulseZones::getReceiveDataPacketZone($packet);
+		$scope = $pulse->start();
 
 		try{
 			$handlerAction = PacketHandlerAction::DISCARD_WITH_DEBUG;
@@ -530,8 +530,8 @@ class NetworkSession{
 				return;
 			}
 
-			$decodeTimings = Timings::getDecodeDataPacketTimings($packet);
-			$decodeTimings->startTiming();
+			$decodeZone = PulseZones::getDecodeDataPacketZone($packet);
+			$decodeZoneScope = $decodeZone->start();
 			try{
 				$stream = new ByteBufferReader($buffer);
 				try{
@@ -544,7 +544,7 @@ class NetworkSession{
 					$this->logger->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
 				}
 			}finally{
-				$decodeTimings->stopTiming();
+				$decodeZone->stop($decodeZoneScope);
 			}
 
 			if(DataPacketReceiveEvent::hasHandlers()){
@@ -554,17 +554,17 @@ class NetworkSession{
 					return;
 				}
 			}
-			$handlerTimings = Timings::getHandleDataPacketTimings($packet);
-			$handlerTimings->startTiming();
+			$handlerZone = PulseZones::getHandleDataPacketZone($packet);
+			$handlerZoneScope = $handlerZone->start();
 			try{
 				if($this->handler === null || !$packet->handle($this->handler)){
 					$this->unhandledPacketDebug($packet, $buffer, "Handler rejected");
 				}
 			}finally{
-				$handlerTimings->stopTiming();
+				$handlerZone->stop($handlerZoneScope);
 			}
 		}finally{
-			$timings->stopTiming();
+			$pulse->stop($scope);
 		}
 	}
 
@@ -593,8 +593,8 @@ class NetworkSession{
 			throw new \InvalidArgumentException("Attempted to send " . get_class($packet) . " to " . $this->getDisplayName() . " too early");
 		}
 
-		$timings = Timings::getSendDataPacketTimings($packet);
-		$timings->startTiming();
+		$pulse = PulseZones::getSendDataPacketZone($packet);
+		$scope = $pulse->start();
 		try{
 			if(DataPacketSendEvent::hasHandlers()){
 				$ev = new DataPacketSendEvent([$this], [$packet]);
@@ -621,7 +621,7 @@ class NetworkSession{
 
 			return true;
 		}finally{
-			$timings->stopTiming();
+			$pulse->stop($scope);
 		}
 	}
 
@@ -647,13 +647,13 @@ class NetworkSession{
 	 * @internal
 	 */
 	public static function encodePacketTimed(ByteBufferWriter $serializer, ClientboundPacket $packet) : string{
-		$timings = Timings::getEncodeDataPacketTimings($packet);
-		$timings->startTiming();
+		$pulse = PulseZones::getEncodeDataPacketZone($packet);
+		$scope = $pulse->start();
 		try{
 			$packet->encode($serializer);
 			return $serializer->getData();
 		}finally{
-			$timings->stopTiming();
+			$pulse->stop($scope);
 		}
 	}
 
@@ -666,7 +666,7 @@ class NetworkSession{
 
 	private function flushGamePacketQueue() : void{
 		if(count($this->sendBuffer) > 0){
-			Timings::$playerNetworkSend->startTiming();
+			$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 			try{
 				$syncMode = null; //automatic
 				if($this->forceAsyncCompression){
@@ -677,7 +677,7 @@ class NetworkSession{
 				PacketBatch::encodeRaw($stream, $this->sendBuffer);
 
 				if($this->enableCompression){
-					$batch = $this->server->prepareBatch($stream->getData(), $this->compressor, $syncMode, Timings::$playerNetworkSendCompressSessionBuffer);
+					$batch = $this->server->prepareBatch($stream->getData(), $this->compressor, $syncMode, PulseZones::$playerNetworkSendCompressSessionBuffer);
 				}else{
 					$batch = $stream->getData();
 				}
@@ -688,7 +688,7 @@ class NetworkSession{
 				//delay them any longer
 				$this->queueCompressedNoGamePacketFlush($batch, networkFlush: true, ackPromises: $ackPromises);
 			}finally{
-				Timings::$playerNetworkSend->stopTiming();
+				PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);
 			}
 		}
 	}
@@ -733,14 +733,14 @@ class NetworkSession{
 	public function getTypeConverter() : TypeConverter{ return $this->typeConverter; }
 
 	public function queueCompressed(CompressBatchPromise|string $payload, bool $immediate = false) : void{
-		Timings::$playerNetworkSend->startTiming();
+		$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 		try{
 			//if the next packet causes a flush, avoid unnecessarily flushing twice
 			//however, if the next packet does *not* cause a flush, game packets should be flushed to avoid delays
 			$this->flushGamePacketQueue();
 			$this->queueCompressedNoGamePacketFlush($payload, $immediate);
 		}finally{
-			Timings::$playerNetworkSend->stopTiming();
+			PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);
 		}
 	}
 
@@ -750,7 +750,7 @@ class NetworkSession{
 	 * @phpstan-param list<PromiseResolver<true>> $ackPromises
 	 */
 	private function queueCompressedNoGamePacketFlush(CompressBatchPromise|string $batch, bool $networkFlush = false, array $ackPromises = []) : void{
-		Timings::$playerNetworkSend->startTiming();
+		$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 		try{
 			$this->compressedQueue->enqueue([$batch, $ackPromises, $networkFlush]);
 			if(is_string($batch)){
@@ -763,12 +763,12 @@ class NetworkSession{
 				});
 			}
 		}finally{
-			Timings::$playerNetworkSend->stopTiming();
+			PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);
 		}
 	}
 
 	private function flushCompressedQueue() : void{
-		Timings::$playerNetworkSend->startTiming();
+		$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 		try{
 			while(!$this->compressedQueue->isEmpty()){
 				/** @var CompressBatchPromise|string $current */
@@ -787,7 +787,7 @@ class NetworkSession{
 				}
 			}
 		}finally{
-			Timings::$playerNetworkSend->stopTiming();
+			PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);
 		}
 	}
 
@@ -797,9 +797,9 @@ class NetworkSession{
 	 */
 	private function sendEncoded(string $payload, bool $immediate, array $ackPromises) : void{
 		if($this->cipher !== null){
-			Timings::$playerNetworkSendEncrypt->startTiming();
+			$playerNetworkSendEncryptScope = PulseZones::$playerNetworkSendEncrypt->start();
 			$payload = $this->cipher->encrypt($payload);
-			Timings::$playerNetworkSendEncrypt->stopTiming();
+			PulseZones::$playerNetworkSendEncrypt->stop($playerNetworkSendEncryptScope);
 		}
 
 		if(count($ackPromises) > 0){
@@ -1296,12 +1296,12 @@ class NetworkSession{
 	 * @phpstan-param \Closure() : void $onCompletion
 	 */
 	private function sendChunkPacket(string $chunkPacket, \Closure $onCompletion, World $world) : void{
-		$world->timings->syncChunkSend->startTiming();
+		$syncChunkSendScope = $world->pulse->syncChunkSend->start();
 		try{
 			$this->queueCompressed($chunkPacket);
 			$onCompletion();
 		}finally{
-			$world->timings->syncChunkSend->stopTiming();
+			$world->pulse->syncChunkSend->stop($syncChunkSendScope);
 		}
 	}
 
@@ -1443,11 +1443,11 @@ class NetworkSession{
 			$this->player->doChunkRequests();
 			$this->synchronizePlayerAttributes();
 		}
-		Timings::$playerNetworkSendInventorySync->startTiming();
+		$playerNetworkSendInventorySyncScope = PulseZones::$playerNetworkSendInventorySync->start();
 		try{
 			$this->invManager?->flushPendingUpdates();
 		}finally{
-			Timings::$playerNetworkSendInventorySync->stopTiming();
+			PulseZones::$playerNetworkSendInventorySync->stop($playerNetworkSendInventorySyncScope);
 		}
 
 		$this->flushGamePacketQueue();

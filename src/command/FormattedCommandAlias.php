@@ -26,7 +26,6 @@ namespace quark\command;
 use quark\command\utils\CommandStringHelper;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
-use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
 use function array_shift;
@@ -101,15 +100,15 @@ class FormattedCommandAlias extends Command{
 			}
 
 			if(($target = $commandMap->getCommand($commandLabel)) !== null){
-				$timings = Timings::getCommandDispatchTimings($target->getLabel());
-				$timings->startTiming();
+				$pulse = $target->getPulseZone();
+				$scope = $pulse->start();
 
 				try{
 					$target->execute($sender, $commandLabel, $commandArgs);
 				}catch(InvalidCommandSyntaxException $e){
 					$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_generic_usage($target->getUsage())));
 				}finally{
-					$timings->stopTiming();
+					$pulse->stop($scope);
 				}
 			}else{
 				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::quark_command_notFound($commandLabel, "/help")->prefix(TextFormat::RED)));

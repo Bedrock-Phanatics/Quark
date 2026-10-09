@@ -23,9 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+
+use pocketmine\math\Vector3;
 use quark\block\tile\piston\PistonArm;
 use quark\block\tile\piston\PistonMovement;
-
 use quark\block\utils\AnyFacing;
 use quark\block\utils\redstone\Movable;
 use quark\block\utils\redstone\Powerable;
@@ -37,12 +40,9 @@ use quark\event\block\BlockTeleportEvent;
 use quark\event\block\PistonPullBlockEvent;
 use quark\event\block\PistonPushBlockEvent;
 use quark\item\Item;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\world\BlockTransaction;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
@@ -387,11 +387,11 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 	}
 
 	protected function onReceivePower(int $power) : void{
-		if(!TimingsHandler::isEnabled()){
+		if(!Pulse::isRecording()){
 			$this->handleReceivedPower($power);
 			return;
 		}
-		Timings::$redstonePistons->time(fn() => $this->handleReceivedPower($power));
+		PulseZones::$redstonePistons->time(fn() => $this->handleReceivedPower($power));
 	}
 
 	private function handleReceivedPower(int $power) : void{

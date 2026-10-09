@@ -26,10 +26,11 @@ namespace quark\scheduler;
 use pmmp\thread\Thread as NativeThread;
 use pocketmine\snooze\SleeperHandler;
 use quark\GarbageCollectorManager;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\thread\log\ThreadSafeLogger;
 use quark\thread\ThreadCrashException;
 use quark\thread\ThreadSafeClassLoader;
-use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Utils;
 use function array_keys;
@@ -278,7 +279,7 @@ class AsyncPool{
 					 * been consumed before completing.
 					 */
 					$this->checkTaskProgressUpdates($task);
-					Timings::getAsyncTaskCompletionTimings($task)->time(function() use ($task) : void{
+					PulseZones::getAsyncTaskCompletionZone($task)->time(function() use ($task) : void{
 						$task->onCompletion();
 					});
 				}
@@ -303,6 +304,8 @@ class AsyncPool{
 	}
 
 	public function shutdownUnusedWorkers() : int{
+		// Keep worker captures until the session is reset.
+		if(Pulse::getSession() !== null){ return 0; }
 		$ret = 0;
 		$time = time();
 		foreach($this->workers as $i => $entry){
@@ -333,7 +336,7 @@ class AsyncPool{
 	}
 
 	private function checkTaskProgressUpdates(AsyncTask $task) : void{
-		Timings::getAsyncTaskProgressUpdateTimings($task)->time(function() use ($task) : void{
+		PulseZones::getAsyncTaskProgressUpdateZone($task)->time(function() use ($task) : void{
 			$task->checkProgressUpdates();
 		});
 	}

@@ -71,7 +71,7 @@ final class DefaultPermissionNames{
 	public const COMMAND_TIME_SET = "quark.command.time.set";
 	public const COMMAND_TIME_START = "quark.command.time.start";
 	public const COMMAND_TIME_STOP = "quark.command.time.stop";
-	public const COMMAND_TIMINGS = "quark.command.timings";
+	public const COMMAND_PULSE = "quark.command.pulse";
 	public const COMMAND_TITLE_OTHER = "quark.command.title.other";
 	public const COMMAND_TITLE_SELF = "quark.command.title.self";
 	public const COMMAND_TRANSFERSERVER = "quark.command.transferserver";

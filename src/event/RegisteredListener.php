@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\event;
 
 use quark\plugin\Plugin;
-use quark\timings\TimingsHandler;
+use quark\pulse\PulseZone;
 use function in_array;
 
 /**
@@ -39,7 +39,7 @@ class RegisteredListener{
 		private int $priority,
 		private Plugin $plugin,
 		private bool $handleCancelled,
-		private TimingsHandler $timings
+		private PulseZone $pulse
 	){
 		if(!in_array($priority, EventPriority::ALL, true)){
 			throw new \InvalidArgumentException("Invalid priority number $priority");
@@ -68,11 +68,11 @@ class RegisteredListener{
 		if($event instanceof Cancellable && $event->isCancelled() && !$this->isHandlingCancelled()){
 			return;
 		}
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 		try{
 			($this->handler)($event);
 		}finally{
-			$this->timings->stopTiming();
+			$this->pulse->stop($scope);
 		}
 	}
 

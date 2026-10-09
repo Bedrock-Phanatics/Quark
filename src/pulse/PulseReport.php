@@ -24,22 +24,29 @@ declare(strict_types=1);
 namespace quark\pulse;
 
 use quark\pulse\internal\PulseContext;
+use quark\utils\Filesystem;
 use quark\utils\Utils;
 use quark\VersionInfo;
+use Symfony\Component\Filesystem\Path;
 use function array_is_list;
+use function bin2hex;
 use function count;
+use function date;
 use function get_object_vars;
 use function intdiv;
 use function is_array;
 use function is_bool;
+use function is_dir;
 use function is_int;
 use function is_string;
 use function json_decode;
 use function json_encode;
 use function microtime;
 use function min;
+use function mkdir;
 use function php_uname;
 use function preg_match;
+use function random_bytes;
 use function strlen;
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
@@ -126,6 +133,16 @@ final class PulseReport{
 			}
 		}
 		return $value;
+	}
+
+	public function write(string $directory) : string{
+		$json = $this->encode();
+		if(!@mkdir($directory, 0777, true) && !is_dir($directory)){
+			throw new \RuntimeException("Failed to create Pulse report directory");
+		}
+		$file = Path::join($directory, "pulse_" . date("Y-m-d_H.i.s") . "_" . bin2hex(random_bytes(8)) . ".qpulse");
+		Filesystem::safeFilePutContents($file, $json);
+		return $file;
 	}
 
 	private static function checkJsonBudget(string $json) : void{

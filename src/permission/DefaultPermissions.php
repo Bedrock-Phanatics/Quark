@@ -74,6 +74,7 @@ abstract class DefaultPermissions{
 		$everyoneRoot = self::registerNoArgsDesc(self::ROOT_USER, [$operatorRoot]);
 
 		self::registerNoArgsDesc(Names::COMMAND_DUMPMEMORY, [$consoleRoot]);
+		self::registerPermission(new Permission(Names::COMMAND_PULSE, "Allows recording and reporting server performance"), [$operatorRoot]);
 
 		foreach([
 			Names::BROADCAST_ADMIN,
@@ -116,7 +117,6 @@ abstract class DefaultPermissions{
 			Names::COMMAND_TIME_SET,
 			Names::COMMAND_TIME_START,
 			Names::COMMAND_TIME_STOP,
-			Names::COMMAND_TIMINGS,
 			Names::COMMAND_TITLE_OTHER,
 			Names::COMMAND_TITLE_SELF,
 			Names::COMMAND_TRANSFERSERVER,

@@ -23,8 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\tile\dispenser\Dispenser as DispenserTile;
+use pocketmine\math\Facing;
 
+use pocketmine\math\Vector3;
+use quark\block\tile\dispenser\Dispenser as DispenserTile;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\PoweredByRedstone;
 use quark\block\utils\PoweredByRedstoneTrait;
@@ -33,11 +35,9 @@ use quark\block\utils\redstone\PowerableTrait;
 use quark\block\utils\redstone\RedstoneBlockAccessTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\world\BlockTransaction;
 use function abs;
 
@@ -100,11 +100,11 @@ class Dispenser extends Opaque implements AnyFacing, Powerable, PoweredByRedston
 	}
 
 	protected function onReceivePower(int $power) : void{
-		if(!TimingsHandler::isEnabled()){
+		if(!Pulse::isRecording()){
 			$this->handleReceivedPower($power);
 			return;
 		}
-		Timings::$redstoneDispensers->time(fn() => $this->handleReceivedPower($power));
+		PulseZones::$redstoneDispensers->time(fn() => $this->handleReceivedPower($power));
 	}
 
 	private function handleReceivedPower(int $power) : void{

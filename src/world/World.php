@@ -367,7 +367,7 @@ class World implements ChunkManager{
 	 */
 	private array $randomTickBlocks = [];
 
-	public WorldTimings $timings;
+	public WorldPulse $pulse;
 
 	public float $tickRateTime = 0;
 
@@ -559,7 +559,7 @@ class World implements ChunkManager{
 
 		$this->initRandomTickBlocksFromConfig($cfg);
 
-		$this->timings = new WorldTimings($this);
+		$this->pulse = new WorldPulse($this);
 	}
 
 	private function initRandomTickBlocksFromConfig(ServerConfigGroup $cfg) : void{
@@ -951,13 +951,13 @@ class World implements ChunkManager{
 			throw new \LogicException("Attempted to tick a world which has been closed");
 		}
 
-		$this->timings->doTick->startTiming();
+		$doTickScope = $this->pulse->doTick->start();
 		$this->doingTick = true;
 		try{
 			$this->actuallyDoTick($currentTick);
 		}finally{
 			$this->doingTick = false;
-			$this->timings->doTick->stopTiming();
+			$this->pulse->doTick->stop($doTickScope);
 		}
 	}
 
@@ -985,7 +985,7 @@ class World implements ChunkManager{
 			$this->providerGarbageCollectionTicker = 0;
 		}
 
-		$this->timings->scheduledBlockUpdates->startTiming();
+		$scheduledBlockUpdatesScope = $this->pulse->scheduledBlockUpdates->start();
 		//Delayed updates
 		while($this->scheduledBlockUpdateQueue->count() > 0 && $this->scheduledBlockUpdateQueue->current()["priority"] <= $currentTick){
 			/** @var Vector3 $vec */
@@ -997,9 +997,9 @@ class World implements ChunkManager{
 			$block = $this->getBlock($vec);
 			$block->onScheduledUpdate();
 		}
-		$this->timings->scheduledBlockUpdates->stopTiming();
+		$this->pulse->scheduledBlockUpdates->stop($scheduledBlockUpdatesScope);
 
-		$this->timings->neighbourBlockUpdates->startTiming();
+		$neighbourBlockUpdatesScope = $this->pulse->neighbourBlockUpdates->start();
 		//Normal updates
 		while($this->neighbourBlockUpdateQueue->count() > 0){
 			$index = $this->neighbourBlockUpdateQueue->dequeue();
@@ -1024,9 +1024,9 @@ class World implements ChunkManager{
 			$block->onNearbyBlockChange();
 		}
 
-		$this->timings->neighbourBlockUpdates->stopTiming();
+		$this->pulse->neighbourBlockUpdates->stop($neighbourBlockUpdatesScope);
 
-		$this->timings->entityTick->startTiming();
+		$entityTickScope = $this->pulse->entityTick->start();
 		//Update entities that need update
 		foreach($this->updateEntities as $id => $entity){
 			if($entity->isClosed() || $entity->isFlaggedForDespawn() || !$entity->onUpdate($currentTick)){
@@ -1036,11 +1036,11 @@ class World implements ChunkManager{
 				$entity->close();
 			}
 		}
-		$this->timings->entityTick->stopTiming();
+		$this->pulse->entityTick->stop($entityTickScope);
 
-		$this->timings->randomChunkUpdates->startTiming();
+		$randomChunkUpdatesScope = $this->pulse->randomChunkUpdates->start();
 		$this->tickChunks();
-		$this->timings->randomChunkUpdates->stopTiming();
+		$this->pulse->randomChunkUpdates->stop($randomChunkUpdatesScope);
 
 		$this->executeQueuedLightUpdates();
 
@@ -1293,7 +1293,7 @@ class World implements ChunkManager{
 		}
 
 		if(count($this->recheckTickingChunks) > 0){
-			$this->timings->randomChunkUpdatesChunkSelection->startTiming();
+			$randomChunkUpdatesChunkSelectionScope = $this->pulse->randomChunkUpdatesChunkSelection->start();
 
 			$chunkTickableCache = [];
 
@@ -1305,7 +1305,7 @@ class World implements ChunkManager{
 			}
 			$this->recheckTickingChunks = [];
 
-			$this->timings->randomChunkUpdatesChunkSelection->stopTiming();
+			$this->pulse->randomChunkUpdatesChunkSelection->stop($randomChunkUpdatesChunkSelectionScope);
 		}
 
 		foreach($this->validTickingChunks as $index => $_){
@@ -1465,20 +1465,20 @@ class World implements ChunkManager{
 
 		(new WorldSaveEvent($this))->call();
 
-		$timings = $this->timings->syncDataSave;
-		$timings->startTiming();
+		$pulse = $this->pulse->syncDataSave;
+		$scope = $pulse->start();
 
 		$this->provider->getWorldData()->setTime($this->time);
 		$this->saveChunks();
 		$this->provider->getWorldData()->save();
 
-		$timings->stopTiming();
+		$pulse->stop($scope);
 
 		return true;
 	}
 
 	public function saveChunks() : void{
-		$this->timings->syncChunkSave->startTiming();
+		$syncChunkSaveScope = $this->pulse->syncChunkSave->start();
 		try{
 			foreach($this->chunks as $chunkHash => $chunk){
 				self::getXZ($chunkHash, $chunkX, $chunkZ);
@@ -1491,7 +1491,7 @@ class World implements ChunkManager{
 				$chunk->clearTerrainDirtyFlags();
 			}
 		}finally{
-			$this->timings->syncChunkSave->stopTiming();
+			$this->pulse->syncChunkSave->stop($syncChunkSaveScope);
 		}
 	}
 
@@ -1892,19 +1892,19 @@ class World implements ChunkManager{
 		}
 
 		$blockFactory = $this->blockStateRegistry;
-		$this->timings->doBlockSkyLightUpdates->startTiming();
+		$doBlockSkyLightUpdatesScope = $this->pulse->doBlockSkyLightUpdates->start();
 		if($this->skyLightUpdate === null){
 			$this->skyLightUpdate = new SkyLightUpdate(new SubChunkExplorer($this), $blockFactory->lightFilter, $blockFactory->blocksDirectSkyLight);
 		}
 		$this->skyLightUpdate->recalculateNode($x, $y, $z);
-		$this->timings->doBlockSkyLightUpdates->stopTiming();
+		$this->pulse->doBlockSkyLightUpdates->stop($doBlockSkyLightUpdatesScope);
 
-		$this->timings->doBlockLightUpdates->startTiming();
+		$doBlockLightUpdatesScope = $this->pulse->doBlockLightUpdates->start();
 		if($this->blockLightUpdate === null){
 			$this->blockLightUpdate = new BlockLightUpdate(new SubChunkExplorer($this), $blockFactory->lightFilter, $blockFactory->light);
 		}
 		$this->blockLightUpdate->recalculateNode($x, $y, $z);
-		$this->timings->doBlockLightUpdates->stopTiming();
+		$this->pulse->doBlockLightUpdates->stop($doBlockLightUpdatesScope);
 	}
 
 	/**
@@ -1952,17 +1952,17 @@ class World implements ChunkManager{
 
 	private function executeQueuedLightUpdates() : void{
 		if($this->blockLightUpdate !== null){
-			$this->timings->doBlockLightUpdates->startTiming();
+			$doBlockLightUpdatesScope = $this->pulse->doBlockLightUpdates->start();
 			$this->blockLightUpdate->execute();
 			$this->blockLightUpdate = null;
-			$this->timings->doBlockLightUpdates->stopTiming();
+			$this->pulse->doBlockLightUpdates->stop($doBlockLightUpdatesScope);
 		}
 
 		if($this->skyLightUpdate !== null){
-			$this->timings->doBlockSkyLightUpdates->startTiming();
+			$doBlockSkyLightUpdatesScope = $this->pulse->doBlockSkyLightUpdates->start();
 			$this->skyLightUpdate->execute();
 			$this->skyLightUpdate = null;
-			$this->timings->doBlockSkyLightUpdates->stopTiming();
+			$this->pulse->doBlockSkyLightUpdates->stop($doBlockSkyLightUpdatesScope);
 		}
 	}
 
@@ -2083,7 +2083,7 @@ class World implements ChunkManager{
 			throw new \LogicException("Block not registered with GlobalBlockStateHandlers serializer");
 		}
 
-		$this->timings->setBlock->startTiming();
+		$setBlockScope = $this->pulse->setBlock->start();
 
 		$this->unlockChunk($chunkX, $chunkZ, null);
 
@@ -2121,7 +2121,7 @@ class World implements ChunkManager{
 			$this->internalNotifyNeighbourBlockUpdate($x, $y, $z);
 		}
 
-		$this->timings->setBlock->stopTiming();
+		$this->pulse->setBlock->stop($setBlockScope);
 	}
 
 	public function dropItem(Vector3 $source, Item $item, ?Vector3 $motion = null, int $delay = 10) : ?ItemEntity{
@@ -2973,11 +2973,11 @@ class World implements ChunkManager{
 			return null;
 		}
 
-		$this->timings->syncChunkLoad->startTiming();
+		$syncChunkLoadScope = $this->pulse->syncChunkLoad->start();
 
 		$this->cancelUnloadChunkRequest($x, $z);
 
-		$this->timings->syncChunkLoadData->startTiming();
+		$syncChunkLoadDataScope = $this->pulse->syncChunkLoadData->start();
 
 		$loadedChunkData = null;
 
@@ -2987,10 +2987,10 @@ class World implements ChunkManager{
 			$this->logger->critical("Failed to load chunk x=$x z=$z: " . $e->getMessage());
 		}
 
-		$this->timings->syncChunkLoadData->stopTiming();
+		$this->pulse->syncChunkLoadData->stop($syncChunkLoadDataScope);
 
 		if($loadedChunkData === null){
-			$this->timings->syncChunkLoad->stopTiming();
+			$this->pulse->syncChunkLoad->stop($syncChunkLoadScope);
 			$this->knownUngeneratedChunks[$chunkHash] = true;
 			return null;
 		}
@@ -3023,7 +3023,7 @@ class World implements ChunkManager{
 		}
 		$this->markTickingChunkForRecheck($x, $z); //tickers may have been registered before the chunk was loaded
 
-		$this->timings->syncChunkLoad->stopTiming();
+		$this->pulse->syncChunkLoad->stop($syncChunkLoadScope);
 
 		return $this->chunks[$chunkHash];
 	}
@@ -3032,7 +3032,7 @@ class World implements ChunkManager{
 		$logger = new \PrefixedLogger($this->logger, "Loading chunk $chunkX $chunkZ");
 
 		if(count($chunkData->getEntityNBT()) !== 0){
-			$this->timings->syncChunkLoadEntities->startTiming();
+			$syncChunkLoadEntitiesScope = $this->pulse->syncChunkLoadEntities->start();
 			$entityFactory = EntityFactory::getInstance();
 
 			$deletedEntities = [];
@@ -3061,11 +3061,11 @@ class World implements ChunkManager{
 			foreach(Utils::promoteKeys($deletedEntities) as $saveId => $count){
 				$logger->warning("Deleted unknown entity type $saveId x$count");
 			}
-			$this->timings->syncChunkLoadEntities->stopTiming();
+			$this->pulse->syncChunkLoadEntities->stop($syncChunkLoadEntitiesScope);
 		}
 
 		if(count($chunkData->getTileNBT()) !== 0){
-			$this->timings->syncChunkLoadTileEntities->startTiming();
+			$syncChunkLoadTileEntitiesScope = $this->pulse->syncChunkLoadTileEntities->start();
 			$tileFactory = TileFactory::getInstance();
 
 			$deletedTiles = [];
@@ -3109,7 +3109,7 @@ class World implements ChunkManager{
 				$logger->warning("Deleted unknown tile entity type $saveId x$count");
 			}
 
-			$this->timings->syncChunkLoadTileEntities->stopTiming();
+			$this->pulse->syncChunkLoadTileEntities->stop($syncChunkLoadTileEntitiesScope);
 		}
 	}
 
@@ -3140,7 +3140,7 @@ class World implements ChunkManager{
 			return true;
 		}
 
-		$this->timings->doChunkUnload->startTiming();
+		$doChunkUnloadScope = $this->pulse->doChunkUnload->start();
 
 		$chunkHash = World::chunkHash($x, $z);
 
@@ -3151,14 +3151,14 @@ class World implements ChunkManager{
 				$ev = new ChunkUnloadEvent($this, $x, $z, $chunk);
 				$ev->call();
 				if($ev->isCancelled()){
-					$this->timings->doChunkUnload->stopTiming();
+					$this->pulse->doChunkUnload->stop($doChunkUnloadScope);
 
 					return false;
 				}
 			}
 
 			if($trySave && $this->getAutoSave()){
-				$this->timings->syncChunkSave->startTiming();
+				$syncChunkSaveScope = $this->pulse->syncChunkSave->start();
 				try{
 					$this->provider->saveChunk($x, $z, new ChunkData(
 						$chunk->getSubChunks(),
@@ -3167,7 +3167,7 @@ class World implements ChunkManager{
 						array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles())),
 					), $chunk->getTerrainDirtyFlags());
 				}finally{
-					$this->timings->syncChunkSave->stopTiming();
+					$this->pulse->syncChunkSave->stop($syncChunkSaveScope);
 				}
 			}
 
@@ -3203,7 +3203,7 @@ class World implements ChunkManager{
 			}
 		}
 
-		$this->timings->doChunkUnload->stopTiming();
+		$this->pulse->doChunkUnload->stop($doChunkUnloadScope);
 
 		return true;
 	}
@@ -3513,8 +3513,8 @@ class World implements ChunkManager{
 	private function internalOrderChunkPopulation(int $chunkX, int $chunkZ, ?ChunkLoader $associatedChunkLoader, ?PromiseResolver $resolver) : Promise{
 		$chunkHash = World::chunkHash($chunkX, $chunkZ);
 
-		$timings = $this->timings->chunkPopulationOrder;
-		$timings->startTiming();
+		$pulse = $this->pulse->chunkPopulationOrder;
+		$scope = $pulse->start();
 
 		try{
 			for($xx = -1; $xx <= 1; ++$xx){
@@ -3562,7 +3562,7 @@ class World implements ChunkManager{
 
 			return $resolver->getPromise();
 		}finally{
-			$timings->stopTiming();
+			$pulse->stop($scope);
 		}
 	}
 
@@ -3571,8 +3571,8 @@ class World implements ChunkManager{
 	 * @phpstan-param array<int, Chunk> $adjacentChunks
 	 */
 	private function generateChunkCallback(ChunkLockId $chunkLockId, int $x, int $z, Chunk $chunk, array $adjacentChunks, ChunkLoader $temporaryChunkLoader) : void{
-		$timings = $this->timings->chunkPopulationCompletion;
-		$timings->startTiming();
+		$pulse = $this->pulse->chunkPopulationCompletion;
+		$scope = $pulse->start();
 
 		$dirtyChunks = 0;
 		for($xx = -1; $xx <= 1; ++$xx){
@@ -3643,11 +3643,11 @@ class World implements ChunkManager{
 
 			$this->drainPopulationRequestQueue();
 		}
-		$timings->stopTiming();
+		$pulse->stop($scope);
 	}
 
 	public function doChunkGarbageCollection() : void{
-		$this->timings->doChunkGC->startTiming();
+		$doChunkGCScope = $this->pulse->doChunkGC->start();
 
 		foreach($this->chunks as $index => $chunk){
 			if(!isset($this->unloadQueue[$index])){
@@ -3661,7 +3661,7 @@ class World implements ChunkManager{
 
 		$this->provider->doGarbageCollection();
 
-		$this->timings->doChunkGC->stopTiming();
+		$this->pulse->doChunkGC->stop($doChunkGCScope);
 	}
 
 	public function unloadChunks(bool $force = false) : void{

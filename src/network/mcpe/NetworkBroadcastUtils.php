@@ -25,7 +25,7 @@ namespace quark\network\mcpe;
 
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\player\Player;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use function count;
 use function spl_object_id;
 
@@ -44,7 +44,7 @@ final class NetworkBroadcastUtils{
 			throw new \InvalidArgumentException("Cannot broadcast empty list of packets");
 		}
 
-		return Timings::$broadcastPackets->time(function() use ($recipients, $packets) : bool{
+		return PulseZones::$broadcastPackets->time(function() use ($recipients, $packets) : bool{
 			/** @var NetworkSession[] $sessions */
 			$sessions = [];
 			foreach($recipients as $player){

@@ -23,6 +23,18 @@ declare(strict_types=1);
 
 namespace quark\player;
 
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
+use pocketmine\network\mcpe\protocol\MovePlayerPacket;
+use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use quark\block\BaseSign;
 use quark\block\Bed;
 use quark\block\BlockTypeTags;
@@ -107,27 +119,15 @@ use quark\item\Releasable;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\Translatable;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\IntTag;
 use quark\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\protocol\AnimatePacket;
-use pocketmine\network\mcpe\protocol\MovePlayerPacket;
-use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
-use pocketmine\network\mcpe\protocol\types\DimensionIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
 use quark\permission\PermissibleDelegateTrait;
 use quark\player\chat\StandardChatFormatter;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\ServerProperties;
-use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
 use quark\world\ChunkListener;
@@ -867,7 +867,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return;
 		}
 
-		Timings::$playerChunkSend->startTiming();
+		$playerChunkSendScope = PulseZones::$playerChunkSend->start();
 
 		$count = 0;
 		$world = $this->getWorld();
@@ -927,7 +927,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			);
 		}
 
-		Timings::$playerChunkSend->stopTiming();
+		PulseZones::$playerChunkSend->stop($playerChunkSendScope);
 	}
 
 	private function recheckBroadcastPermissions() : void{
@@ -1011,7 +1011,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return;
 		}
 
-		Timings::$playerChunkOrder->startTiming();
+		$playerChunkOrderScope = PulseZones::$playerChunkOrder->start();
 
 		$newOrder = [];
 		$tickingChunks = [];
@@ -1048,7 +1048,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$this->getNetworkSession()->syncViewAreaCenterPoint($this->location, $this->viewDistance);
 		}
 
-		Timings::$playerChunkOrder->stopTiming();
+		PulseZones::$playerChunkOrder->stop($playerChunkOrderScope);
 	}
 
 	/**
@@ -1373,11 +1373,11 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @param Vector3 $newPos Coordinates of the player's feet, centered horizontally at the base of their bounding box.
 	 */
 	public function handleMovement(Vector3 $newPos) : void{
-		Timings::$playerMove->startTiming();
+		$playerMoveScope = PulseZones::$playerMove->start();
 		try{
 			$this->actuallyHandleMovement($newPos);
 		}finally{
-			Timings::$playerMove->stopTiming();
+			PulseZones::$playerMove->stop($playerMoveScope);
 		}
 	}
 
@@ -1534,10 +1534,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return true;
 		}
 
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 
 		if($this->spawned){
-			Timings::$playerMove->startTiming();
+			$playerMoveScope = PulseZones::$playerMove->start();
 			$this->processMostRecentMovements();
 			$this->motion = Vector3::zero(); //TODO: HACK! (Fixes player knockback being messed up)
 			if($this->onGround){
@@ -1545,20 +1545,20 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			}else{
 				$this->inAirTicks += $tickDiff;
 			}
-			Timings::$playerMove->stopTiming();
+			PulseZones::$playerMove->stop($playerMoveScope);
 
-			Timings::$entityBaseTick->startTiming();
+			$entityBaseTickScope = PulseZones::$entityBaseTick->start();
 			$this->entityBaseTick($tickDiff);
-			Timings::$entityBaseTick->stopTiming();
+			PulseZones::$entityBaseTick->stop($entityBaseTickScope);
 
 			if($this->isCreative() && $this->fireTicks > 1){
 				$this->fireTicks = 1;
 			}
 
 			if(!$this->isSpectator() && $this->isAlive()){
-				Timings::$playerCheckNearEntities->startTiming();
+				$playerCheckNearEntitiesScope = PulseZones::$playerCheckNearEntities->start();
 				$this->checkNearEntities();
-				Timings::$playerCheckNearEntities->stopTiming();
+				PulseZones::$playerCheckNearEntities->stop($playerCheckNearEntitiesScope);
 			}
 
 			if($this->blockBreakHandler !== null && !$this->blockBreakHandler->update()){
@@ -1570,7 +1570,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			}
 		}
 
-		$this->timings->stopTiming();
+		$this->pulse->stop($scope);
 
 		return true;
 	}
@@ -1626,9 +1626,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				}
 
 				if(str_starts_with($messagePart, "/")){
-					Timings::$playerCommand->startTiming();
+					$playerCommandScope = PulseZones::$playerCommand->start();
 					$this->server->dispatchCommand($this, substr($messagePart, 1));
-					Timings::$playerCommand->stopTiming();
+					PulseZones::$playerCommand->stop($playerCommandScope);
 				}else{
 					$ev = new PlayerChatEvent($this, $messagePart, $this->server->getBroadcastChannelSubscribers(Server::BROADCAST_CHANNEL_USERS), new StandardChatFormatter());
 					$ev->call();

@@ -26,8 +26,9 @@ namespace quark\scheduler;
 use pmmp\thread\Runnable;
 use pmmp\thread\ThreadSafe;
 use pmmp\thread\ThreadSafeArray;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\thread\NonThreadSafeValue;
-use quark\timings\Timings;
 use function array_key_exists;
 use function igbinary_serialize;
 use function igbinary_unserialize;
@@ -82,13 +83,15 @@ abstract class AsyncTask extends Runnable{
 	public function run() : void{
 		$this->result = null;
 
-		$timings = Timings::getAsyncTaskRunTimings($this);
-		$timings->startTiming();
+		Pulse::checkDuration();
+		$pulse = $this instanceof PulseControlTask || !Pulse::isRecording() ? null : PulseZones::getAsyncTaskRunZone($this);
+		$scope = $pulse?->start() ?? 0;
 
 		try{
 			$this->onRun();
 		}finally{
-			$timings->stopTiming();
+			$pulse?->stop($scope);
+			Pulse::checkDuration();
 		}
 
 		$this->finished = true;

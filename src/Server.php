@@ -27,6 +27,10 @@ declare(strict_types=1);
  */
 namespace quark;
 
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
+use pocketmine\snooze\SleeperHandler;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\tile\dispenser\DispensableItemManager;
 use quark\command\Command;
@@ -51,7 +55,6 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\LanguageNotFoundException;
 use quark\lang\Translatable;
-use pocketmine\nbt\tag\CompoundTag;
 use quark\network\mcpe\auth\AuthKeyProvider;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\CompressBatchTask;
@@ -63,8 +66,6 @@ use quark\network\mcpe\encryption\EncryptionContext;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketBroadcaster;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\network\mcpe\raklib\RakLibInterface;
 use quark\network\mcpe\StandardEntityEventBroadcaster;
 use quark\network\mcpe\StandardPacketBroadcaster;
@@ -92,16 +93,16 @@ use quark\plugin\PluginOwned;
 use quark\plugin\ScriptPluginLoader;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
+use quark\pulse\internal\PulseRecorder;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
+use quark\pulse\PulseReport;
+use quark\pulse\PulseZone;
 use quark\resourcepacks\ResourcePackManager;
 use quark\scheduler\AsyncPool;
-use quark\scheduler\TimingsCollectionTask;
-use quark\scheduler\TimingsControlTask;
-use pocketmine\snooze\SleeperHandler;
 use quark\thread\log\AttachableThreadSafeLogger;
 use quark\thread\ThreadCrashException;
 use quark\thread\ThreadSafeClassLoader;
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
 use quark\updater\UpdateChecker;
 use quark\utils\AssumptionFailedError;
 use quark\utils\BroadcastLoggerForwarder;
@@ -242,7 +243,7 @@ class Server{
 
 	private PluginManager $pluginManager;
 
-	private float $profilingTickRate = self::TARGET_TICKS_PER_SECOND;
+	private PulseRecorder $pulse;
 
 	private UpdateChecker $updater;
 
@@ -503,6 +504,36 @@ class Server{
 		return $this->commandMap;
 	}
 
+	/** @internal */
+	public function getPulse() : PulseRecorder{ return $this->pulse; }
+
+	/** @return Promise<string> */
+	public function createPulseReport() : Promise{
+		$plugins = [];
+		foreach($this->pluginManager->getPlugins() as $plugin){
+			$description = $plugin->getDescription();
+			$plugins[] = ["name" => $description->getName(), "version" => $description->getVersion()];
+		}
+		$worlds = [];
+		foreach($this->worldManager->getWorlds() as $world){ $worlds[] = $world->getFolderName(); }
+		/** @var PromiseResolver<string> $result */
+		$result = new PromiseResolver();
+		$this->pulse->collect(["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds])->onCompletion(
+			function(PulseReport $report) use ($result) : void{
+				try{
+					$file = $report->write(Path::join($this->getDataPath(), "pulse"));
+				}catch(\RuntimeException|\JsonException|\LengthException $e){
+					$this->logger->logException($e);
+					$result->reject();
+					return;
+				}
+				$result->resolve($file);
+			},
+			fn() => $result->reject()
+		);
+		return $result->getPromise();
+	}
+
 	/**
 	 * @return Player[]
 	 */
@@ -533,7 +564,7 @@ class Server{
 	}
 
 	public function getOfflinePlayerData(string $name) : ?CompoundTag{
-		return Timings::$syncPlayerDataLoad->time(function() use ($name) : ?CompoundTag{
+		return PulseZones::$syncPlayerDataLoad->time(function() use ($name) : ?CompoundTag{
 			try{
 				return $this->playerDataProvider->loadData($name);
 			}catch(PlayerDataLoadException $e){
@@ -553,7 +584,7 @@ class Server{
 		$ev->call();
 
 		if(!$ev->isCancelled()){
-			Timings::$syncPlayerDataSave->time(function() use ($name, $ev) : void{
+			PulseZones::$syncPlayerDataSave->time(function() use ($name, $ev) : void{
 				try{
 					$this->playerDataProvider->saveData($name, $ev->getSaveData());
 				}catch(PlayerDataSaveException $e){
@@ -793,8 +824,8 @@ class Server{
 		$this->tickAverage = array_fill(0, self::TARGET_TICKS_PER_SECOND, self::TARGET_TICKS_PER_SECOND);
 		$this->useAverage = array_fill(0, self::TARGET_TICKS_PER_SECOND, 0);
 
-		Timings::init();
-		$this->tickSleeper = new TimeTrackingSleeperHandler(Timings::$serverInterrupts);
+		PulseZones::init();
+		$this->tickSleeper = new TimeTrackingSleeperHandler(PulseZones::$serverInterrupts);
 
 		$this->signalHandler = new SignalHandler(function() : void{
 			$this->logger->info("Received signal interrupt, stopping the server");
@@ -909,9 +940,6 @@ class Server{
 				$poolSize = max(1, (int) $poolSize);
 			}
 
-			TimingsHandler::setEnabled($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false));
-			$this->profilingTickRate = $this->configGroup->getPropertyInt(Yml::SETTINGS_PROFILE_REPORT_TRIGGER, self::TARGET_TICKS_PER_SECOND);
-
 			$this->asyncPool = new AsyncPool(
 				$poolSize,
 				max(-1, $this->configGroup->getPropertyInt(Yml::MEMORY_ASYNC_WORKER_HARD_LIMIT, 256)),
@@ -920,33 +948,10 @@ class Server{
 				$this->tickSleeper,
 				$this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD)
 			);
-			$this->asyncPool->addWorkerStartHook(function(int $i) : void{
-				if(TimingsHandler::isEnabled()){
-					$this->asyncPool->submitTaskToWorker(TimingsControlTask::setEnabled(true), $i);
-				}
-			});
-			TimingsHandler::getToggleCallbacks()->add(function(bool $enable) : void{
-				foreach($this->asyncPool->getRunningWorkers() as $workerId){
-					$this->asyncPool->submitTaskToWorker(TimingsControlTask::setEnabled($enable), $workerId);
-				}
-			});
-			TimingsHandler::getReloadCallbacks()->add(function() : void{
-				foreach($this->asyncPool->getRunningWorkers() as $workerId){
-					$this->asyncPool->submitTaskToWorker(TimingsControlTask::reload(), $workerId);
-				}
-			});
-			TimingsHandler::getCollectCallbacks()->add(function() : array{
-				$promises = [];
-				foreach($this->asyncPool->getRunningWorkers() as $workerId){
-					/** @phpstan-var PromiseResolver<list<string>> $resolver */
-					$resolver = new PromiseResolver();
-					$this->asyncPool->submitTaskToWorker(new TimingsCollectionTask($resolver), $workerId);
-
-					$promises[] = $resolver->getPromise();
-				}
-
-				return $promises;
-			});
+			$this->pulse = new PulseRecorder($this->asyncPool);
+			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
+				$this->pulse->start();
+			}
 
 			$netCompressionThreshold = -1;
 			if($this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256) >= 0){
@@ -1484,10 +1489,10 @@ class Server{
 	 *
 	 * @param bool|null $sync Compression on the main thread (true) or workers (false). Default is automatic (null).
 	 */
-	public function prepareBatch(string $buffer, Compressor $compressor, ?bool $sync = null, ?TimingsHandler $timings = null) : CompressBatchPromise|string{
-		$timings ??= Timings::$playerNetworkSendCompress;
+	public function prepareBatch(string $buffer, Compressor $compressor, ?bool $sync = null, ?PulseZone $pulse = null) : CompressBatchPromise|string{
+		$pulse ??= PulseZones::$playerNetworkSendCompress;
+		$scope = $pulse->start();
 		try{
-			$timings->startTiming();
 
 			$threshold = $compressor->getCompressionThreshold();
 			if($threshold === null || strlen($buffer) < $compressor->getCompressionThreshold()){
@@ -1510,7 +1515,7 @@ class Server{
 
 			return chr($compressionType) . $compressed;
 		}finally{
-			$timings->stopTiming();
+			$pulse->stop($scope);
 		}
 	}
 
@@ -1556,14 +1561,16 @@ class Server{
 			$this->isRunning = false;
 			$this->signalHandler->unregister();
 
-			if(TimingsHandler::isEnabled()){
-				TimingsHandler::createReportFile(Path::join($this->getDataPath(), "timings"))->onCompletion(
-					function(string $timingsFile) : void{
-						$this->logger->info($this->language->translate(KnownTranslationFactory::quark_command_timings_timingsWrite($timingsFile)));
-						TimingsHandler::setEnabled(false);
-					},
-					fn() => $this->logger->error("Failed to create timings report file")
-				);
+			if(isset($this->pulse) && $this->pulse->getSession() !== null){
+				$this->pulse->stop();
+				try{
+					$this->createPulseReport()->onCompletion(
+						fn(string $file) => $this->logger->info("Pulse report saved to $file"),
+						fn() => $this->logger->error("Failed to create Pulse report")
+					);
+				}catch(\LogicException $e){
+					$this->logger->debug($e->getMessage());
+				}
 			}
 		}
 	}
@@ -1829,7 +1836,6 @@ class Server{
 		$rawUUID = $player->getUniqueId()->getBytes();
 		$this->playerList[$rawUUID] = $player;
 
-
 		return true;
 	}
 
@@ -1870,7 +1876,7 @@ class Server{
 	}
 
 	private function titleTick() : void{
-		Timings::$titleTick->startTiming();
+		$titleTickScope = PulseZones::$titleTick->start();
 
 		$u = Process::getAdvancedMemoryUsage();
 		$usage = sprintf("%g/%g/%g MB @ %d threads", round(($u[0] / 1024) / 1024, 2), round(($u[1] / 1024) / 1024, 2), round(($u[2] / 1024) / 1024, 2), Process::getThreadCount());
@@ -1889,7 +1895,7 @@ class Server{
 			" kB/s | TPS " . $this->getTicksPerSecondAverage() .
 			" | Load " . $this->getTickUsageAverage() . "%\x07";
 
-		Timings::$titleTick->stopTiming();
+		PulseZones::$titleTick->stop($titleTickScope);
 	}
 
 	/**
@@ -1901,69 +1907,72 @@ class Server{
 			return;
 		}
 
-		Timings::$serverTick->startTiming();
+		$pulseSession = Pulse::getSession();
+		Pulse::beginTick();
+		$serverTickScope = PulseZones::$serverTick->start();
+		try{
+			++$this->tickCounter;
 
-		++$this->tickCounter;
+			$schedulerScope = PulseZones::$scheduler->start();
+			$this->pluginManager->tickSchedulers($this->tickCounter);
+			PulseZones::$scheduler->stop($schedulerScope);
 
-		Timings::$scheduler->startTiming();
-		$this->pluginManager->tickSchedulers($this->tickCounter);
-		Timings::$scheduler->stopTiming();
+			$schedulerAsyncScope = PulseZones::$schedulerAsync->start();
+			$this->asyncPool->collectTasks();
+			PulseZones::$schedulerAsync->stop($schedulerAsyncScope);
 
-		Timings::$schedulerAsync->startTiming();
-		$this->asyncPool->collectTasks();
-		Timings::$schedulerAsync->stopTiming();
+			$this->worldManager->tick($this->tickCounter);
+			$this->redstoneWorldManager?->tick();
 
-		$this->worldManager->tick($this->tickCounter);
-		$this->redstoneWorldManager?->tick();
+			$connectionScope = PulseZones::$connection->start();
+			$this->network->tick();
+			PulseZones::$connection->stop($connectionScope);
 
-		Timings::$connection->startTiming();
-		$this->network->tick();
-		Timings::$connection->stopTiming();
+			if(($this->tickCounter % self::TARGET_TICKS_PER_SECOND) === 0){
+				if($this->doTitleTick){
+					$this->titleTick();
+				}
+				$this->currentTPS = self::TARGET_TICKS_PER_SECOND;
+				$this->currentUse = 0;
 
-		if(($this->tickCounter % self::TARGET_TICKS_PER_SECOND) === 0){
-			if($this->doTitleTick){
-				$this->titleTick();
+				$queryRegenerateEvent = new QueryRegenerateEvent(new QueryInfo($this));
+				$queryRegenerateEvent->call();
+				$this->queryInfo = $queryRegenerateEvent->getQueryInfo();
+
+				$this->network->updateName();
+				$this->network->getBandwidthTracker()->rotateAverageHistory();
 			}
-			$this->currentTPS = self::TARGET_TICKS_PER_SECOND;
-			$this->currentUse = 0;
 
-			$queryRegenerateEvent = new QueryRegenerateEvent(new QueryInfo($this));
-			$queryRegenerateEvent->call();
-			$this->queryInfo = $queryRegenerateEvent->getQueryInfo();
-
-			$this->network->updateName();
-			$this->network->getBandwidthTracker()->rotateAverageHistory();
-		}
-
-		if(($this->tickCounter % self::TICKS_PER_WORLD_CACHE_CLEAR) === 0){
-			foreach($this->worldManager->getWorlds() as $world){
-				$world->clearCache();
+			if(($this->tickCounter % self::TICKS_PER_WORLD_CACHE_CLEAR) === 0){
+				foreach($this->worldManager->getWorlds() as $world){
+					$world->clearCache();
+				}
 			}
-		}
 
-		if(($this->tickCounter % self::TICKS_PER_TPS_OVERLOAD_WARNING) === 0 && $this->getTicksPerSecondAverage() < self::TPS_OVERLOAD_WARNING_THRESHOLD){
-			$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_tickOverload()));
-		}
-
-		$this->memoryManager->check();
-
-		if($this->console !== null){
-			Timings::$serverCommand->startTiming();
-			while(($line = $this->console->readLine()) !== null){
-				$this->consoleSender ??= new ConsoleCommandSender($this, $this->language);
-				$this->dispatchCommand($this->consoleSender, $line);
+			if(($this->tickCounter % self::TICKS_PER_TPS_OVERLOAD_WARNING) === 0 && $this->getTicksPerSecondAverage() < self::TPS_OVERLOAD_WARNING_THRESHOLD){
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_tickOverload()));
 			}
-			Timings::$serverCommand->stopTiming();
-		}
 
-		Timings::$serverTick->stopTiming();
+			$this->memoryManager->check();
+
+			if($this->console !== null){
+				$serverCommandScope = PulseZones::$serverCommand->start();
+				while(($line = $this->console->readLine()) !== null){
+					$this->consoleSender ??= new ConsoleCommandSender($this, $this->language);
+					$this->dispatchCommand($this->consoleSender, $line);
+				}
+				PulseZones::$serverCommand->stop($serverCommandScope);
+			}
+		}finally{
+			PulseZones::$serverTick->stop($serverTickScope);
+			if(Pulse::getSession() === $pulseSession){ Pulse::endTick(); }
+			$this->pulse->checkDuration();
+		}
 
 		$now = microtime(true);
 		$totalTickTimeSeconds = $now - $tickTime + ($this->tickSleeper->getNotificationProcessingTime() / 1_000_000_000);
 		$this->currentTPS = min(self::TARGET_TICKS_PER_SECOND, 1 / max(0.001, $totalTickTimeSeconds));
 		$this->currentUse = min(1, $totalTickTimeSeconds / self::TARGET_SECONDS_PER_TICK);
-
-		TimingsHandler::tick($this->currentTPS <= $this->profilingTickRate);
 
 		$idx = $this->tickCounter % self::TARGET_TICKS_PER_SECOND;
 		$this->tickAverage[$idx] = $this->currentTPS;

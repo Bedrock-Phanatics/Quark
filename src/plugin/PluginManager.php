@@ -36,8 +36,8 @@ use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissionManager;
 use quark\permission\PermissionParser;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
-use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
@@ -667,9 +667,9 @@ class PluginManager{
 			throw new PluginException("Plugin attempted to register event handler " . $handlerName . "() to event " . $event . " while not enabled");
 		}
 
-		$timings = Timings::getEventHandlerTimings($event, $handlerName, $plugin->getDescription()->getFullName());
+		$pulse = PulseZones::getEventHandlerZone($event, $handlerName, $plugin->getDescription()->getFullName());
 
-		$registeredListener = new RegisteredListener($handler, $priority, $plugin, $handleCancelled, $timings);
+		$registeredListener = new RegisteredListener($handler, $priority, $plugin, $handleCancelled, $pulse);
 		HandlerListManager::global()->getListFor($event)->register($registeredListener);
 		return $registeredListener;
 	}

@@ -43,7 +43,7 @@ use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
 use quark\player\Player;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use function atan2;
 use function ceil;
 use function count;
@@ -165,8 +165,8 @@ abstract class Projectile extends Entity{
 	protected function move(float $dx, float $dy, float $dz) : void{
 		$this->blocksAround = null;
 
-		Timings::$projectileMove->startTiming();
-		Timings::$projectileMoveRayTrace->startTiming();
+		$projectileMoveScope = PulseZones::$projectileMove->start();
+		$projectileMoveRayTraceScope = PulseZones::$projectileMoveRayTrace->start();
 
 		$start = $this->location->asVector3();
 		$end = $start->add($dx, $dy, $dz);
@@ -210,7 +210,7 @@ abstract class Projectile extends Entity{
 			}
 		}
 
-		Timings::$projectileMoveRayTrace->stopTiming();
+		PulseZones::$projectileMoveRayTrace->stop($projectileMoveRayTraceScope);
 
 		$this->location = Location::fromObject(
 			$end,
@@ -237,7 +237,7 @@ abstract class Projectile extends Entity{
 		$world->onEntityMoved($this);
 		$this->checkBlockIntersections();
 
-		Timings::$projectileMove->stopTiming();
+		PulseZones::$projectileMove->stop($projectileMoveScope);
 	}
 
 	private function processCollision(Block|Entity $objectHit, RayTraceResult $hitResult) : void{

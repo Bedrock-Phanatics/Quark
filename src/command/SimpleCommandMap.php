@@ -46,6 +46,7 @@ use quark\command\defaults\PardonCommand;
 use quark\command\defaults\PardonIpCommand;
 use quark\command\defaults\ParticleCommand;
 use quark\command\defaults\PluginsCommand;
+use quark\command\defaults\PulseCommand;
 use quark\command\defaults\SaveCommand;
 use quark\command\defaults\SaveOffCommand;
 use quark\command\defaults\SaveOnCommand;
@@ -58,7 +59,6 @@ use quark\command\defaults\StopCommand;
 use quark\command\defaults\TeleportCommand;
 use quark\command\defaults\TellCommand;
 use quark\command\defaults\TimeCommand;
-use quark\command\defaults\TimingsCommand;
 use quark\command\defaults\TitleCommand;
 use quark\command\defaults\TransferServerCommand;
 use quark\command\defaults\VanillaCommand;
@@ -69,7 +69,6 @@ use quark\command\utils\CommandStringHelper;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\Server;
-use quark\timings\Timings;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
 use function array_shift;
@@ -130,7 +129,7 @@ class SimpleCommandMap implements CommandMap{
 			new TeleportCommand(),
 			new TellCommand(),
 			new TimeCommand(),
-			new TimingsCommand(),
+			new PulseCommand(),
 			new TitleCommand(),
 			new TransferServerCommand(),
 			new VersionCommand(),
@@ -211,8 +210,8 @@ class SimpleCommandMap implements CommandMap{
 
 		$sentCommandLabel = array_shift($args);
 		if($sentCommandLabel !== null && ($target = $this->getCommand($sentCommandLabel)) !== null){
-			$timings = Timings::getCommandDispatchTimings($target->getLabel());
-			$timings->startTiming();
+			$pulse = $target->getPulseZone();
+			$scope = $pulse->start();
 
 			try{
 				if($target->testPermission($sender)){
@@ -221,7 +220,7 @@ class SimpleCommandMap implements CommandMap{
 			}catch(InvalidCommandSyntaxException $e){
 				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_generic_usage($target->getUsage())));
 			}finally{
-				$timings->stopTiming();
+				$pulse->stop($scope);
 			}
 			return true;
 		}

@@ -23,6 +23,11 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\AddItemActorPacket;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use quark\entity\animation\ItemEntityStackSizeChangeAnimation;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -32,15 +37,10 @@ use quark\event\entity\ItemDespawnEvent;
 use quark\event\entity\ItemMergeEvent;
 use quark\event\entity\ItemSpawnEvent;
 use quark\item\Item;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use pocketmine\network\mcpe\protocol\AddItemActorPacket;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use quark\player\Player;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use function max;
 
 class ItemEntity extends Entity{
@@ -106,7 +106,7 @@ class ItemEntity extends Entity{
 			return false;
 		}
 
-		Timings::$itemEntityBaseTick->startTiming();
+		$itemEntityBaseTickScope = PulseZones::$itemEntityBaseTick->start();
 		try{
 
 			$hasUpdate = parent::entityBaseTick($tickDiff);
@@ -161,7 +161,7 @@ class ItemEntity extends Entity{
 
 			return $hasUpdate;
 		}finally{
-			Timings::$itemEntityBaseTick->stopTiming();
+			PulseZones::$itemEntityBaseTick->stop($itemEntityBaseTickScope);
 		}
 	}
 

@@ -58,7 +58,7 @@ use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\player\Player;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use quark\utils\Utils;
 use quark\world\sound\BurpSound;
 use quark\world\sound\EntityLandSound;
@@ -658,7 +658,7 @@ abstract class Living extends Entity{
 	}
 
 	protected function entityBaseTick(int $tickDiff = 1) : bool{
-		Timings::$livingEntityBaseTick->startTiming();
+		$livingEntityBaseTickScope = PulseZones::$livingEntityBaseTick->start();
 
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
@@ -683,7 +683,7 @@ abstract class Living extends Entity{
 			$this->attackTime -= $tickDiff;
 		}
 
-		Timings::$livingEntityBaseTick->stopTiming();
+		PulseZones::$livingEntityBaseTick->stop($livingEntityBaseTickScope);
 
 		return $hasUpdate;
 	}

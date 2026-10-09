@@ -59,9 +59,9 @@ use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\player\Player;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\PulseZone;
 use quark\Server;
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
 use quark\utils\Utils;
 use quark\VersionInfo;
 use quark\world\format\Chunk;
@@ -167,7 +167,7 @@ abstract class Entity{
 	private bool $closeInFlight = false;
 	private bool $needsDespawn = false;
 
-	protected TimingsHandler $timings;
+	protected PulseZone $pulse;
 
 	protected bool $networkPropertiesDirty = false;
 
@@ -195,7 +195,7 @@ abstract class Entity{
 		$this->constructorCalled = true;
 		Utils::checkLocationNotInfOrNaN($location);
 
-		$this->timings = Timings::getEntityTimings($this);
+		$this->pulse = PulseZones::getEntityZone($this);
 
 		$this->size = $this->getInitialSizeInfo();
 		$this->drag = $this->getInitialDragMultiplier();
@@ -1015,7 +1015,7 @@ abstract class Entity{
 			return true;
 		}
 
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 
 		if($this->hasMovementUpdate()){
 			$this->tryChangeMovement();
@@ -1035,11 +1035,11 @@ abstract class Entity{
 
 		$this->updateMovement();
 
-		Timings::$entityBaseTick->startTiming();
+		$entityBaseTickScope = PulseZones::$entityBaseTick->start();
 		$hasUpdate = $this->entityBaseTick($tickDiff);
-		Timings::$entityBaseTick->stopTiming();
+		PulseZones::$entityBaseTick->stop($entityBaseTickScope);
 
-		$this->timings->stopTiming();
+		$this->pulse->stop($scope);
 
 		return ($hasUpdate || $this->hasMovementUpdate());
 	}
@@ -1167,8 +1167,8 @@ abstract class Entity{
 	protected function move(float $dx, float $dy, float $dz) : void{
 		$this->blocksAround = null;
 
-		Timings::$entityMove->startTiming();
-		Timings::$entityMoveCollision->startTiming();
+		$entityMoveScope = PulseZones::$entityMove->start();
+		$entityMoveCollisionScope = PulseZones::$entityMoveCollision->start();
 
 		$wantedX = $dx;
 		$wantedY = $dy;
@@ -1255,7 +1255,7 @@ abstract class Entity{
 
 			$this->boundingBox = $moveBB;
 		}
-		Timings::$entityMoveCollision->stopTiming();
+		PulseZones::$entityMoveCollision->stop($entityMoveCollisionScope);
 
 		$this->location = new Location(
 			($this->boundingBox->minX + $this->boundingBox->maxX) / 2,
@@ -1279,7 +1279,7 @@ abstract class Entity{
 
 		//TODO: vehicle collision events (first we need to spawn them!)
 
-		Timings::$entityMove->stopTiming();
+		PulseZones::$entityMove->stop($entityMoveScope);
 	}
 
 	public function setStepHeight(float $stepHeight) : void{

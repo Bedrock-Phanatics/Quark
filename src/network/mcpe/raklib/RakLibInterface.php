@@ -36,9 +36,9 @@ use quark\network\Network;
 use quark\network\NetworkInterfaceStartException;
 use quark\network\PacketHandlingException;
 use quark\player\GameMode;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\thread\ThreadCrashException;
-use quark\timings\Timings;
 use quark\utils\Utils;
 use quark\YmlServerProperties;
 use raklib\generic\DisconnectReason;
@@ -104,11 +104,11 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 		$this->rakServerId = mt_rand(0, PHP_INT_MAX);
 
 		$sleeperEntry = $this->server->getTickSleeper()->addNotifier(function() : void{
-			Timings::$connection->startTiming();
+			$connectionScope = PulseZones::$connection->start();
 			try{
 				while($this->eventReceiver->handle($this));
 			}finally{
-				Timings::$connection->stopTiming();
+				PulseZones::$connection->stop($connectionScope);
 			}
 		});
 		$this->sleeperNotifierId = $sleeperEntry->getNotifierId();

@@ -113,13 +113,10 @@ final class YmlServerProperties{
 	public const SETTINGS_ENABLE_DEV_BUILDS = 'settings.enable-dev-builds';
 	public const SETTINGS_ENABLE_PROFILING = 'settings.enable-profiling';
 	public const SETTINGS_FORCE_LANGUAGE = 'settings.force-language';
-	public const SETTINGS_PROFILE_REPORT_TRIGGER = 'settings.profile-report-trigger';
 	public const SETTINGS_QUERY_PLUGINS = 'settings.query-plugins';
 	public const SETTINGS_SHUTDOWN_MESSAGE = 'settings.shutdown-message';
 	public const TICKS_PER = 'ticks-per';
 	public const TICKS_PER_AUTOSAVE = 'ticks-per.autosave';
-	public const TIMINGS = 'timings';
-	public const TIMINGS_HOST = 'timings.host';
 	public const TNT_LIMITS = 'tnt-limits';
 	public const TNT_LIMITS_ENABLED = 'tnt-limits.enabled';
 	public const TNT_LIMITS_MAX_ACTIVE_NEARBY = 'tnt-limits.max-active-nearby';

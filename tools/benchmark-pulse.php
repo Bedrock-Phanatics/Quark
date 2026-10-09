@@ -21,9 +21,14 @@
 
 declare(strict_types=1);
 
+use pocketmine\snooze\SleeperHandler;
+use quark\pulse\internal\PulseRecorder;
 use quark\pulse\Pulse;
 use quark\pulse\PulseReport;
-use quark\timings\TimingsHandler;
+use quark\scheduler\AsyncPool;
+use quark\scheduler\AsyncTask;
+use quark\thread\ThreadSafeClassLoader;
+use quark\utils\MainLogger;
 use quark\utils\Utils;
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -71,40 +76,18 @@ $nested = static function(int $n) use ($zone, $child) : void{
 	}
 };
 
-$legacy = new TimingsHandler("benchmark.legacy");
-$legacyChild = new TimingsHandler("benchmark.legacy.child");
-$legacySingle = static function(int $n) use ($legacy) : void{
-	for($i = 0; $i < $n; ++$i){
-		$legacy->startTiming();
-		$legacy->stopTiming();
-	}
-};
-$legacyNested = static function(int $n) use ($legacy, $legacyChild) : void{
-	for($i = 0; $i < $n; ++$i){
-		$legacy->startTiming();
-		$legacyChild->startTiming();
-		$legacyChild->stopTiming();
-		$legacy->stopTiming();
-	}
-};
-
 printf("PHP %s; %s; OPcache CLI=%s; JIT=%s; median (min-max), 9 alternating rounds\n", PHP_VERSION, PHP_OS_FAMILY, ini_get("opcache.enable_cli"), ini_get("opcache.jit"));
 benchmarkPulse([
 	"empty loop" => static function(int $n) : void{
 		for($i = 0; $i < $n; ++$i){}
 	},
-	"Pulse disabled pair" => $single,
-	"Timings disabled pair" => $legacySingle
+	"Pulse disabled pair" => $single
 ], 200000);
 $session = Pulse::start();
-TimingsHandler::setEnabled(true);
 benchmarkPulse([
 	"Pulse repeated pair" => $single,
-	"Timings repeated pair" => $legacySingle,
-	"Pulse nested (2 pairs)" => $nested,
-	"Timings nested (2 pairs)" => $legacyNested
+	"Pulse nested (2 pairs)" => $nested
 ], 200000);
-TimingsHandler::setEnabled(false);
 
 $zones = [];
 for($i = 0; $i < 256; ++$i){
@@ -162,4 +145,67 @@ benchmarkPulse([
 		}
 	}
 ], 100);
-echo "Worker benchmarks require the integration batch and pmmpthread.\n";
+if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){
+	echo "Two-worker benchmarks skipped: requires pmmpthread and igbinary.\n";
+	return;
+}
+
+function waitForPulseWorkers(AsyncPool $pool) : void{
+	$deadline = microtime(true) + 30;
+	while($pool->collectTasks()){
+		if(microtime(true) >= $deadline){ throw new RuntimeException("Worker benchmark timed out"); }
+		usleep(1000);
+	}
+}
+
+define('quark\\COMPOSER_AUTOLOADER_PATH', __DIR__ . '/../vendor/autoload.php');
+$logger = new MainLogger(null, false, "Pulse benchmark", new DateTimeZone("UTC"));
+$pool = new AsyncPool(2, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0);
+$recorder = new PulseRecorder($pool);
+Pulse::reset();
+try{
+	foreach([false, true] as $recording){
+		if($recording){ $recorder->start(); }
+		for($worker = 0; $worker < 2; ++$worker){
+			$pool->submitTaskToWorker(new class($worker, $recording) extends AsyncTask{
+				public function __construct(private int $worker, private bool $recording){}
+
+				public function onRun() : void{
+					$zone = Pulse::zone("benchmark.worker");
+					$samples = [];
+					$retained = 0;
+					for($round = -1; $round < 9; ++$round){
+						$before = memory_get_usage();
+						$start = hrtime(true);
+						for($i = 0; $i < 200000; ++$i){ $scope = $zone->start(); $zone->stop($scope); }
+						$elapsed = (hrtime(true) - $start) / 200000;
+						$retained = memory_get_usage() - $before;
+						if($round >= 0){ $samples[] = $elapsed; }
+					}
+					sort($samples, SORT_NUMERIC);
+					$this->setResult([$samples[4], $samples[0], $samples[8], $retained]);
+				}
+
+				public function onCompletion() : void{
+					/** @var array{float, float, float, int} $result */
+					$result = $this->getResult();
+					printf("Worker #%d %s pair: %.1f ns/op (%.1f-%.1f), retained: %d B\n", $this->worker, $this->recording ? "active" : "disabled", ...$result);
+				}
+			}, $worker);
+		}
+		waitForPulseWorkers($pool);
+	}
+	$recorder->stop();
+	$recorder->collect()->onCompletion(static function(PulseReport $report) : void{
+		$threads = $report->getData()["threads"];
+		benchmarkPulse(["Three-thread report" => static function(int $n) use ($threads) : void{
+			for($i = 0; $i < $n; ++$i){ PulseReport::create($threads); }
+		}], 100);
+	}, static function() : void{ throw new RuntimeException("Worker report rejected"); });
+	waitForPulseWorkers($pool);
+}finally{
+	$recorder->stop();
+	$pool->shutdown();
+	Pulse::reset();
+	$logger->shutdownLogWriterThread();
+}

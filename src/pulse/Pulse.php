@@ -47,6 +47,11 @@ final class Pulse{
 		self::$session?->stop();
 	}
 
+	public static function reset() : void{
+		self::stop();
+		self::$session = null;
+	}
+
 	public static function isRecording() : bool{
 		return self::$context->recording ?? false;
 	}

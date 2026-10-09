@@ -25,9 +25,9 @@ namespace quark;
 
 use quark\event\server\LowMemoryEvent;
 use quark\network\mcpe\cache\ChunkCache;
+use quark\pulse\internal\PulseZones;
 use quark\scheduler\DumpWorkerMemoryTask;
 use quark\scheduler\GarbageCollectionTask;
-use quark\timings\Timings;
 use quark\utils\Process;
 use quark\YmlServerProperties as Yml;
 use function gc_collect_cycles;
@@ -72,7 +72,7 @@ class MemoryManager{
 	){
 		$this->logger = new \PrefixedLogger($server->getLogger(), "Memory Manager");
 		$gcThreshold = $server->getConfigGroup()->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD);
-		$this->cycleGcManager = new GarbageCollectorManager($this->logger, Timings::$memoryManager, $gcThreshold);
+		$this->cycleGcManager = new GarbageCollectorManager($this->logger, $gcThreshold);
 
 		$this->init($server->getConfigGroup());
 	}
@@ -165,7 +165,7 @@ class MemoryManager{
 	 * Called every tick to update the memory manager state.
 	 */
 	public function check() : void{
-		Timings::$memoryManager->startTiming();
+		$memoryManagerScope = PulseZones::$memoryManager->start();
 
 		if(($this->memoryLimit > 0 || $this->globalMemoryLimit > 0) && ++$this->checkTicker >= $this->checkRate){
 			$this->checkTicker = 0;
@@ -200,11 +200,11 @@ class MemoryManager{
 			$this->cycleGcManager->maybeCollectCycles();
 		}
 
-		Timings::$memoryManager->stopTiming();
+		PulseZones::$memoryManager->stop($memoryManagerScope);
 	}
 
 	public function triggerGarbageCollector() : int{
-		Timings::$garbageCollector->startTiming();
+		$garbageCollectorScope = PulseZones::$garbageCollector->start();
 
 		$pool = $this->server->getAsyncPool();
 		if(($w = $pool->shutdownUnusedWorkers()) > 0){
@@ -217,7 +217,7 @@ class MemoryManager{
 		$cycles = gc_collect_cycles();
 		gc_mem_caches();
 
-		Timings::$garbageCollector->stopTiming();
+		PulseZones::$garbageCollector->stop($garbageCollectorScope);
 
 		return $cycles;
 	}

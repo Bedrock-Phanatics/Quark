@@ -25,14 +25,14 @@ namespace quark\world\redstone;
 
 use Generator;
 use InvalidArgumentException;
+use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\Opaque;
 use quark\block\RedstoneWire;
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\RedstoneBlockUtils;
 use quark\block\utils\redstone\Waitable;
-use pocketmine\math\Facing;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use quark\world\format\Chunk;
 use quark\world\World;
 use RangeException;
@@ -66,7 +66,7 @@ final class RedstoneWorldState{
 	}
 
 	public function tick() : void{
-		Timings::$redstoneScheduler->time(fn() => $this->tickScheduledUpdates());
+		PulseZones::$redstoneScheduler->time(fn() => $this->tickScheduledUpdates());
 	}
 
 	private function tickScheduledUpdates() : void{

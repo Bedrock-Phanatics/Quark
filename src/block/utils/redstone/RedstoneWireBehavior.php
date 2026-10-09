@@ -24,14 +24,14 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use Generator;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
-use quark\timings\Timings;
-use quark\timings\TimingsHandler;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\world\BlockTransaction;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
@@ -128,11 +128,11 @@ trait RedstoneWireBehavior{
 	 */
 	/** @param list<Block> $seeds */
 	private function updatePowerLevels(array $seeds) : void{
-		if(!TimingsHandler::isEnabled()){
+		if(!Pulse::isRecording()){
 			$this->updatePowerLevelsInternal($seeds);
 			return;
 		}
-		Timings::$redstoneWireNetworks->time(fn() => $this->updatePowerLevelsInternal($seeds));
+		PulseZones::$redstoneWireNetworks->time(fn() => $this->updatePowerLevelsInternal($seeds));
 	}
 
 	/** @param list<Block> $seeds */

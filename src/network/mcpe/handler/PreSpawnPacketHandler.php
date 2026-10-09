@@ -44,8 +44,8 @@ use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\player\Player;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
-use quark\timings\Timings;
 use quark\VersionInfo;
 use Ramsey\Uuid\Uuid;
 use function sprintf;
@@ -64,7 +64,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 	){}
 
 	public function setUp() : void{
-		Timings::$playerNetworkSendPreSpawnGameData->startTiming();
+		$playerNetworkSendPreSpawnGameDataScope = PulseZones::$playerNetworkSendPreSpawnGameData->start();
 		try{
 			$location = $this->player->getLocation();
 			$world = $location->getWorld();
@@ -165,7 +165,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 			$this->session->getLogger()->debug("Sending player list");
 			$this->session->syncPlayerList($this->server->getOnlinePlayers());
 		}finally{
-			Timings::$playerNetworkSendPreSpawnGameData->stopTiming();
+			PulseZones::$playerNetworkSendPreSpawnGameData->stop($playerNetworkSendPreSpawnGameDataScope);
 		}
 	}
 

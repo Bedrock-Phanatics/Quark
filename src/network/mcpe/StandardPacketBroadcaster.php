@@ -26,8 +26,8 @@ namespace quark\network\mcpe;
 use pmmp\encoding\ByteBufferWriter;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use quark\event\server\DataPacketSendEvent;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
-use quark\timings\Timings;
 use function count;
 use function log;
 use function spl_object_id;
@@ -82,7 +82,7 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 				PacketBatch::encodeRaw($stream, $packetBuffers);
 				$batchBuffer = $stream->getData();
 
-				$batch = $this->server->prepareBatch($batchBuffer, $compressor, timings: Timings::$playerNetworkSendCompressBroadcast);
+				$batch = $this->server->prepareBatch($batchBuffer, $compressor, pulse: PulseZones::$playerNetworkSendCompressBroadcast);
 				foreach($compressorTargets as $target){
 					$target->queueCompressed($batch);
 				}

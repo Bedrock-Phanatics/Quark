@@ -30,6 +30,8 @@ use quark\command\utils\CommandException;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\permission\PermissionManager;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\PulseZone;
 use quark\Server;
 use quark\utils\BroadcastLoggerForwarder;
 use quark\utils\TextFormat;
@@ -42,6 +44,7 @@ use const PHP_INT_MAX;
 abstract class Command{
 
 	private string $name;
+	private ?PulseZone $pulse = null;
 
 	private string $nextLabel;
 	private string $label;
@@ -91,6 +94,11 @@ abstract class Command{
 
 	public function getName() : string{
 		return $this->name;
+	}
+
+	/** @internal */
+	public function getPulseZone() : PulseZone{
+		return $this->pulse ??= PulseZones::dynamic("command." . $this->name);
 	}
 
 	/**

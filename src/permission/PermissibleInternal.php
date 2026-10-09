@@ -25,7 +25,7 @@ namespace quark\permission;
 
 use quark\plugin\Plugin;
 use quark\plugin\PluginException;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use quark\utils\ObjectSet;
 use quark\utils\Utils;
 use function count;
@@ -131,7 +131,7 @@ class PermissibleInternal implements Permissible{
 	}
 
 	public function recalculatePermissions() : array{
-		Timings::$permissibleCalculation->startTiming();
+		$permissibleCalculationScope = PulseZones::$permissibleCalculation->start();
 
 		$permManager = PermissionManager::getInstance();
 		$permManager->unsubscribeFromAllPermissions($this);
@@ -153,7 +153,7 @@ class PermissibleInternal implements Permissible{
 		}
 
 		$diff = [];
-		Timings::$permissibleCalculationDiff->time(function() use ($oldPermissions, &$diff) : void{
+		PulseZones::$permissibleCalculationDiff->time(function() use ($oldPermissions, &$diff) : void{
 			foreach($this->permissions as $permissionAttachmentInfo){
 				$name = $permissionAttachmentInfo->getPermission();
 				if(!isset($oldPermissions[$name])){
@@ -169,7 +169,7 @@ class PermissibleInternal implements Permissible{
 			}
 		});
 
-		Timings::$permissibleCalculationCallback->time(function() use ($diff) : void{
+		PulseZones::$permissibleCalculationCallback->time(function() use ($diff) : void{
 			if(count($diff) > 0){
 				foreach($this->permissionRecalculationCallbacks as $closure){
 					$closure($diff);
@@ -177,7 +177,7 @@ class PermissibleInternal implements Permissible{
 			}
 		});
 
-		Timings::$permissibleCalculation->stopTiming();
+		PulseZones::$permissibleCalculation->stop($permissibleCalculationScope);
 		return $diff;
 	}
 

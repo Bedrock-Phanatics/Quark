@@ -39,7 +39,7 @@ use quark\crafting\ShapedRecipe;
 use quark\crafting\ShapelessRecipe;
 use quark\crafting\ShapelessRecipeType;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\timings\Timings;
+use quark\pulse\internal\PulseZones;
 use quark\utils\AssumptionFailedError;
 use quark\utils\SingletonTrait;
 use Ramsey\Uuid\Uuid;
@@ -79,7 +79,7 @@ final class CraftingDataCache{
 	 * Rebuilds the cached CraftingDataPacket.
 	 */
 	private function buildCraftingDataCache(CraftingManager $manager) : CraftingDataPacket{
-		Timings::$craftingDataCacheRebuild->startTiming();
+		$craftingDataCacheRebuildScope = PulseZones::$craftingDataCacheRebuild->start();
 
 		$nullUUID = Uuid::fromString(Uuid::NIL);
 		$converter = TypeConverter::getInstance();
@@ -192,7 +192,7 @@ final class CraftingDataCache{
 			);
 		}
 
-		Timings::$craftingDataCacheRebuild->stopTiming();
+		PulseZones::$craftingDataCacheRebuild->stop($craftingDataCacheRebuildScope);
 		return CraftingDataPacket::create(
 			$shapedRecipes,
 			$shapelessRecipes,

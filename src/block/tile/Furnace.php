@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\Furnace as BlockFurnace;
 use quark\block\inventory\FurnaceInventory;
 use quark\crafting\FurnaceRecipe;
@@ -32,9 +35,6 @@ use quark\event\inventory\FurnaceSmeltEvent;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\item\Item;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\player\Player;
 use quark\world\World;
 use function array_map;
@@ -151,7 +151,7 @@ abstract class Furnace extends Spawnable implements Container, Nameable{
 			return false;
 		}
 
-		$this->timings->startTiming();
+		$scope = $this->pulse->start();
 
 		$prevCookTime = $this->cookTime;
 		$prevRemainingFuelTime = $this->remainingFuelTime;
@@ -218,7 +218,7 @@ abstract class Furnace extends Spawnable implements Container, Nameable{
 			}
 		}
 
-		$this->timings->stopTiming();
+		$this->pulse->stop($scope);
 
 		return $ret;
 	}

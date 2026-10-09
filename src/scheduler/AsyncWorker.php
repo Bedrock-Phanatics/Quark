@@ -27,9 +27,9 @@ use pmmp\thread\Thread as NativeThread;
 use pocketmine\snooze\SleeperHandlerEntry;
 use pocketmine\snooze\SleeperNotifier;
 use quark\GarbageCollectorManager;
+use quark\pulse\internal\PulseZones;
 use quark\thread\log\ThreadSafeLogger;
 use quark\thread\Worker;
-use quark\timings\Timings;
 use quark\utils\AssumptionFailedError;
 use function ini_set;
 
@@ -74,8 +74,8 @@ class AsyncWorker extends Worker{
 		}
 
 		self::$notifier = $this->sleeperEntry->createNotifier();
-		Timings::init();
-		self::$cycleGcManager = new GarbageCollectorManager($this->logger, Timings::$asyncTaskWorkers, $this->gcThreshold);
+		PulseZones::init();
+		self::$cycleGcManager = new GarbageCollectorManager($this->logger, $this->gcThreshold);
 	}
 
 	public function getLogger() : ThreadSafeLogger{
