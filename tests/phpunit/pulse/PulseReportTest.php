@@ -25,11 +25,14 @@ namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
 use quark\pulse\internal\PulseContext;
+use function explode;
 use function gzencode;
+use function implode;
 use function str_repeat;
 use function str_replace;
 use function strlen;
 use function substr;
+use const PHP_INT_MAX;
 
 final class PulseReportTest extends TestCase{
 	private function report() : PulseReport{
@@ -166,8 +169,26 @@ final class PulseReportTest extends TestCase{
 		}
 	}
 
+	public function testRowsRejectNonIntegersAndNegativeValuesInEveryPosition() : void{
+		$json = $this->report()->encode();
+		foreach(["1,0,0,1,20,20,20", "1,0,20", "1,1,20,20"] as $values){
+			$row = explode(",", $values, 7);
+			foreach($row as $index => $number){
+				foreach(["true", "false", "null", '"1"', "1.0", "-1", "[]", "{}", "9223372036854775808"] as $invalid){
+					$changed = $row;
+					$changed[$index] = $invalid;
+					$input = str_replace("[$values]", "[" . implode(",", $changed) . "]", $json);
+					self::assertNotSame($json, $input);
+					try{ PulseReport::decode($input); self::fail("Invalid row value accepted"); }catch(\InvalidArgumentException){}
+				}
+			}
+		}
+		$maximum = str_replace("[1,0,0,1,20,20,20]", "[1,0,0," . PHP_INT_MAX . ",20,20,20]", $json);
+		self::assertSame(PHP_INT_MAX, PulseReport::decode($maximum)->getData()["threads"][0]["nodes"][0][3]);
+	}
+
 	public function testMalformedJsonAndNestingAreRejected() : void{
-		foreach(["", "[]", "{}", "null", substr($this->report()->encode(), 0, -1), str_repeat("[", 17) . "0" . str_repeat("]", 17), '"' . "\xff" . '"'] as $json){
+		foreach(["", "[]", "{}", "null", substr($this->report()->encode(), 0, -1), str_repeat("[", 17) . "0" . str_repeat("]", 17), '"' . "\xff" . '"', '"unfinished\\', "\x00[0]", '"escaped\\"'] as $json){
 			try{
 				PulseReport::decode($json);
 				self::fail("Invalid JSON accepted");
@@ -178,7 +199,7 @@ final class PulseReportTest extends TestCase{
 	}
 
 	public function testSizeAndContainerBudgetsAreCheckedBeforeDecoding() : void{
-		foreach([str_repeat(" ", PulseReport::MAX_BYTES + 1), "[" . str_repeat("[],", 300000) . "[]]"] as $json){
+		foreach([str_repeat(" ", PulseReport::MAX_BYTES + 1), "[" . str_repeat("[],", 300000) . "[]]", "[" . str_repeat("0,", 1500001) . "0]"] as $json){
 			try{
 				PulseReport::decode($json);
 				self::fail("Oversized report accepted");

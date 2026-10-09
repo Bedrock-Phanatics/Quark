@@ -54,6 +54,7 @@ use function php_uname;
 use function preg_match;
 use function random_bytes;
 use function str_starts_with;
+use function strcspn;
 use function strlen;
 use function substr;
 use const JSON_THROW_ON_ERROR;
@@ -189,17 +190,17 @@ final class PulseReport{
 
 	private static function checkJsonBudget(string $json) : void{
 		// Bound decoder allocations before building PHP arrays.
-		$quoted = $escaped = false;
+		$quoted = false;
 		$containers = $items = 0;
 		$length = strlen($json);
 		for($i = 0; $i < $length; ++$i){
+			$i += strcspn($json, $quoted ? "\\\"" : '"[{,', $i);
+			if($i >= $length){ break; }
 			$char = $json[$i];
 			if($quoted){
-				if($escaped){
-					$escaped = false;
-				}elseif($char === "\\"){
-					$escaped = true;
-				}elseif($char === '"'){
+				if($char === "\\"){
+					++$i;
+				}else{
 					$quoted = false;
 				}
 			}elseif($char === '"'){
@@ -382,7 +383,9 @@ final class PulseReport{
 			throw new \InvalidArgumentException("Invalid Pulse row length");
 		}
 		foreach($valueList as $number){
-			self::number($number);
+			if(!is_int($number) || $number < 0){
+				throw new \InvalidArgumentException("Invalid Pulse integer");
+			}
 		}
 	}
 
