@@ -262,6 +262,19 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertFalse($session->isRecording());
 	}
 
+	public function testValidatedCollectionRejectsMetadataAndAllowsRetry() : void{
+		$recorder = $this->recorder();
+		$recorder->start();
+		$recorder->stop();
+		$failures = 0;
+		$recorder->collect(["worlds" => [123]])->onCompletion(fn() => self::fail("Invalid metadata accepted"), static function() use (&$failures) : void{ ++$failures; });
+		self::assertSame(1, $failures);
+		$report = null;
+		$recorder->collect(["worlds" => ["world"]])->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
+		self::assertNotNull($report);
+		self::assertSame(["world"], $report->getData()["metadata"]["worlds"]);
+	}
+
 	public function testRecorderResetRestartsActiveCaptureAndDurationExpires() : void{
 		$recorder = $this->recorder();
 		$recorder->start();

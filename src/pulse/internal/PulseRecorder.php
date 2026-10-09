@@ -43,14 +43,12 @@ final class PulseRecorder{
 	private ?PulseSession $session = null;
 	private int $generation = 0;
 	private int $controls = 0;
-	/** @var PromiseResolver<PulseReport>|null */
+	/** @var PromiseResolver<list<Capture>>|null */
 	private ?PromiseResolver $collection = null;
 	private int $collectionDeadline = 0;
 	private int $pendingCollections = 0;
 	/** @var array<int, Capture> */
 	private array $captures = [];
-	/** @var array<string, mixed> */
-	private array $metadata = [];
 	private bool $running = false;
 	private int $deadline = 0;
 	private int $duration = 0;
@@ -150,16 +148,29 @@ final class PulseRecorder{
 	 * @return Promise<PulseReport>
 	 */
 	public function collect(array $metadata = []) : Promise{
+		/** @var PromiseResolver<PulseReport> $result */
+		$result = new PromiseResolver();
+		$this->collectCaptures()->onCompletion(
+			static function(array $captures) use ($metadata, $result) : void{
+				try{ $report = PulseReport::create($captures, $metadata); }catch(\InvalidArgumentException|\LengthException){ $result->reject(); return; }
+				$result->resolve($report);
+			},
+			fn() => $result->reject()
+		);
+		return $result->getPromise();
+	}
+
+	/** @return Promise<list<Capture>> */
+	public function collectCaptures() : Promise{
 		if($this->collection !== null){ throw new \LogicException("Pulse is already collecting a report"); }
 		if($this->pendingCollections > 0){ throw new \LogicException("Pulse is still waiting for the previous report's workers"); }
 		if($this->session === null){ throw new \LogicException("No Pulse session to report"); }
 		$main = $this->session->getCapture();
 		$workers = $this->pool->getRunningWorkers();
-		/** @var PromiseResolver<PulseReport> $result */
+		/** @var PromiseResolver<list<Capture>> $result */
 		$result = new PromiseResolver();
 		$this->collection = $result;
 		$this->captures = [$main];
-		$this->metadata = $metadata;
 		$this->collectionDeadline = (int) hrtime(true) + 30000000000;
 		$this->pendingCollections = count($workers);
 		$submitted = 0;
@@ -189,15 +200,15 @@ final class PulseRecorder{
 	private function finishCollection(bool $success) : void{
 		$result = $this->collection;
 		if($result === null){ return; }
-		$report = null;
+		$captures = null;
 		if($success){
 			ksort($this->captures);
-			try{ $report = PulseReport::create(array_values($this->captures), $this->metadata); }catch(\InvalidArgumentException|\LengthException){}
+			$captures = array_values($this->captures);
 		}
 		// Release report payloads before invoking callbacks or accepting another collection.
 		$this->collection = null;
-		$this->captures = $this->metadata = [];
+		$this->captures = [];
 		$this->collectionDeadline = 0;
-		if($report !== null){ $result->resolve($report); }else{ $result->reject(); }
+		if($captures !== null){ $result->resolve($captures); }else{ $result->reject(); }
 	}
 }

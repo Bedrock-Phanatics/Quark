@@ -23,28 +23,50 @@ declare(strict_types=1);
 
 namespace quark\scheduler;
 
+use quark\pulse\internal\PulseContext;
 use quark\pulse\PulseReport;
+use function count;
+use function igbinary_serialize;
+use function igbinary_unserialize;
+use function strlen;
 
 /**
  * @internal Runs on Pulse's dedicated export pool.
+ * @phpstan-import-type Capture from PulseContext
  */
 final class PulseReportWriteTask extends AsyncTask{
-	private string $json;
+	private string $data;
 	private ?string $error = null;
 
-	/** @param \Closure(?string, ?string) : void $onComplete */
-	public function __construct(PulseReport $report, private string $directory, \Closure $onComplete){
-		$this->json = $report->encode();
+	/**
+	 * @param list<Capture>                     $captures
+	 * @param array<string, mixed>              $metadata
+	 * @param \Closure(?string, ?string) : void $onComplete
+	 */
+	public function __construct(array $captures, array $metadata, private string $directory, \Closure $onComplete){
+		if(count($captures) > 128){ throw new \LengthException("Pulse report has too many threads"); }
+		$rows = 0;
+		foreach($captures as $capture){
+			$rows += count($capture["nodes"]) + count($capture["ticks"]) + count($capture["spikes"]);
+			foreach($capture["spikes"] as $spike){ $rows += count($spike["nodes"]); }
+			if($rows > PulseReport::MAX_ROWS){ throw new \LengthException("Pulse report exceeds the row budget"); }
+		}
+		$this->data = igbinary_serialize([$captures, $metadata]) ?? throw new \InvalidArgumentException("Pulse captures must be serializable");
+		// Binary array headers need more space than the final JSON.
+		if(strlen($this->data) > PulseReport::MAX_BYTES * 4){ throw new \LengthException("Pulse capture transfer exceeds the size limit"); }
 		$this->storeLocal("complete", $onComplete);
 	}
 
 	public function onRun() : void{
 		try{
-			$this->setResult(PulseReport::writeEncoded($this->directory, $this->json));
-		}catch(\RuntimeException|\JsonException|\LengthException $e){
+			/** @var array{list<Capture>, array<string, mixed>} $data */
+			$data = igbinary_unserialize($this->data);
+			$this->data = "";
+			$this->setResult(PulseReport::create($data[0], $data[1])->write($this->directory));
+		}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 			$this->error = $e->getMessage();
 		}finally{
-			$this->json = "";
+			$this->data = "";
 		}
 	}
 

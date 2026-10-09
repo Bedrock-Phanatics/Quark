@@ -528,23 +528,24 @@ class Server{
 		}
 		/** @var PromiseResolver<string> $result */
 		$result = new PromiseResolver();
-		$collection = $this->pulse->collect(["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds]);
+		$metadata = ["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds];
+		$collection = $this->pulse->collectCaptures();
 		$this->pulseReport = $result;
 		$collection->onCompletion(
-			function(PulseReport $report) : void{
+			function(array $captures) use ($metadata) : void{
 				try{
 					$directory = Path::join($this->getDataPath(), "pulse");
 					if(isset($this->tickSleeper, $this->autoloader, $this->logger)){
 						// Disk writes must not occupy the networking and generation workers.
 						$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
-						$this->pulseReportPool->submitTask(new PulseReportWriteTask($report, $directory, function(?string $file, ?string $error) : void{
+						$this->pulseReportPool->submitTask(new PulseReportWriteTask($captures, $metadata, $directory, function(?string $file, ?string $error) : void{
 							if($error !== null){ $this->logger->error("Pulse report export failed: $error"); }
 							$this->finishPulseReport($file);
 						}));
 						return;
 					}
-					$file = $report->write($directory);
-				}catch(\RuntimeException|\JsonException|\LengthException $e){
+					$file = PulseReport::create($captures, $metadata)->write($directory);
+				}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 					if(isset($this->logger)){ $this->logger->logException($e); }
 					$this->finishPulseReport(null);
 					return;

@@ -28,22 +28,85 @@ use pocketmine\snooze\SleeperHandler;
 use quark\pulse\internal\PulseRecorder;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
+use quark\scheduler\PulseReportWriteTask;
 use quark\Server;
 use quark\thread\ThreadSafeClassLoader;
 use quark\TimeTrackingSleeperHandler;
 use quark\utils\MainLogger;
+use function array_fill;
 use function extension_loaded;
 use function file_get_contents;
 use function glob;
 use function is_dir;
 use function microtime;
 use function rmdir;
+use function str_repeat;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
 use function usleep;
 
 final class PulseWorkerTest extends TestCase{
+	public function testExportWorkerRejectsInvalidDataAndReleasesItsTransfer() : void{
+		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		Pulse::reset();
+		$logger = new MainLogger(null, false, "Pulse validation test", new \DateTimeZone("UTC"));
+		$pool = new AsyncPool(1, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0);
+		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-validation-", true);
+		try{
+			$session = Pulse::start();
+			$zone = Pulse::zone("export.validation");
+			$scope = $zone->start();
+			$zone->stop($scope);
+			$session->stop();
+			$capture = $session->getCapture();
+			$node = $capture["nodes"][0] ?? null;
+			self::assertNotNull($node);
+			$invalid = $capture;
+			$invalidNode = $node;
+			$invalidNode[3] = -1;
+			$invalid["nodes"] = [$invalidNode];
+			/** @var \ArrayObject<int, array{?string, ?string}> $results */
+			$results = new \ArrayObject();
+			foreach([[[$invalid], []], [[$capture, $capture], []], [[$capture], ["platform" => "\xff"]]] as [$captures, $metadata]){
+				$task = new PulseReportWriteTask($captures, $metadata, $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
+				$pool->submitTask($task);
+				$this->drain($pool);
+				self::assertSame("", (new \ReflectionProperty(PulseReportWriteTask::class, "data"))->getValue($task));
+			}
+			self::assertCount(3, $results);
+			foreach($results as [$file, $error]){ self::assertNull($file); self::assertIsString($error); }
+			self::assertFalse(is_dir($directory));
+			$dense = $capture;
+			$dense["nodes"] = array_fill(0, 16384, $node);
+			foreach([[array_fill(0, 129, $capture), []], [array_fill(0, 9, $dense), []], [[$capture], ["platform" => str_repeat("x", PulseReport::MAX_BYTES * 4 + 1)]]] as [$captures, $metadata]){
+				try{
+					new PulseReportWriteTask($captures, $metadata, $directory, static function() : void{ self::fail("Oversized transfer submitted"); });
+					self::fail("Oversized transfer accepted");
+				}catch(\LengthException){}
+			}
+			$task = new PulseReportWriteTask([$capture], [], $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
+			$pool->submitTask($task);
+			$this->drain($pool);
+			self::assertCount(4, $results);
+			$success = $results[3];
+			self::assertNotNull($success);
+			self::assertIsString($success[0]);
+			self::assertNull($success[1]);
+			$contents = file_get_contents($success[0]);
+			self::assertIsString($contents);
+			self::assertSame($capture, PulseReport::decode($contents)->getData()["threads"][0]);
+			self::assertSame("", (new \ReflectionProperty(PulseReportWriteTask::class, "data"))->getValue($task));
+		}finally{
+			$pool->shutdown();
+			Pulse::reset();
+			$logger->shutdownLogWriterThread();
+			$files = glob($directory . "/*");
+			if($files !== false){ foreach($files as $file){ unlink($file); } }
+			if(is_dir($directory)){ rmdir($directory); }
+		}
+	}
+
 	public function testDedicatedExportWorkerBoundsRequestsAndRecoversFromWriteFailure() : void{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
 		Pulse::reset();

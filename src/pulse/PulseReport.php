@@ -76,7 +76,7 @@ final class PulseReport{
 	// Tick: id, session offset, duration. Spike node: id, calls, total, self.
 	public const FORMAT_VERSION = 1;
 	public const MAX_BYTES = 8388608;
-	private const MAX_ROWS = 131072;
+	public const MAX_ROWS = 131072;
 
 	/** @param ReportData $data */
 	private function __construct(private readonly array $data){}
