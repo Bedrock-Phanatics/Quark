@@ -28,13 +28,116 @@ use pocketmine\snooze\SleeperHandler;
 use quark\pulse\internal\PulseRecorder;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
+use quark\Server;
 use quark\thread\ThreadSafeClassLoader;
+use quark\TimeTrackingSleeperHandler;
 use quark\utils\MainLogger;
 use function extension_loaded;
+use function file_get_contents;
+use function glob;
+use function is_dir;
 use function microtime;
+use function rmdir;
+use function sys_get_temp_dir;
+use function uniqid;
+use function unlink;
 use function usleep;
 
 final class PulseWorkerTest extends TestCase{
+	public function testDedicatedExportWorkerBoundsRequestsAndRecoversFromWriteFailure() : void{
+		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		Pulse::reset();
+		$logger = new MainLogger(null, false, "Pulse export test", new \DateTimeZone("UTC"));
+		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-export-", true);
+		$path = $directory;
+		$pool = new AsyncPool(2, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0);
+		$recorder = new PulseRecorder($pool);
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server->method("getQuarkVersion")->willReturn("test");
+		$server->method("getDataPath")->willReturnCallback(static function() use (&$path) : string{ return $path; });
+		foreach(["pulse" => $recorder, "asyncPool" => $pool, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "tickSleeper" => new TimeTrackingSleeperHandler(Pulse::zone("export.notifier"))] as $property => $value){
+			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
+		}
+		$exportPool = null;
+		try{
+			for($worker = 0; $worker < 2; ++$worker){
+				$pool->submitTaskToWorker(new class extends AsyncTask{
+					public function onRun() : void{}
+				}, $worker);
+			}
+			$this->drain($pool);
+			$recorder->start();
+			$zone = Pulse::zone("export.test");
+			$scope = $zone->start();
+			$zone->stop($scope);
+			$recorder->stop();
+			/** @var \ArrayObject<int, string> $completedFiles */
+			$completedFiles = new \ArrayObject();
+			$promise = $server->createPulseReport();
+			$promise->onCompletion(static function(string $value) use ($completedFiles) : void{ $completedFiles[] = $value; }, fn() => self::fail("Export rejected"));
+			self::assertCount(0, $completedFiles);
+			self::assertFalse($promise->isResolved());
+			try{ $server->createPulseReport(); self::fail("Overlapping export accepted"); }catch(\LogicException){}
+			$this->drain($pool);
+			$candidatePool = (new \ReflectionProperty(Server::class, "pulseReportPool"))->getValue($server);
+			self::assertInstanceOf(AsyncPool::class, $candidatePool);
+			$exportPool = $candidatePool;
+			self::assertSame(1, $exportPool->getSize());
+			$this->drain($exportPool);
+			self::assertCount(1, $completedFiles);
+			$file = $completedFiles[0];
+			self::assertIsString($file);
+			$contents = file_get_contents($file);
+			self::assertIsString($contents);
+			self::assertStringStartsWith("\x1f\x8b", $contents);
+			$session = $recorder->getSession();
+			self::assertNotNull($session);
+			$threads = PulseReport::decode($contents)->getData()["threads"];
+			self::assertCount(3, $threads);
+			self::assertSame($session->getCapture(), $threads[0]);
+			$path = $file;
+			$failures = 0;
+			$server->createPulseReport()->onCompletion(fn() => self::fail("Write failure resolved"), static function() use (&$failures) : void{ ++$failures; });
+			$this->drain($pool);
+			$this->drain($exportPool);
+			self::assertSame(1, $failures);
+			$path = $directory;
+			$failedPool = self::createStub(AsyncPool::class);
+			$failedPool->method("submitTask")->willThrowException(new \RuntimeException("submission failed"));
+			(new \ReflectionProperty(Server::class, "pulseReportPool"))->setValue($server, $failedPool);
+			$server->createPulseReport()->onCompletion(fn() => self::fail("Submission failure resolved"), static function() use (&$failures) : void{ ++$failures; });
+			$this->drain($pool);
+			self::assertSame(2, $failures);
+			self::assertNull((new \ReflectionProperty(Server::class, "pulseReport"))->getValue($server));
+			(new \ReflectionProperty(Server::class, "pulseReportPool"))->setValue($server, $exportPool);
+			$completed = 0;
+			$server->createPulseReport()->onCompletion(function() use ($server, &$completed, $completedFiles) : void{
+				++$completed;
+				$server->createPulseReport()->onCompletion(static function(string $file) use (&$completed, $completedFiles) : void{ ++$completed; $completedFiles[] = $file; }, fn() => self::fail("Chained export rejected"));
+			}, fn() => self::fail("Retry rejected"));
+			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
+			self::assertCount(2, $pool->getRunningWorkers());
+			$exportPool->shutdown();
+			self::assertSame(2, $completed);
+			$finalFile = $completedFiles[1];
+			self::assertIsString($finalFile);
+			$finalContents = file_get_contents($finalFile);
+			self::assertIsString($finalContents);
+			self::assertCount(3, PulseReport::decode($finalContents)->getData()["threads"]);
+			self::assertSame([], $exportPool->getRunningWorkers());
+			self::assertNull((new \ReflectionProperty(Server::class, "pulseReport"))->getValue($server));
+		}finally{
+			$exportPool?->shutdown();
+			$pool->shutdown();
+			Pulse::reset();
+			$logger->shutdownLogWriterThread();
+			$files = glob($directory . "/pulse/*");
+			if($files !== false){ foreach($files as $file){ unlink($file); } }
+			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
+			if(is_dir($directory)){ rmdir($directory); }
+		}
+	}
+
 	private function drain(AsyncPool $pool) : void{
 		$deadline = microtime(true) + 10;
 		while($pool->collectTasks()){

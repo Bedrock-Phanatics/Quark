@@ -100,6 +100,7 @@ use quark\pulse\PulseReport;
 use quark\pulse\PulseZone;
 use quark\resourcepacks\ResourcePackManager;
 use quark\scheduler\AsyncPool;
+use quark\scheduler\PulseReportWriteTask;
 use quark\thread\log\AttachableThreadSafeLogger;
 use quark\thread\ThreadCrashException;
 use quark\thread\ThreadSafeClassLoader;
@@ -182,6 +183,7 @@ use function strval;
 use function time;
 use function touch;
 use function trim;
+use function usleep;
 use function yaml_parse;
 use const DIRECTORY_SEPARATOR;
 use const PHP_EOL;
@@ -244,6 +246,9 @@ class Server{
 	private PluginManager $pluginManager;
 
 	private PulseRecorder $pulse;
+	/** @var PromiseResolver<string>|null */
+	private ?PromiseResolver $pulseReport = null;
+	private ?AsyncPool $pulseReportPool = null;
 
 	private UpdateChecker $updater;
 
@@ -509,6 +514,7 @@ class Server{
 
 	/** @return Promise<string> */
 	public function createPulseReport() : Promise{
+		if($this->pulseReport !== null){ throw new \LogicException("Pulse is already saving a report; wait for it to finish"); }
 		$plugins = [];
 		if(isset($this->pluginManager)){
 			foreach($this->pluginManager->getPlugins() as $plugin){
@@ -522,20 +528,59 @@ class Server{
 		}
 		/** @var PromiseResolver<string> $result */
 		$result = new PromiseResolver();
-		$this->pulse->collect(["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds])->onCompletion(
-			function(PulseReport $report) use ($result) : void{
+		$collection = $this->pulse->collect(["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds]);
+		$this->pulseReport = $result;
+		$collection->onCompletion(
+			function(PulseReport $report) : void{
 				try{
-					$file = $report->write(Path::join($this->getDataPath(), "pulse"));
+					$directory = Path::join($this->getDataPath(), "pulse");
+					if(isset($this->tickSleeper, $this->autoloader, $this->logger)){
+						// Disk writes must not occupy the networking and generation workers.
+						$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+						$this->pulseReportPool->submitTask(new PulseReportWriteTask($report, $directory, function(?string $file, ?string $error) : void{
+							if($error !== null){ $this->logger->error("Pulse report export failed: $error"); }
+							$this->finishPulseReport($file);
+						}));
+						return;
+					}
+					$file = $report->write($directory);
 				}catch(\RuntimeException|\JsonException|\LengthException $e){
-					$this->logger->logException($e);
-					$result->reject();
+					if(isset($this->logger)){ $this->logger->logException($e); }
+					$this->finishPulseReport(null);
 					return;
 				}
-				$result->resolve($file);
+				$this->finishPulseReport($file);
 			},
-			fn() => $result->reject()
+			fn() => $this->finishPulseReport(null)
 		);
 		return $result->getPromise();
+	}
+
+	private function finishPulseReport(?string $file) : void{
+		$result = $this->pulseReport;
+		$this->pulseReport = null;
+		if($result === null){ return; }
+		if($file !== null){ $result->resolve($file); }else{ $result->reject(); }
+	}
+
+	private function saveShutdownPulseReport() : void{
+		try{
+			$this->createPulseReport()->onCompletion(
+				fn(string $file) => $this->logger->info("Pulse report saved to $file"),
+				fn() => $this->logger->error("Failed to create Pulse report")
+			);
+		}catch(\LogicException $e){
+			$this->logger->debug($e->getMessage());
+		}
+	}
+
+	private function drainPulseReports() : void{
+		while($this->pulseReport !== null){
+			if(isset($this->asyncPool)){ $this->asyncPool->collectTasks(); }
+			$this->pulseReportPool?->collectTasks();
+			$this->pulse->checkDuration();
+			usleep(1000);
+		}
 	}
 
 	/**
@@ -1567,13 +1612,10 @@ class Server{
 
 			if(isset($this->pulse) && $this->pulse->getSession() !== null){
 				$this->pulse->stop();
-				try{
-					$this->createPulseReport()->onCompletion(
-						fn(string $file) => $this->logger->info("Pulse report saved to $file"),
-						fn() => $this->logger->error("Failed to create Pulse report")
-					);
-				}catch(\LogicException $e){
-					$this->logger->debug($e->getMessage());
+				if($this->pulseReport !== null){
+					$this->pulseReport->getPromise()->onCompletion(fn() => $this->saveShutdownPulseReport(), fn() => $this->saveShutdownPulseReport());
+				}else{
+					$this->saveShutdownPulseReport();
 				}
 			}
 		}
@@ -1600,6 +1642,7 @@ class Server{
 			$this->hasStopped = true;
 
 			$this->shutdown();
+			$this->drainPulseReports();
 
 			if(isset($this->pluginManager)){
 				$this->logger->debug("Disabling all plugins");
@@ -1624,6 +1667,8 @@ class Server{
 				$this->logger->debug("Shutting down async task worker pool");
 				$this->asyncPool->shutdown();
 			}
+			$this->pulseReportPool?->shutdown();
+			$this->pulseReportPool = null;
 
 			if(isset($this->configGroup)){
 				$this->logger->debug("Saving properties");

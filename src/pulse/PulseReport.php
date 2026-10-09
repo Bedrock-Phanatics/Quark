@@ -113,7 +113,10 @@ final class PulseReport{
 		if(strlen($json) > self::MAX_BYTES){
 			throw new \LengthException("Pulse report exceeds the size limit");
 		}
-		if(!$compress){ return $json; }
+		return $compress ? self::compress($json) : $json;
+	}
+
+	private static function compress(string $json) : string{
 		$gzip = gzencode($json, 1);
 		if($gzip === false){ throw new \RuntimeException("Failed to compress Pulse report"); }
 		if(strlen($gzip) > self::MAX_BYTES){ throw new \LengthException("Pulse report exceeds the size limit"); }
@@ -179,12 +182,18 @@ final class PulseReport{
 	}
 
 	public function write(string $directory) : string{
-		$json = $this->encode(true);
+		return self::writeEncoded($directory, $this->encode());
+	}
+
+	/** @internal $json must come from encode(). */
+	public static function writeEncoded(string $directory, string $json) : string{
+		if(strlen($json) > self::MAX_BYTES){ throw new \LengthException("Pulse report exceeds the size limit"); }
+		$gzip = self::compress($json);
 		if(!@mkdir($directory, 0777, true) && !is_dir($directory)){
 			throw new \RuntimeException("Failed to create Pulse report directory");
 		}
 		$file = Path::join($directory, "pulse_" . date("Y-m-d_H.i.s") . "_" . bin2hex(random_bytes(8)) . ".qpulse");
-		Filesystem::safeFilePutContents($file, $json);
+		Filesystem::safeFilePutContents($file, $gzip);
 		return $file;
 	}
 
