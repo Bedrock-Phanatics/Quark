@@ -27,11 +27,18 @@ use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
 use function function_exists;
+use function inflate_add;
+use function inflate_get_status;
+use function inflate_init;
 use function libdeflate_deflate_compress;
 use function strlen;
+use function substr;
 use function zlib_decode;
 use function zlib_encode;
+use const ZLIB_ENCODING_DEFLATE;
+use const ZLIB_ENCODING_GZIP;
 use const ZLIB_ENCODING_RAW;
+use const ZLIB_STREAM_END;
 
 final class ZlibCompressor implements Compressor{
 	use SingletonTrait;
@@ -63,9 +70,33 @@ final class ZlibCompressor implements Compressor{
 	public function decompress(string $payload) : string{
 		$result = @zlib_decode($payload, $this->maxDecompressionSize);
 		if($result === false){
+			$this->checkDecompressionLimit($payload);
 			throw new DecompressionException("Failed to decompress data");
 		}
+		if($this->maxDecompressionSize > 0 && strlen($result) > $this->maxDecompressionSize){
+			throw new DecompressionException("Decompressed data exceeds the limit of {$this->maxDecompressionSize} bytes", reason: "decompression.limit", observed: strlen($result), limit: $this->maxDecompressionSize);
+		}
 		return $result;
+	}
+
+	private function checkDecompressionLimit(string $payload) : void{
+		if($this->maxDecompressionSize <= 0){ return; }
+		foreach([ZLIB_ENCODING_RAW, ZLIB_ENCODING_DEFLATE, ZLIB_ENCODING_GZIP] as $encoding){
+			$context = inflate_init($encoding);
+			if($context === false){ continue; }
+			$size = 0;
+			$length = strlen($payload);
+			// Diagnose only failed decodes, with bounded temporary output.
+			for($offset = 0; $offset < $length; $offset += 1024){
+				$part = @inflate_add($context, substr($payload, $offset, 1024));
+				if($part === false){ break; }
+				if(strlen($part) > $this->maxDecompressionSize - $size){
+					throw new DecompressionException("Decompressed data exceeds the limit of {$this->maxDecompressionSize} bytes", reason: "decompression.limit", observed: $size + strlen($part), limit: $this->maxDecompressionSize);
+				}
+				$size += strlen($part);
+				if(inflate_get_status($context) === ZLIB_STREAM_END){ break; }
+			}
+		}
 	}
 
 	public function compress(string $payload) : string{

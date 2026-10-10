@@ -40,6 +40,7 @@ final class SessionStartPacketHandler extends PacketHandler{
 
 	public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{
 		$protocolVersion = $packet->getProtocolVersion();
+		$this->session->recordProtocolVersion($protocolVersion);
 		if(!$this->isCompatibleProtocol($protocolVersion)){
 			$this->session->disconnectIncompatibleProtocol($protocolVersion);
 

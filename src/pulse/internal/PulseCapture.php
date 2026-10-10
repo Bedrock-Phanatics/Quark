@@ -44,6 +44,9 @@ final class PulseCapture extends ThreadSafe{
 	public function __construct(array $capture){
 		$this->rows = count($capture["nodes"]) + count($capture["ticks"]) + count($capture["spikes"]);
 		foreach($capture["spikes"] as $spike){ $this->rows += count($spike["nodes"]); }
+		if(isset($capture["network"])){
+			$this->rows += count($capture["network"]["sessions"]) + count($capture["network"]["events"]) + count($capture["network"]["windows"]);
+		}
 		if($this->rows > PulseReport::MAX_ROWS){ throw new \LengthException("Pulse capture exceeds the row budget"); }
 		$this->data = igbinary_serialize($capture) ?? throw new \InvalidArgumentException("Pulse capture must be serializable");
 		$this->bytes = strlen($this->data);

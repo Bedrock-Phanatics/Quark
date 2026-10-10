@@ -53,6 +53,7 @@ use function addcslashes;
 use function base64_encode;
 use function implode;
 use function mt_rand;
+use function ord;
 use function rtrim;
 use function substr;
 use const PHP_INT_MAX;
@@ -204,6 +205,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 	public function onPacketReceive(int $sessionId, string $packet) : void{
 		if(isset($this->sessions[$sessionId])){
 			if($packet === "" || $packet[0] !== self::MCPE_RAKNET_PACKET_ID){
+				$this->sessions[$sessionId]->recordNetworkSecurityEvent("transport.header", "drop_batch", observed: $packet === "" ? null : ord($packet[0]), limit: 254);
 				$this->sessions[$sessionId]->getLogger()->debug("Non-FE packet received: " . base64_encode($packet));
 				return;
 			}
@@ -215,6 +217,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			try{
 				$session->handleEncoded($buf);
 			}catch(PacketHandlingException $e){
+				$session->recordNetworkSecurityEvent("packet.bad_packet_disconnect", "disconnect");
 				$logger = $session->getLogger();
 
 				$session->disconnectWithError(

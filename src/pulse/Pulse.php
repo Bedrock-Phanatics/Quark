@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\pulse;
 
 use quark\pulse\internal\PulseContext;
+use quark\pulse\internal\PulseNetwork;
 use function hrtime;
 
 final class Pulse{
@@ -59,6 +60,17 @@ final class Pulse{
 
 	public static function getSession() : ?PulseSession{
 		return self::$session;
+	}
+
+	/** @internal */
+	public static function getNetworkTelemetry() : ?PulseNetwork{
+		$context = self::$context;
+		return $context !== null && $context->recording ? $context->network() : null;
+	}
+
+	/** @internal */
+	public static function getNetworkTickId() : ?int{
+		return self::$context?->getNetworkTickId();
 	}
 
 	public static function beginTick() : void{

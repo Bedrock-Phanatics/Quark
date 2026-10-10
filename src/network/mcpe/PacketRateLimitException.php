@@ -21,17 +21,12 @@
 
 declare(strict_types=1);
 
-namespace quark\network\mcpe\compression;
+namespace quark\network\mcpe;
 
-final class DecompressionException extends \RuntimeException{
-	public function __construct(
-		string $message = "",
-		int $code = 0,
-		?\Throwable $previous = null,
-		public readonly string $reason = "decompression.malformed",
-		public readonly ?int $observed = null,
-		public readonly ?int $limit = null
-	){
-		parent::__construct($message, $code, $previous);
+use quark\network\PacketHandlingException;
+
+final class PacketRateLimitException extends PacketHandlingException{
+	public function __construct(string $message, public readonly int $requested, public readonly int $available){
+		parent::__construct($message);
 	}
 }

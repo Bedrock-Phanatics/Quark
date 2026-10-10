@@ -25,6 +25,7 @@ namespace quark\pulse;
 
 use pocketmine\errorhandler\ErrorToExceptionHandler;
 use quark\pulse\internal\PulseContext;
+use quark\pulse\internal\PulseNetwork;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use quark\VersionInfo;
@@ -35,6 +36,7 @@ use function count;
 use function date;
 use function get_object_vars;
 use function gzencode;
+use function in_array;
 use function inflate_add;
 use function inflate_get_read_len;
 use function inflate_get_status;
@@ -71,10 +73,10 @@ use const ZLIB_STREAM_END;
  * @phpstan-type ReportData array{format: string, version: int, time_unit: string, metadata: Metadata, threads: list<Capture>}
  */
 final class PulseReport{
-	// v1 is UTF-8 JSON, gzip-wrapped on disk; times are nanoseconds.
+	// UTF-8 JSON, gzip-wrapped on disk; times are nanoseconds.
 	// Node: id, zone, parent, calls, total, self, max. active_ticks follows node order.
 	// Tick: id, session offset, duration. Spike node: id, calls, total, self.
-	public const FORMAT_VERSION = 1;
+	public const FORMAT_VERSION = 2;
 	public const MAX_BYTES = 8388608;
 	public const MAX_ROWS = 131072;
 
@@ -226,7 +228,7 @@ final class PulseReport{
 
 	/** @phpstan-assert ReportData $data */
 	private static function validate(mixed $data) : void{
-		if(!is_array($data) || count($data) !== 5 || ($data["format"] ?? null) !== "quark.pulse" || ($data["version"] ?? null) !== self::FORMAT_VERSION || ($data["time_unit"] ?? null) !== "ns"){
+		if(!is_array($data) || count($data) !== 5 || ($data["format"] ?? null) !== "quark.pulse" || !in_array($data["version"] ?? null, [1, self::FORMAT_VERSION], true) || ($data["time_unit"] ?? null) !== "ns"){
 			throw new \InvalidArgumentException("Unsupported Pulse report format or version");
 		}
 		$bytes = intdiv(self::MAX_BYTES, 2);
@@ -252,7 +254,7 @@ final class PulseReport{
 		$rows = self::MAX_ROWS;
 		$names = [];
 		foreach(self::list($data["threads"] ?? null, 128) as $thread){
-			self::validateThread($thread, $rows, $bytes);
+			self::validateThread($thread, $rows, $bytes, $data["version"]);
 			if(isset($names[$thread["thread"]])){
 				throw new \InvalidArgumentException("Duplicate Pulse thread name");
 			}
@@ -261,8 +263,8 @@ final class PulseReport{
 	}
 
 	/** @phpstan-assert Capture $thread */
-	private static function validateThread(mixed $thread, int &$budget, int &$bytes) : void{
-		if(!is_array($thread) || count($thread) !== 20){
+	private static function validateThread(mixed $thread, int &$budget, int &$bytes, int $version) : void{
+		if(!is_array($thread) || count($thread) !== ($version === 1 ? 20 : 21) || ($version === 1 && isset($thread["network"]))){
 			throw new \InvalidArgumentException("Invalid Pulse thread data");
 		}
 		self::text($thread["thread"] ?? null, 256, $bytes);
@@ -314,6 +316,9 @@ final class PulseReport{
 		}
 		self::charge($budget, count($ticks));
 		$length = $thread["ended_ns"] - $thread["started_ns"];
+		if($version === 2){
+			self::validateNetwork($thread["network"] ?? null, $length, $tickCount, $thread["recording"], $budget);
+		}
 		$previousEnd = $sum = 0;
 		foreach($ticks as $index => $tick){
 			self::tick($tick, $tickCount, $length, $tickMax);
@@ -356,6 +361,94 @@ final class PulseReport{
 				$seen[$detail[0]] = true;
 			}
 		}
+	}
+
+	private static function validateNetwork(mixed $network, int $length, int $tickCount, bool $recording, int &$budget) : void{
+		if(!is_array($network) || count($network) !== 8){
+			throw new \InvalidArgumentException("Invalid Pulse network data");
+		}
+		$coverage = $network["coverage"] ?? null;
+		$expected = PulseNetwork::emptyCapture($length)["coverage"];
+		if(!is_array($coverage) || count($coverage) !== count($expected)){
+			throw new \InvalidArgumentException("Invalid Pulse network coverage");
+		}
+		foreach($expected as $key => $value){
+			if(($coverage[$key] ?? null) !== $value){ throw new \InvalidArgumentException("Invalid Pulse network coverage"); }
+		}
+		foreach(["sessions_dropped", "events_dropped", "windows_dropped", "counter_overflows"] as $key){
+			self::number($network[$key] ?? null);
+		}
+		$sessions = self::list($network["sessions"] ?? null, PulseNetwork::MAX_SESSIONS);
+		$events = self::list($network["events"] ?? null, PulseNetwork::MAX_EVENTS);
+		$windows = self::list($network["windows"] ?? null, PulseNetwork::MAX_WINDOWS);
+		self::charge($budget, count($sessions) + count($events) + count($windows));
+		$first = 0;
+		foreach($sessions as $index => $session){
+			$row = self::networkRow($session, 6);
+			if($row[0] !== $index + 1){ throw new \InvalidArgumentException("Invalid Pulse session ID"); }
+			$first = self::number($row[1], $first, $length);
+			if($row[2] !== null){ self::number($row[2], 0, 4294967295); }
+			self::choice($row[3], PulseNetwork::PHASES);
+			self::choice($row[4], PulseNetwork::PHASES);
+			if($row[5] !== null){
+				self::number($row[5], $first, $length);
+				if($row[4] !== "closed"){ throw new \InvalidArgumentException("Invalid Pulse closed session"); }
+			}elseif($row[4] === "closed"){
+				throw new \InvalidArgumentException("Missing Pulse session close time");
+			}
+		}
+		$previous = 0;
+		foreach($events as $event){
+			$row = self::networkRow($event, 9);
+			$previous = self::number($row[0], $previous, $length);
+			if($row[1] !== null){ self::number($row[1], 1, $recording && $tickCount < PHP_INT_MAX ? $tickCount + 1 : $tickCount); }
+			self::networkSessionId($row[2], $sessions, $previous);
+			if($row[3] !== null){ self::number($row[3], 0, 1023); }
+			self::choice($row[4], PulseNetwork::REASONS);
+			if($row[5] !== null){ self::number($row[5], -PHP_INT_MAX - 1); }
+			if($row[6] !== null){ self::number($row[6], -PHP_INT_MAX - 1); }
+			self::choice($row[7], PulseNetwork::ACTIONS);
+			self::choice($row[8], PulseNetwork::PHASES);
+		}
+		$previous = 0;
+		$seen = [];
+		foreach($windows as $window){
+			$row = self::networkRow($window, 11);
+			$offset = self::number($row[0], $previous, $length);
+			if($offset % PulseNetwork::WINDOW_NS !== 0){ throw new \InvalidArgumentException("Invalid Pulse window offset"); }
+			if($offset !== $previous){ $seen = []; }
+			$previous = $offset;
+			self::networkSessionId($row[1], $sessions, min($length, $offset + min(PulseNetwork::WINDOW_NS - 1, PHP_INT_MAX - $offset)));
+			$id = $row[1] === null ? 0 : self::number($row[1], 1, count($sessions));
+			if(isset($seen[$id])){ throw new \InvalidArgumentException("Duplicate Pulse activity window"); }
+			$seen[$id] = true;
+			$counters = [];
+			for($i = 2; $i < 11; ++$i){ $counters[$i] = self::number($row[$i]); }
+			if($counters[6] > $counters[3] || ($network["counter_overflows"] === 0 && $counters[7] > $counters[3] - $counters[6]) || $counters[7] > $counters[3] || $counters[8] > $counters[3] || $counters[9] > $counters[3] || $counters[10] > $counters[3]){
+				throw new \InvalidArgumentException("Invalid Pulse packet counters");
+			}
+		}
+	}
+
+	/** @return list<mixed> */
+	private static function networkRow(mixed $row, int $size) : array{
+		$row = self::list($row, $size);
+		if(count($row) !== $size){ throw new \InvalidArgumentException("Invalid Pulse network row"); }
+		return $row;
+	}
+
+	/** @param list<mixed> $sessions */
+	private static function networkSessionId(mixed $id, array $sessions, int $offset) : void{
+		if($id !== null){
+			$id = self::number($id, 1, count($sessions));
+			$session = self::networkRow($sessions[$id - 1], 6);
+			if(self::number($session[1]) > $offset){ throw new \InvalidArgumentException("Pulse session referenced before observation"); }
+		}
+	}
+
+	/** @param list<string> $values */
+	private static function choice(mixed $value, array $values) : void{
+		if(!in_array($value, $values, true)){ throw new \InvalidArgumentException("Invalid Pulse network code"); }
 	}
 
 	/** @phpstan-assert int $value */

@@ -37,7 +37,8 @@ use function strlen;
  * @phpstan-type TickRow array{int, int, int}
  * @phpstan-type SpikeRow array{int, int, int, int}
  * @phpstan-type Spike array{tick: TickRow, nodes: list<SpikeRow>}
- * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int}
+ * @phpstan-import-type NetworkCapture from PulseNetwork
+ * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int, network?: NetworkCapture}
  * @phpstan-type Stats array{recording: bool, elapsed_ns: int, duration_ns: int, spike_threshold_ns: int, tick_count: int, tick_total_ns: int, tick_max_ns: int, retained_spikes: int, spikes_dropped: int, dropped_scopes: int, unbalanced_scopes: int, unbalanced_ticks: int}
  */
 final class PulseContext{
@@ -80,6 +81,15 @@ final class PulseContext{
 	private array $spikes = [];
 	private int $spikeRows = 0;
 	private int $spikesDropped = 0;
+	private ?PulseNetwork $network = null;
+
+	public function network() : PulseNetwork{
+		return $this->network ??= new PulseNetwork($this->started);
+	}
+
+	public function getNetworkTickId() : ?int{
+		return $this->recording && $this->tickStarted >= 0 ? $this->tickCount + 1 : null;
+	}
 
 	public function __construct(
 		private readonly int $maxZones = 4096,
@@ -135,6 +145,7 @@ final class PulseContext{
 		$this->tickCount = $this->tickTotal = $this->tickMax = $this->tickCursor = $this->unbalancedTicks = 0;
 		$this->touchedCount = $this->spikeRows = $this->spikesDropped = 0;
 		$this->spikes = [];
+		$this->network = null;
 		$this->recording = true;
 	}
 
@@ -238,6 +249,7 @@ final class PulseContext{
 		}
 		$this->ended = $now;
 		$this->recording = false;
+		if($this->network !== null){ $this->network->recording = false; }
 	}
 
 	private function closeUnbalanced(int $now) : void{
@@ -338,6 +350,7 @@ final class PulseContext{
 
 	/** @return Capture */
 	public function capture() : array{
+		$ended = $this->recording ? (int) hrtime(true) : $this->ended;
 		$rows = [];
 		$activeTicks = [];
 		foreach($this->nodes as $node){
@@ -356,7 +369,7 @@ final class PulseContext{
 		return [
 			"thread" => $this->threadName,
 			"started_ns" => $this->started,
-			"ended_ns" => $this->recording ? (int) hrtime(true) : $this->ended,
+			"ended_ns" => $ended,
 			"recording" => $this->recording,
 			"zones" => $this->names,
 			"nodes" => $rows,
@@ -373,7 +386,8 @@ final class PulseContext{
 			"spike_threshold_ns" => $this->spikeThreshold,
 			"max_spikes" => $this->maxSpikes,
 			"tick_capacity" => $this->maxTicks,
-			"duration_ns" => $this->duration
+			"duration_ns" => $this->duration,
+			"network" => $this->network?->capture($ended - $this->started) ?? PulseNetwork::emptyCapture($ended - $this->started)
 		];
 	}
 }

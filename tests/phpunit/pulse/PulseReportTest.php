@@ -51,7 +51,7 @@ final class PulseReportTest extends TestCase{
 		$report = $this->report();
 		$data = PulseReport::decode($report->encode())->getData();
 		self::assertSame($report->getData(), $data);
-		self::assertSame(1, $data["version"]);
+		self::assertSame(2, $data["version"]);
 		self::assertSame("ns", $data["time_unit"]);
 		self::assertSame([["name" => "SkyWars", "version" => "1.0"]], $data["metadata"]["plugins"]);
 		self::assertSame(["Lobby"], $data["metadata"]["worlds"]);
@@ -126,8 +126,8 @@ final class PulseReportTest extends TestCase{
 	public function testMalformedRowsReferencesAndVersionsAreRejected() : void{
 		$json = $this->report()->encode();
 		foreach([
-			['"version":1', '"version":2'],
-			['"version":1', '"version":"1"'],
+			['"version":2', '"version":3'],
+			['"version":2', '"version":"2"'],
 			['"time_unit":"ns"', '"time_unit":"ms"'],
 			['"recording":false', '"recording":"false"'],
 			['"ended_ns":120', '"ended_ns":99'],

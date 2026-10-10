@@ -26,6 +26,7 @@ namespace quark\network\mcpe;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
+use pmmp\encoding\VarInt;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
@@ -33,6 +34,7 @@ use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
@@ -112,7 +114,9 @@ use quark\player\UsedChunkStatus;
 use quark\player\XboxLivePlayerInfo;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
+use quark\pulse\internal\PulseNetwork;
 use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\AssumptionFailedError;
 use quark\utils\ObjectSet;
@@ -211,6 +215,40 @@ class NetworkSession{
 
 	private string $noisyPacketBuffer = "";
 	private int $noisyPacketsDropped = 0;
+	private int $pulseGeneration = 0;
+	private int $pulseSessionId = 0;
+	private ?int $protocolVersion = null;
+	private string $connectionPhase = "session_start";
+
+	private function getPulseNetwork() : ?PulseNetwork{
+		$network = Pulse::getNetworkTelemetry();
+		if($network !== null && $this->pulseGeneration !== $network->generation){
+			$this->pulseGeneration = $network->generation;
+			$this->pulseSessionId = $network->session($this->protocolVersion, $this->connectionPhase);
+		}
+		return $network;
+	}
+
+	/** @internal */
+	public function recordProtocolVersion(int $version) : void{
+		$this->protocolVersion = $version;
+		$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $version, $this->connectionPhase);
+	}
+
+	/** @internal */
+	public function recordNetworkSecurityEvent(string $reason, string $action, ?int $packetId = null, ?int $observed = null, ?int $limit = null) : void{
+		$this->getPulseNetwork()?->event($this->pulseSessionId, $packetId, $this->connectionPhase, $reason, $action, Pulse::getNetworkTickId(), $observed, $limit);
+	}
+
+	private function recordRawPacketSecurityEvent(string $buffer, string $reason, ?int $observed = null, ?int $limit = null) : void{
+		if($this->getPulseNetwork() === null){ return; }
+		try{
+			$id = VarInt::unpackUnsignedInt($buffer) & DataPacket::PID_MASK;
+		}catch(DataDecodeException){
+			$id = null;
+		}
+		$this->recordNetworkSecurityEvent($reason, "reject_batch", $id, $observed, $limit);
+	}
 
 	public function __construct(
 		private Server $server,
@@ -362,6 +400,19 @@ class NetworkSession{
 
 	public function setHandler(?PacketHandler $handler) : void{
 		if($this->connected){ //TODO: this is fine since we can't handle anything from a disconnected session, but it might produce surprises in some cases
+			$this->connectionPhase = match(true){
+				$handler instanceof SessionStartPacketHandler => "session_start",
+				$handler instanceof LoginPacketHandler => "login",
+				$handler instanceof HandshakePacketHandler => "handshake",
+				$handler instanceof ResourcePacksPacketHandler => "resource_packs",
+				$handler instanceof PreSpawnPacketHandler => "pre_spawn",
+				$handler instanceof SpawnResponsePacketHandler => "spawn_response",
+				$handler instanceof InGamePacketHandler => "in_game",
+				$handler instanceof DeathPacketHandler => "death",
+				$handler === null => "awaiting_async",
+				default => "unknown"
+			};
+			$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase);
 			$this->handler = $handler;
 			if($this->handler !== null){
 				$this->handlerActions = PacketHandlerInspector::getHandlerActions($this->handler);
@@ -394,15 +445,27 @@ class NetworkSession{
 			return;
 		}
 
+		$network = $this->getPulseNetwork();
+		$window = $network?->window($this->pulseSessionId);
+		if($network !== null && $window !== null){
+			$network->count($window, PulseNetwork::BATCHES);
+			$network->count($window, PulseNetwork::RECEIVED_BYTES, strlen($payload));
+		}
 		$playerNetworkReceiveScope = PulseZones::$playerNetworkReceive->start();
 		try{
-			$this->packetBatchLimiter->decrement();
+			try{
+				$this->packetBatchLimiter->decrement();
+			}catch(PacketRateLimitException $e){
+				$this->recordNetworkSecurityEvent("rate.batch", "reject_batch", observed: $e->requested, limit: $e->available);
+				throw $e;
+			}
 
 			if($this->cipher !== null){
 				$playerNetworkReceiveDecryptScope = PulseZones::$playerNetworkReceiveDecrypt->start();
 				try{
 					$payload = $this->cipher->decrypt($payload);
 				}catch(DecryptionException $e){
+					$this->recordNetworkSecurityEvent("encryption.invalid", "reject_batch");
 					$this->logger->debug("Encrypted packet: " . base64_encode($payload));
 					throw PacketHandlingException::wrap($e, "Packet decryption error");
 				}finally{
@@ -411,6 +474,7 @@ class NetworkSession{
 			}
 
 			if(strlen($payload) < 1){
+				$this->recordNetworkSecurityEvent("batch.empty", "reject_batch", observed: 0, limit: 1);
 				throw new PacketHandlingException("No bytes in payload");
 			}
 
@@ -424,36 +488,61 @@ class NetworkSession{
 					try{
 						$decompressed = $this->compressor->decompress($compressed);
 					}catch(DecompressionException $e){
+						$this->recordNetworkSecurityEvent($e->reason, "reject_batch", observed: $e->observed, limit: $e->limit);
 						$this->logger->debug("Failed to decompress packet: " . base64_encode($compressed));
 						throw PacketHandlingException::wrap($e, "Compressed packet batch decode error");
 					}finally{
 						PulseZones::$playerNetworkReceiveDecompress->stop($playerNetworkReceiveDecompressScope);
 					}
 				}else{
+					$this->recordNetworkSecurityEvent("compression.algorithm", "reject_batch", observed: $compressionType, limit: $this->compressor->getNetworkId());
 					throw new PacketHandlingException("Packet compressed with unexpected compression type $compressionType");
 				}
 			}else{
 				$decompressed = $payload;
 			}
+			if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECOMPRESSED_BYTES, strlen($decompressed)); }
 
 			$count = 0;
 			try{
 				$stream = new ByteBufferReader($decompressed);
 				foreach(PacketBatch::decodeRaw($stream) as $buffer){
 					if(++$count >= self::INCOMING_PACKET_BATCH_HARD_LIMIT){
-						//this should be well more than enough; under normal conditions the game packet rate limiter
-						//will kick in well before this. This is only here to make sure we can't get huge batches of
-						//noisy packets to bog down the server, since those aren't counted by the regular limiter.
+						if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
+						$this->recordRawPacketSecurityEvent($buffer, "batch.packet_limit", $count, self::INCOMING_PACKET_BATCH_HARD_LIMIT);
 						throw new PacketHandlingException("Reached hard limit of " . self::INCOMING_PACKET_BATCH_HARD_LIMIT . " per batch packet");
 					}
 
 					if($this->checkRepeatedPacketFilter($buffer)){
+						if($network !== null && $window !== null){
+							$network->count($window, PulseNetwork::PACKETS);
+							$network->count($window, PulseNetwork::REPEATED_DROPPED);
+						}
 						continue;
 					}
 
-					$this->gamePacketLimiter->decrement();
-					$packet = $this->packetPool->getPacket($buffer);
+					try{
+						$this->gamePacketLimiter->decrement();
+					}catch(PacketRateLimitException $e){
+						if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
+						$this->recordRawPacketSecurityEvent($buffer, "rate.packet", $e->requested, $e->available);
+						throw $e;
+					}
+					try{
+						$packet = $this->packetPool->getPacket($buffer);
+					}catch(DataDecodeException $e){
+						if($network !== null && $window !== null){
+							$network->count($window, PulseNetwork::PACKETS);
+							$network->count($window, PulseNetwork::DECODE_FAILED);
+						}
+						throw $e;
+					}
 					if($packet === null){
+						if($network !== null && $window !== null){
+							$network->count($window, PulseNetwork::PACKETS);
+							$network->count($window, PulseNetwork::DECODE_FAILED);
+						}
+						$this->recordRawPacketSecurityEvent($buffer, "packet.unknown");
 						$this->logger->debug("Unknown packet: " . base64_encode($buffer));
 						throw new PacketHandlingException("Unknown packet received");
 					}
@@ -472,6 +561,7 @@ class NetworkSession{
 					}
 				}
 			}catch(PacketDecodeException|DataDecodeException $e){
+				$this->recordNetworkSecurityEvent("batch.malformed", "reject_batch");
 				$this->logger->logException($e);
 				throw PacketHandlingException::wrap($e, "Packet batch decode error");
 			}
@@ -493,7 +583,11 @@ class NetworkSession{
 	 * @throws FilterNoisyPacketException
 	 */
 	public function handleDataPacket(Packet $packet, string $buffer) : void{
+		$network = $this->getPulseNetwork();
+		$window = $network?->window($this->pulseSessionId);
+		if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
 		if(!($packet instanceof ServerboundPacket)){
+			$this->recordNetworkSecurityEvent("packet.direction", "reject_batch", $packet->pid());
 			throw new PacketHandlingException("Unexpected non-serverbound packet");
 		}
 
@@ -518,6 +612,7 @@ class NetworkSession{
 					//uncancelled by a plugin, let it through to DataPacketReceiveEvent
 					$handlerAction = PacketHandlerAction::HANDLED;
 				}elseif(!$cancel && $ev->isCancelled()){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PLUGIN_CANCELLED); }
 					//explicitly cancelled by plugin, drop it quietly
 					$handlerAction = PacketHandlerAction::DISCARD_SILENT;
 				}
@@ -525,6 +620,8 @@ class NetworkSession{
 
 			if($handlerAction !== PacketHandlerAction::HANDLED){
 				if($handlerAction === PacketHandlerAction::DISCARD_WITH_DEBUG){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::STATE_DROPPED); }
+					$this->recordNetworkSecurityEvent("packet.state", "drop_packet", $packet->pid());
 					$this->unhandledPacketDebug($packet, $buffer, "Discarded without decoding");
 				}
 				return;
@@ -536,7 +633,10 @@ class NetworkSession{
 				$stream = new ByteBufferReader($buffer);
 				try{
 					$packet->decode($stream);
-				}catch(PacketDecodeException $e){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
+				}catch(PacketDecodeException|DataDecodeException $e){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
+					$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packet->pid());
 					throw PacketHandlingException::wrap($e);
 				}
 				if($stream->getUnreadLength() > 0){
@@ -551,6 +651,7 @@ class NetworkSession{
 				$ev = new DataPacketReceiveEvent($this, $packet);
 				$ev->call();
 				if($ev->isCancelled()){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PLUGIN_CANCELLED); }
 					return;
 				}
 			}
@@ -558,8 +659,13 @@ class NetworkSession{
 			$handlerZoneScope = $handlerZone->start();
 			try{
 				if($this->handler === null || !$packet->handle($this->handler)){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::STATE_DROPPED); }
+					$this->recordNetworkSecurityEvent("packet.state", "drop_packet", $packet->pid());
 					$this->unhandledPacketDebug($packet, $buffer, "Handler rejected");
 				}
+			}catch(PacketHandlingException $e){
+				$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid());
+				throw $e;
 			}finally{
 				$handlerZone->stop($handlerZoneScope);
 			}
@@ -827,6 +933,8 @@ class NetworkSession{
 			$this->disposeHooks->clear();
 			$this->setHandler(null);
 			$this->connected = false;
+			$this->connectionPhase = "closed";
+			$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase);
 
 			$ackPromisesByReceiptId = $this->ackPromisesByReceiptId;
 			$this->ackPromisesByReceiptId = [];
@@ -1431,6 +1539,7 @@ class NetworkSession{
 			return;
 		}
 
+		$this->getPulseNetwork();
 		if($this->info === null){
 			if(time() >= $this->connectTime + 10){
 				$this->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_loginTimeout());

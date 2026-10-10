@@ -49,10 +49,11 @@ final class SnappyCompressor implements Compressor{
 		$length = strlen($payload);
 		for ($offset = 0; $offset < $length && $offset < 5; ++$offset) {
 			$byte = ord($payload[$offset]);
+			if($shift === 28 && $byte > 0x0f){ throw new DecompressionException("Invalid Snappy uncompressed length"); }
 			$result |= ($byte & 0x7f) << $shift;
 			if (($byte & 0x80) === 0) {
 				if ($result > $this->maxDecompressionSize) {
-					throw new DecompressionException("Decompressed data exceeds the limit of {$this->maxDecompressionSize} bytes");
+					throw new DecompressionException("Decompressed data exceeds the limit of {$this->maxDecompressionSize} bytes", reason: "decompression.limit", observed: $result, limit: $this->maxDecompressionSize);
 				}
 				return $result;
 			}

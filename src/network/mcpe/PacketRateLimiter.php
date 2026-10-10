@@ -56,7 +56,7 @@ final class PacketRateLimiter{
 		if($this->budget <= 0){
 			$this->update();
 			if($this->budget <= 0){
-				throw new PacketHandlingException("Exceeded rate limit for \"$this->name\"");
+				throw new PacketRateLimitException("Exceeded rate limit for \"$this->name\"", $amount, $this->budget);
 			}
 		}
 		$this->budget -= $amount;
