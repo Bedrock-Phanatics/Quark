@@ -31,6 +31,7 @@ use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
@@ -42,6 +43,7 @@ use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\LabTableCombineStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
@@ -442,6 +444,54 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_fill(0, 4, 1), array_column($data["events"], 1));
 		self::assertSame([4, 0, 4], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
 		PulseReport::create([$capture->getCapture()]);
+	}
+
+	public function testNestedItemStackLimitsPreserveEvidenceAcrossPacketPaths() : void{
+		$session = $this->session();
+		$this->set($session, "handlerActions", [ItemStackRequestPacket::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$buffers = [];
+		foreach([61, 100000] as $count){
+			$request = new ItemStackRequest(-7, array_fill(0, $count, new LabTableCombineStackRequestAction()), ["filter"], 0);
+			foreach([
+				ItemStackRequestPacket::create([$request]),
+				PlayerAuthInputPacket::create(
+					new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
+					1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, $request, null, null,
+					0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
+				)
+			] as $packet){
+				$writer = new ByteBufferWriter();
+				$packet->encode($writer);
+				$buffers[] = [$this->batch([$writer->getData()]), $count];
+			}
+		}
+		$this->rejected($session, $buffers[0][0]);
+		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$capture = Pulse::start();
+		Pulse::beginTick();
+		foreach([false, true] as $compressed){
+			$this->set($session, "enableCompression", $compressed);
+			foreach($buffers as [$buffer, $count]){
+				$payload = $compressed ? "\x00" . Utils::assumeNotFalse(zlib_encode($buffer, ZLIB_ENCODING_RAW)) : $buffer;
+				try{ $session->handleEncoded($payload); self::fail("Oversized item-stack actions accepted"); }catch(PacketHandlingException $e){
+					$cause = $e->getPrevious()?->getPrevious();
+					self::assertInstanceOf(PacketDecodeException::class, $cause);
+					self::assertSame([$count, ItemStackRequest::MAX_ACTIONS], [$cause->observed, $cause->limit]);
+				}
+			}
+		}
+		Pulse::endTick();
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_fill(0, 8, "packet.handler_validation"), array_column($data["events"], 4));
+		self::assertSame([61, 61, 100000, 100000, 61, 61, 100000, 100000], array_column($data["events"], 5));
+		self::assertSame(array_fill(0, 8, ItemStackRequest::MAX_ACTIONS), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 4, [ItemStackRequestPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID])), array_column($data["events"], 3));
+		self::assertSame(array_fill(0, 8, "reject_batch"), array_column($data["events"], 7));
+		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
+		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 2));
+		self::assertSame([8, 0, 8, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
+		PulseReport::decode($capture->getReport()->encode());
 	}
 
 	public function testItemStackRequestBoundariesAndMalformedPrefixes() : void{

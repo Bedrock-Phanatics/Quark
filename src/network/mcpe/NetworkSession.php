@@ -705,7 +705,11 @@ class NetworkSession{
 						throw $e;
 					}
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
-					$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packet->pid());
+					if($e instanceof PacketDecodeException && $e->observed !== null && $e->limit !== null){
+						$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid(), $e->observed, $e->limit);
+					}else{
+						$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packet->pid());
+					}
 					throw PacketHandlingException::wrap($e);
 				}
 				if($stream->getUnreadLength() > 0){
