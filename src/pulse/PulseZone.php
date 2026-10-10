@@ -40,7 +40,10 @@ final class PulseZone{
 
 	/** Zero means disabled or a capture limit was reached. */
 	public function start() : int{
-		return $this->context->recording ? $this->context->begin($this->id, hrtime(true)) : 0;
+		if($this->context->recording){
+			return $this->context->begin($this->id, hrtime(true));
+		}
+		return 0;
 	}
 
 	public function stop(int $scope) : void{
