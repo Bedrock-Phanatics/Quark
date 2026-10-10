@@ -27,11 +27,16 @@ use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
+use pocketmine\math\Vector2;
+use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
+use pocketmine\network\mcpe\protocol\serializer\BitSet;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
+use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
@@ -60,12 +65,15 @@ use quark\utils\Utils;
 use raklib\server\ipc\UserToRakLibThreadMessageSender;
 use function array_column;
 use function array_fill;
+use function array_merge;
 use function array_unique;
 use function array_values;
+use function count;
 use function function_exists;
 use function gzencode;
 use function json_encode;
 use function ord;
+use function range;
 use function str_repeat;
 use function strlen;
 use function substr;
@@ -143,6 +151,112 @@ final class PulseNetworkTest extends TestCase{
 		return $writer->getData();
 	}
 
+	private function authInputPrefix(int $count) : string{
+		$writer = new ByteBufferWriter();
+		VarInt::writeUnsignedInt($writer, PlayerAuthInputPacket::NETWORK_ID);
+		$writer->writeByteArray(str_repeat("\x00", 32));
+		VarInt::writeUnsignedInt($writer, $count);
+		return $writer->getData();
+	}
+
+	/** @param list<int> $flags */
+	private function authInputPacket(array $flags) : string{
+		$packet = PlayerAuthInputPacket::create(
+			new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
+			1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, null, null, null,
+			0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
+		);
+		$packet->senderSubId = 2;
+		$packet->recipientSubId = 3;
+		$writer = new ByteBufferWriter();
+		$packet->encode($writer);
+		$buffer = $writer->getData();
+		$stream = new ByteBufferReader($buffer);
+		VarInt::readUnsignedInt($stream);
+		$stream->setOffset($stream->getOffset() + 32);
+		$prefixLength = $stream->getOffset();
+		self::assertSame(0, VarInt::readUnsignedInt($stream));
+		$writer->clear();
+		$writer->writeByteArray(substr($buffer, 0, $prefixLength));
+		VarInt::writeUnsignedInt($writer, count($flags));
+		foreach($flags as $flag){ VarInt::writeSignedInt($writer, $flag); }
+		$writer->writeByteArray(substr($buffer, $stream->getOffset()));
+		return $writer->getData();
+	}
+
+	public function testInputFlagLimitsRunBeforeDecoding() : void{
+		$session = $this->session();
+		$packet = new class extends PlayerAuthInputPacket{
+			protected function decodePayload(ByteBufferReader $in) : void{ TestCase::fail("Oversized flag list reached decoder"); }
+		};
+		$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		try{ $session->handleDataPacket($packet, $this->authInputPrefix(67)); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
+			self::assertSame("Too many input flags in PlayerAuthInputPacket", $e->getMessage());
+		}
+		$capture = Pulse::start();
+		Pulse::beginTick();
+		foreach([67, 1000000, 0xffffffff] as $count){
+			try{ $session->handleDataPacket($packet, $this->authInputPrefix($count)); self::fail("Oversized flag list accepted"); }catch(PacketHandlingException){}
+		}
+		$batch = $this->batch([$this->authInputPrefix(1000000) . str_repeat("\x00", 1000000)]);
+		$this->set($session, "enableCompression", true);
+		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$this->rejected($session, "\x00" . Utils::assumeNotFalse(zlib_encode($batch, ZLIB_ENCODING_RAW)));
+		Pulse::endTick();
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_fill(0, 4, "packet.handler_validation"), array_column($data["events"], 4));
+		self::assertSame([67, 1000000, 0xffffffff, 1000000], array_column($data["events"], 5));
+		self::assertSame(array_fill(0, 4, PlayerAuthInputFlags::NUMBER_OF_FLAGS), array_column($data["events"], 6));
+		self::assertSame(array_fill(0, 4, PlayerAuthInputPacket::NETWORK_ID), array_column($data["events"], 3));
+		self::assertSame(array_fill(0, 4, 1), array_column($data["events"], 1));
+		self::assertSame([4, 0, 4], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
+		PulseReport::create([$capture->getCapture()]);
+	}
+
+	public function testInputFlagBoundariesPreservePacketFields() : void{
+		$session = $this->session();
+		$this->set($session, "handlerActions", [PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$handler = new class extends PacketHandler{
+			/** @var list<PlayerAuthInputPacket> */
+			public array $packets = [];
+			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ $this->packets[] = $packet; return true; }
+		};
+		$this->set($session, "handler", $handler);
+		$cases = [[], [0], range(0, PlayerAuthInputFlags::NUMBER_OF_FLAGS - 1)];
+		foreach($cases as $flags){ $session->handleEncoded($this->batch([$this->authInputPacket($flags)])); }
+		self::assertCount(3, $handler->packets);
+		foreach($handler->packets as $index => $packet){
+			self::assertSame([2, 3, 123, 4.0, 5.0, 6.0], [$packet->senderSubId, $packet->recipientSubId, $packet->getTick(), $packet->getPitch(), $packet->getYaw(), $packet->getHeadYaw()]);
+			self::assertEquals(new Vector3(1, 2, 3), $packet->getPosition());
+			$flags = [];
+			for($i = 0; $i < PlayerAuthInputFlags::NUMBER_OF_FLAGS; ++$i){ if($packet->getInputFlags()->get($i)){ $flags[] = $i; } }
+			self::assertSame($cases[$index], $flags);
+		}
+	}
+
+	public function testMalformedInputFlagsUseControlledDisconnects() : void{
+		$session = $this->getMockBuilder(NetworkSession::class)->disableOriginalConstructor()->onlyMethods(["getIp", "getDisplayName", "disconnectWithError"])->getMock();
+		$session->method("getIp")->willReturn("192.0.2.1");
+		$session->method("getDisplayName")->willReturn("private-name");
+		$this->session($session);
+		$this->set($session, "handlerActions", [PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$header = substr($this->authInputPrefix(0), 0, -1);
+		$buffers = [$this->authInputPacket([-1]), $this->authInputPacket([66]), $this->authInputPacket([0x7fffffff]), $this->authInputPacket([0, 0]), substr($header, 0, -1), $header, $header . "\x80", $header . str_repeat("\x80", 6), $this->authInputPrefix(1)];
+		$session->expects(self::exactly(count($buffers)))->method("disconnectWithError");
+		$interface = (new \ReflectionClass(RakLibInterface::class))->newInstanceWithoutConstructor();
+		$sender = $this->createMock(UserToRakLibThreadMessageSender::class);
+		$sender->expects(self::exactly(count($buffers)))->method("blockAddress")->with("192.0.2.1", 5);
+		$this->set($interface, "interface", $sender);
+		$this->set($interface, "sessions", [9000 => $session]);
+		$capture = Pulse::start();
+		foreach($buffers as $buffer){ $interface->onPacketReceive(9000, "\xfe" . $this->batch([$buffer])); }
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_merge(...array_fill(0, count($buffers), ["packet.malformed", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
+		self::assertSame([count($buffers), 0, count($buffers)], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
+	}
+
 	public function testItemStackRequestLimitRunsBeforePayloadDecoding() : void{
 		$session = $this->session();
 		$packet = new class extends ItemStackRequestPacket{
@@ -209,9 +323,8 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame([8, 3, 5], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
 	}
 
-	public function testItemStackLimitPreservesPluginDecodeDecisions() : void{
+	public function testCollectionLimitsPreservePluginDecodeDecisions() : void{
 		$session = $this->session();
-		$this->set($session, "handlerActions", [ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
 		$plugin = $this->createMock(Plugin::class);
 		$listener = new RegisteredListener(static function(DataPacketDecodeEvent $event) : void{
 			if($event->isCancelled()){ $event->uncancel(); }else{ $event->cancel(); }
@@ -220,17 +333,20 @@ final class PulseNetworkTest extends TestCase{
 		$list->register($listener);
 		$capture = Pulse::start();
 		try{
-			$payload = $this->batch([$this->itemStackPrefix(81)]);
-			$session->handleEncoded($payload);
-			$this->set($session, "handlerActions", []);
-			$this->rejected($session, $payload);
+			foreach([ItemStackRequestPacket::class => $this->itemStackPrefix(81), PlayerAuthInputPacket::class => $this->authInputPrefix(67)] as $class => $buffer){
+				$this->set($session, "handlerActions", [$class => PacketHandlerAction::HANDLED]);
+				$payload = $this->batch([$buffer]);
+				$session->handleEncoded($payload);
+				$this->set($session, "handlerActions", []);
+				$this->rejected($session, $payload);
+			}
 		}finally{
 			$list->unregister($listener);
 			Pulse::stop();
 		}
 		$data = $this->network($capture);
-		self::assertSame(["packet.handler_validation"], array_column($data["events"], 4));
-		self::assertSame([2, 0, 1, 1, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8], $data["windows"][0][9]]);
+		self::assertSame(["packet.handler_validation", "packet.handler_validation"], array_column($data["events"], 4));
+		self::assertSame([4, 0, 2, 2, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8], $data["windows"][0][9]]);
 	}
 
 	public function testItemStackHandlerStillLimitsAlreadyDecodedRequests() : void{
@@ -295,6 +411,12 @@ final class PulseNetworkTest extends TestCase{
 				public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ throw new \RuntimeException("plugin failure"); }
 			});
 			try{ $session->handleEncoded($payload); self::fail("Handler failure ignored"); }catch(\RuntimeException $e){ self::assertSame("plugin failure", $e->getMessage()); }
+			self::assertSame("", $watchdog->record);
+			$packet = new class extends RequestNetworkSettingsPacket{
+				protected function decodePayload(ByteBufferReader $in) : void{ throw new \InvalidArgumentException("decoder failure"); }
+			};
+			$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED]);
+			try{ $session->handleDataPacket($packet, $this->packet()); self::fail("Unrelated decoder failure hidden"); }catch(\InvalidArgumentException $e){ self::assertSame("decoder failure", $e->getMessage()); }
 			self::assertSame("", $watchdog->record);
 		}finally{
 			foreach($listeners as [$list, $listener]){ $list->unregister($listener); }

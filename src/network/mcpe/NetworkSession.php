@@ -44,6 +44,7 @@ use pocketmine\network\mcpe\protocol\OpenSignPacket;
 use pocketmine\network\mcpe\protocol\Packet;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerStartItemCooldownPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
@@ -70,6 +71,7 @@ use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
@@ -645,21 +647,33 @@ class NetworkSession{
 				$work?->stage($workToken, PulseNetworkWork::DECODE);
 				$stream = new ByteBufferReader($buffer);
 				try{
-					if($packet instanceof ItemStackRequestPacket){
+					if($packet instanceof ItemStackRequestPacket || $packet instanceof PlayerAuthInputPacket){
 						if((VarInt::readUnsignedInt($stream) & DataPacket::PID_MASK) !== $packet->pid()){
 							throw new PacketDecodeException("Unexpected packet ID");
 						}
-						$requestCount = VarInt::readUnsignedInt($stream);
-						if($requestCount > InGamePacketHandler::MAX_ITEM_STACK_REQUESTS){
+						if($packet instanceof PlayerAuthInputPacket){
+							//Eight floats precede the input flag list.
+							if($stream->getUnreadLength() < 8 * 4){
+								throw new PacketDecodeException("Truncated PlayerAuthInputPacket");
+							}
+							$stream->setOffset($stream->getOffset() + 8 * 4);
+						}
+						$count = VarInt::readUnsignedInt($stream);
+						$limit = $packet instanceof ItemStackRequestPacket ? InGamePacketHandler::MAX_ITEM_STACK_REQUESTS : PlayerAuthInputFlags::NUMBER_OF_FLAGS;
+						if($count > $limit){
 							if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
-							$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid(), $requestCount, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS);
-							throw new PacketHandlingException("Too many requests in ItemStackRequestPacket");
+							$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid(), $count, $limit);
+							throw new PacketHandlingException($packet instanceof ItemStackRequestPacket ? "Too many requests in ItemStackRequestPacket" : "Too many input flags in PlayerAuthInputPacket");
 						}
 						$stream->setOffset(0);
 					}
 					$packet->decode($stream);
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
-				}catch(PacketDecodeException|DataDecodeException $e){
+				}catch(PacketDecodeException|DataDecodeException|\InvalidArgumentException $e){
+					//PlayerAuthInput's BitSet throws argument errors for invalid flag indices.
+					if($e instanceof \InvalidArgumentException && !($packet instanceof PlayerAuthInputPacket)){
+						throw $e;
+					}
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
 					$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packet->pid());
 					throw PacketHandlingException::wrap($e);
