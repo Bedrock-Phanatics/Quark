@@ -47,6 +47,7 @@ use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\LabTableCombineStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\TransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
@@ -348,6 +349,62 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 1));
 		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 2));
 		self::assertSame([8, 0, 8, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
+		$report = $capture->getReport()->encode();
+		self::assertStringNotContainsString("private-name", $report);
+		self::assertStringNotContainsString("192.0.2.1", $report);
+		PulseReport::decode($report);
+	}
+
+	public function testEmbeddedInventoryActionLimitsDisconnectAndPreserveEvidence() : void{
+		$session = $this->getMockBuilder(NetworkSession::class)->disableOriginalConstructor()->onlyMethods(["getIp", "getDisplayName", "disconnectWithError"])->getMock();
+		$session->method("getIp")->willReturn("192.0.2.1");
+		$session->method("getDisplayName")->willReturn("private-name");
+		$session->expects(self::exactly(4))->method("disconnectWithError");
+		$this->session($session);
+		$this->set($session, "handlerActions", [PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$handler = $this->createMock(PacketHandler::class);
+		$handler->expects(self::exactly(3))->method("handlePlayerAuthInput")->willReturn(true);
+		$this->set($session, "handler", $handler);
+		$action = new NetworkInventoryAction();
+		$action->sourceType = NetworkInventoryAction::SOURCE_CONTAINER;
+		$action->windowId = 2;
+		$action->inventorySlot = 7;
+		$action->oldItem = $action->newItem = ItemStackWrapper::legacy(ItemStack::null());
+		$buffers = [];
+		foreach([0, 1, TransactionData::MAX_ACTIONS, 101, 100000] as $count){
+			$transaction = UseItemTransactionData::new(array_fill(0, $count, $action), 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
+			$packet = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), 1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), new ItemInteractionData(-7, null, $transaction), null, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
+			$writer = new ByteBufferWriter();
+			$packet->encode($writer);
+			$buffer = $this->batch([$writer->getData()]);
+			if($count <= TransactionData::MAX_ACTIONS){ $session->handleEncoded($buffer); }else{ $buffers[] = $buffer; }
+		}
+		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$interface = (new \ReflectionClass(RakLibInterface::class))->newInstanceWithoutConstructor();
+		$sender = $this->createMock(UserToRakLibThreadMessageSender::class);
+		$sender->expects(self::exactly(4))->method("blockAddress")->with("192.0.2.1", 5);
+		$this->set($interface, "interface", $sender);
+		$this->set($interface, "sessions", [9000 => $session]);
+		$capture = Pulse::start();
+		Pulse::beginTick();
+		foreach([false, true] as $compressed){
+			$this->set($session, "enableCompression", $compressed);
+			foreach($buffers as $buffer){
+				$payload = $compressed ? "\x00" . Utils::assumeNotFalse(zlib_encode($buffer, ZLIB_ENCODING_RAW)) : $buffer;
+				$interface->onPacketReceive(9000, "\xfe" . $payload);
+			}
+		}
+		Pulse::endTick();
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_merge(...array_fill(0, 4, ["packet.handler_validation", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
+		self::assertSame([101, null, 100000, null, 101, null, 100000, null], array_column($data["events"], 5));
+		self::assertSame(array_merge(...array_fill(0, 4, [TransactionData::MAX_ACTIONS, null])), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 4, [PlayerAuthInputPacket::NETWORK_ID, null])), array_column($data["events"], 3));
+		self::assertSame(array_merge(...array_fill(0, 4, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
+		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
+		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 2));
+		self::assertSame([4, 0, 4, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
 		$report = $capture->getReport()->encode();
 		self::assertStringNotContainsString("private-name", $report);
 		self::assertStringNotContainsString("192.0.2.1", $report);
