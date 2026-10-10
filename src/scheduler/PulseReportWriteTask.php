@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace quark\scheduler;
 
-use quark\pulse\internal\PulseContext;
+use pmmp\thread\ThreadSafeArray;
+use quark\pulse\internal\PulseCapture;
 use quark\pulse\PulseReport;
 use function count;
 use function igbinary_serialize;
@@ -32,41 +33,51 @@ use function strlen;
 
 /**
  * @internal Runs on Pulse's dedicated export pool.
- * @phpstan-import-type Capture from PulseContext
  */
 final class PulseReportWriteTask extends AsyncTask{
-	private string $data;
+	/** @var ThreadSafeArray<int, PulseCapture>|null */
+	private ?ThreadSafeArray $captures = null;
+	private string $metadata;
 	private ?string $error = null;
 
 	/**
-	 * @param list<Capture>                     $captures
+	 * @param list<PulseCapture>                $captures
 	 * @param array<string, mixed>              $metadata
 	 * @param \Closure(?string, ?string) : void $onComplete
 	 */
 	public function __construct(array $captures, array $metadata, private string $directory, \Closure $onComplete){
 		if(count($captures) > 128){ throw new \LengthException("Pulse report has too many threads"); }
-		$rows = 0;
+		$rows = $bytes = 0;
 		foreach($captures as $capture){
-			$rows += count($capture["nodes"]) + count($capture["ticks"]) + count($capture["spikes"]);
-			foreach($capture["spikes"] as $spike){ $rows += count($spike["nodes"]); }
+			$rows += $capture->getRowCount();
+			$bytes += $capture->getByteSize();
 			if($rows > PulseReport::MAX_ROWS){ throw new \LengthException("Pulse report exceeds the row budget"); }
+			if($bytes > PulseCapture::MAX_TRANSFER_BYTES){ throw new \LengthException("Pulse capture transfer exceeds the size limit"); }
 		}
-		$this->data = igbinary_serialize([$captures, $metadata]) ?? throw new \InvalidArgumentException("Pulse captures must be serializable");
-		// Binary array headers need more space than the final JSON.
-		if(strlen($this->data) > PulseReport::MAX_BYTES * 4){ throw new \LengthException("Pulse capture transfer exceeds the size limit"); }
+		$this->metadata = igbinary_serialize($metadata) ?? throw new \InvalidArgumentException("Pulse metadata must be serializable");
+		if(strlen($this->metadata) > PulseCapture::MAX_TRANSFER_BYTES - $bytes){ throw new \LengthException("Pulse capture transfer exceeds the size limit"); }
+		$this->captures = new ThreadSafeArray();
+		foreach($captures as $capture){ $this->captures[] = $capture; }
 		$this->storeLocal("complete", $onComplete);
 	}
 
 	public function onRun() : void{
 		try{
-			/** @var array{list<Capture>, array<string, mixed>} $data */
-			$data = igbinary_unserialize($this->data);
-			$this->data = "";
-			$this->setResult(PulseReport::create($data[0], $data[1])->write($this->directory));
+			$captures = [];
+			foreach($this->captures ?? [] as $capture){
+				/** @var PulseCapture $capture */
+				$captures[] = $capture->decode();
+			}
+			$this->captures = null;
+			/** @var array<string, mixed> $metadata */
+			$metadata = igbinary_unserialize($this->metadata);
+			$this->metadata = "";
+			$this->setResult(PulseReport::create($captures, $metadata)->write($this->directory));
 		}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 			$this->error = $e->getMessage();
 		}finally{
-			$this->data = "";
+			$this->captures = null;
+			$this->metadata = "";
 		}
 	}
 

@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\scheduler;
 
-use quark\pulse\internal\PulseContext;
+use quark\pulse\internal\PulseCapture;
 use quark\pulse\Pulse;
 use function hrtime;
 
 /**
- * @phpstan-import-type Capture from PulseContext
+ * @internal
  */
 final class PulseControlTask extends AsyncTask{
 	public const START = 1;
@@ -36,7 +36,7 @@ final class PulseControlTask extends AsyncTask{
 	public const COLLECT = 3;
 	private static int $currentGeneration = 0;
 
-	/** @param \Closure(Capture|null) : void $onComplete */
+	/** @param \Closure(PulseCapture|null) : void $onComplete */
 	public function __construct(
 		private int $operation,
 		private int $generation,
@@ -62,15 +62,16 @@ final class PulseControlTask extends AsyncTask{
 				Pulse::stop();
 			}elseif($this->operation === self::COLLECT){
 				Pulse::checkDuration();
-				$this->setResult(Pulse::getSession()?->getCapture());
+				$capture = Pulse::getSession()?->getCapture();
+				$this->setResult($capture !== null ? new PulseCapture($capture) : null);
 			}
 		}
 	}
 
 	public function onCompletion() : void{
-		/** @var \Closure(Capture|null) : void $complete */
+		/** @var \Closure(PulseCapture|null) : void $complete */
 		$complete = $this->fetchLocal("complete");
-		/** @var Capture|null $result */
+		/** @var PulseCapture|null $result */
 		$result = $this->getResult();
 		$complete($result);
 	}

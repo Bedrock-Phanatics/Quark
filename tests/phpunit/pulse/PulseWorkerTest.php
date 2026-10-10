@@ -25,6 +25,7 @@ namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\snooze\SleeperHandler;
+use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseRecorder;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
@@ -66,26 +67,33 @@ final class PulseWorkerTest extends TestCase{
 			$invalidNode = $node;
 			$invalidNode[3] = -1;
 			$invalid["nodes"] = [$invalidNode];
+			$transfer = new PulseCapture($capture);
+			$decoded = $transfer->decode();
+			$decoded["thread"] = "changed";
+			self::assertSame($capture, $transfer->decode());
+			self::assertGreaterThan(0, $transfer->getRowCount());
+			self::assertGreaterThan(0, $transfer->getByteSize());
 			/** @var \ArrayObject<int, array{?string, ?string}> $results */
 			$results = new \ArrayObject();
-			foreach([[[$invalid], []], [[$capture, $capture], []], [[$capture], ["platform" => "\xff"]]] as [$captures, $metadata]){
+			foreach([[[new PulseCapture($invalid)], []], [[$transfer, $transfer], []], [[$transfer], ["platform" => "\xff"]]] as [$captures, $metadata]){
 				$task = new PulseReportWriteTask($captures, $metadata, $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
 				$pool->submitTask($task);
 				$this->drain($pool);
-				self::assertSame("", (new \ReflectionProperty(PulseReportWriteTask::class, "data"))->getValue($task));
+				self::assertNull((new \ReflectionProperty(PulseReportWriteTask::class, "captures"))->getValue($task));
+				self::assertSame("", (new \ReflectionProperty(PulseReportWriteTask::class, "metadata"))->getValue($task));
 			}
 			self::assertCount(3, $results);
 			foreach($results as [$file, $error]){ self::assertNull($file); self::assertIsString($error); }
 			self::assertFalse(is_dir($directory));
 			$dense = $capture;
 			$dense["nodes"] = array_fill(0, 16384, $node);
-			foreach([[array_fill(0, 129, $capture), []], [array_fill(0, 9, $dense), []], [[$capture], ["platform" => str_repeat("x", PulseReport::MAX_BYTES * 4 + 1)]]] as [$captures, $metadata]){
+			foreach([[array_fill(0, 129, $transfer), []], [array_fill(0, 9, new PulseCapture($dense)), []], [[$transfer], ["platform" => str_repeat("x", PulseCapture::MAX_TRANSFER_BYTES + 1)]]] as [$captures, $metadata]){
 				try{
 					new PulseReportWriteTask($captures, $metadata, $directory, static function() : void{ self::fail("Oversized transfer submitted"); });
 					self::fail("Oversized transfer accepted");
 				}catch(\LengthException){}
 			}
-			$task = new PulseReportWriteTask([$capture], [], $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
+			$task = new PulseReportWriteTask([$transfer], [], $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
 			$pool->submitTask($task);
 			$this->drain($pool);
 			self::assertCount(4, $results);
@@ -96,7 +104,8 @@ final class PulseWorkerTest extends TestCase{
 			$contents = file_get_contents($success[0]);
 			self::assertIsString($contents);
 			self::assertSame($capture, PulseReport::decode($contents)->getData()["threads"][0]);
-			self::assertSame("", (new \ReflectionProperty(PulseReportWriteTask::class, "data"))->getValue($task));
+			self::assertNull((new \ReflectionProperty(PulseReportWriteTask::class, "captures"))->getValue($task));
+			self::assertSame("", (new \ReflectionProperty(PulseReportWriteTask::class, "metadata"))->getValue($task));
 		}finally{
 			$pool->shutdown();
 			Pulse::reset();

@@ -35,18 +35,21 @@ use quark\permission\DefaultPermissions;
 use quark\permission\PermissionManager;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
+use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseRecorder;
 use quark\pulse\internal\PulseZones;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
 use quark\scheduler\PulseControlTask;
 use quark\Server;
+use function array_fill;
 use function count;
 use function extension_loaded;
 use function file_get_contents;
 use function glob;
 use function hrtime;
 use function rmdir;
+use function str_pad;
 use function str_repeat;
 use function sys_get_temp_dir;
 use function uniqid;
@@ -239,6 +242,53 @@ final class PulseIntegrationTest extends TestCase{
 		$report = null;
 		$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
 		self::assertNotNull($report);
+	}
+
+	public function testOversizedCollectionsReleaseTransfersAndIgnoreLateWorkers() : void{
+		$session = Pulse::start();
+		$zone = Pulse::zone("collection.bounds");
+		$scope = $zone->start();
+		$zone->stop($scope);
+		$session->stop();
+		$base = $session->getCapture();
+		$node = $base["nodes"][0] ?? null;
+		self::assertNotNull($node);
+		$denseRows = $base;
+		$denseRows["nodes"] = array_fill(0, 16384, $node);
+		$denseBytes = $base;
+		$denseBytes["zones"] = [];
+		for($i = 0; $i < 4096; ++$i){ $denseBytes["zones"][] = str_pad((string) $i, 256, "x"); }
+		foreach([[9, $denseRows], [34, $denseBytes]] as [$workerCount, $capture]){
+			$workers = [];
+			/** @var \ArrayObject<int, AsyncTask> $tasks */
+			$tasks = new \ArrayObject();
+			$pool = self::createStub(AsyncPool::class);
+			$pool->method("getSize")->willReturn($workerCount);
+			$pool->method("getRunningWorkers")->willReturnCallback(static function() use (&$workers) : array{ return $workers; });
+			$pool->method("submitTaskToWorker")->willReturnCallback(static function(AsyncTask $task) use ($tasks) : void{ $tasks[] = $task; });
+			$recorder = new PulseRecorder($pool);
+			$recorder->start();
+			for($i = 0; $i < $workerCount; ++$i){ $workers[] = $i; }
+			$failures = 0;
+			$recorder->collectTransfers()->onCompletion(fn() => self::fail("Oversized collection resolved"), static function() use (&$failures) : void{ ++$failures; });
+			$transfer = new PulseCapture($capture);
+			$late = 0;
+			foreach($tasks as $task){
+				if($failures !== 0){ ++$late; }
+				$task->setResult($transfer);
+				$task->onCompletion();
+				if($failures !== 0){
+					self::assertSame([], (new \ReflectionProperty(PulseRecorder::class, "captures"))->getValue($recorder));
+					self::assertSame(0, (new \ReflectionProperty(PulseRecorder::class, "collectionBytes"))->getValue($recorder));
+					self::assertSame(0, (new \ReflectionProperty(PulseRecorder::class, "collectionRows"))->getValue($recorder));
+				}
+			}
+			self::assertSame(1, $failures);
+			self::assertGreaterThan(0, $late);
+			self::assertSame(0, $recorder->getPendingOperations());
+			$workers = [];
+			$recorder->stop();
+		}
 	}
 
 	public function testRecorderReportsStoppedSessionAndResetsCleanly() : void{

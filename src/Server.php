@@ -529,7 +529,7 @@ class Server{
 		/** @var PromiseResolver<string> $result */
 		$result = new PromiseResolver();
 		$metadata = ["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds];
-		$collection = $this->pulse->collectCaptures();
+		$collection = $this->pulse->collectTransfers();
 		$this->pulseReport = $result;
 		$collection->onCompletion(
 			function(array $captures) use ($metadata) : void{
@@ -544,7 +544,9 @@ class Server{
 						}));
 						return;
 					}
-					$file = PulseReport::create($captures, $metadata)->write($directory);
+					$data = [];
+					foreach($captures as $capture){ $data[] = $capture->decode(); }
+					$file = PulseReport::create($data, $metadata)->write($directory);
 				}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 					if(isset($this->logger)){ $this->logger->logException($e); }
 					$this->finishPulseReport(null);

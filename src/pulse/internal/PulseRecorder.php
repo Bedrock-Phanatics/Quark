@@ -43,11 +43,13 @@ final class PulseRecorder{
 	private ?PulseSession $session = null;
 	private int $generation = 0;
 	private int $controls = 0;
-	/** @var PromiseResolver<list<Capture>>|null */
+	/** @var PromiseResolver<list<PulseCapture>>|null */
 	private ?PromiseResolver $collection = null;
 	private int $collectionDeadline = 0;
+	private int $collectionRows = 0;
+	private int $collectionBytes = 0;
 	private int $pendingCollections = 0;
-	/** @var array<int, Capture> */
+	/** @var array<int, PulseCapture> */
 	private array $captures = [];
 	private bool $running = false;
 	private int $deadline = 0;
@@ -92,7 +94,7 @@ final class PulseRecorder{
 		try{
 			$this->pool->submitTaskToWorker(new PulseControlTask(
 				$operation, $this->generation,
-				function(?array $capture) : void{ --$this->controls; },
+				function(?PulseCapture $capture) : void{ --$this->controls; },
 				"worker#$worker", $this->deadline, $this->threshold, $this->maxSpikes
 			), $worker);
 		}catch(\Throwable $e){
@@ -162,15 +164,32 @@ final class PulseRecorder{
 
 	/** @return Promise<list<Capture>> */
 	public function collectCaptures() : Promise{
+		/** @var PromiseResolver<list<Capture>> $result */
+		$result = new PromiseResolver();
+		$this->collectTransfers()->onCompletion(
+			static function(array $captures) use ($result) : void{
+				$data = [];
+				foreach($captures as $capture){ $data[] = $capture->decode(); }
+				$result->resolve($data);
+			},
+			fn() => $result->reject()
+		);
+		return $result->getPromise();
+	}
+
+	/** @return Promise<list<PulseCapture>> */
+	public function collectTransfers() : Promise{
 		if($this->collection !== null){ throw new \LogicException("Pulse is already collecting a report"); }
 		if($this->pendingCollections > 0){ throw new \LogicException("Pulse is still waiting for the previous report's workers"); }
 		if($this->session === null){ throw new \LogicException("No Pulse session to report"); }
-		$main = $this->session->getCapture();
+		$main = new PulseCapture($this->session->getCapture());
 		$workers = $this->pool->getRunningWorkers();
-		/** @var PromiseResolver<list<Capture>> $result */
+		/** @var PromiseResolver<list<PulseCapture>> $result */
 		$result = new PromiseResolver();
 		$this->collection = $result;
 		$this->captures = [$main];
+		$this->collectionRows = $main->getRowCount();
+		$this->collectionBytes = $main->getByteSize();
 		$this->collectionDeadline = (int) hrtime(true) + 30000000000;
 		$this->pendingCollections = count($workers);
 		$submitted = 0;
@@ -178,11 +197,16 @@ final class PulseRecorder{
 			foreach($workers as $worker){
 				$this->pool->submitTaskToWorker(new PulseControlTask(
 					PulseControlTask::COLLECT, $this->generation,
-					function(?array $capture) use ($worker) : void{
+					function(?PulseCapture $capture) use ($worker) : void{
 						--$this->pendingCollections;
 						if($this->collection === null){ return; }
 						if(hrtime(true) >= $this->collectionDeadline){ $this->finishCollection(false); return; }
-						if($capture !== null){ $this->captures[$worker + 1] = $capture; }
+						if($capture !== null){
+							$this->collectionRows += $capture->getRowCount();
+							$this->collectionBytes += $capture->getByteSize();
+							if($this->collectionRows > PulseReport::MAX_ROWS || $this->collectionBytes > PulseCapture::MAX_TRANSFER_BYTES){ $this->finishCollection(false); return; }
+							$this->captures[$worker + 1] = $capture;
+						}
 						if($this->pendingCollections === 0){ $this->finishCollection(true); }
 					}
 				), $worker);
@@ -208,7 +232,7 @@ final class PulseRecorder{
 		// Release report payloads before invoking callbacks or accepting another collection.
 		$this->collection = null;
 		$this->captures = [];
-		$this->collectionDeadline = 0;
+		$this->collectionDeadline = $this->collectionRows = $this->collectionBytes = 0;
 		if($captures !== null){ $result->resolve($captures); }else{ $result->reject(); }
 	}
 }
