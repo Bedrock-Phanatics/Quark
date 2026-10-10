@@ -42,9 +42,13 @@ use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
 use quark\event\server\DataPacketDecodeEvent;
 use quark\event\server\DataPacketReceiveEvent;
+use quark\network\AdvancedNetworkInterface;
+use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
 use quark\network\mcpe\compression\SnappyCompressor;
 use quark\network\mcpe\compression\ZlibCompressor;
+use quark\network\mcpe\encryption\DecryptionException;
+use quark\network\mcpe\encryption\EncryptionContext;
 use quark\network\mcpe\handler\InGamePacketHandler;
 use quark\network\mcpe\handler\PacketHandler;
 use quark\network\mcpe\handler\PacketHandlerAction;
@@ -52,6 +56,7 @@ use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketRateLimiter;
 use quark\network\mcpe\raklib\RakLibInterface;
+use quark\network\Network;
 use quark\network\PacketHandlingException;
 use quark\plugin\Plugin;
 use quark\pulse\internal\PulseCapture;
@@ -142,6 +147,45 @@ final class PulseNetworkTest extends TestCase{
 			$session->handleEncoded($payload);
 			self::fail("Invalid packet accepted");
 		}catch(PacketHandlingException){}
+	}
+
+	public function testPacketDiagnosticsStayBoundedAcrossReceivePaths() : void{
+		$messages = [];
+		$logger = $this->createMock(\Logger::class);
+		$logger->method("debug")->willReturnCallback(static function(string $message) use (&$messages) : void{ $messages[] = $message; });
+		$logger->method("log")->willReturnCallback(static function(mixed $level, string $message) use (&$messages) : void{ $messages[] = $message; });
+		$session = $this->session();
+		$this->set($session, "logger", new \PrefixedLogger($logger, "test"));
+		$padding = str_repeat("\x00", 2 * 1024 * 1024);
+		$capture = Pulse::start();
+		$session->handleEncoded($this->batch([$this->packet() . $padding]));
+		$this->rejected($session, $this->batch(["\xff\x07" . $padding]));
+		$this->rejected($session, $this->batch([substr($this->packet(), 0, -1)]));
+		$compressor = $this->createMock(Compressor::class);
+		$compressor->method("getNetworkId")->willReturn(0);
+		$compressor->method("decompress")->willThrowException(new DecompressionException("invalid compressed data"));
+		$this->set($session, "compressor", $compressor);
+		$this->set($session, "enableCompression", true);
+		$this->rejected($session, "\x00" . $padding);
+		$cipher = $this->getMockBuilder(EncryptionContext::class)->disableOriginalConstructor()->onlyMethods(["decrypt"])->getMock();
+		$cipher->method("decrypt")->willThrowException(new DecryptionException("invalid checksum"));
+		$this->set($session, "cipher", $cipher);
+		$this->rejected($session, $padding);
+		$interface = (new \ReflectionClass(RakLibInterface::class))->newInstanceWithoutConstructor();
+		$this->set($interface, "sessions", [1 => $session]);
+		$interface->onPacketReceive(1, $padding);
+		(new Network($logger))->processRawPacket($this->createMock(AdvancedNetworkInterface::class), "192.0.2.1", 19132, $padding);
+		Pulse::stop();
+		self::assertCount(7, $messages);
+		foreach($messages as $message){
+			self::assertLessThan(1600, strlen($message));
+			self::assertStringContainsString("bytes, base64:", $message);
+		}
+		self::assertStringContainsString("2097152 bytes, base64:", $messages[0]);
+		self::assertStringContainsString("2096128 bytes not shown", $messages[0]);
+		self::assertStringContainsString("Packet processing error:", $messages[2]);
+		self::assertSame(["packet.unknown", "packet.malformed", "decompression.malformed", "encryption.invalid", "transport.header"], array_column($this->network($capture)["events"], 4));
+		PulseReport::create([$capture->getCapture()]);
 	}
 
 	private function itemStackPrefix(int $count) : string{

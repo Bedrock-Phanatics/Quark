@@ -29,7 +29,6 @@ namespace quark\network;
 use quark\event\server\NetworkInterfaceRegisterEvent;
 use quark\event\server\NetworkInterfaceUnregisterEvent;
 use quark\utils\Utils;
-use function base64_encode;
 use function get_class;
 use function preg_match;
 use function spl_object_id;
@@ -210,7 +209,7 @@ class Network{
 			}
 		}
 		if(!$handled){
-			$this->logger->debug("Unhandled raw packet from /$address:$port: " . base64_encode($packet));
+			$this->logger->debug("Unhandled raw packet from /$address:$port: " . Utils::printablePacketBuffer($packet));
 		}
 	}
 }

@@ -28,9 +28,9 @@ declare(strict_types=1);
 namespace quark\utils;
 
 use DaveRandom\CallbackValidator\CallbackType;
-use quark\entity\Location;
 use pocketmine\errorhandler\ErrorTypeToStringMap;
 use pocketmine\math\Vector3;
+use quark\entity\Location;
 use quark\thread\ThreadCrashInfoFrame;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
@@ -38,6 +38,7 @@ use function array_combine;
 use function array_map;
 use function array_reverse;
 use function array_values;
+use function base64_encode;
 use function bin2hex;
 use function chunk_split;
 use function class_exists;
@@ -351,6 +352,17 @@ final class Utils{
 		return preg_replace('#([^\x20-\x7E])#', '.', $str);
 	}
 
+	public static function printablePacketBuffer(string $buffer, int $offset = 0) : string{
+		$length = strlen($buffer);
+		if($offset < 0 || $offset > $length){
+			throw new \InvalidArgumentException("Offset is outside the packet buffer");
+		}
+		$length -= $offset;
+		$preview = substr($buffer, $offset, 1024);
+		$omitted = $length - strlen($preview);
+		return "$length bytes, base64: " . base64_encode($preview) . ($omitted > 0 ? " ... ($omitted bytes not shown)" : "");
+	}
+
 	public static function javaStringHash(string $string) : int{
 		$hash = 0;
 		for($i = 0, $len = strlen($string); $i < $len; $i++){
@@ -426,7 +438,7 @@ final class Utils{
 		return match(true){
 			is_object($value) => "object " . self::getNiceClassName($value) . "#" . spl_object_id($value),
 			is_array($value) => "array[" . count($value) . "]",
-			is_string($value) => "string[" . strlen($value) . "] " . substr(Utils::printable($value), 0, $maxStringLength),
+			is_string($value) => "string[" . strlen($value) . "] " . Utils::printable(substr($value, 0, $maxStringLength)),
 			is_bool($value) => $value ? "true" : "false",
 			is_int($value) => "int " . $value,
 			is_float($value) => "float " . $value,

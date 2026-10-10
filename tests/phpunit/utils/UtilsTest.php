@@ -29,8 +29,14 @@ use quark\utils\fixtures\TestInstantiableClass;
 use quark\utils\fixtures\TestInterface;
 use quark\utils\fixtures\TestSubclassOfInstantiableClass;
 use quark\utils\fixtures\TestTrait;
+use function base64_encode;
 use function define;
 use function defined;
+use function min;
+use function str_repeat;
+use function strlen;
+use function substr;
+use const PHP_INT_MAX;
 
 class UtilsTest extends TestCase{
 
@@ -38,6 +44,32 @@ class UtilsTest extends TestCase{
 		if(!defined('quark\PATH')){
 			define('quark\PATH', 'dummy');
 		}
+	}
+
+	public function testPacketPreviewsBoundSizeAndReportOmittedBytes() : void{
+		foreach([0, 1, 1024, 1025, 8 * 1024 * 1024] as $size){
+			$buffer = str_repeat("\x00", $size);
+			$preview = Utils::printablePacketBuffer($buffer);
+			$expected = "$size bytes, base64: " . base64_encode(str_repeat("\x00", min($size, 1024)));
+			if($size > 1024){ $expected .= " ... (" . ($size - 1024) . " bytes not shown)"; }
+			self::assertSame($expected, $preview);
+			self::assertLessThan(1500, strlen($preview));
+			self::assertSame("0 bytes, base64: ", Utils::printablePacketBuffer($buffer, $size));
+		}
+		self::assertSame("3 bytes, base64: AP9B", Utils::printablePacketBuffer("prefix\x00\xffA", 6));
+		foreach([-1, 7, PHP_INT_MAX] as $offset){
+			try{ Utils::printablePacketBuffer("buffer", $offset); self::fail("Invalid preview offset accepted"); }catch(\InvalidArgumentException){}
+		}
+	}
+
+	public function testTraceArgumentFormattingKeepsExistingOutput() : void{
+		$buffer = str_repeat("A\x00B\t\xffC", 200);
+		foreach([-1, 0, 1, 80, 1201] as $length){
+			$expected = substr(str_repeat("A.B..C", 200), 0, $length);
+			self::assertSame(["#0 (): probe(string[1200] $expected)"], Utils::printableTrace([["function" => "probe", "args" => [$buffer]]], $length));
+		}
+		$buffer = str_repeat("\x00", 8 * 1024 * 1024);
+		self::assertSame(["#0 (): probe(string[8388608] " . str_repeat(".", 80) . ")"], Utils::printableTrace([["function" => "probe", "args" => [$buffer]]]));
 	}
 
 	/**

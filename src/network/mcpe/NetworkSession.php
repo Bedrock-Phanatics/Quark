@@ -125,6 +125,7 @@ use quark\Server;
 use quark\utils\AssumptionFailedError;
 use quark\utils\ObjectSet;
 use quark\utils\TextFormat;
+use quark\utils\Utils;
 use quark\world\format\io\GlobalItemDataHandlers;
 use quark\world\Position;
 use quark\world\World;
@@ -132,7 +133,6 @@ use quark\YmlServerProperties;
 use function array_map;
 use function array_slice;
 use function array_values;
-use function base64_encode;
 use function bin2hex;
 use function count;
 use function get_class;
@@ -473,7 +473,7 @@ class NetworkSession{
 					$payload = $this->cipher->decrypt($payload);
 				}catch(DecryptionException $e){
 					$this->recordNetworkSecurityEvent("encryption.invalid", "reject_batch");
-					$this->logger->debug("Encrypted packet: " . base64_encode($payload));
+					$this->logger->debug("Encrypted packet: " . Utils::printablePacketBuffer($payload));
 					throw PacketHandlingException::wrap($e, "Packet decryption error");
 				}finally{
 					PulseZones::$playerNetworkReceiveDecrypt->stop($playerNetworkReceiveDecryptScope);
@@ -497,7 +497,7 @@ class NetworkSession{
 						$decompressed = $this->compressor->decompress($compressed);
 					}catch(DecompressionException $e){
 						$this->recordNetworkSecurityEvent($e->reason, "reject_batch", observed: $e->observed, limit: $e->limit);
-						$this->logger->debug("Failed to decompress packet: " . base64_encode($compressed));
+						$this->logger->debug("Failed to decompress packet: " . Utils::printablePacketBuffer($compressed));
 						throw PacketHandlingException::wrap($e, "Compressed packet batch decode error");
 					}finally{
 						PulseZones::$playerNetworkReceiveDecompress->stop($playerNetworkReceiveDecompressScope);
@@ -552,7 +552,7 @@ class NetworkSession{
 							$network->count($window, PulseNetwork::DECODE_FAILED);
 						}
 						$this->recordRawPacketSecurityEvent($buffer, "packet.unknown");
-						$this->logger->debug("Unknown packet: " . base64_encode($buffer));
+						$this->logger->debug("Unknown packet: " . Utils::printablePacketBuffer($buffer));
 						throw new PacketHandlingException("Unknown packet received");
 					}
 					try{
@@ -581,11 +581,7 @@ class NetworkSession{
 	}
 
 	private function unhandledPacketDebug(Packet $packet, string $buffer, string $label) : void{
-		$debugSegment = substr($buffer, 0, 1024);
-		$debugSegmentLength = strlen($debugSegment);
-		$fullLength = strlen($buffer);
-		$truncatedLabel = $debugSegmentLength === $fullLength ? "" : " ... (" . ($fullLength - $debugSegmentLength) . " bytes not shown)";
-		$this->logger->debug($label . ": " . $packet->getName() . " ($fullLength bytes): " . base64_encode($debugSegment) . $truncatedLabel);
+		$this->logger->debug($label . ": " . $packet->getName() . " (" . Utils::printablePacketBuffer($buffer) . ")");
 	}
 
 	/**
@@ -679,8 +675,7 @@ class NetworkSession{
 					throw PacketHandlingException::wrap($e);
 				}
 				if($stream->getUnreadLength() > 0){
-					$remains = substr($stream->getData(), $stream->getOffset());
-					$this->logger->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
+					$this->logger->debug("Unread bytes in " . $packet->getName() . ": " . Utils::printablePacketBuffer($stream->getData(), $stream->getOffset()));
 				}
 			}finally{
 				$decodeZone->stop($decodeZoneScope);
