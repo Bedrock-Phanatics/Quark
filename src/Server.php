@@ -1015,7 +1015,7 @@ class Server{
 				$this->tickSleeper,
 				$this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD)
 			);
-			$this->pulse = new PulseRecorder($this->asyncPool);
+			$this->pulse = new PulseRecorder($this->asyncPool, $this->logger instanceof MainLogger ? $this->logger->getLogWriterThread() : null, $this->autoloader);
 			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
 				$this->pulse->start();
 			}

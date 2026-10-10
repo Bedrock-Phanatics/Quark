@@ -30,6 +30,9 @@ use quark\pulse\PulseReport;
 use quark\pulse\PulseSession;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\PulseControlTask;
+use quark\thread\ThreadManager;
+use quark\thread\ThreadSafeClassLoader;
+use quark\utils\MainLoggerThread;
 use function array_values;
 use function count;
 use function hrtime;
@@ -58,8 +61,9 @@ final class PulseRecorder{
 	private int $duration = 0;
 	private int $threshold = 0;
 	private int $maxSpikes = 32;
+	private ?PulseNetworkWatchdog $watchdog = null;
 
-	public function __construct(private readonly AsyncPool $pool){
+	public function __construct(private readonly AsyncPool $pool, private readonly ?MainLoggerThread $logWriter = null, private readonly ?ThreadSafeClassLoader $loader = null){
 		$pool->addWorkerStartHook(function(int $worker) : void{
 			if($this->isRecording()){
 				$this->control(PulseControlTask::START, $worker);
@@ -87,9 +91,34 @@ final class PulseRecorder{
 		++$this->generation;
 		$this->running = true;
 		$this->stoppedWorkers = [];
+		$this->startWatchdog();
 		foreach($this->pool->getRunningWorkers() as $worker){
 			$this->control(PulseControlTask::START, $worker);
 		}
+	}
+
+	private function startWatchdog() : void{
+		$this->stopWatchdog();
+		if($this->logWriter === null){ return; }
+		$network = Pulse::getNetworkTelemetry();
+		if($network === null){ return; }
+		$watchdog = new PulseNetworkWatchdog($this->logWriter, $network->generation);
+		$network->watch($watchdog);
+		try{
+			$watchdog->setClassLoaders($this->loader === null ? null : [$this->loader]);
+			if(!$watchdog->start()){ throw new \RuntimeException("Unable to start Pulse network watchdog"); }
+			$this->watchdog = $watchdog;
+		}catch(\Throwable $e){
+			$this->session?->stop();
+			$this->running = false;
+			ThreadManager::getInstance()->remove($watchdog);
+			throw $e;
+		}
+	}
+
+	private function stopWatchdog() : void{
+		$this->watchdog?->quit();
+		$this->watchdog = null;
 	}
 
 	private function control(int $operation, int $worker) : void{
@@ -102,13 +131,17 @@ final class PulseRecorder{
 			), $worker);
 		}catch(\Throwable $e){
 			--$this->controls;
-			if($operation === PulseControlTask::START){ $this->session?->stop(); }
+			if($operation === PulseControlTask::START){
+				$this->session?->stop();
+				$this->stopWatchdog();
+			}
 			throw $e;
 		}
 	}
 
 	public function stop() : void{
 		$this->session?->stop();
+		$this->stopWatchdog();
 		if(!$this->running){ return; }
 		foreach($this->pool->getRunningWorkers() as $worker){
 			if(!isset($this->stoppedWorkers[$worker])){
@@ -140,6 +173,7 @@ final class PulseRecorder{
 			++$this->generation;
 			$this->deadline = $this->duration === 0 ? 0 : (int) hrtime(true) + $this->duration;
 			$this->running = true;
+			$this->startWatchdog();
 			foreach($this->pool->getRunningWorkers() as $worker){ $this->control(PulseControlTask::START, $worker); }
 		}else{
 			$this->session = null;

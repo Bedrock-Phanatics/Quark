@@ -59,6 +59,7 @@ final class PulseNetwork{
 	private static int $nextGeneration = 0;
 	public readonly int $generation;
 	public bool $recording = true;
+	private(set) ?PulseNetworkWork $work = null;
 	/** @var list<SessionRow> */
 	private array $sessions = [];
 	/** @var list<EventRow> */
@@ -77,6 +78,17 @@ final class PulseNetwork{
 
 	public function __construct(private readonly int $started){
 		$this->generation = ++self::$nextGeneration;
+	}
+
+	public function watch(PulseNetworkWatchdog $watchdog) : void{
+		$this->work?->stop();
+		$this->work = new PulseNetworkWork($this->started, $watchdog);
+	}
+
+	public function stop() : void{
+		$this->recording = false;
+		$this->work?->stop();
+		$this->work = null;
 	}
 
 	private function offset(?int $now) : int{

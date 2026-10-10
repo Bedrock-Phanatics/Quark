@@ -47,7 +47,10 @@ use quark\plugin\Plugin;
 use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseNetwork;
+use quark\pulse\internal\PulseNetworkWatchdog;
+use quark\pulse\internal\PulseNetworkWork;
 use quark\pulse\internal\PulseZones;
+use quark\utils\MainLoggerThread;
 use quark\utils\Utils;
 use raklib\server\ipc\UserToRakLibThreadMessageSender;
 use function array_column;
@@ -57,9 +60,14 @@ use function array_values;
 use function function_exists;
 use function gzencode;
 use function json_encode;
+use function ord;
 use function str_repeat;
 use function strlen;
 use function substr;
+use function sys_get_temp_dir;
+use function uniqid;
+use function unlink;
+use function unpack;
 use function zlib_encode;
 use const JSON_THROW_ON_ERROR;
 use const PHP_INT_MAX;
@@ -121,6 +129,108 @@ final class PulseNetworkTest extends TestCase{
 			$session->handleEncoded($payload);
 			self::fail("Invalid packet accepted");
 		}catch(PacketHandlingException){}
+	}
+
+	public function testActivePacketStagesRestoreNestedCallsAndClearFailures() : void{
+		$file = sys_get_temp_dir() . "/" . uniqid("pulse-packet-work-", true);
+		$watchdog = new PulseNetworkWatchdog(new MainLoggerThread($file, null), 1);
+		Pulse::start();
+		$network = Pulse::getNetworkTelemetry();
+		self::assertNotNull($network);
+		$network->watch($watchdog);
+		$session = $this->session();
+		$nested = $this->session();
+		$session->recordProtocolVersion(1000);
+		$payload = $this->batch([$this->packet()]);
+		$stages = [];
+		$assertStage = static function(string $stage) use ($watchdog, &$stages) : void{
+			$record = $watchdog->record;
+			self::assertSame($stage, PulseNetworkWork::STAGES[ord($record[-1])]);
+			$data = unpack("Jsequence/Jstarted/Joffset/Jtick/Jprotocol/Nsession/Npacket", $record);
+			self::assertIsArray($data);
+			self::assertSame([1, 1000, 1, 193], [$data["tick"], $data["protocol"], $data["session"], $data["packet"]]);
+			$stages[] = $stage;
+		};
+		$handler = new class($assertStage, $nested, $payload, $watchdog) extends PacketHandler{
+			/** @param \Closure(string) : void $assertStage */
+			public function __construct(private \Closure $assertStage, private NetworkSession $nested, private string $payload, private PulseNetworkWatchdog $watchdog){}
+			public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{
+				($this->assertStage)("handle");
+				$parent = $this->watchdog->record;
+				$this->nested->handleEncoded($this->payload);
+				TestCase::assertSame($parent, $this->watchdog->record);
+				return true;
+			}
+		};
+		$this->set($session, "handler", $handler);
+		$plugin = $this->createMock(Plugin::class);
+		$listeners = [];
+		foreach([DataPacketDecodeEvent::class => "decode_event", DataPacketReceiveEvent::class => "receive_event"] as $eventClass => $stage){
+			$listener = new RegisteredListener(static function(DataPacketDecodeEvent|DataPacketReceiveEvent $event) use ($session, $assertStage, $stage) : void{
+				if($event->getOrigin() === $session){ $assertStage($stage); }
+			}, EventPriority::NORMAL, $plugin, true, Pulse::zone("test.stage"));
+			$list = HandlerListManager::global()->getListFor($eventClass);
+			$list->register($listener);
+			$listeners[] = [$list, $listener];
+		}
+		try{
+			Pulse::beginTick();
+			$session->handleEncoded($payload);
+			self::assertSame(["decode_event", "receive_event", "handle"], $stages);
+			self::assertSame("", $watchdog->record);
+			$this->rejected($session, "\x80");
+			self::assertSame("", $watchdog->record);
+			$this->rejected($session, $this->batch(["\xc1\x01"]));
+			self::assertSame("", $watchdog->record);
+			$this->set($session, "handler", new class extends PacketHandler{
+				public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ throw new \RuntimeException("plugin failure"); }
+			});
+			try{ $session->handleEncoded($payload); self::fail("Handler failure ignored"); }catch(\RuntimeException $e){ self::assertSame("plugin failure", $e->getMessage()); }
+			self::assertSame("", $watchdog->record);
+		}finally{
+			foreach($listeners as [$list, $listener]){ $list->unregister($listener); }
+			Pulse::stop();
+			unlink($file);
+		}
+	}
+
+	public function testCaptureChangesInsidePacketCallbacksKeepNewWorkIntact() : void{
+		$file = sys_get_temp_dir() . "/" . uniqid("pulse-packet-reset-", true);
+		$writer = new MainLoggerThread($file, null);
+		$watchdog = new PulseNetworkWatchdog($writer, 1);
+		$newWatchdog = new PulseNetworkWatchdog($writer, 2);
+		Pulse::start();
+		$network = Pulse::getNetworkTelemetry();
+		self::assertNotNull($network);
+		$network->watch($watchdog);
+		$session = $this->session();
+		$plugin = $this->createMock(Plugin::class);
+		$newRecord = "";
+		$listener = new RegisteredListener(static function(DataPacketDecodeEvent $event) use ($newWatchdog, &$newRecord) : void{
+			Pulse::reset();
+			Pulse::start();
+			$network = Pulse::getNetworkTelemetry();
+			self::assertNotNull($network);
+			$network->watch($newWatchdog);
+			self::assertNotNull($network->work);
+			$network->work->enter(1, 1000, "login", 193, null, PulseNetworkWork::HANDLE);
+			$newRecord = $newWatchdog->record;
+			$event->cancel();
+		}, EventPriority::NORMAL, $plugin, true, Pulse::zone("test.reset"));
+		$list = HandlerListManager::global()->getListFor(DataPacketDecodeEvent::class);
+		$list->register($listener);
+		try{
+			$session->handleEncoded($this->batch([$this->packet()]));
+			self::assertSame("", $watchdog->record);
+			self::assertNotSame("", $newRecord);
+			self::assertSame($newRecord, $newWatchdog->record);
+			Pulse::stop();
+			self::assertSame("", $newWatchdog->record);
+		}finally{
+			$list->unregister($listener);
+			Pulse::reset();
+			unlink($file);
+		}
 	}
 
 	public function testSessionIdsResetWithoutRetainingOldCollectors() : void{

@@ -115,6 +115,7 @@ use quark\player\XboxLivePlayerInfo;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
 use quark\pulse\internal\PulseNetwork;
+use quark\pulse\internal\PulseNetworkWork;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
@@ -452,6 +453,8 @@ class NetworkSession{
 			$network->count($window, PulseNetwork::RECEIVED_BYTES, strlen($payload));
 		}
 		$playerNetworkReceiveScope = PulseZones::$playerNetworkReceive->start();
+		$work = $network?->work;
+		$workToken = $work?->enter($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase, null, Pulse::getNetworkTickId(), PulseNetworkWork::BATCH_DECODE) ?? 0;
 		try{
 			try{
 				$this->packetBatchLimiter->decrement();
@@ -461,6 +464,7 @@ class NetworkSession{
 			}
 
 			if($this->cipher !== null){
+				$work?->stage($workToken, PulseNetworkWork::DECRYPT);
 				$playerNetworkReceiveDecryptScope = PulseZones::$playerNetworkReceiveDecrypt->start();
 				try{
 					$payload = $this->cipher->decrypt($payload);
@@ -484,6 +488,7 @@ class NetworkSession{
 				if($compressionType === CompressionAlgorithm::NONE){
 					$decompressed = $compressed;
 				}elseif($compressionType === $this->compressor->getNetworkId()){
+					$work?->stage($workToken, PulseNetworkWork::DECOMPRESS);
 					$playerNetworkReceiveDecompressScope = PulseZones::$playerNetworkReceiveDecompress->start();
 					try{
 						$decompressed = $this->compressor->decompress($compressed);
@@ -505,6 +510,7 @@ class NetworkSession{
 
 			$count = 0;
 			try{
+				$work?->stage($workToken, PulseNetworkWork::BATCH_DECODE);
 				$stream = new ByteBufferReader($decompressed);
 				foreach(PacketBatch::decodeRaw($stream) as $buffer){
 					if(++$count >= self::INCOMING_PACKET_BATCH_HARD_LIMIT){
@@ -566,6 +572,7 @@ class NetworkSession{
 				throw PacketHandlingException::wrap($e, "Packet batch decode error");
 			}
 		}finally{
+			$work?->leave($workToken);
 			PulseZones::$playerNetworkReceive->stop($playerNetworkReceiveScope);
 		}
 	}
@@ -593,6 +600,8 @@ class NetworkSession{
 
 		$pulse = PulseZones::getReceiveDataPacketZone($packet);
 		$scope = $pulse->start();
+		$work = $network?->work;
+		$workToken = 0;
 
 		try{
 			$handlerAction = PacketHandlerAction::DISCARD_WITH_DEBUG;
@@ -601,7 +610,9 @@ class NetworkSession{
 			if($this->handlerActions !== null && isset($this->handlerActions[$packet::class])){
 				$handlerAction = $this->handlerActions[$packet::class];
 			}
-			if(DataPacketDecodeEvent::hasHandlers()){
+			$hasDecodeHandlers = DataPacketDecodeEvent::hasHandlers();
+			$workToken = $work?->enter($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase, $packet->pid(), Pulse::getNetworkTickId(), $hasDecodeHandlers ? PulseNetworkWork::DECODE_EVENT : ($handlerAction === PacketHandlerAction::HANDLED ? PulseNetworkWork::DECODE : PulseNetworkWork::PACKET_STATE)) ?? 0;
+			if($hasDecodeHandlers){
 				$ev = new DataPacketDecodeEvent($this, $packet->pid(), $buffer);
 				$cancel = $handlerAction !== PacketHandlerAction::HANDLED;
 				if($cancel){
@@ -630,6 +641,7 @@ class NetworkSession{
 			$decodeZone = PulseZones::getDecodeDataPacketZone($packet);
 			$decodeZoneScope = $decodeZone->start();
 			try{
+				$work?->stage($workToken, PulseNetworkWork::DECODE);
 				$stream = new ByteBufferReader($buffer);
 				try{
 					$packet->decode($stream);
@@ -648,6 +660,7 @@ class NetworkSession{
 			}
 
 			if(DataPacketReceiveEvent::hasHandlers()){
+				$work?->stage($workToken, PulseNetworkWork::RECEIVE_EVENT);
 				$ev = new DataPacketReceiveEvent($this, $packet);
 				$ev->call();
 				if($ev->isCancelled()){
@@ -658,6 +671,7 @@ class NetworkSession{
 			$handlerZone = PulseZones::getHandleDataPacketZone($packet);
 			$handlerZoneScope = $handlerZone->start();
 			try{
+				$work?->stage($workToken, PulseNetworkWork::HANDLE);
 				if($this->handler === null || !$packet->handle($this->handler)){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::STATE_DROPPED); }
 					$this->recordNetworkSecurityEvent("packet.state", "drop_packet", $packet->pid());
@@ -670,6 +684,7 @@ class NetworkSession{
 				$handlerZone->stop($handlerZoneScope);
 			}
 		}finally{
+			$work?->leave($workToken);
 			$pulse->stop($scope);
 		}
 	}

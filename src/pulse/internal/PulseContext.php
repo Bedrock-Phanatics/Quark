@@ -249,7 +249,7 @@ final class PulseContext{
 		}
 		$this->ended = $now;
 		$this->recording = false;
-		if($this->network !== null){ $this->network->recording = false; }
+		$this->network?->stop();
 	}
 
 	private function closeUnbalanced(int $now) : void{

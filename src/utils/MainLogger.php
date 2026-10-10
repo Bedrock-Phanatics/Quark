@@ -65,6 +65,9 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 		return $this->format;
 	}
 
+	/** @internal */
+	public function getLogWriterThread() : ?MainLoggerThread{ return $this->logWriterThread; }
+
 	/**
 	 * Sets the logger format to use for outputting text to the console.
 	 * It should be an sprintf()able string accepting 5 string arguments:
