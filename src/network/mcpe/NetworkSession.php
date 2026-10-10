@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
@@ -36,6 +37,7 @@ use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
@@ -50,6 +52,7 @@ use pocketmine\network\mcpe\protocol\PlayerStartItemCooldownPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketAssembler;
+use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
@@ -643,7 +646,7 @@ class NetworkSession{
 				$work?->stage($workToken, PulseNetworkWork::DECODE);
 				$stream = new ByteBufferReader($buffer);
 				try{
-					if($packet instanceof ItemStackRequestPacket || $packet instanceof PlayerAuthInputPacket){
+					if($packet instanceof ItemStackRequestPacket || $packet instanceof PlayerAuthInputPacket || $packet instanceof InventoryTransactionPacket){
 						if((VarInt::readUnsignedInt($stream) & DataPacket::PID_MASK) !== $packet->pid()){
 							throw new PacketDecodeException("Unexpected packet ID");
 						}
@@ -653,13 +656,44 @@ class NetworkSession{
 								throw new PacketDecodeException("Truncated PlayerAuthInputPacket");
 							}
 							$stream->setOffset($stream->getOffset() + 8 * 4);
+						}elseif($packet instanceof InventoryTransactionPacket){
+							CommonTypes::readLegacyItemStackRequestId($stream);
+							if(CommonTypes::getBool($stream)){
+								$count = VarInt::readUnsignedInt($stream);
+								if($count > InGamePacketHandler::MAX_INVENTORY_SLOT_SYNC_REQUESTS){
+									if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
+									$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid(), $count, InGamePacketHandler::MAX_INVENTORY_SLOT_SYNC_REQUESTS);
+									throw new PacketHandlingException("Too many slot sync requests in inventory transaction");
+								}
+								for($i = 0; $i < $count; ++$i){
+									Byte::readUnsigned($stream);
+									$slots = VarInt::readUnsignedInt($stream);
+									if($slots > $stream->getUnreadLength()){
+										throw new PacketDecodeException("Truncated inventory slot sync request");
+									}
+									//Slot indexes are bytes; skip them without allocating a list.
+									$stream->setOffset($stream->getOffset() + $slots);
+								}
+							}
+							$type = VarInt::readUnsignedInt($stream);
+							if($type > InventoryTransactionPacket::TYPE_RELEASE_ITEM){
+								throw new PacketDecodeException("Unknown transaction type $type");
+							}
 						}
 						$count = VarInt::readUnsignedInt($stream);
-						$limit = $packet instanceof ItemStackRequestPacket ? InGamePacketHandler::MAX_ITEM_STACK_REQUESTS : PlayerAuthInputFlags::NUMBER_OF_FLAGS;
+						$limit = match(true){
+							$packet instanceof PlayerAuthInputPacket => PlayerAuthInputFlags::NUMBER_OF_FLAGS,
+							$packet instanceof ItemStackRequestPacket => InGamePacketHandler::MAX_ITEM_STACK_REQUESTS,
+							default => InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS
+						};
 						if($count > $limit){
 							if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
 							$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid(), $count, $limit);
-							throw new PacketHandlingException($packet instanceof ItemStackRequestPacket ? "Too many requests in ItemStackRequestPacket" : "Too many input flags in PlayerAuthInputPacket");
+							throw new PacketHandlingException(match(true){
+								$packet instanceof ItemStackRequestPacket => "Too many requests in ItemStackRequestPacket",
+								$packet instanceof InventoryTransactionPacket => "Too many actions in inventory transaction",
+								default => "Too many input flags in PlayerAuthInputPacket"
+							});
 						}
 						$stream->setOffset(0);
 					}

@@ -130,6 +130,8 @@ use const JSON_THROW_ON_ERROR;
 #[SilentDiscard(ServerboundDiagnosticsPacket::class, comment: "Not needed, noisy debug")]
 class InGamePacketHandler extends PacketHandler{
 	public const MAX_ITEM_STACK_REQUESTS = 80;
+	public const MAX_INVENTORY_TRANSACTION_ACTIONS = 50;
+	public const MAX_INVENTORY_SLOT_SYNC_REQUESTS = 10;
 
 	private const MAX_FORM_RESPONSE_SIZE = 10 * 1024; //10 KiB should be more than enough
 	private const MAX_FORM_RESPONSE_DEPTH = 2; //modal/simple will be 1, custom forms 2 - they will never contain anything other than string|int|float|bool|null
@@ -305,10 +307,10 @@ class InGamePacketHandler extends PacketHandler{
 	public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{
 		$result = true;
 
-		if(count($packet->trData->getActions()) > 50){
+		if(count($packet->trData->getActions()) > self::MAX_INVENTORY_TRANSACTION_ACTIONS){
 			throw new PacketHandlingException("Too many actions in inventory transaction");
 		}
-		if($packet->requestChangedSlots !== null && count($packet->requestChangedSlots) > 10){
+		if($packet->requestChangedSlots !== null && count($packet->requestChangedSlots) > self::MAX_INVENTORY_SLOT_SYNC_REQUESTS){
 			throw new PacketHandlingException("Too many slot sync requests in inventory transaction");
 		}
 
