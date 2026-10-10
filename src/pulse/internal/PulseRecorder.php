@@ -52,6 +52,8 @@ final class PulseRecorder{
 	/** @var array<int, PulseCapture> */
 	private array $captures = [];
 	private bool $running = false;
+	/** @var array<int, true> */
+	private array $stoppedWorkers = [];
 	private int $deadline = 0;
 	private int $duration = 0;
 	private int $threshold = 0;
@@ -84,6 +86,7 @@ final class PulseRecorder{
 		$this->deadline = $durationNs === 0 ? 0 : (int) hrtime(true) + $durationNs;
 		++$this->generation;
 		$this->running = true;
+		$this->stoppedWorkers = [];
 		foreach($this->pool->getRunningWorkers() as $worker){
 			$this->control(PulseControlTask::START, $worker);
 		}
@@ -106,10 +109,14 @@ final class PulseRecorder{
 	public function stop() : void{
 		$this->session?->stop();
 		if(!$this->running){ return; }
-		$this->running = false;
 		foreach($this->pool->getRunningWorkers() as $worker){
-			$this->control(PulseControlTask::STOP, $worker);
+			if(!isset($this->stoppedWorkers[$worker])){
+				$this->control(PulseControlTask::STOP, $worker);
+				$this->stoppedWorkers[$worker] = true;
+			}
 		}
+		$this->running = false;
+		$this->stoppedWorkers = [];
 	}
 
 	public function checkDuration() : void{
@@ -182,6 +189,7 @@ final class PulseRecorder{
 	public function collectTransfers() : Promise{
 		if($this->collection !== null){ throw new \LogicException("Pulse is already collecting a report"); }
 		if($this->pendingCollections > 0){ throw new \LogicException("Pulse is still waiting for the previous report's workers"); }
+		$this->checkDuration();
 		if($this->session === null){ throw new \LogicException("No Pulse session to report"); }
 		$main = new PulseCapture($this->session->getCapture());
 		$workers = $this->pool->getRunningWorkers();

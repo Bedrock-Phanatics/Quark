@@ -30,6 +30,7 @@ use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseRecorder;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
+use quark\scheduler\PulseControlTask;
 use quark\scheduler\PulseReportWriteTask;
 use quark\Server;
 use quark\thread\ThreadSafeClassLoader;
@@ -217,6 +218,73 @@ final class PulseWorkerTest extends TestCase{
 		while($pool->collectTasks()){
 			self::assertLessThan($deadline, microtime(true), "Pulse worker control timed out");
 			usleep(1000);
+		}
+	}
+
+	public function testPartialStopFailureRecoversBeforeExportingRealWorkers() : void{
+		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		$logger = new MainLogger(null, false, "Pulse stop retry test", new \DateTimeZone("UTC"));
+		$pool = new class(3, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0) extends AsyncPool{
+			public bool $failStop = false;
+			/** @var array<int, int> */
+			public array $stops = [];
+
+			public function submitTaskToWorker(AsyncTask $task, int $worker) : void{
+				$stop = $task instanceof PulseControlTask && (new \ReflectionProperty(PulseControlTask::class, "operation"))->getValue($task) === PulseControlTask::STOP;
+				if($stop && $this->failStop && $worker === 1){ throw new \RuntimeException("submission failed"); }
+				parent::submitTaskToWorker($task, $worker);
+				if($stop){ $this->stops[$worker] = ($this->stops[$worker] ?? 0) + 1; }
+			}
+		};
+		$recorder = new PulseRecorder($pool);
+		try{
+			$recorder->start();
+			for($worker = 0; $worker < 3; ++$worker){
+				$pool->submitTaskToWorker(new class extends AsyncTask{
+					public function onRun() : void{
+						$zone = Pulse::zone("retry.worker");
+						$scope = $zone->start();
+						$zone->stop($scope);
+					}
+				}, $worker);
+			}
+			$this->drain($pool);
+			$pool->failStop = true;
+			for($attempt = 0; $attempt < 2; ++$attempt){
+				$caught = null;
+				try{ $recorder->stop(); }catch(\RuntimeException $error){ $caught = $error; }
+				self::assertNotNull($caught);
+			}
+			$this->drain($pool);
+			self::assertSame([0 => 1], $pool->stops);
+			for($worker = 0; $worker < 3; ++$worker){
+				$pool->submitTaskToWorker(new class($worker) extends AsyncTask{
+					public function __construct(private int $worker){}
+					public function onRun() : void{ $this->setResult(Pulse::isRecording()); }
+					public function onCompletion() : void{ PulseWorkerTest::assertSame($this->worker !== 0, $this->getResult()); }
+				}, $worker);
+			}
+			$this->drain($pool);
+			$pool->failStop = false;
+			$report = null;
+			$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
+			$this->drain($pool);
+			self::assertNotNull($report);
+			self::assertCount(4, $report->getData()["threads"]);
+			foreach($report->getData()["threads"] as $thread){ self::assertFalse($thread["recording"]); }
+			self::assertSame($report->getData(), PulseReport::decode($report->encode(true))->getData());
+			self::assertSame([0 => 1, 1 => 1, 2 => 1], $pool->stops);
+			self::assertSame(0, $recorder->getPendingOperations());
+			$recorder->start();
+			$recorder->stop();
+			$this->drain($pool);
+			self::assertSame([0 => 2, 1 => 2, 2 => 2], $pool->stops);
+		}finally{
+			$pool->failStop = false;
+			$recorder->stop();
+			$pool->shutdown();
+			Pulse::reset();
+			$logger->shutdownLogWriterThread();
 		}
 	}
 

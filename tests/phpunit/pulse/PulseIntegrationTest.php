@@ -400,6 +400,85 @@ final class PulseIntegrationTest extends TestCase{
 		}
 	}
 
+	public function testFailedStopRetriesDoNotDuplicateWorkerCommands() : void{
+		foreach([0, 1, 2] as $failedWorker){
+			$workers = [];
+			$state = new class{
+				public bool $fail = true;
+				/** @var list<int> */
+				public array $submitted = [];
+				/** @var list<AsyncTask> */
+				public array $tasks = [];
+				public function complete() : void{
+					foreach($this->tasks as $task){ $task->onCompletion(); }
+					$this->tasks = [];
+				}
+			};
+			$pool = self::createStub(AsyncPool::class);
+			$pool->method("getSize")->willReturn(3);
+			$pool->method("getRunningWorkers")->willReturnCallback(static function() use (&$workers) : array{ return $workers; });
+			$pool->method("submitTaskToWorker")->willReturnCallback(static function(AsyncTask $task, int $worker) use ($state, $failedWorker) : void{
+				if($state->fail && $worker === $failedWorker){ throw new \RuntimeException("submission failed"); }
+				$state->submitted[] = $worker;
+				$state->tasks[] = $task;
+			});
+			$recorder = new PulseRecorder($pool);
+			$recorder->start();
+			$workers = [0, 1, 2];
+			for($attempt = 0; $attempt < 2; ++$attempt){
+				$caught = null;
+				try{ $recorder->stop(); }catch(\RuntimeException $error){ $caught = $error; }
+				self::assertNotNull($caught);
+				self::assertSame($failedWorker, $recorder->getPendingOperations());
+				self::assertCount($failedWorker, $state->tasks);
+			}
+			$state->fail = false;
+			$recorder->checkDuration();
+			$recorder->stop();
+			self::assertSame([0, 1, 2], $state->submitted);
+			self::assertSame(3, $recorder->getPendingOperations());
+			$state->complete();
+			self::assertSame(0, $recorder->getPendingOperations());
+			$workers = [];
+			$recorder->start();
+			$workers = [0, 1, 2];
+			$recorder->stop();
+			self::assertSame([0, 1, 2, 0, 1, 2], $state->submitted);
+			$state->complete();
+		}
+	}
+
+	public function testReportQueuesMissingStopsBeforeCollectingWorkers() : void{
+		$workers = [];
+		$state = new class{ public bool $fail = true; };
+		$submitted = [];
+		$tasks = [];
+		$pool = self::createStub(AsyncPool::class);
+		$pool->method("getSize")->willReturn(3);
+		$pool->method("getRunningWorkers")->willReturnCallback(static function() use (&$workers) : array{ return $workers; });
+		$pool->method("submitTaskToWorker")->willReturnCallback(static function(AsyncTask $task, int $worker) use ($state, &$submitted, &$tasks) : void{
+			if($state->fail && $worker === 1){ throw new \RuntimeException("submission failed"); }
+			$operation = (new \ReflectionProperty(PulseControlTask::class, "operation"))->getValue($task);
+			$submitted[] = [$worker, $operation];
+			$tasks[] = $task;
+		});
+		$recorder = new PulseRecorder($pool);
+		$recorder->start();
+		$workers = [0, 1, 2];
+		try{ $recorder->stop(); self::fail("Stop submission must fail"); }catch(\RuntimeException){}
+		$state->fail = false;
+		$captures = null;
+		$recorder->collectCaptures()->onCompletion(static function(array $value) use (&$captures) : void{ $captures = $value; }, fn() => self::fail("Report rejected"));
+		self::assertSame([
+			[0, PulseControlTask::STOP], [1, PulseControlTask::STOP], [2, PulseControlTask::STOP],
+			[0, PulseControlTask::COLLECT], [1, PulseControlTask::COLLECT], [2, PulseControlTask::COLLECT]
+		], $submitted);
+		foreach($tasks as $task){ $task->onCompletion(); }
+		self::assertNotNull($captures);
+		self::assertFalse($captures[0]["recording"]);
+		self::assertSame(0, $recorder->getPendingOperations());
+	}
+
 	public function testClosureMeasurementClosesOnException() : void{
 		$session = Pulse::start();
 		$zone = Pulse::zone("integration.exception");
