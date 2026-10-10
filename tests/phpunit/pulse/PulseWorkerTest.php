@@ -121,7 +121,7 @@ final class PulseWorkerTest extends TestCase{
 		}
 	}
 
-	public function testDedicatedExportWorkerBoundsRequestsAndRecoversFromWriteFailure() : void{
+	public function testDedicatedExportWorkerBoundsRequestsAndRecoversFromStallsAndWriteFailure() : void{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
 		Pulse::reset();
 		$logger = new MainLogger(null, false, "Pulse export test", new \DateTimeZone("UTC"));
@@ -136,6 +136,9 @@ final class PulseWorkerTest extends TestCase{
 			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
 		}
 		$exportPool = null;
+		/** @var \pmmp\thread\ThreadSafeArray<string, bool> $gate */
+		$gate = new \pmmp\thread\ThreadSafeArray();
+		$gate["release"] = false;
 		try{
 			for($worker = 0; $worker < 2; ++$worker){
 				$pool->submitTaskToWorker(new class extends AsyncTask{
@@ -172,6 +175,66 @@ final class PulseWorkerTest extends TestCase{
 			$threads = PulseReport::decode($contents)->getData()["threads"];
 			self::assertCount(3, $threads);
 			self::assertSame($session->getCapture(), $threads[0]);
+			$exportPool->submitTask(new class($gate) extends AsyncTask{
+				/** @param \pmmp\thread\ThreadSafeArray<string, bool> $gate */
+				public function __construct(private \pmmp\thread\ThreadSafeArray $gate){}
+				public function onRun() : void{
+					$this->gate["entered"] = true;
+					$deadline = hrtime(true) + 10_000_000_000;
+					while($this->gate["release"] !== true){
+						if(hrtime(true) >= $deadline){ throw new \RuntimeException("Export gate timed out"); }
+						usleep(1000);
+					}
+				}
+			});
+			$deadline = hrtime(true) + 2_000_000_000;
+			while(($gate["entered"] ?? false) !== true){
+				self::assertLessThan($deadline, hrtime(true), "Export worker did not enter the gate");
+				usleep(1000);
+			}
+			$stalledFile = null;
+			$stalled = $server->createPulseReport();
+			$stalled->onCompletion(static function(string $value) use (&$stalledFile) : void{ $stalledFile = $value; }, fn() => self::fail("Stalled export rejected"));
+			$this->drain($pool);
+			self::assertTrue($exportPool->collectTasks());
+			self::assertSame([0 => 2], $exportPool->getTaskQueueSizes());
+			for($attempt = 0; $attempt < 100; ++$attempt){
+				try{ $server->createPulseReport(); self::fail("Stalled export allowed another request"); }catch(\LogicException){}
+			}
+			$recorder->reset();
+			$this->drain($pool);
+			$recorder->start();
+			for($i = 0; $i < 100; ++$i){ $scope = $zone->start(); $zone->stop($scope); }
+			for($worker = 0; $worker < 2; ++$worker){
+				$pool->submitTaskToWorker(new class extends AsyncTask{
+					public function onRun() : void{
+						$zone = Pulse::zone("export.responsive");
+						for($i = 0; $i < 100; ++$i){ $scope = $zone->start(); $zone->stop($scope); }
+						$this->setResult(true);
+					}
+					public function onCompletion() : void{ PulseWorkerTest::assertTrue($this->getResult()); }
+				}, $worker);
+			}
+			$recorder->stop();
+			$this->drain($pool);
+			self::assertFalse($stalled->isResolved());
+			self::assertNull($stalledFile);
+			self::assertSame([0 => 0, 1 => 0], $pool->getTaskQueueSizes());
+			self::assertSame([0 => 2], $exportPool->getTaskQueueSizes());
+			self::assertSame(0, $recorder->getPendingOperations());
+			$pool->submitTask(new class($gate) extends AsyncTask{
+				/** @param \pmmp\thread\ThreadSafeArray<string, bool> $gate */
+				public function __construct(private \pmmp\thread\ThreadSafeArray $gate){}
+				public function onRun() : void{}
+				public function onCompletion() : void{ $this->gate["release"] = true; }
+			});
+			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
+			self::assertIsString($stalledFile);
+			$stalledContents = file_get_contents($stalledFile);
+			self::assertIsString($stalledContents);
+			self::assertSame($threads, PulseReport::decode($stalledContents)->getData()["threads"]);
+			self::assertSame([0 => 0], $exportPool->getTaskQueueSizes());
+			self::assertSame([], (new \ReflectionProperty(AsyncTask::class, "threadLocalStorage"))->getValue());
 			$path = $file;
 			$failures = 0;
 			$server->createPulseReport()->onCompletion(fn() => self::fail("Write failure resolved"), static function() use (&$failures) : void{ ++$failures; });
@@ -200,10 +263,19 @@ final class PulseWorkerTest extends TestCase{
 			self::assertIsString($finalFile);
 			$finalContents = file_get_contents($finalFile);
 			self::assertIsString($finalContents);
-			self::assertCount(3, PulseReport::decode($finalContents)->getData()["threads"]);
+			$finalThreads = PulseReport::decode($finalContents)->getData()["threads"];
+			self::assertCount(3, $finalThreads);
+			foreach($finalThreads as $thread){
+				$calls = 0;
+				foreach($thread["nodes"] as $node){
+					if($thread["zones"][$node[1]] === ($thread["thread"] === "main" ? "export.test" : "export.responsive")){ $calls += $node[3]; }
+				}
+				self::assertSame(100, $calls);
+			}
 			self::assertSame([], $exportPool->getRunningWorkers());
 			self::assertNull((new \ReflectionProperty(Server::class, "pulseReport"))->getValue($server));
 		}finally{
+			$gate["release"] = true;
 			$exportPool?->shutdown();
 			$pool->shutdown();
 			Pulse::reset();
@@ -213,6 +285,7 @@ final class PulseWorkerTest extends TestCase{
 			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
 			if(is_dir($directory)){ rmdir($directory); }
 		}
+		self::assertSame([], $pool->getRunningWorkers());
 	}
 
 	public function testShutdownReportDrainTimesOutStalledWorkersAndRecovers() : void{
