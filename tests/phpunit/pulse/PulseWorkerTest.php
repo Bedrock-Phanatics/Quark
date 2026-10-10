@@ -557,6 +557,80 @@ final class PulseWorkerTest extends TestCase{
 		}
 	}
 
+	public function testFailedCollectionSubmissionsDrainBeforeRetryingRealWorkers() : void{
+		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		Pulse::reset();
+		$localIds = self::taskLocalIds();
+		$logger = new MainLogger(null, false, "Pulse collection retry test", new \DateTimeZone("UTC"));
+		$pool = new class(3, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0) extends AsyncPool{
+			public ?int $rejectedWorker = null;
+			public function submitTaskToWorker(AsyncTask $task, int $worker) : void{
+				$collect = $task instanceof PulseControlTask && (new \ReflectionProperty(PulseControlTask::class, "operation"))->getValue($task) === PulseControlTask::COLLECT;
+				if($collect && $worker === $this->rejectedWorker){ throw new \RuntimeException("collection rejected"); }
+				parent::submitTaskToWorker($task, $worker);
+			}
+		};
+		$recorder = new PulseRecorder($pool);
+		try{
+			$recorder->start();
+			for($worker = 0; $worker < 3; ++$worker){
+				$pool->submitTaskToWorker(new class extends AsyncTask{
+					public function onRun() : void{
+						$zone = Pulse::zone("collection.worker");
+						$scope = $zone->start();
+						$zone->stop($scope);
+					}
+				}, $worker);
+			}
+			$recorder->stop();
+			$this->drain($pool);
+			for($worker = 0; $worker < 3; ++$worker){
+				$pool->rejectedWorker = $worker;
+				$caught = null;
+				try{ $recorder->collect(); }catch(\RuntimeException $error){ $caught = $error; }
+				self::assertNotNull($caught);
+				self::assertSame("collection rejected", $caught->getMessage());
+				self::assertSame($worker, $recorder->getPendingOperations());
+				self::assertNull((new \ReflectionProperty($recorder, "collection"))->getValue($recorder));
+				self::assertSame([], (new \ReflectionProperty($recorder, "captures"))->getValue($recorder));
+				foreach(["collectionRows", "collectionBytes", "collectionDeadline"] as $field){
+					self::assertSame(0, (new \ReflectionProperty($recorder, $field))->getValue($recorder));
+				}
+				if($worker > 0){
+					foreach(["collect", "reset", "start"] as $operation){
+						$caught = null;
+						try{
+							if($operation === "collect"){ $recorder->collect(); }elseif($operation === "reset"){ $recorder->reset(); }else{ $recorder->start(); }
+						}catch(\LogicException $error){ $caught = $error; }
+						self::assertNotNull($caught, "$operation accepted pending collection workers");
+					}
+				}
+				unset($caught, $error);
+				$this->drain($pool);
+				self::assertSame(0, $recorder->getPendingOperations());
+				self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
+				$pool->rejectedWorker = null;
+				$report = null;
+				$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Collection retry rejected"));
+				$this->drain($pool);
+				self::assertNotNull($report);
+				self::assertCount(4, $report->getData()["threads"]);
+				foreach($report->getData()["threads"] as $thread){ self::assertFalse($thread["recording"]); }
+				foreach(array_slice($report->getData()["threads"], 1) as $thread){ self::assertSame(1, $thread["nodes"][0][3]); }
+				self::assertSame($report->getData(), PulseReport::decode($report->encode(true))->getData());
+				self::assertSame(0, $recorder->getPendingOperations());
+			}
+		}finally{
+			$pool->rejectedWorker = null;
+			$recorder->stop();
+			$pool->shutdown();
+			Pulse::reset();
+			$logger->shutdownLogWriterThread();
+		}
+		self::assertSame([], $pool->getRunningWorkers());
+		self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
+	}
+
 	public function testPartialStopFailureRecoversBeforeExportingRealWorkers() : void{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
 		$logger = new MainLogger(null, false, "Pulse stop retry test", new \DateTimeZone("UTC"));
