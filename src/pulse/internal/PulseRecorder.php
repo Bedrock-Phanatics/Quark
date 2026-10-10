@@ -102,6 +102,7 @@ final class PulseRecorder{
 			), $worker);
 		}catch(\Throwable $e){
 			--$this->controls;
+			if($operation === PulseControlTask::START){ $this->session?->stop(); }
 			throw $e;
 		}
 	}

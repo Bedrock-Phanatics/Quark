@@ -400,6 +400,51 @@ final class PulseIntegrationTest extends TestCase{
 		}
 	}
 
+	public function testFailedStartsStopTheMainSessionAndAllowRecovery() : void{
+		foreach(["start", "reset"] as $operation){
+			foreach([0, 1, 2] as $failedWorker){
+				$state = new class{ public bool $rejectStart = false; };
+				/** @var \ArrayObject<int, AsyncTask> $tasks */
+				$tasks = new \ArrayObject();
+				$pool = self::createStub(AsyncPool::class);
+				$pool->method("getSize")->willReturn(3);
+				$pool->method("getRunningWorkers")->willReturn([0, 1, 2]);
+				$pool->method("submitTaskToWorker")->willReturnCallback(static function(AsyncTask $task, int $worker) use ($state, $failedWorker, $tasks) : void{
+					$start = (new \ReflectionProperty(PulseControlTask::class, "operation"))->getValue($task) === PulseControlTask::START;
+					if($start && $state->rejectStart && $worker === $failedWorker){ throw new \RuntimeException("start rejected"); }
+					$tasks[] = $task;
+				});
+				$recorder = new PulseRecorder($pool);
+				if($operation === "reset"){
+					$recorder->start();
+					foreach($tasks as $task){ $task->onCompletion(); }
+					$tasks->exchangeArray([]);
+				}
+				$state->rejectStart = true;
+				$caught = null;
+				try{
+					if($operation === "start"){ $recorder->start(); }else{ $recorder->reset(); }
+				}catch(\RuntimeException $error){ $caught = $error; }
+				self::assertNotNull($caught);
+				self::assertSame("start rejected", $caught->getMessage());
+				self::assertFalse($recorder->isRecording());
+				self::assertFalse(Pulse::isRecording());
+				self::assertSame($failedWorker + ($operation === "reset" ? 3 : 0), $recorder->getPendingOperations());
+				$recorder->checkDuration();
+				self::assertSame($failedWorker + ($operation === "reset" ? 6 : 3), $recorder->getPendingOperations());
+				foreach($tasks as $task){ $task->onCompletion(); }
+				$tasks->exchangeArray([]);
+				self::assertSame(0, $recorder->getPendingOperations());
+				$state->rejectStart = false;
+				$recorder->start();
+				self::assertTrue($recorder->isRecording());
+				$recorder->stop();
+				foreach($tasks as $task){ $task->onCompletion(); }
+				self::assertSame(0, $recorder->getPendingOperations());
+			}
+		}
+	}
+
 	public function testFailedStopRetriesDoNotDuplicateWorkerCommands() : void{
 		foreach([0, 1, 2] as $failedWorker){
 			$workers = [];
