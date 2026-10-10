@@ -42,6 +42,7 @@ use function count;
 use function extension_loaded;
 use function file_get_contents;
 use function glob;
+use function hrtime;
 use function is_dir;
 use function microtime;
 use function rmdir;
@@ -212,6 +213,103 @@ final class PulseWorkerTest extends TestCase{
 			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
 			if(is_dir($directory)){ rmdir($directory); }
 		}
+	}
+
+	public function testShutdownReportDrainTimesOutStalledWorkersAndRecovers() : void{
+		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		Pulse::reset();
+		$logger = new MainLogger(null, false, "Pulse timeout test", new \DateTimeZone("UTC"));
+		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-timeout-", true);
+		$pool = new AsyncPool(2, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0);
+		$recorder = new PulseRecorder($pool);
+		/** @var \pmmp\thread\ThreadSafeArray<string, bool> $gate */
+		$gate = new \pmmp\thread\ThreadSafeArray();
+		$gate["release"] = false;
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server->method("getQuarkVersion")->willReturn("test");
+		$server->method("getDataPath")->willReturn($directory);
+		foreach(["pulse" => $recorder, "asyncPool" => $pool, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "tickSleeper" => new TimeTrackingSleeperHandler(Pulse::zone("timeout.notifier"))] as $property => $value){
+			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
+		}
+		try{
+			$recorder->start();
+			for($worker = 0; $worker < 2; ++$worker){
+				$pool->submitTaskToWorker(new class extends AsyncTask{ public function onRun() : void{} }, $worker);
+			}
+			$this->drain($pool);
+			$pool->submitTaskToWorker(new class($gate) extends AsyncTask{
+				/** @param \pmmp\thread\ThreadSafeArray<string, bool> $gate */
+				public function __construct(private \pmmp\thread\ThreadSafeArray $gate){}
+				public function onRun() : void{
+					$this->gate["entered"] = true;
+					$deadline = microtime(true) + 10;
+					while($this->gate["release"] !== true){
+						if(microtime(true) >= $deadline){ throw new \RuntimeException("Test worker release timed out"); }
+						usleep(1000);
+					}
+				}
+			}, 0);
+			$deadline = microtime(true) + 2;
+			while(($gate["entered"] ?? false) !== true){
+				self::assertLessThan($deadline, microtime(true), "Test worker failed to enter the stall");
+				usleep(1000);
+			}
+			$recorder->stop();
+			$failures = 0;
+			$server->createPulseReport()->onCompletion(fn() => self::fail("Stalled report resolved"), static function() use (&$failures) : void{ self::assertSame(0, $failures); ++$failures; });
+			(new \ReflectionProperty(PulseRecorder::class, "collectionDeadline"))->setValue($recorder, (int) hrtime(true) - 1);
+			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
+			self::assertSame(1, $failures);
+			self::assertNull((new \ReflectionProperty(Server::class, "pulseReport"))->getValue($server));
+			self::assertNull((new \ReflectionProperty(Server::class, "pulseReportPool"))->getValue($server));
+			self::assertSame([], (new \ReflectionProperty(PulseRecorder::class, "captures"))->getValue($recorder));
+			self::assertSame(0, (new \ReflectionProperty(PulseRecorder::class, "collectionBytes"))->getValue($recorder));
+			$deadline = microtime(true) + 2;
+			while($pool->collectTasksFromWorker(1)){
+				self::assertLessThan($deadline, microtime(true), "Unblocked worker failed to finish");
+				usleep(1000);
+			}
+			self::assertSame(2, $recorder->getPendingOperations());
+			self::assertSame([0 => 3, 1 => 0], $pool->getTaskQueueSizes());
+			for($attempt = 0; $attempt < 100; ++$attempt){
+				foreach(["start", "reset", "report"] as $operation){
+					try{
+						if($operation === "start"){ $recorder->start(); }elseif($operation === "reset"){ $recorder->reset(); }else{ $server->createPulseReport(); }
+						self::fail("Pending worker must prevent more queued operations");
+					}catch(\LogicException){}
+				}
+				$recorder->stop();
+			}
+			self::assertSame([0 => 3, 1 => 0], $pool->getTaskQueueSizes());
+			self::assertSame(2, $recorder->getPendingOperations());
+			$gate["release"] = true;
+			$this->drain($pool);
+			self::assertSame(0, $recorder->getPendingOperations());
+			self::assertSame([0 => 0, 1 => 0], $pool->getTaskQueueSizes());
+			$file = null;
+			$server->createPulseReport()->onCompletion(static function(string $value) use (&$file) : void{ $file = $value; }, fn() => self::fail("Recovered report rejected"));
+			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
+			self::assertIsString($file);
+			$contents = file_get_contents($file);
+			self::assertIsString($contents);
+			$threads = PulseReport::decode($contents)->getData()["threads"];
+			self::assertCount(3, $threads);
+			foreach($threads as $thread){ self::assertFalse($thread["recording"]); }
+			self::assertSame(0, $recorder->getPendingOperations());
+		}finally{
+			$gate["release"] = true;
+			$exportPool = (new \ReflectionProperty(Server::class, "pulseReportPool"))->getValue($server);
+			if($exportPool instanceof AsyncPool){ $exportPool->shutdown(); }
+			$pool->shutdown();
+			Pulse::reset();
+			$logger->shutdownLogWriterThread();
+			$files = glob($directory . "/pulse/*");
+			if($files !== false){ foreach($files as $file){ unlink($file); } }
+			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
+			if(is_dir($directory)){ rmdir($directory); }
+		}
+		self::assertSame([], $pool->getRunningWorkers());
+		self::assertSame([], (new \ReflectionProperty(AsyncTask::class, "threadLocalStorage"))->getValue());
 	}
 
 	private function drain(AsyncPool $pool) : void{
