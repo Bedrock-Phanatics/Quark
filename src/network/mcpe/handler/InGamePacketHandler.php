@@ -129,6 +129,8 @@ use const JSON_THROW_ON_ERROR;
 #[SilentDiscard(SpawnExperienceOrbPacket::class, comment: "XP drops should be server-calculated")]
 #[SilentDiscard(ServerboundDiagnosticsPacket::class, comment: "Not needed, noisy debug")]
 class InGamePacketHandler extends PacketHandler{
+	public const MAX_ITEM_STACK_REQUESTS = 80;
+
 	private const MAX_FORM_RESPONSE_SIZE = 10 * 1024; //10 KiB should be more than enough
 	private const MAX_FORM_RESPONSE_DEPTH = 2; //modal/simple will be 1, custom forms 2 - they will never contain anything other than string|int|float|bool|null
 
@@ -611,8 +613,7 @@ class InGamePacketHandler extends PacketHandler{
 
 	public function handleItemStackRequest(ItemStackRequestPacket $packet) : bool{
 		$responses = [];
-		if(count($packet->getRequests()) > 80){
-			//TODO: we can probably lower this limit, but this will do for now
+		if(count($packet->getRequests()) > self::MAX_ITEM_STACK_REQUESTS){
 			throw new PacketHandlingException("Too many requests in ItemStackRequestPacket");
 		}
 		foreach($packet->getRequests() as $request){

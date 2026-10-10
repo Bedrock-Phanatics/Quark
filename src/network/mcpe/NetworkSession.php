@@ -36,6 +36,7 @@ use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
@@ -644,6 +645,18 @@ class NetworkSession{
 				$work?->stage($workToken, PulseNetworkWork::DECODE);
 				$stream = new ByteBufferReader($buffer);
 				try{
+					if($packet instanceof ItemStackRequestPacket){
+						if((VarInt::readUnsignedInt($stream) & DataPacket::PID_MASK) !== $packet->pid()){
+							throw new PacketDecodeException("Unexpected packet ID");
+						}
+						$requestCount = VarInt::readUnsignedInt($stream);
+						if($requestCount > InGamePacketHandler::MAX_ITEM_STACK_REQUESTS){
+							if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
+							$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packet->pid(), $requestCount, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS);
+							throw new PacketHandlingException("Too many requests in ItemStackRequestPacket");
+						}
+						$stream->setOffset(0);
+					}
 					$packet->decode($stream);
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
 				}catch(PacketDecodeException|DataDecodeException $e){

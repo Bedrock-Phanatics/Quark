@@ -24,10 +24,14 @@ declare(strict_types=1);
 namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
+use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
@@ -36,6 +40,7 @@ use quark\event\server\DataPacketReceiveEvent;
 use quark\network\mcpe\compression\DecompressionException;
 use quark\network\mcpe\compression\SnappyCompressor;
 use quark\network\mcpe\compression\ZlibCompressor;
+use quark\network\mcpe\handler\InGamePacketHandler;
 use quark\network\mcpe\handler\PacketHandler;
 use quark\network\mcpe\handler\PacketHandlerAction;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
@@ -129,6 +134,110 @@ final class PulseNetworkTest extends TestCase{
 			$session->handleEncoded($payload);
 			self::fail("Invalid packet accepted");
 		}catch(PacketHandlingException){}
+	}
+
+	private function itemStackPrefix(int $count) : string{
+		$writer = new ByteBufferWriter();
+		VarInt::writeUnsignedInt($writer, ItemStackRequestPacket::NETWORK_ID);
+		VarInt::writeUnsignedInt($writer, $count);
+		return $writer->getData();
+	}
+
+	public function testItemStackRequestLimitRunsBeforePayloadDecoding() : void{
+		$session = $this->session();
+		$packet = new class extends ItemStackRequestPacket{
+			protected function decodePayload(ByteBufferReader $in) : void{ TestCase::fail("Oversized collection reached decoder"); }
+		};
+		$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED, ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
+		$buffer = $this->itemStackPrefix(81);
+		try{ $session->handleDataPacket($packet, $buffer); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
+			self::assertSame("Too many requests in ItemStackRequestPacket", $e->getMessage());
+		}
+		$capture = Pulse::start();
+		Pulse::beginTick();
+		foreach([81, 100000, 0xffffffff] as $count){
+			try{ $session->handleDataPacket($packet, $this->itemStackPrefix($count)); self::fail("Oversized collection accepted"); }catch(PacketHandlingException){}
+		}
+		$request = new ByteBufferWriter();
+		(new ItemStackRequest(0, [], [], 0))->write($request);
+		$batch = $this->batch([$this->itemStackPrefix(100000) . str_repeat($request->getData(), 100000)]);
+		$this->set($session, "enableCompression", true);
+		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$this->rejected($session, "\x00" . Utils::assumeNotFalse(zlib_encode($batch, ZLIB_ENCODING_RAW)));
+		Pulse::endTick();
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_fill(0, 4, "packet.handler_validation"), array_column($data["events"], 4));
+		self::assertSame([81, 100000, 0xffffffff, 100000], array_column($data["events"], 5));
+		self::assertSame(array_fill(0, 4, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS), array_column($data["events"], 6));
+		self::assertSame(array_fill(0, 4, "reject_batch"), array_column($data["events"], 7));
+		self::assertSame(array_fill(0, 4, 1), array_column($data["events"], 1));
+		self::assertSame([4, 0, 4], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
+		PulseReport::create([$capture->getCapture()]);
+	}
+
+	public function testItemStackRequestBoundariesAndMalformedPrefixes() : void{
+		$session = $this->session();
+		$this->set($session, "handlerActions", [ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
+		$handler = new class extends PacketHandler{
+			public int $calls = 0;
+			public function handleItemStackRequest(ItemStackRequestPacket $packet) : bool{
+				++$this->calls;
+				TestCase::assertSame([2, 3], [$packet->senderSubId, $packet->recipientSubId]);
+				foreach($packet->getRequests() as $request){ TestCase::assertSame(["filter"], $request->getFilterStrings()); }
+				return true;
+			}
+		};
+		$this->set($session, "handler", $handler);
+		$capture = Pulse::start();
+		foreach([0, 1, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS] as $count){
+			$packet = ItemStackRequestPacket::create(array_fill(0, $count, new ItemStackRequest(7, [], ["filter"], 0)));
+			$packet->senderSubId = 2;
+			$packet->recipientSubId = 3;
+			$writer = new ByteBufferWriter();
+			$packet->encode($writer);
+			$session->handleEncoded($this->batch([$writer->getData()]));
+		}
+		self::assertSame(3, $handler->calls);
+		$header = substr($this->itemStackPrefix(0), 0, -1);
+		foreach(["", $header, $header . "\x80", $header . str_repeat("\x80", 6), "\x00\x51"] as $buffer){
+			try{ $session->handleDataPacket(new ItemStackRequestPacket(), $buffer); self::fail("Malformed prefix accepted"); }catch(PacketHandlingException){}
+		}
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_fill(0, 5, "packet.malformed"), array_column($data["events"], 4));
+		self::assertSame([8, 3, 5], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
+	}
+
+	public function testItemStackLimitPreservesPluginDecodeDecisions() : void{
+		$session = $this->session();
+		$this->set($session, "handlerActions", [ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
+		$plugin = $this->createMock(Plugin::class);
+		$listener = new RegisteredListener(static function(DataPacketDecodeEvent $event) : void{
+			if($event->isCancelled()){ $event->uncancel(); }else{ $event->cancel(); }
+		}, EventPriority::NORMAL, $plugin, true, Pulse::zone("test.item_stack_cancel"));
+		$list = HandlerListManager::global()->getListFor(DataPacketDecodeEvent::class);
+		$list->register($listener);
+		$capture = Pulse::start();
+		try{
+			$payload = $this->batch([$this->itemStackPrefix(81)]);
+			$session->handleEncoded($payload);
+			$this->set($session, "handlerActions", []);
+			$this->rejected($session, $payload);
+		}finally{
+			$list->unregister($listener);
+			Pulse::stop();
+		}
+		$data = $this->network($capture);
+		self::assertSame(["packet.handler_validation"], array_column($data["events"], 4));
+		self::assertSame([2, 0, 1, 1, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8], $data["windows"][0][9]]);
+	}
+
+	public function testItemStackHandlerStillLimitsAlreadyDecodedRequests() : void{
+		$handler = (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
+		$packet = ItemStackRequestPacket::create(array_fill(0, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, new ItemStackRequest(0, [], [], 0)));
+		$this->expectException(PacketHandlingException::class);
+		$handler->handleItemStackRequest($packet);
 	}
 
 	public function testActivePacketStagesRestoreNestedCallsAndClearFailures() : void{
