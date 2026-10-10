@@ -150,6 +150,57 @@ final class PulseTest extends TestCase{
 		self::assertGreaterThanOrEqual(0, $row[4]);
 	}
 
+	public function testDisabledClosurePreservesResultsExceptionsAndSessionChanges() : void{
+		$context = new PulseContext();
+		$zone = $context->zone("closure");
+		$result = new \stdClass();
+		$calls = 0;
+		self::assertSame($result, $zone->time(static function() use ($result, &$calls) : object{
+			++$calls;
+			return $result;
+		}));
+		self::assertSame(1, $calls);
+		$error = new \RuntimeException("expected");
+		$caught = null;
+		try{
+			$zone->time(static function() use ($error) : void{ throw $error; });
+		}catch(\RuntimeException $value){
+			$caught = $value;
+		}
+		self::assertSame($error, $caught);
+		$zone->time(static function() use ($context) : void{ $context->start("main", 0); });
+		self::assertTrue($context->recording);
+		self::assertSame([], $context->capture()["nodes"]);
+		$context->stop(1);
+	}
+
+	public function testClosureStillRunsWhenCaptureLimitsAreReached() : void{
+		$context = new PulseContext(maxNodes: 1, maxDepth: 1);
+		$outer = $context->zone("outer");
+		$limited = $context->zone("limited");
+		$context->start("main", 0);
+		$scope = $outer->start();
+		self::assertSame(42, $limited->time(static fn() => 42));
+		$error = new \RuntimeException("expected");
+		$caught = null;
+		try{
+			$limited->time(static function() use ($error) : void{ throw $error; });
+		}catch(\RuntimeException $value){
+			$caught = $value;
+		}
+		self::assertSame($error, $caught);
+		$outer->stop($scope);
+		$ran = false;
+		$limited->time(static function() use (&$ran) : void{ $ran = true; });
+		self::assertTrue($ran);
+		$context->stop((int) hrtime(true));
+		$capture = $context->capture();
+		self::assertCount(1, $capture["nodes"]);
+		self::assertSame(1, $capture["nodes"][0][3]);
+		self::assertSame(3, $capture["dropped_scopes"]);
+		self::assertSame(0, $capture["unbalanced_scopes"]);
+	}
+
 	public function testStoppedSessionCaptureRemainsStable() : void{
 		$zone = Pulse::zone("test.session");
 		$session = Pulse::start();

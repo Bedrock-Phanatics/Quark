@@ -55,7 +55,10 @@ final class PulseZone{
 	 * @return T
 	 */
 	public function time(\Closure $work) : mixed{
-		$scope = $this->start();
+		if(!$this->context->recording){
+			return $work();
+		}
+		$scope = $this->context->begin($this->id, hrtime(true));
 		try{
 			return $work();
 		}finally{

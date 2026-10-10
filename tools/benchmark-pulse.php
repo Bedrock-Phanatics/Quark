@@ -61,6 +61,10 @@ function benchmarkPulse(array $workloads, int $iterations) : void{
 
 $zone = Pulse::zone("benchmark.zone");
 $child = Pulse::zone("benchmark.child");
+$work = static fn() => 42;
+$timed = static function(int $n) use ($zone, $work) : void{
+	for($i = 0; $i < $n; ++$i){ $zone->time($work); }
+};
 $single = static function(int $n) use ($zone) : void{
 	for($i = 0; $i < $n; ++$i){
 		$scope = $zone->start();
@@ -81,11 +85,13 @@ benchmarkPulse([
 	"empty loop" => static function(int $n) : void{
 		for($i = 0; $i < $n; ++$i){}
 	},
-	"Pulse disabled pair" => $single
+	"Pulse disabled pair" => $single,
+	"Pulse disabled closure" => $timed
 ], 200000);
 $session = Pulse::start();
 benchmarkPulse([
 	"Pulse repeated pair" => $single,
+	"Pulse active closure" => $timed,
 	"Pulse nested (2 pairs)" => $nested
 ], 200000);
 
