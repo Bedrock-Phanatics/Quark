@@ -313,6 +313,7 @@ final class PulseIntegrationTest extends TestCase{
 	}
 
 	public function testStoppedResetWaitsForWorkersBeforeRestarting() : void{
+		DefaultPermissions::registerCorePermissions();
 		$workers = [];
 		$task = null;
 		$pool = self::createStub(AsyncPool::class);
