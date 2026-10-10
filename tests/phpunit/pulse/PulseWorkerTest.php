@@ -26,6 +26,7 @@ namespace quark\pulse;
 use PHPUnit\Framework\TestCase;
 use pocketmine\snooze\SleeperHandler;
 use quark\pulse\internal\PulseCapture;
+use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseRecorder;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
@@ -35,6 +36,7 @@ use quark\thread\ThreadSafeClassLoader;
 use quark\TimeTrackingSleeperHandler;
 use quark\utils\MainLogger;
 use function array_fill;
+use function count;
 use function extension_loaded;
 use function file_get_contents;
 use function glob;
@@ -265,6 +267,23 @@ final class PulseWorkerTest extends TestCase{
 					self::assertSame(10, $calls);
 				}
 				$recorder->reset();
+				$this->drain($pool);
+				self::assertSame(0, $recorder->getPendingOperations());
+				for($worker = 0; $worker < 2; ++$worker){
+					$pool->submitTaskToWorker(new class extends AsyncTask{
+						public function onRun() : void{
+							/** @var PulseContext $context */
+							$context = (new \ReflectionProperty(Pulse::class, "context"))->getValue();
+							$capture = $context->capture();
+							$this->setResult([Pulse::getSession() === null, count($capture["nodes"]), count($capture["ticks"]), count($capture["spikes"])]);
+						}
+
+						public function onCompletion() : void{
+							PulseWorkerTest::assertSame([true, 0, 0, 0], $this->getResult());
+						}
+					}, $worker);
+				}
+				$this->drain($pool);
 			}
 		}finally{
 			$recorder->stop();

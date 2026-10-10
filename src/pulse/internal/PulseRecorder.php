@@ -125,6 +125,7 @@ final class PulseRecorder{
 		$this->requireIdleControls();
 		$recording = $this->isRecording();
 		$this->stop();
+		Pulse::reset();
 		if($recording){
 			// Worker queues apply the stop before the new start.
 			$this->session = Pulse::start("main", $this->duration, $this->threshold, $this->maxSpikes);
@@ -133,9 +134,9 @@ final class PulseRecorder{
 			$this->running = true;
 			foreach($this->pool->getRunningWorkers() as $worker){ $this->control(PulseControlTask::START, $worker); }
 		}else{
-			Pulse::reset();
 			$this->session = null;
 			++$this->generation;
+			foreach($this->pool->getRunningWorkers() as $worker){ $this->control(PulseControlTask::RESET, $worker); }
 		}
 	}
 

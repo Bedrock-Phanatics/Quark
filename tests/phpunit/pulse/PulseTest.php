@@ -221,6 +221,29 @@ final class PulseTest extends TestCase{
 		self::assertSame("worker-test", $next->getCapture()["thread"]);
 	}
 
+	public function testResetPreservesZoneHandlesAndFrozenSessions() : void{
+		$zone = Pulse::zone("reset.cached");
+		$session = Pulse::start();
+		$old = $zone->start();
+		Pulse::reset();
+		$capture = $session->getCapture();
+		$stats = $session->getStats();
+		$top = $session->getTopZones();
+		self::assertNull(Pulse::getSession());
+		self::assertSame($zone, Pulse::zone("reset.cached"));
+		$next = Pulse::start();
+		$scope = $zone->start();
+		$zone->stop($old);
+		$zone->stop($scope);
+		$next->stop();
+		self::assertCount(1, $next->getCapture()["nodes"]);
+		self::assertSame(1, $next->getCapture()["nodes"][0][3]);
+		self::assertSame(0, $next->getCapture()["unbalanced_scopes"]);
+		self::assertSame($capture, $session->getCapture());
+		self::assertSame($stats, $session->getStats());
+		self::assertSame($top, $session->getTopZones());
+	}
+
 	public function testStartWhileRecordingDoesNotLoseData() : void{
 		$session = Pulse::start();
 		try{

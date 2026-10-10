@@ -34,6 +34,7 @@ final class PulseControlTask extends AsyncTask{
 	public const START = 1;
 	public const STOP = 2;
 	public const COLLECT = 3;
+	public const RESET = 4;
 	private static int $currentGeneration = 0;
 
 	/** @param \Closure(PulseCapture|null) : void $onComplete */
@@ -50,9 +51,10 @@ final class PulseControlTask extends AsyncTask{
 	}
 
 	public function onRun() : void{
-		if($this->operation === self::START && $this->generation > self::$currentGeneration){
+		if(($this->operation === self::START || $this->operation === self::RESET) && $this->generation > self::$currentGeneration){
 			Pulse::reset();
 			self::$currentGeneration = $this->generation;
+			if($this->operation === self::RESET){ return; }
 			$remaining = $this->deadline === 0 ? 0 : $this->deadline - (int) hrtime(true);
 			if($this->deadline === 0 || $remaining > 0){
 				Pulse::start($this->threadName, $remaining, $this->spikeThreshold, $this->maxSpikes);

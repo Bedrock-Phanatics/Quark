@@ -219,6 +219,40 @@ final class PulseCaptureTest extends TestCase{
 		self::assertSame($capture, $session->getReport()->getData()["threads"][0]);
 	}
 
+	public function testResetReleasesCaptureBuffersAndRestoresTheNodeBudget() : void{
+		$context = new PulseContext(maxNodes: 1, maxTicks: 2);
+		$a = $context->zone("a")->getId();
+		$b = $context->zone("b")->getId();
+		$context->start("main", 0, spikeThresholdNs: 1);
+		$context->beginTick(0);
+		$old = $context->begin($a, 0);
+		try{
+			$context->reset();
+			self::fail("Reset must not discard an active capture");
+		}catch(\LogicException){ self::assertTrue($context->recording); }
+		$context->end($a, $old, 10);
+		$context->endTick(10);
+		$context->stop(10);
+		$previous = $context->capture();
+		$context->reset();
+		$cleared = $context->capture();
+		foreach(["nodes", "active_ticks", "ticks", "spikes"] as $key){ self::assertSame([], $cleared[$key]); }
+		self::assertSame(0, $cleared["tick_count"]);
+		self::assertFalse($context->recording);
+		self::assertSame($cleared, PulseReport::decode(PulseReport::create([$cleared])->encode())->getData()["threads"][0]);
+		$context->start("main", 20);
+		$current = $context->begin($b, 20);
+		self::assertGreaterThan($old, $current);
+		$context->end($a, $old, 25);
+		$context->end($b, $current, 30);
+		$context->stop(30);
+		self::assertSame([[1, $b, 0, 1, 10, 10, 10]], $context->capture()["nodes"]);
+		self::assertSame(0, $context->capture()["dropped_scopes"]);
+		self::assertSame(0, $context->capture()["unbalanced_scopes"]);
+		self::assertSame([[1, $a, 0, 1, 10, 10, 10]], $previous["nodes"]);
+		self::assertCount(1, $previous["spikes"]);
+	}
+
 	public function testTickAndTouchedStorageStopsGrowingAfterWarmup() : void{
 		$context = new PulseContext(maxTicks: 4);
 		$zone = $context->zone("warm")->getId();

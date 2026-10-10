@@ -138,6 +138,16 @@ final class PulseContext{
 		$this->recording = true;
 	}
 
+	public function reset() : void{
+		if($this->recording){ throw new \LogicException("Cannot clear a recording Pulse context"); }
+		$root = new PulseNode(0, -1, 0);
+		$this->nodes = [$root];
+		$this->current = $root;
+		$this->tickIds = $this->tickStarts = $this->tickDurations = $this->touched = [];
+		$this->start("main", 0);
+		$this->stop(0);
+	}
+
 	public function begin(int $zone, int $now) : int{
 		if(!$this->recording){
 			return 0;

@@ -312,6 +312,36 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertFalse($session->isRecording());
 	}
 
+	public function testStoppedResetWaitsForWorkersBeforeRestarting() : void{
+		$workers = [];
+		$task = null;
+		$pool = self::createStub(AsyncPool::class);
+		$pool->method("getSize")->willReturn(1);
+		$pool->method("getRunningWorkers")->willReturnCallback(static function() use (&$workers) : array{ return $workers; });
+		$pool->method("submitTaskToWorker")->willReturnCallback(static function(AsyncTask $value) use (&$task) : void{ $task = $value; });
+		$recorder = new PulseRecorder($pool);
+		$recorder->start();
+		$recorder->stop();
+		$workers = [0];
+		$recorder->reset();
+		self::assertNull($recorder->getSession());
+		self::assertSame(1, $recorder->getPendingOperations());
+		$server = self::createStub(Server::class);
+		$server->method("getPulse")->willReturn($recorder);
+		$sender = self::createMock(CommandSender::class);
+		$sender->method("getServer")->willReturn($server);
+		$sender->expects(self::once())->method("sendMessage")->with("Pulse is waiting for 1 worker operations");
+		(new PulseCommand())->execute($sender, "pulse", ["status"]);
+		try{ $recorder->start(); self::fail("Restart must wait for worker reset"); }catch(\LogicException){}
+		self::assertInstanceOf(PulseControlTask::class, $task);
+		$task->onCompletion();
+		self::assertSame(0, $recorder->getPendingOperations());
+		$workers = [];
+		$recorder->start();
+		self::assertTrue($recorder->isRecording());
+		$recorder->stop();
+	}
+
 	public function testValidatedCollectionRejectsMetadataAndAllowsRetry() : void{
 		$recorder = $this->recorder();
 		$recorder->start();

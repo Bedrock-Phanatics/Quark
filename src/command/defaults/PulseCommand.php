@@ -105,7 +105,8 @@ final class PulseCommand extends VanillaCommand{
 				case "reset":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
 					$pulse->reset();
-					Command::broadcastCommandMessage($sender, $pulse->isRecording() ? "Pulse reset; recording restarted with the same options" : "Pulse cleared; ready to start");
+					Command::broadcastCommandMessage($sender, $pulse->isRecording() ? "Pulse reset; recording restarted with the same options" :
+						"Pulse cleared" . ($pulse->getPendingOperations() > 0 ? "; waiting for workers to finish" : "; ready to start"));
 					break;
 				case "status":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
@@ -153,7 +154,11 @@ final class PulseCommand extends VanillaCommand{
 	private static function sendStatus(CommandSender $sender) : void{
 		$pulse = $sender->getServer()->getPulse();
 		$session = $pulse->getSession();
-		if($session === null){ $sender->sendMessage("Pulse is idle. Start with /pulse start 60s --spikes 50ms"); return; }
+		if($session === null){
+			$pending = $pulse->getPendingOperations();
+			$sender->sendMessage($pending > 0 ? "Pulse is waiting for $pending worker operations" : "Pulse is idle. Start with /pulse start 60s --spikes 50ms");
+			return;
+		}
 		$stats = $session->getStats();
 		$sender->sendMessage(sprintf("Pulse %s: %.1f s, %d ticks | average %.2f ms, worst %.2f ms | %d retained spikes",
 			$stats["recording"] ? "recording" : "stopped", $stats["elapsed_ns"] / 1000000000, $stats["tick_count"],
