@@ -114,6 +114,7 @@ use quark\utils\MainLogger;
 use quark\utils\NotCloneable;
 use quark\utils\NotSerializable;
 use quark\utils\Process;
+use quark\utils\ServerKiller;
 use quark\utils\SignalHandler;
 use quark\utils\Terminal;
 use quark\utils\TextFormat;
@@ -514,7 +515,11 @@ class Server{
 
 	/** @return Promise<string> */
 	public function createPulseReport() : Promise{
-		if($this->pulseReport !== null){ throw new \LogicException("Pulse is already saving a report; wait for it to finish"); }
+		return $this->exportPulseReport();
+	}
+
+	/** @return array<string, mixed> */
+	private function getPulseReportMetadata() : array{
 		$plugins = [];
 		if(isset($this->pluginManager)){
 			foreach($this->pluginManager->getPlugins() as $plugin){
@@ -526,9 +531,18 @@ class Server{
 		if(isset($this->worldManager)){
 			foreach($this->worldManager->getWorlds() as $world){ $worlds[] = $world->getFolderName(); }
 		}
+		return ["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds];
+	}
+
+	/**
+	 * @param array<string, mixed>|null $metadata
+	 * @return Promise<string>
+	 */
+	private function exportPulseReport(?array $metadata = null) : Promise{
+		if($this->pulseReport !== null){ throw new \LogicException("Pulse is already saving a report; wait for it to finish"); }
+		$metadata ??= $this->getPulseReportMetadata();
 		/** @var PromiseResolver<string> $result */
 		$result = new PromiseResolver();
-		$metadata = ["quark_version" => $this->getQuarkVersion(), "plugins" => $plugins, "worlds" => $worlds];
 		$collection = $this->pulse->collectTransfers();
 		$this->pulseReport = $result;
 		$collection->onCompletion(
@@ -566,9 +580,10 @@ class Server{
 		if($file !== null){ $result->resolve($file); }else{ $result->reject(); }
 	}
 
-	private function saveShutdownPulseReport() : void{
+	/** @param array<string, mixed> $metadata */
+	private function saveShutdownPulseReport(array $metadata) : void{
 		try{
-			$this->createPulseReport()->onCompletion(
+			$this->exportPulseReport($metadata)->onCompletion(
 				fn(string $file) => $this->logger->info("Pulse report saved to $file"),
 				fn() => $this->logger->error("Failed to create Pulse report")
 			);
@@ -1615,10 +1630,11 @@ class Server{
 
 			if(isset($this->pulse) && $this->pulse->getSession() !== null){
 				$this->pulse->stop();
+				$metadata = $this->getPulseReportMetadata();
 				if($this->pulseReport !== null){
-					$this->pulseReport->getPromise()->onCompletion(fn() => $this->saveShutdownPulseReport(), fn() => $this->saveShutdownPulseReport());
+					$this->pulseReport->getPromise()->onCompletion(fn() => $this->saveShutdownPulseReport($metadata), fn() => $this->saveShutdownPulseReport($metadata));
 				}else{
-					$this->saveShutdownPulseReport();
+					$this->saveShutdownPulseReport($metadata);
 				}
 			}
 		}
@@ -1645,7 +1661,6 @@ class Server{
 			$this->hasStopped = true;
 
 			$this->shutdown();
-			$this->drainPulseReports();
 
 			if(isset($this->pluginManager)){
 				$this->logger->debug("Disabling all plugins");
@@ -1666,16 +1681,27 @@ class Server{
 			$this->logger->debug("Removing event handlers");
 			HandlerListManager::global()->unregisterAll();
 
-			if(isset($this->asyncPool)){
-				$this->logger->debug("Shutting down async task worker pool");
-				$this->asyncPool->shutdown();
-			}
-			$this->pulseReportPool?->shutdown();
-			$this->pulseReportPool = null;
-
 			if(isset($this->configGroup)){
 				$this->logger->debug("Saving properties");
 				$this->configGroup->save();
+			}
+			$killer = null;
+			if($this->pulseReport !== null || $this->pulseReportPool !== null || (isset($this->pulse) && $this->pulse->getPendingOperations() > 0)){
+				$this->logger->debug("Waiting for Pulse reports (up to 45 seconds)");
+				$killer = new ServerKiller(45);
+				$killer->setClassLoaders([$this->autoloader]);
+				$killer->start();
+			}
+			try{
+				$this->drainPulseReports();
+				$this->pulseReportPool?->shutdown();
+				$this->pulseReportPool = null;
+				if(isset($this->asyncPool)){
+					$this->logger->debug("Shutting down async task worker pool");
+					$this->asyncPool->shutdown();
+				}
+			}finally{
+				$killer?->quit();
 			}
 
 			if($this->console !== null){

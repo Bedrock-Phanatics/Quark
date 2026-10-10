@@ -25,6 +25,7 @@ namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\snooze\SleeperHandler;
+use quark\promise\PromiseResolver;
 use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseRecorder;
@@ -33,10 +34,19 @@ use quark\scheduler\AsyncTask;
 use quark\scheduler\PulseControlTask;
 use quark\scheduler\PulseReportWriteTask;
 use quark\Server;
+use quark\ServerConfigGroup;
+use quark\thread\ThreadManager;
 use quark\thread\ThreadSafeClassLoader;
 use quark\TimeTrackingSleeperHandler;
+use quark\utils\Config;
 use quark\utils\MainLogger;
+use quark\utils\ServerKiller;
+use quark\utils\SignalHandler;
+use quark\world\World;
+use quark\world\WorldManager;
+use function array_diff;
 use function array_fill;
+use function array_keys;
 use function array_slice;
 use function count;
 use function extension_loaded;
@@ -53,6 +63,77 @@ use function unlink;
 use function usleep;
 
 final class PulseWorkerTest extends TestCase{
+	public function testShutdownSavesStateBeforeWaitingForPulseAndRemovesItsGuard() : void{
+		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		Pulse::reset();
+		$logger = new MainLogger(null, false, "Pulse shutdown test", new \DateTimeZone("UTC"));
+		$threads = ThreadManager::getInstance()->getAll();
+		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-shutdown-", true);
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server->method("getQuarkVersion")->willReturn("test");
+		$server->method("getDataPath")->willReturn($directory);
+		$world = self::createStub(World::class);
+		$world->method("getFolderName")->willReturn("test-world");
+		$worldManager = self::createMock(WorldManager::class);
+		$worlds = [$world];
+		$worldManager->method("getWorlds")->willReturnCallback(static function() use (&$worlds) : array{ return $worlds; });
+		$events = [];
+		$worldManager->expects(self::once())->method("unloadWorld")->with($world, true)->willReturnCallback(static function() use (&$events, &$worlds) : bool{ $events[] = "world"; $worlds = []; return true; });
+		$properties = self::createMock(Config::class);
+		$properties->method("hasChanged")->willReturn(true);
+		$properties->expects(self::once())->method("save")->willReturnCallback(static function() use (&$events) : void{ $events[] = "properties"; });
+		$config = new ServerConfigGroup(self::createStub(Config::class), $properties);
+		$exportPool = self::createMock(AsyncPool::class);
+		$guards = [];
+		$exportPool->expects(self::once())->method("shutdown")->willReturnCallback(static function() use (&$events, &$guards) : void{
+			$events[] = "pulse";
+			foreach(ThreadManager::getInstance()->getAll() as $thread){
+				if($thread instanceof ServerKiller){ $guards[] = $thread->time; }
+			}
+		});
+		$pool = self::createMock(AsyncPool::class);
+		$pool->method("collectTasks")->willReturnCallback(static function() use ($server, &$events) : bool{
+			$events[] = "collection";
+			(new \ReflectionMethod(Server::class, "finishPulseReport"))->invoke($server, "older-report.qpulse");
+			return false;
+		});
+		$pool->expects(self::once())->method("shutdown")->willReturnCallback(static function() use (&$events, &$guards) : void{
+			$events[] = "workers";
+			foreach(ThreadManager::getInstance()->getAll() as $thread){
+				if($thread instanceof ServerKiller){ $guards[] = $thread->time; }
+			}
+		});
+		$recorder = new PulseRecorder($pool);
+		$recorder->start();
+		foreach(["doTitleTick" => false, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "signalHandler" => new SignalHandler(static function() : void{}), "worldManager" => $worldManager, "configGroup" => $config, "pulse" => $recorder, "pulseReport" => new PromiseResolver(), "pulseReportPool" => $exportPool, "asyncPool" => $pool] as $property => $value){
+			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
+		}
+		try{
+			$server->shutdown();
+			$server->forceShutdown();
+			$server->forceShutdown();
+			self::assertSame(["world", "properties", "collection", "pulse", "workers"], $events);
+			self::assertSame([45, 45], $guards);
+			self::assertSame($threads, ThreadManager::getInstance()->getAll());
+			self::assertNull((new \ReflectionProperty(Server::class, "pulseReportPool"))->getValue($server));
+			$files = glob($directory . "/pulse/*");
+			self::assertIsArray($files);
+			self::assertCount(1, $files);
+			$contents = file_get_contents($files[0]);
+			self::assertIsString($contents);
+			$data = PulseReport::decode($contents)->getData();
+			self::assertSame(["test-world"], $data["metadata"]["worlds"]);
+			self::assertFalse($data["threads"][0]["recording"]);
+		}finally{
+			Pulse::reset();
+			$logger->shutdownLogWriterThread();
+			$files = glob($directory . "/pulse/*");
+			if($files !== false){ foreach($files as $file){ unlink($file); } }
+			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
+			if(is_dir($directory)){ rmdir($directory); }
+		}
+	}
+
 	public function testExportWorkerRejectsInvalidDataAndReleasesItsTransfer() : void{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
 		Pulse::reset();
@@ -123,6 +204,7 @@ final class PulseWorkerTest extends TestCase{
 
 	public function testDedicatedExportWorkerBoundsRequestsAndRecoversFromStallsAndWriteFailure() : void{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		$localIds = self::taskLocalIds();
 		Pulse::reset();
 		$logger = new MainLogger(null, false, "Pulse export test", new \DateTimeZone("UTC"));
 		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-export-", true);
@@ -234,7 +316,7 @@ final class PulseWorkerTest extends TestCase{
 			self::assertIsString($stalledContents);
 			self::assertSame($threads, PulseReport::decode($stalledContents)->getData()["threads"]);
 			self::assertSame([0 => 0], $exportPool->getTaskQueueSizes());
-			self::assertSame([], (new \ReflectionProperty(AsyncTask::class, "threadLocalStorage"))->getValue());
+			self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
 			$path = $file;
 			$failures = 0;
 			$server->createPulseReport()->onCompletion(fn() => self::fail("Write failure resolved"), static function() use (&$failures) : void{ ++$failures; });
@@ -290,6 +372,7 @@ final class PulseWorkerTest extends TestCase{
 
 	public function testShutdownReportDrainTimesOutStalledWorkersAndRecovers() : void{
 		if(!extension_loaded("pmmpthread") || !extension_loaded("igbinary")){ self::markTestSkipped("Requires pmmpthread and igbinary"); }
+		$localIds = self::taskLocalIds();
 		Pulse::reset();
 		$logger = new MainLogger(null, false, "Pulse timeout test", new \DateTimeZone("UTC"));
 		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-timeout-", true);
@@ -382,7 +465,14 @@ final class PulseWorkerTest extends TestCase{
 			if(is_dir($directory)){ rmdir($directory); }
 		}
 		self::assertSame([], $pool->getRunningWorkers());
-		self::assertSame([], (new \ReflectionProperty(AsyncTask::class, "threadLocalStorage"))->getValue());
+		self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
+	}
+
+	/** @return list<int> */
+	private static function taskLocalIds() : array{
+		/** @var array<int, array<string, mixed>> $storage */
+		$storage = (new \ReflectionProperty(AsyncTask::class, "threadLocalStorage"))->getValue();
+		return array_keys($storage);
 	}
 
 	private function drain(AsyncPool $pool) : void{
