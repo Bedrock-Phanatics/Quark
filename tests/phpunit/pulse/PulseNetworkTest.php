@@ -37,13 +37,19 @@ use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\inventory\HandSlot;
 use pocketmine\network\mcpe\protocol\types\inventory\InventoryTransactionChangedSlotsHack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
+use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\LabTableCombineStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
+use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
+use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
@@ -274,7 +280,7 @@ final class PulseNetworkTest extends TestCase{
 		$action->windowId = 0;
 		$action->inventorySlot = 1;
 		$action->oldItem = $action->newItem = ItemStackWrapper::legacy(ItemStack::null());
-		foreach([[0, null], [1, []], [50, array_fill(0, 10, new InventoryTransactionChangedSlotsHack(2, [0, 1, 255]))]] as [$count, $slots]){
+		foreach([[0, null], [1, []], [1, [new InventoryTransactionChangedSlotsHack(2, range(0, 255))]], [50, array_fill(0, 10, new InventoryTransactionChangedSlotsHack(2, [0, 1, 255]))]] as [$count, $slots]){
 			$packet = InventoryTransactionPacket::create(-7, $slots, NormalTransactionData::new(array_fill(0, $count, $action)));
 			$packet->senderSubId = 2;
 			$packet->recipientSubId = 3;
@@ -287,7 +293,65 @@ final class PulseNetworkTest extends TestCase{
 			$decoded->encode($encoded);
 			self::assertSame($writer->getData(), $encoded->getData());
 		}
-		self::assertCount(3, $handler->packets);
+		self::assertCount(4, $handler->packets);
+	}
+
+	public function testNestedSlotLimitsUseControlledDisconnectsAndPreserveEvidence() : void{
+		$session = $this->getMockBuilder(NetworkSession::class)->disableOriginalConstructor()->onlyMethods(["getIp", "getDisplayName", "disconnectWithError"])->getMock();
+		$session->method("getIp")->willReturn("192.0.2.1");
+		$session->method("getDisplayName")->willReturn("private-name");
+		$session->expects(self::exactly(8))->method("disconnectWithError");
+		$this->session($session);
+		$this->set($session, "handlerActions", [InventoryTransactionPacket::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$transaction = UseItemTransactionData::new([], 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
+		$buffers = [];
+		foreach([257, 100000] as $count){
+			$slots = new InventoryTransactionChangedSlotsHack(2, array_fill(0, $count, 0));
+			foreach([
+				InventoryTransactionPacket::create(-7, [$slots], NormalTransactionData::new([])),
+				PlayerAuthInputPacket::create(
+					new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
+					1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0),
+					new ItemInteractionData(-7, [$slots], $transaction), null, null, null,
+					0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
+				)
+			] as $packet){
+				$writer = new ByteBufferWriter();
+				$packet->encode($writer);
+				$buffers[] = $this->batch([$writer->getData()]);
+			}
+		}
+		$this->rejected($session, $buffers[0]);
+		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$interface = (new \ReflectionClass(RakLibInterface::class))->newInstanceWithoutConstructor();
+		$sender = $this->createMock(UserToRakLibThreadMessageSender::class);
+		$sender->expects(self::exactly(8))->method("blockAddress")->with("192.0.2.1", 5);
+		$this->set($interface, "interface", $sender);
+		$this->set($interface, "sessions", [9000 => $session]);
+		$capture = Pulse::start();
+		Pulse::beginTick();
+		foreach([false, true] as $compressed){
+			$this->set($session, "enableCompression", $compressed);
+			foreach($buffers as $buffer){
+				$payload = $compressed ? "\x00" . Utils::assumeNotFalse(zlib_encode($buffer, ZLIB_ENCODING_RAW)) : $buffer;
+				$interface->onPacketReceive(9000, "\xfe" . $payload);
+			}
+		}
+		Pulse::endTick();
+		Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_merge(...array_fill(0, 8, ["packet.handler_validation", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
+		self::assertSame(array_merge(...array_fill(0, 2, [257, null, 257, null, 100000, null, 100000, null])), array_column($data["events"], 5));
+		self::assertSame(array_merge(...array_fill(0, 8, [InventoryTransactionChangedSlotsHack::MAX_CHANGED_SLOTS, null])), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 4, [InventoryTransactionPacket::NETWORK_ID, null, PlayerAuthInputPacket::NETWORK_ID, null])), array_column($data["events"], 3));
+		self::assertSame(array_merge(...array_fill(0, 8, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
+		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 1));
+		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 2));
+		self::assertSame([8, 0, 8, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
+		$report = $capture->getReport()->encode();
+		self::assertStringNotContainsString("private-name", $report);
+		self::assertStringNotContainsString("192.0.2.1", $report);
+		PulseReport::decode($report);
 	}
 
 	public function testMalformedInventoryPrefixesUseControlledDisconnects() : void{
