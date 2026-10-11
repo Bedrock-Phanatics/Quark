@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0469b3fabaf6976ec08276f7d1dda792",
+    "content-hash": "b4b993e0d671b7f1017aed53568962a7",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -149,12 +149,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol.git",
-                "reference": "7c4a6b914d0abf758e87c1512d04d7b251c665c2"
+                "reference": "ee94aca60758a825a7f289276ada67a6ef7a8a89"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/7c4a6b914d0abf758e87c1512d04d7b251c665c2",
-                "reference": "7c4a6b914d0abf758e87c1512d04d7b251c665c2",
+                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/ee94aca60758a825a7f289276ada67a6ef7a8a89",
+                "reference": "ee94aca60758a825a7f289276ada67a6ef7a8a89",
                 "shasum": ""
             },
             "require": {
@@ -197,7 +197,7 @@
             "support": {
                 "source": "https://github.com/Bedrock-Phanatics/BedrockProtocol/tree/master"
             },
-            "time": "2026-10-10T23:20:00+00:00"
+            "time": "2026-10-10T23:59:36+00:00"
         },
         {
             "name": "axolotl-pm/xoroshiro128pp",
