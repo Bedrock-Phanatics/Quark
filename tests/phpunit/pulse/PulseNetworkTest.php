@@ -45,6 +45,9 @@ use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftRecipeAutoStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsEntry;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\LabTableCombineStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\inventory\TransactionData;
@@ -52,6 +55,7 @@ use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
+use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
@@ -1049,5 +1053,84 @@ final class PulseNetworkTest extends TestCase{
 		try{ $snappy->decompress("\x80"); self::fail("Snappy malformed header accepted"); }catch(DecompressionException $e){ self::assertSame("decompression.malformed", $e->reason); }
 		try{ $snappy->decompress("\x80\x80\x80\x80\x10"); self::fail("Snappy overflowing header accepted"); }catch(DecompressionException $e){ self::assertSame("decompression.malformed", $e->reason); }
 		if(function_exists("snappy_compress")){ self::assertSame("abc", $snappy->decompress($snappy->compress("abc"))); }
+	}
+
+	public function testNestedCollectionsRejectWithPulseEvidenceOnBothReceivePaths() : void{
+		$session = $this->getMockBuilder(NetworkSession::class)->disableOriginalConstructor()->onlyMethods(["getIp", "getDisplayName", "disconnectWithError"])->getMock();
+		$session->method("getIp")->willReturn("192.0.2.1");
+		$session->method("getDisplayName")->willReturn("private-name");
+		$this->session($session);
+		$this->set($session, "handlerActions", [InventoryTransactionPacket::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED, ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
+		$handler = $this->createMock(PacketHandler::class);
+		$handler->expects(self::exactly(2))->method("handleInventoryTransaction")->willReturn(true);
+		$handler->expects(self::exactly(8))->method("handlePlayerAuthInput")->willReturn(true);
+		$handler->expects(self::exactly(6))->method("handleItemStackRequest")->willReturn(true);
+		$this->set($session, "handler", $handler);
+		$buffers = [];
+		$observed = [];
+		$limits = [];
+		$ids = [];
+		foreach([["containers", InventoryTransactionChangedSlotsHack::MAX_CHANGED_CONTAINERS], ["filters", ItemStackRequest::MAX_FILTER_STRINGS], ["ingredients", CraftRecipeAutoStackRequestAction::MAX_INGREDIENTS], ["results", DeprecatedCraftingResultsStackRequestAction::MAX_RESULTS]] as [$kind, $limit]){
+			foreach([1, $limit, $limit + 1, 100000] as $count){
+				$interaction = null;
+				$request = null;
+				if($kind === "containers"){
+					$slots = array_fill(0, $count, new InventoryTransactionChangedSlotsHack(2, [255, 0, 1]));
+					$transaction = UseItemTransactionData::new([], 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
+					$interaction = new ItemInteractionData(-7, $slots, $transaction);
+					$standalone = InventoryTransactionPacket::create(-7, $slots, NormalTransactionData::new([]));
+				}else{
+					$actions = match($kind){
+						"ingredients" => [new CraftRecipeAutoStackRequestAction(7, 2, array_fill(0, $count, new RecipeIngredient(null, 1)))],
+						"results" => [new DeprecatedCraftingResultsStackRequestAction(array_fill(0, $count, new DeprecatedCraftingResultsEntry(null, 1, 4, "")), 2)],
+						default => [new LabTableCombineStackRequestAction()]
+					};
+					$request = new ItemStackRequest(-7, $actions, $kind === "filters" ? array_fill(0, $count, "") : [], 0);
+					$standalone = ItemStackRequestPacket::create([$request]);
+				}
+				$movement = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), 1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), $interaction, $request, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
+				foreach([$standalone, $movement] as $packet){
+					$writer = new ByteBufferWriter();
+					$packet->encode($writer);
+					$buffer = $this->batch([$writer->getData()]);
+					if($count <= $limit){ $session->handleEncoded($buffer); }else{
+						$buffers[] = $buffer;
+						$observed[] = $count; $observed[] = null;
+						$limits[] = $limit; $limits[] = null;
+						$ids[] = $packet->pid(); $ids[] = null;
+					}
+				}
+			}
+		}
+		$session->expects(self::exactly(count($buffers) * 2))->method("disconnectWithError");
+		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
+		$interface = (new \ReflectionClass(RakLibInterface::class))->newInstanceWithoutConstructor();
+		$sender = $this->createMock(UserToRakLibThreadMessageSender::class);
+		$sender->expects(self::exactly(count($buffers) * 2))->method("blockAddress")->with("192.0.2.1", 5);
+		$this->set($interface, "interface", $sender);
+		$this->set($interface, "sessions", [9000 => $session]);
+		$capture = Pulse::start();
+		Pulse::beginTick();
+		foreach([false, true] as $compressed){
+			$this->set($session, "enableCompression", $compressed);
+			foreach($buffers as $buffer){
+				$payload = $compressed ? "\x00" . Utils::assumeNotFalse(zlib_encode($buffer, ZLIB_ENCODING_RAW)) : $buffer;
+				$interface->onPacketReceive(9000, "\xfe" . $payload);
+			}
+		}
+		Pulse::endTick(); Pulse::stop();
+		$data = $this->network($capture);
+		self::assertSame(array_merge(...array_fill(0, count($buffers) * 2, ["packet.handler_validation", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
+		self::assertSame(array_merge($observed, $observed), array_column($data["events"], 5));
+		self::assertSame(array_merge($limits, $limits), array_column($data["events"], 6));
+		self::assertSame(array_merge($ids, $ids), array_column($data["events"], 3));
+		self::assertSame(array_merge(...array_fill(0, count($buffers) * 2, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
+		self::assertSame(array_fill(0, count($buffers) * 4, 1), array_column($data["events"], 1));
+		self::assertSame(array_fill(0, count($buffers) * 4, 1), array_column($data["events"], 2));
+		self::assertSame([count($buffers) * 2, 0, count($buffers) * 2, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
+		$report = $capture->getReport()->encode();
+		self::assertStringNotContainsString("private-name", $report);
+		self::assertStringNotContainsString("192.0.2.1", $report);
+		PulseReport::decode($report);
 	}
 }
