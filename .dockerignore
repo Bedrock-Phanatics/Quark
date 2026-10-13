@@ -1,0 +1,14 @@
+.git
+vendor
+bin
+plugins
+test_data
+docker/test_data
+*.phar
+*.log
+worlds
+players
+plugin_data
+crashdumps
+memory_dumps
+resource_packs

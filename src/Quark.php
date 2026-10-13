@@ -135,7 +135,7 @@ namespace quark {
 				$messages[] = "php-leveldb >= 0.2.1 is required, while you have $leveldb_version.";
 			}
 			if(!defined('LEVELDB_ZLIB_RAW_COMPRESSION')){
-				$messages[] = "Given version of php-leveldb doesn't support ZLIB_RAW compression (use https://github.com/Bedrock-Phanatics/php-leveldb)";
+				$messages[] = "Given version of php-leveldb doesn't support ZLIB_RAW compression (use https://github.com/pmmp/php-leveldb)";
 			}
 		}
 
@@ -251,7 +251,7 @@ JIT_WARNING
 			critical_error("Loaded php.ini: " . (($file = php_ini_loaded_file()) !== false ? $file : "none"));
 			$phprc = getenv("PHPRC");
 			critical_error("Value of PHPRC environment variable: " . ($phprc === false ? "" : $phprc));
-			critical_error("Please recompile PHP with the needed configuration, or refer to the installation instructions at http://quark.rtfd.io/en/rtfd/installation.html.");
+			critical_error("Please recompile PHP with the needed configuration, or refer to the installation instructions at https://github.com/Bedrock-Phanatics/Quark/blob/v6.0.0/BUILDING.md.");
 			echo PHP_EOL;
 			exit(1);
 		}

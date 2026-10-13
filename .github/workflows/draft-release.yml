@@ -1,164 +1,102 @@
-name: Draft release
-
-permissions:
-  contents: write
+name: Draft Quark release
 
 on:
-  #presume that pull_request_target is safe at this point, since the PR was approved and merged
-  #we need write access to prepare the release & create comments
-  pull_request_target:
-    types:
-      - closed
-    branches:
-      - stable
-      - minor-next
-      - major-next
-      - "legacy/*"
-    paths:
-      - "src/VersionInfo.php"
   push:
-    tags:
-      - "*"
+    tags: ['[0-9]*', 'v[0-9]*']
 
-env:
-  PHP_VERSION: "8.4"
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  skip:
-    name: Check whether to ignore this tag
+  checks:
+    uses: ./.github/workflows/main.yml
+
+  build:
+    needs: checks
     runs-on: ubuntu-22.04
-
+    timeout-minutes: 20
     outputs:
-      skip: ${{ steps.exists.outputs.exists == 'true' }}
-
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
-      - name: Check if release already exists
-        id: exists
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          exists=false
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            tag="$(echo "${{ github.ref }}" | cut -d/ -f3-)"
-            if gh release view "$tag" --repo "${{ github.repository }}"; then
-              exists=true
-            fi
-          fi
-          echo exists=$exists >> $GITHUB_OUTPUT
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-  check:
-    needs: [skip]
-    if: needs.skip.outputs.skip != 'true'
-    name: Check release
-    uses: ./.github/workflows/draft-release-pr-check.yml
+      - uses: ./.github/actions/setup-php
+        with:
+          php: '8.4'
+          dev: 'false'
+
+      - name: Validate release version
+        id: version
+        run: |
+          version=$(php build/dump-version-info.php base_version)
+          test "${GITHUB_REF_NAME#v}" = "$version"
+          test "$(php build/dump-version-info.php is_dev)" = false
+          test "$(php build/dump-version-info.php suffix_valid)" = true
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(php build/dump-version-info.php prerelease)" >> "$GITHUB_OUTPUT"
+
+      - name: Build release artifacts
+        run: |
+          php vendor/axolotl-pm/bedrock-data/.minify_json.php
+          php -dphar.readonly=0 build/server-phar.php --git "$GITHUB_SHA" --build "$GITHUB_RUN_NUMBER"
+          php build/generate-build-info-json.php \
+            "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" \
+            "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_ID" \
+            https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/pm5-php-8.4-latest \
+            > build_info.json
+          php tools/generate-permission-doc.php rst
+          test -s Quark.phar
+          test -s build_info.json
+          test -s core-permissions.rst
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: quark-release
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            Quark.phar
+            start.sh
+            start.cmd
+            build_info.json
+            core-permissions.rst
 
   draft:
-    name: Create GitHub draft release
-    needs: [check]
-    if: needs.check.outputs.valid == 'true' || github.ref_type == 'tag' #ignore validity check for tags
-
+    needs: build
     runs-on: ubuntu-22.04
-
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          submodules: true
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@2.37.2
-        with:
-          php-version: ${{ env.PHP_VERSION }}
-
-      - name: Restore Composer package cache
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/composer/files
-            ~/.cache/composer/vcs
-          key: "composer-v2-cache-${{ hashFiles('./composer.lock') }}"
-          restore-keys: |
-            composer-v2-cache-
-
-      - name: Install Composer dependencies
-        run: composer install --no-dev --prefer-dist --no-interaction --ignore-platform-reqs
-
-      - name: Calculate build number
-        id: build-number
-        run: |
-          BUILD_NUMBER=$((2300+$GITHUB_RUN_NUMBER)) #to stay above jenkins
-          echo "Build number: $BUILD_NUMBER"
-          echo BUILD_NUMBER=$BUILD_NUMBER >> $GITHUB_OUTPUT
-
-      - name: Minify BedrockData JSON files
-        run: php vendor/axolotl-pm/bedrock-data/.minify_json.php
-
-      - name: Build Quark.phar
-        run: php -dphar.readonly=0 build/server-phar.php --git ${{ github.sha }} --build ${{ steps.build-number.outputs.BUILD_NUMBER }}
-
-      - name: Get Quark release version
-        id: get-pm-version
-        run: |
-          PM_VERSION=$(php build/dump-version-info.php base_version)
-          echo PM_VERSION=$PM_VERSION >> $GITHUB_OUTPUT
-          echo PM_MAJOR=$(php build/dump-version-info.php major_version) >> $GITHUB_OUTPUT
-          echo MCPE_VERSION=$(php build/dump-version-info.php mcpe_version) >> $GITHUB_OUTPUT
-          echo MCPE_DISPLAY_VERSION=$(php build/dump-version-info.php mcpe_display_version) >> $GITHUB_OUTPUT
-          echo CHANGELOG_FILE_NAME=$(php build/dump-version-info.php changelog_file_name) >> $GITHUB_OUTPUT
-          echo CHANGELOG_MD_HEADER=$(php build/dump-version-info.php changelog_md_header) >> $GITHUB_OUTPUT
-          echo PRERELEASE=$(php build/dump-version-info.php prerelease) >> $GITHUB_OUTPUT
-
-          if [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
-            tag="$(echo "${{ github.ref }}" | cut -d/ -f3-)"
-          else
-            tag="$PM_VERSION"
-          fi
-          echo TAG_NAME=$tag >> $GITHUB_OUTPUT
-
-      - name: Generate PHP binary download URL
-        id: php-binary-url
-        run: |
-          echo PHP_BINARY_URL="https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/pm5-php-${{ env.PHP_VERSION }}-latest" >> $GITHUB_OUTPUT
-
-      - name: Generate build info
-        run: |
-          php build/generate-build-info-json.php \
-            ${{ github.sha }} \
-            ${{ steps.get-pm-version.outputs.TAG_NAME }} \
-            ${{ github.repository }} \
-            ${{ steps.build-number.outputs.BUILD_NUMBER }} \
-            ${{ github.run_id }} \
-            ${{ steps.php-binary-url.outputs.PHP_BINARY_URL }} \
-            > build_info.json
-
-      - name: Generate core permission documentation
-        run: php tools/generate-permission-doc.php rst
-
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: release_artifacts
-          path: |
-            ${{ github.workspace }}/Quark.phar
-            ${{ github.workspace }}/start.*
-            ${{ github.workspace }}/build_info.json
-            ${{ github.workspace }}/core-permissions.rst
+          name: quark-release
+          path: release
 
       - name: Create draft release
-        uses: ncipollo/release-action@v1.21.0
-        id: create-draft
-        with:
-          artifacts: ${{ github.workspace }}/Quark.phar,${{ github.workspace }}/start.*,${{ github.workspace }}/build_info.json,${{ github.workspace }}/core-permissions.rst
-          commit: ${{ github.sha }}
-          draft: true
-          prerelease: ${{ steps.get-pm-version.outputs.PRERELEASE }}
-          name: Quark ${{ steps.get-pm-version.outputs.PM_VERSION }}
-          tag: ${{ steps.get-pm-version.outputs.TAG_NAME }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            **For Minecraft: Bedrock Edition ${{ steps.get-pm-version.outputs.MCPE_VERSION }} (display version ${{ steps.get-pm-version.outputs.MCPE_DISPLAY_VERSION }})**
-
-            Please see the [changelog](${{ github.server_url }}/${{ github.repository }}/blob/${{ steps.get-pm-version.outputs.TAG_NAME }}/CHANGELOG.md) for details.
-
-            :information_source: Download the recommended PHP binary [here](${{ steps.php-binary-url.outputs.PHP_BINARY_URL }}).
-
-            :warning: Found a bug? Report it on our [issue tracker](${{ github.server_url }}/${{ github.repository }}/issues). **We can't fix bugs if you don't report them.**
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release already exists; leaving it unchanged.'
+            exit 0
+          fi
+          printf '%s\n' \
+            "See the [Quark changelog](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md)." \
+            '' \
+            'Requires 64-bit PHP 8.4 and the extensions in composer.json.' \
+            'Download the recommended runtime from https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/pm5-php-8.4-latest.' \
+            > release-notes.md
+          flags=(--draft)
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "Quark $VERSION" \
+            --notes-file release-notes.md "${flags[@]}"

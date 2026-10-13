@@ -15,7 +15,7 @@ Quark is built for servers where tick stability and responsive combat matter equ
 </p>
 
 > [!IMPORTANT]
-> Quark 6 requires **64-bit PHP 8.4** and Quark-compatible native extensions. It is a breaking release and does not load PocketMine-MP plugins without migration.
+> Quark 6 requires **64-bit PHP 8.4 or 8.5** and Quark-compatible native extensions. It is a breaking release and does not load PocketMine-MP plugins without migration.
 
 ## Features
 
@@ -40,7 +40,7 @@ See the complete [Quark 6.0.0 changelog](CHANGELOG.md) and [PocketMine-MP 5.47 m
 ## Requirements
 
 - A 64-bit operating system
-- PHP 8.4
+- PHP 8.4 or 8.5
 - The extensions listed in `composer.json`
 - `ext-snappy` when using Snappy compression
 
@@ -85,6 +85,8 @@ The source template is available at [resources/quark.yml](resources/quark.yml).
 ## Plugin development
 
 Quark plugins use the `quark\` PHP namespace and target `quark/quark` through Composer. Plugins written for PocketMine-MP 5.x must be migrated and rebuilt.
+
+Declare plugin API `6.0.0`. Quark does not advertise Composer compatibility with `pocketmine/pocketmine-mp`; its external `pocketmine/*` and `axolotl-pm/*` library identifiers remain unchanged.
 
 Before submitting changes, run:
 

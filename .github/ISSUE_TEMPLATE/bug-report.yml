@@ -10,7 +10,7 @@ body:
         > It's strongly recommended to test for bugs without plugins before reporting an issue.
         > This helps avoid wasting maintainers' time on bugs that are not actually caused by Quark.
         >
-        > If you're not sure whether a plugin might be causing your issue, please seek help on our [Discord](https://discord.gg/bmSAZBG) before writing an issue.
+        > If you're not sure whether a plugin might be causing your issue, please seek help on our [Discord](https://discord.gg/Yv9qPRQNc3) before writing an issue.
 
   - type: dropdown
     attributes:

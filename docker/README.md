@@ -1,5 +1,5 @@
 # Quark Docker image
-This folder contains the files used to build and test the `ghcr.io/quark/quark` Docker image.
+This folder contains the files used to build and test the `ghcr.io/bedrock-phanatics/quark` Docker image.
 
 Docker is an easy, safe way to run software in a container where it can't affect anything else on your machine.
 You don't need to build any dependencies, and updating is as simple as changing the version number of the image you're using.
@@ -15,12 +15,12 @@ mkdir wherever-you-want
 cd wherever-you-want
 mkdir data plugins
 sudo chown -R 1000:1000 data plugins
-docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/quark/quark
+docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/bedrock-phanatics/quark
 ```
 
 To run a specific version, just add it to the end of the command, like this:
 ```
-docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/quark/quark:5.46.0
+docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/bedrock-phanatics/quark:<release-tag>
 ```
 
 ## Changing the server port
@@ -44,7 +44,7 @@ This is needed to make the server able to access the file/folder.
 Plugins can be added by putting them in `plugins` folder you created earlier.
 
 
-**Note: If you add new files, don't forget to change the ownership of the file/folder to `1000:1000`:
+**Note: If you add new files, don't forget to change the ownership of the file/folder to `1000:1000`**:
 ```
 sudo chown -R 1000:1000 <file/folder you added>
 ```
@@ -57,9 +57,9 @@ This will run the server in the background even if you closed console. (No need 
 ### Opening the console of the server
 Use `docker ps` to see a list of running containers. It will look like this:
 ```
-user@DYLANS-PC:~/pm-docker-test$ docker ps
+user@DYLANS-PC:~/quark-docker-test$ docker ps
 CONTAINER ID   IMAGE                                     COMMAND                  CREATED         STATUS         PORTS                                                                              NAMES
-dc20edd3dd62   ghcr.io/quark/quark:5.46.0   "start-quark"       7 seconds ago   Up 6 seconds   19132/tcp, 0.0.0.0:19132-19133->19132-19133/udp, :::19132-19133->19132-19133/udp   brave_dijkstra
+dc20edd3dd62   ghcr.io/bedrock-phanatics/quark:<release-tag>   "start-quark"       7 seconds ago   Up 6 seconds   19132/tcp, 0.0.0.0:19132-19133->19132-19133/udp, :::19132-19133->19132-19133/udp   brave_dijkstra
 ```
 In this case, the container name is `brave_dijkstra`, but it might be something else in your case.
 
@@ -89,3 +89,13 @@ The `QUARK_ARGS` environment variable will be passed to `Quark.phar` when run.
 ## Building this image
 The Dockerfile requires a build-arg `GIT_HASH` to fill the git hash metadata when building `Quark.phar`.
 This ensures that `/version`, crash reports, logs etc. report the correct server version.
+
+Initialize the pinned PHP compiler before building:
+
+```bash
+git submodule update --init build/php
+docker build --build-arg GIT_HASH="$(git rev-parse HEAD)" -f docker/Dockerfile -t local-quark .
+bash docker/test.sh local-quark
+```
+
+Use a published release tag in place of `<release-tag>`. The smoke test checks startup, API 6.0.0 plugin loading, and data persistence across separate containers.

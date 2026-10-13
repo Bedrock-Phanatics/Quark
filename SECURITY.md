@@ -13,7 +13,7 @@ Send a _**private security report**_ by going to https://github.com/Bedrock-Phan
 >
 > **You may put live Quark servers at risk by reporting a vulnerability on the GitHub issue tracker.**
 
-### Report via email
+### What to include
 
 Please use GitHub private vulnerability reporting so security reports are not disclosed publicly.
 Include the following information:
@@ -21,8 +21,6 @@ Include the following information:
 - Version of Quark
 - Detailed description of the vulnerability (e.g. how to exploit it, what the effects are)
 - Your GitHub username, if you wish to be credited for reporting the problem in the security advisory
-
-Please note that we can't guarantee a reply to every email.
 
 ## FAQ
 ### Do you offer a bug bounty?

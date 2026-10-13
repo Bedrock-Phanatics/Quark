@@ -6,7 +6,7 @@ Quark 6 is based on PocketMine-MP 5.47.0, but it is not a drop-in replacement. T
 
 ### Namespace
 
-Replace imports and fully qualified class names under `pocketmine\` with `quark\`.
+Replace imports and fully qualified names for server-core classes under `pocketmine\` with `quark\`. Keep external library namespaces such as `pocketmine\math`, `pocketmine\nbt`, and `pocketmine\network\mcpe\protocol` unchanged.
 
 ```php
 // Before
@@ -21,6 +21,8 @@ Update reflection strings, serialized class names, PHPStan configuration, test n
 ### Composer
 
 Target `quark/quark` for the server. Quark continues to use the existing `axolotl-pm/*` and `pocketmine/*` library packages, so plugins may keep direct dependencies on those libraries where appropriate. Regenerate the lock file and autoloader after changing the root server dependency.
+
+Quark no longer declares that it replaces `pocketmine/pocketmine-mp`: API 6 and the `quark\` core namespace are incompatible with the PocketMine-MP 5 server API.
 
 ### Runtime files
 

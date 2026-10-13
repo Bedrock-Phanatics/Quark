@@ -4,11 +4,7 @@ Small contributions (e.g. minor bug fixes) can be submitted as pull requests dir
 
 Larger contributions like feature additions should be preceded by a [Change Proposal](#rfcs--change-proposals) to allow maintainers and other people to discuss and decide if it's a good idea or not.
 
-> [!TIP]
-> Want to contribute (non-English) translations? Visit our
-> [Crowdin Translation Project](https://crowdin.com/project/quark) instead.
->
-> Translations need to go through a different review process, so we can't accept changes to them in PRs.
+> Translation changes are reviewed through pull requests. See [translation guidance](resources/translations/README.md).
 
 ## Useful documentation from github.com
 - [About pull requests](https://docs.github.com/en/github/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests)
@@ -18,60 +14,31 @@ Larger contributions like feature additions should be preceded by a [Change Prop
 ## Other things you'll need
 - [git](https://git-scm.com/)
 
-## List of `quark` namespaces which are in other repos
-Quark has several dependencies which are independent from the main server code. Most of them use the `quark` namespace.
+## Dependencies maintained in other repositories
+Quark has several independent dependencies. Their external package names and namespaces remain unchanged.
 Some of these add extra classes to packages which already exist in Quark.
 
 Take a look at the table below if you can't find the class or function you're looking for.
 
 | Source URL                                                      | Namespace, class or function                                                                                                             |
 |:----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------|
-| [quark/BedrockProtocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | `pocketmine\network\mcpe\protocol`                                                                                                       |
-| [quark/BinaryUtils](https://github.com/Bedrock-Phanatics/BinaryUtils)         | `pocketmine\utils\BinaryDataException`</br>`pocketmine\utils\BinaryStream`</br>`pocketmine\utils\Binary`                                 |
-| [quark/Color](https://github.com/Bedrock-Phanatics/Color)                     | `pocketmine\color`                                                                                                                       |
-| [quark/ErrorHandler](https://github.com/Bedrock-Phanatics/ErrorHandler)       | `pocketmine\errorhandler`                                                                                                                |
-| [quark/Log](https://github.com/Bedrock-Phanatics/Log)                         | `AttachableLogger`</br>`BufferedLogger`</br>`GlobalLogger`</br>`LogLevel`</br>`Logger`</br>`PrefixedLogger`</br>`SimpleLogger`           |
-| [quark/Math](https://github.com/Bedrock-Phanatics/Math)                       | `pocketmine\math`                                                                                                                        |
-| [quark/NBT](https://github.com/Bedrock-Phanatics/NBT)                         | `pocketmine\nbt`                                                                                                                         |
-| [quark/RakLibIpc](https://github.com/Bedrock-Phanatics/RakLibIpc)             | `raklib\server\ipc`                                                                                                                      |
-| [quark/RakLib](https://github.com/Bedrock-Phanatics/RakLib)                   | `raklib`                                                                                                                                 |
-| [quark/Snooze](https://github.com/Bedrock-Phanatics/Snooze)                   | `pocketmine\snooze`                                                                                                                      |
-| [quark/ext-chunkutils2](https://github.com/Bedrock-Phanatics/ext-chunkutils2) | `pocketmine\world\format\LightArray`</br>`pocketmine\world\format\PalettedBlockArray`</br>`pocketmine\world\format\io\SubChunkConverter` |
-| [quark/ext-morton](https://github.com/Bedrock-Phanatics/ext-morton)           | `morton2d_decode`</br>`morton2d_encode`</br>`morton3d_decode`</br>`morton3d_encode`                                                      |
-| [quark/ext-libdeflate](https://github.com/Bedrock-Phanatics/ext-libdeflate)   | `libdeflate_deflate_compress`</br>`libdeflate_gzip_compress`</br>`libdeflate_zlib_compress`                                              |
+| [axolotl-pm/bedrock-protocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | `pocketmine\network\mcpe\protocol`                                                                                                       |
+| [pocketmine/binaryutils](https://github.com/pmmp/BinaryUtils)         | `pocketmine\utils\BinaryDataException`</br>`pocketmine\utils\BinaryStream`</br>`pocketmine\utils\Binary`                                 |
+| [pocketmine/color](https://github.com/pmmp/Color)                     | `pocketmine\color`                                                                                                                       |
+| [pocketmine/errorhandler](https://github.com/pmmp/ErrorHandler)       | `pocketmine\errorhandler`                                                                                                                |
+| [pocketmine/log](https://github.com/pmmp/Log)                         | `AttachableLogger`</br>`BufferedLogger`</br>`GlobalLogger`</br>`LogLevel`</br>`Logger`</br>`PrefixedLogger`</br>`SimpleLogger`           |
+| [pocketmine/math](https://github.com/pmmp/Math)                       | `pocketmine\math`                                                                                                                        |
+| [pocketmine/nbt](https://github.com/pmmp/NBT)                         | `pocketmine\nbt`                                                                                                                         |
+| [pocketmine/raklib-ipc](https://github.com/pmmp/RakLibIpc)             | `raklib\server\ipc`                                                                                                                      |
+| [pocketmine/raklib](https://github.com/pmmp/RakLib)                   | `raklib`                                                                                                                                 |
+| [pocketmine/snooze](https://github.com/pmmp/Snooze)                   | `pocketmine\snooze`                                                                                                                      |
+| [pmmp/ext-chunkutils2](https://github.com/pmmp/ext-chunkutils2) | `pocketmine\world\format\LightArray`</br>`pocketmine\world\format\PalettedBlockArray`</br>`pocketmine\world\format\io\SubChunkConverter` |
+| [pmmp/ext-morton](https://github.com/pmmp/ext-morton)           | `morton2d_decode`</br>`morton2d_encode`</br>`morton3d_decode`</br>`morton3d_encode`                                                      |
+| [pmmp/ext-libdeflate](https://github.com/pmmp/ext-libdeflate)   | `libdeflate_deflate_compress`</br>`libdeflate_gzip_compress`</br>`libdeflate_zlib_compress`                                              |
 
 ## Choosing a target branch
-Quark has three primary branches of development.
 
-| Type of change                                                                                           | `stable` |          `minor-next`           | `major-next` |
-|:---------------------------------------------------------------------------------------------------------|:--------:|:-------------------------------:|:------------:|
-| Bug fixes                                                                                                |    ✔️    |               ✔️                |      ✔️      |
-| Improvements to API docs                                                                                 |    ✔️    |               ✔️                |      ✔️      |
-| Fixing base (`eng.ini`) language strings, or adding new ones                                             |    ✔️    |               ✔️                |      ✔️      |
-| Changes to existing base (`eng.ini`) language strings (e.g. changing parameters, renaming/removing keys) |    ❌     |               ✔️                |      ✔️      |
-| Cleaning up code                                                                                         |    ❌     |               ✔️                |      ✔️      |
-| Changing code formatting or style                                                                        |    ❌     |               ✔️                |      ✔️      |
-| Addition of new core features                                                                            |    ❌     |    🟡 Only if non-disruptive    |      ✔️      |
-| Changing core behaviour (e.g. making something use threads)                                              |    ❌     |               ✔️                |      ✔️      |
-| Addition of new configuration options                                                                    |    ❌     |       🟡 Only if optional       |      ✔️      |
-| Addition of new API classes, methods or constants                                                        |    ❌     |               ✔️                |      ✔️      |
-| Deprecating API classes, methods or constants                                                            |    ❌     |               ✔️                |      ✔️      |
-| Adding optional parameters to an API method                                                              |    ❌     |               ✔️                |      ✔️      |
-| Changing API behaviour                                                                                   |    ❌     | 🟡 Only if backwards-compatible |      ✔️      |
-| Removal of API                                                                                           |    ❌     |                ❌                |      ✔️      |
-| Backwards-incompatible API change (e.g. renaming a method)                                               |    ❌     |                ❌                |      ✔️      |
-| Backwards-incompatible internals change (e.g. changing things in `quark\network\mcpe`)              |    ❌     |               ✔️                |      ✔️      |
-
-### Notes
-- **Non-disruptive** means that usage should not be significantly altered by the change.
-  - Examples of **non-disruptive** changes include adding new commands, or gameplay features like blocks and items.
-  - Examples of **disruptive** changes include changing the way the server is run, world format changes (since those require downtime for the user to convert their world).
-- **API** includes all public and protected classes, functions and constants (unless marked as `@internal`).
-  - Private members are not part of the API, **unless in a trait**.
-  - The `quark\network\mcpe` package is considered implicitly `@internal` in its entirety (see its [README](src/network/mcpe/README.md) for more details).
-- Minecraft's protocol changes are considered necessary internal changes, and are **not** subject to the same rules.
-  - Protocol changes must always be released in a new minor version, since they disrupt user experience by requiring a client update.
-- BC-breaking changes to the internal network API are allowed, but only in new minor versions. This ensures that plugins which use the internal network API will not break (though they shouldn't use such API anyway).
+Target `v6.0.0` for Quark 6 changes. Verify the base branch before opening a pull request.
 
 ## Making a pull request
 The basic procedure to create a pull request is:
@@ -88,11 +55,11 @@ You can use these tools to check your code locally before you commit, which help
 | Tool | Purpose | Installing | Running |
 |:--------|:---------|:----------|:------------|
 | [PHPStan](https://phpstan.org) | Finds mistakes in code, e.g. wrong types, undefined functions | `composer install` | `vendor/bin/phpstan` |
-| [PHPUnit](https://phpunit.de/index.html) | Runs tests on code to verify behaviour | `composer install` | `vendor/bin/phpunit tests/phpunit` |
+| [PHPUnit](https://phpunit.de/index.html) | Runs tests on code to verify behaviour | `composer install` | `vendor/bin/phpunit --bootstrap vendor/autoload.php --fail-on-warning tests/phpunit` |
 | [PHP-CS-Fixer](https://github.com/FriendsOfPHP/PHP-CS-Fixer) | Fixes (some) code style issues | [Download phar](https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/releases) | `php php-cs-fixer.phar fix` |
 
 > [!WARNING]
-> These tools are automatically run by GitHub Actions on every commit pushed to GitHub.
+> These tools are run by GitHub Actions for pull requests, maintained branch pushes, and manual CI dispatches.
 > However, you should not rely on this to find errors in your code, as it will slow you down, and also generate notification spam for everyone watching the repository.
 
 > [!TIP]
@@ -111,7 +78,7 @@ Depending on the changes, maintainers might ask you to make changes to the PR to
 > Don't worry about getting a PR perfect on the first try.
 > In fact, it's quite unusual for a PR to be perfect when it's first submitted, and most PRs will get changes requested by reviewers, even when the PR is made by one of our team members.
 >
-> Mistakes are normal, and QUARK team members will review your code and suggest changes to your code as needed.
+> Mistakes are normal, and Quark team members will review your code and suggest changes to your code as needed.
 > Just make sure to stick with it so you can communicate with reviewers and/or make changes.
 
 ### Requirements

@@ -8,13 +8,13 @@ body:
         > [!CAUTION]
         > If the crash can be triggered over the network (e.g. by a player / hack client), DO NOT report it here.
         > 
-        > Read our [Security Policy](https://github.com/Bedrock-Phanatics/Quark/blob/stable/SECURITY.md) first.
+        > Read our [Security Policy](https://github.com/Bedrock-Phanatics/Quark/blob/v6.0.0/SECURITY.md) first.
 
         > [!TIP]
         > Don't paste raw crashdump data into the issue.
         >
         > Attach the local crashdump `.log` file to the issue after checking it for sensitive information.
-        > If you can't submit the crashdump to the Crash Archive, paste it on a site like [GitHub Gist](https://gist.github.com) or [Pastebin](https://pastebin.com).
+        > You may also link a reviewed crashdump using [GitHub Gist](https://gist.github.com).
 
   - type: input
     id: crashdump-url
