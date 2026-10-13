@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\data\bedrock\LegacyEntityIdToStringIdMap;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use quark\data\bedrock\LegacyEntityIdToStringIdMap;
 
 /**
  * @deprecated

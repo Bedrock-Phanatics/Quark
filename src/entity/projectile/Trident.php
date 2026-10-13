@@ -23,20 +23,20 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
+use pocketmine\math\RayTraceResult;
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\block\Block;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
 use quark\entity\Location;
 use quark\event\entity\EntityItemPickupEvent;
 use quark\item\Item;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\player\Player;
 use quark\world\sound\TridentHitBlockSound;
 use quark\world\sound\TridentHitEntitySound;

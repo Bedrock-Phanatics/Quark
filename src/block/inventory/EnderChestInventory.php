@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\inventory;
 
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\tile\EnderChest;
 use quark\inventory\DelegateInventory;
 use quark\inventory\Inventory;
 use quark\inventory\PlayerEnderInventory;
-use pocketmine\network\mcpe\protocol\BlockEventPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\player\Player;
 use quark\world\Position;
 use quark\world\sound\EnderChestCloseSound;

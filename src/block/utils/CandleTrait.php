@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
+use pocketmine\math\RayTraceResult;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\entity\projectile\Projectile;
 use quark\item\Durable;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\BlazeShootSound;
 use quark\world\sound\FireExtinguishSound;

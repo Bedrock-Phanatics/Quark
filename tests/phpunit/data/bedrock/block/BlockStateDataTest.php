@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\data\bedrock\block;
 
 use PHPUnit\Framework\TestCase;
-use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaUtils;
 use Symfony\Component\Filesystem\Path;
 use function sprintf;

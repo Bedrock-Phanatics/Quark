@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 final class Light extends Flowable{

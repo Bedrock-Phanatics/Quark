@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
+use pocketmine\network\mcpe\protocol\ActorEventPacket;
+use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\protocol\ActorEventPacket;
-use pocketmine\network\mcpe\protocol\types\ActorEvent;
 
 final class ConsumingItemAnimation implements Animation{
 

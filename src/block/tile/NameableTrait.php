@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\item\Item;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
+use quark\item\Item;
 
 /**
  * This trait implements most methods in the {@link Nameable} interface. It should only be used by Tiles.

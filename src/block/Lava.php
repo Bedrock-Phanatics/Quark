@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\entity\Entity;
 use quark\event\entity\EntityCombustByBlockEvent;
 use quark\event\entity\EntityDamageByBlockEvent;
 use quark\event\entity\EntityDamageEvent;
-use pocketmine\math\Facing;
 use quark\world\sound\BucketEmptyLavaSound;
 use quark\world\sound\BucketFillLavaSound;
 use quark\world\sound\Sound;

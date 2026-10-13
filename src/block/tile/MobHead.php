@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\utils\MobHeadType;
-use quark\data\bedrock\MobHeadTypeIdMap;
-use quark\data\SavedDataLoadingException;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
+use quark\block\utils\MobHeadType;
+use quark\data\bedrock\MobHeadTypeIdMap;
+use quark\data\SavedDataLoadingException;
 use function floor;
 
 /**

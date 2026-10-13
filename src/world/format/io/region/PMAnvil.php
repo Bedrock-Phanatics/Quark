@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\region;
 
-use quark\block\Block;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\world\format\PalettedBlockArray;
+use quark\block\Block;
 use quark\world\format\SubChunk;
 
 /**

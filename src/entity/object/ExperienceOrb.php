@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
-use quark\entity\Entity;
-use quark\entity\EntitySizeInfo;
-use quark\entity\Human;
-use quark\entity\Location;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use quark\entity\Entity;
+use quark\entity\EntitySizeInfo;
+use quark\entity\Human;
+use quark\entity\Location;
 use quark\player\Player;
 use function max;
 use function sqrt;

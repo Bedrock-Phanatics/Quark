@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\utils\StaticSupportTrait;
 use quark\entity\effect\EffectInstance;
 use quark\entity\effect\VanillaEffects;
 use quark\entity\Entity;
 use quark\entity\Living;
-use pocketmine\math\Facing;
 
 class WitherRose extends Flowable{
 	use StaticSupportTrait;

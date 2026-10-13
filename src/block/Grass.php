@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\DirtType;
 use quark\item\Fertilizer;
 use quark\item\Hoe;
 use quark\item\Item;
 use quark\item\Shovel;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\utils\Random;
 use quark\world\generator\object\TallGrass as TallGrassObject;

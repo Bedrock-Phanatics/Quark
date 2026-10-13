@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block;
 
-use quark\data\bedrock\WorldDataVersions;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\Tag;
+use quark\data\bedrock\WorldDataVersions;
 use quark\utils\Utils;
 use quark\VersionInfo;
 use function array_keys;

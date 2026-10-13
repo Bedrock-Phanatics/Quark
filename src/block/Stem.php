@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\CropGrowthHelper;
 use quark\block\utils\FortuneDropHelper;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Facing;
 use function array_rand;
 
 abstract class Stem extends Crops{

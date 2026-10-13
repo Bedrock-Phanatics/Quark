@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
+use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\VanillaBlocks;
 use quark\entity\Location;
 use quark\entity\object\FallingBlock;
-use pocketmine\math\Facing;
 use quark\utils\AssumptionFailedError;
 use quark\world\Position;
 use quark\world\sound\Sound;

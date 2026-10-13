@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\inventory\BarrelInventory;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\inventory\BarrelInventory;
 use quark\world\World;
 
 class Barrel extends Spawnable implements Container, Nameable{

@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\inventory\ChestInventory;
-use quark\block\inventory\DoubleChestInventory;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use quark\block\inventory\ChestInventory;
+use quark\block\inventory\DoubleChestInventory;
 use quark\world\format\Chunk;
 use quark\world\World;
 use function abs;

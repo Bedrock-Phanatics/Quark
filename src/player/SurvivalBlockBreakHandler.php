@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\player;
 
-use quark\block\Block;
-use quark\entity\animation\ArmSwingAnimation;
-use quark\entity\effect\VanillaEffects;
-use quark\item\enchantment\VanillaEnchantments;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\block\Block;
+use quark\entity\animation\ArmSwingAnimation;
+use quark\entity\effect\VanillaEffects;
+use quark\item\enchantment\VanillaEnchantments;
 use quark\world\particle\BlockPunchParticle;
 use quark\world\sound\BlockPunchSound;
 use function abs;

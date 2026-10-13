@@ -119,4 +119,4 @@ fwrite($file, "}\n");
 
 fclose($file);
 
-echo "Done. Don't forget to run CS fixup after generating code.\n";
+echo "Done generating QuarkYmlKeys.\n";

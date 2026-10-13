@@ -23,6 +23,12 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\convert;
 
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
+use pocketmine\nbt\tag\ByteTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\StringTag;
+use pocketmine\nbt\tag\Tag;
 use quark\block\utils\BellAttachmentType;
 use quark\block\utils\SlabType;
 use quark\block\utils\WallConnectionType;
@@ -34,12 +40,6 @@ use quark\data\bedrock\block\BlockStateStringValues as StringValues;
 use quark\data\bedrock\block\convert\property\EnumFromRawStateMap;
 use quark\data\bedrock\block\convert\property\IntFromRawStateMap;
 use quark\data\bedrock\block\convert\property\ValueMappings;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\nbt\tag\ByteTag;
-use pocketmine\nbt\tag\IntTag;
-use pocketmine\nbt\tag\StringTag;
-use pocketmine\nbt\tag\Tag;
 use function array_keys;
 use function count;
 use function get_class;

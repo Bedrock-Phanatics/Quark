@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\data\runtime;
 
-use quark\block\utils\BrewingStandSlot;
-use quark\block\utils\WallConnectionType;
 use pocketmine\math\Axis;
 use pocketmine\math\Facing;
+use quark\block\utils\BrewingStandSlot;
+use quark\block\utils\WallConnectionType;
 use function array_flip;
 use function log;
 use function spl_object_id;

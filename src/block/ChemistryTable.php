@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 final class ChemistryTable extends Opaque implements HorizontalFacing{

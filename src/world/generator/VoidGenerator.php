@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\world\generator;
 
+use pocketmine\world\format\PalettedBlockArray;
 use quark\block\Block;
 use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
 use quark\world\ChunkManager;
 use quark\world\format\Chunk;
-use pocketmine\world\format\PalettedBlockArray;
 use quark\world\format\SubChunk;
 
 class VoidGenerator extends Generator{

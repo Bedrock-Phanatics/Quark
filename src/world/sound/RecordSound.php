@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use quark\block\utils\RecordType;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\PlaySoundPacket;
 use pocketmine\network\mcpe\protocol\RecordStartedPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\block\utils\RecordType;
 
 class RecordSound implements Sound{
 	public function __construct(

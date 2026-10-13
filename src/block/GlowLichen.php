@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\MultiAnyFacing;
 use quark\block\utils\MultiAnySupportTrait;
 use quark\block\utils\SupportType;
 use quark\item\Fertilizer;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\World;
 use function count;

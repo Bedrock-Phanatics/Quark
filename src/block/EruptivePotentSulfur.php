@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\event\block\GeyserEruptionPulseEvent;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use quark\event\block\GeyserEruptionPulseEvent;
 use quark\player\Player;
 use quark\world\sound\Sound;
 use function mt_rand;

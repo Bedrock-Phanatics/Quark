@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\tile\MobHead as TileMobHead;
 use quark\block\utils\MobHeadType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use function assert;

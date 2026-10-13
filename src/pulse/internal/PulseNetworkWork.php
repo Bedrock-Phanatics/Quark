@@ -57,6 +57,7 @@ final class PulseNetworkWork{
 
 	public function __construct(private readonly int $started, private readonly PulseNetworkWatchdog $watchdog){}
 
+	/** @param int<0, 8> $stage */
 	public function enter(int $session, ?int $protocol, string $phase, ?int $packet, ?int $tick, int $stage) : int{
 		if(!$this->recording){ return 0; }
 		if(count($this->frames) === self::MAX_DEPTH){
@@ -68,11 +69,13 @@ final class PulseNetworkWork{
 		return count($this->frames);
 	}
 
+	/** @param int<0, 8> $stage */
 	private function pack(int $session, ?int $protocol, string $phase, ?int $packet, ?int $tick, int $stage) : string{
 		$now = (int) hrtime(true);
 		return pack("J5N2C", ++$this->sequence, $now, max(0, $now - $this->started), $tick ?? 0, $protocol ?? PHP_INT_MIN, $session, $packet ?? 1024, strlen($phase)) . $phase . chr($stage);
 	}
 
+	/** @param int<0, 8> $stage */
 	public function stage(int $token, int $stage) : void{
 		if(!$this->recording || $token < 1 || $this->overflow > 0 || $token !== count($this->frames)){ return; }
 		$frame = $this->frames[$token - 1];

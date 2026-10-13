@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\utils\FortuneDropHelper;
 use quark\block\utils\Lightable;
 use quark\block\utils\LightableTrait;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use function mt_rand;
 

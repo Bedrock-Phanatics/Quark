@@ -23,16 +23,16 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Axis;
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
 use quark\block\utils\SupportType;
 use quark\entity\Entity;
 use quark\entity\Living;
 use quark\item\Item;
-use pocketmine\math\Axis;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

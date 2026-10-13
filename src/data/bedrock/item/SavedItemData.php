@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\item;
 
-use quark\data\bedrock\block\BlockStateData;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\data\bedrock\block\BlockStateData;
 use quark\VersionInfo;
 
 final class SavedItemData{

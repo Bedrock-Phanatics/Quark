@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world\tnt;
 
-use quark\entity\object\PrimedTNT;
 use pocketmine\math\Vector3;
+use quark\entity\object\PrimedTNT;
 use quark\world\Position;
 use quark\world\World;
 use function array_filter;

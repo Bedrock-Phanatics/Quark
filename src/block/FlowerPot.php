@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\tile\FlowerPot as TileFlowerPot;
-use quark\block\utils\StaticSupportTrait;
-use quark\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\block\tile\FlowerPot as TileFlowerPot;
+use quark\block\utils\StaticSupportTrait;
+use quark\item\Item;
 use quark\player\Player;
 use function assert;
 

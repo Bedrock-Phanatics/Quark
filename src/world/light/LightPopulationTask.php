@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\world\light;
 
+use pocketmine\world\format\LightArray;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\scheduler\AsyncTask;
 use quark\world\format\Chunk;
 use quark\world\format\io\FastChunkSerializer;
-use pocketmine\world\format\LightArray;
 use quark\world\SimpleChunkManager;
 use quark\world\utils\SubChunkExplorer;
 use quark\world\World;

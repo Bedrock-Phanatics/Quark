@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\inventory;
 
-use quark\inventory\SimpleInventory;
 use pocketmine\network\mcpe\protocol\BlockEventPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use quark\inventory\SimpleInventory;
 use quark\world\Position;
 use quark\world\sound\ChestCloseSound;
 use quark\world\sound\ChestOpenSound;

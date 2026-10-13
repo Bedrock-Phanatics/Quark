@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use quark\block\Block;
 use pocketmine\math\Vector3;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\block\Block;
+use quark\network\mcpe\convert\TypeConverter;
 
 /**
  * This particle appears when a player is attacking a block face in survival mode attempting to break it.

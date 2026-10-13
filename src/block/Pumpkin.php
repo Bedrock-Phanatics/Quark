@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\item\Item;
 use quark\item\Shears;
 use quark\item\VanillaItems;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use function in_array;
 

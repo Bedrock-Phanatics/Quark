@@ -24,15 +24,15 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use Generator;
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\Flowable;
 use quark\block\Glowstone;
 use quark\block\Slab;
 use quark\block\utils\SlabType;
 use quark\item\Item;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;use quark\world\redstone\RedstoneManager;
 use quark\world\redstone\RedstoneWorldState;

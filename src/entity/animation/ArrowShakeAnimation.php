@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use quark\entity\projectile\Arrow;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
+use quark\entity\projectile\Arrow;
 
 class ArrowShakeAnimation implements Animation{
 

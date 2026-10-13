@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\BlockEventHelper;
 use quark\item\Fertilizer;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\utils\Random;
 use function count;

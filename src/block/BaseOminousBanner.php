@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\tile\Banner as TileBanner;
 use quark\block\utils\DyeColor;
 use quark\block\utils\SupportType;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use function assert;

@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block\tile\piston;
 
-use quark\block\Block;
-use quark\block\Piston;
-use quark\block\tile\Spawnable;
-use quark\data\bedrock\block\BlockStateNames;
 use pocketmine\math\Facing;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\IntTag;
+use quark\block\Block;
+use quark\block\Piston;
+use quark\block\tile\Spawnable;
+use quark\data\bedrock\block\BlockStateNames;
 use function assert;
 
 class PistonArm extends Spawnable{

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\upgrade;
 
+use pocketmine\nbt\tag\CompoundTag;
 use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\nbt\tag\CompoundTag;
 
 final class BlockDataUpgrader{
 

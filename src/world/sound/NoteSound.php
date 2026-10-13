@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use quark\data\bedrock\NoteInstrumentIdMap;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\data\bedrock\NoteInstrumentIdMap;
 
 class NoteSound implements Sound{
 	public function __construct(

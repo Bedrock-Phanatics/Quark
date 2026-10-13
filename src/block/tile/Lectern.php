@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\nbt\tag\CompoundTag;
 use quark\item\Item;
 use quark\item\WritableBookBase;
-use pocketmine\nbt\tag\CompoundTag;
 use quark\network\mcpe\convert\TypeConverter;
 use function count;
 

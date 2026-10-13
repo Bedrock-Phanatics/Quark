@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\inventory\LoomInventory;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 final class Loom extends Opaque implements HorizontalFacing{

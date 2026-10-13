@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\utils\Ageable;
 use quark\block\utils\AgeableTrait;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\SupportType;
 use quark\event\block\BlockBurnEvent;
-use pocketmine\math\Facing;
 use quark\world\format\Chunk;
 use quark\world\World;
 use function intdiv;

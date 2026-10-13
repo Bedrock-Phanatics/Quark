@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use quark\entity\object\ItemEntity;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
+use quark\entity\object\ItemEntity;
 
 final class ItemEntityStackSizeChangeAnimation implements Animation{
 

@@ -23,17 +23,17 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\utils\ChiseledBookshelfSlot;
-use quark\data\bedrock\item\SavedItemData;
-use quark\data\bedrock\item\SavedItemStackData;
-use quark\inventory\SimpleInventory;
-use quark\item\Item;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\UnexpectedTagTypeException;
+use quark\block\utils\ChiseledBookshelfSlot;
+use quark\data\bedrock\item\SavedItemData;
+use quark\data\bedrock\item\SavedItemStackData;
+use quark\inventory\SimpleInventory;
+use quark\item\Item;
 use quark\world\World;
 use function count;
 

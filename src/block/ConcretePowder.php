@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\Colored;
 use quark\block\utils\ColoredTrait;
 use quark\block\utils\Fallable;
 use quark\block\utils\FallableTrait;
-use pocketmine\math\Facing;
 
 class ConcretePowder extends Opaque implements Fallable, Colored{
 	use ColoredTrait;

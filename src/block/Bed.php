@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\tile\Bed as TileBed;
 use quark\block\utils\Colored;
 use quark\block\utils\ColoredTrait;
@@ -35,9 +38,6 @@ use quark\entity\Entity;
 use quark\entity\Living;
 use quark\item\Item;
 use quark\lang\KnownTranslationFactory;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\utils\TextFormat;
 use quark\world\BlockTransaction;

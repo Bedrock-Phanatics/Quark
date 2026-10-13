@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
@@ -30,8 +32,6 @@ use quark\entity\Living;
 use quark\event\block\FarmlandHydrationChangeEvent;
 use quark\event\entity\EntityTrampleFarmlandEvent;
 use quark\item\Item;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\utils\Utils;
 use function intdiv;
 
@@ -59,7 +59,7 @@ class Farmland extends Transparent{
 	 * will be recorded if water is found, otherwise it will be set to unknown and future searches will search the full
 	 * 9x2x9 volume again.
 	 *
-	 * This property is not exposed to the API or saved on disk. It is only used by PocketMine-MP at runtime as a cache.
+	 * This property is not exposed to the API or saved on disk. It is only used by Quark at runtime as a cache.
 	 */
 	private int $waterPositionIndex = self::WATER_POSITION_INDEX_UNKNOWN;
 

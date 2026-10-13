@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\StaticSupportTrait;
 use quark\block\utils\TallGrassTrait;
 use quark\item\Fertilizer;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 class TallGrass extends Flowable{

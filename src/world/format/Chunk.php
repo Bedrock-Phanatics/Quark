@@ -26,7 +26,6 @@ declare(strict_types=1);
 
 namespace quark\world\format;
 
-use pocketmine\world\format\LightArray;
 use pocketmine\world\format\PalettedBlockArray;
 
 use quark\block\Block;

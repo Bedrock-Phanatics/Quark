@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile\dispenser;
 
+use pocketmine\math\Vector3;
 use quark\entity\Entity;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\World;
 

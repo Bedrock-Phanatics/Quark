@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\inventory;
 
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\BlockTypeIds;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
-use pocketmine\network\mcpe\protocol\BlockEventPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\world\Position;
 use quark\world\sound\ShulkerBoxCloseSound;
 use quark\world\sound\ShulkerBoxOpenSound;

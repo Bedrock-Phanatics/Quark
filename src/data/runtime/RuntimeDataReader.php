@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\data\runtime;
 
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
 use quark\block\utils\BrewingStandSlot;
 use quark\block\utils\RailConnectionInfo;
 use quark\block\utils\WallConnectionType;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
 use quark\utils\AssumptionFailedError;
 use function get_class;
 use function intdiv;

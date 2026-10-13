@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\PillarRotation;
-use quark\block\utils\PillarRotationTrait;
-use quark\block\utils\SupportType;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use quark\block\utils\PillarRotation;
+use quark\block\utils\PillarRotationTrait;
+use quark\block\utils\SupportType;
 
 class Chain extends Transparent implements PillarRotation{
 	use PillarRotationTrait;

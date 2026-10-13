@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\build\generate_item_serializer_ids;
 
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\data\bedrock\item\BlockItemIdMap;
 use quark\network\mcpe\convert\ItemTypeDictionaryFromDataHelper;
-use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use function asort;
@@ -112,4 +112,4 @@ $dictionary = ItemTypeDictionaryFromDataHelper::loadFromString($raw);
 $blockItemIdMap = BlockItemIdMap::getInstance();
 generateItemIds($dictionary, $blockItemIdMap);
 
-echo "Done. Don't forget to run CS fixup after generating code.\n";
+echo "Done generating item type names.\n";

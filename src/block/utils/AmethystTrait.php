@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
+use pocketmine\math\RayTraceResult;
 use quark\block\Block;
 use quark\entity\projectile\Projectile;
-use pocketmine\math\RayTraceResult;
 use quark\world\sound\AmethystBlockChimeSound;
 use quark\world\sound\BlockPunchSound;
 

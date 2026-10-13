@@ -114,4 +114,4 @@ foreach(Utils::promoteKeys($ids) as $name => $id){
 }
 generate($cleanedIds, dirname(__DIR__, 2) . '/generated/data/bedrock/BiomeIds.php');
 
-echo "Done. Don't forget to run CS fixup after generating code.\n";
+echo "Done generating BiomeIds.\n";

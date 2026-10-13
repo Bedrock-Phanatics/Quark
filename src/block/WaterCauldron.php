@@ -23,9 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\color\Color;
+use pocketmine\math\Vector3;
 use quark\block\tile\Cauldron as TileCauldron;
 use quark\block\utils\DyeColor;
-use pocketmine\color\Color;
 use quark\entity\Entity;
 use quark\event\entity\EntityExtinguishEvent;
 use quark\item\Armor;
@@ -37,7 +38,6 @@ use quark\item\Potion;
 use quark\item\PotionType;
 use quark\item\SplashPotion;
 use quark\item\VanillaItems;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\CauldronAddDyeSound;
 use quark\world\sound\CauldronCleanItemSound;

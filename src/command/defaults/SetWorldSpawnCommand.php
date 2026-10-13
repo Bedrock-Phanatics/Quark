@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\math\Vector3;
 use quark\command\Command;
 use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
-use pocketmine\math\Vector3;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\utils\TextFormat;

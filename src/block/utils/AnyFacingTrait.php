@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use quark\data\runtime\RuntimeDataDescriber;
 use pocketmine\math\Facing;
+use quark\data\runtime\RuntimeDataDescriber;
 
 trait AnyFacingTrait{
 	protected int $facing = Facing::DOWN;

@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\color\Color;
+use pocketmine\math\Vector3;
 use quark\block\tile\Sign as TileSign;
 use quark\block\utils\DyeColor;
 use quark\block\utils\SignText;
@@ -30,12 +32,10 @@ use quark\block\utils\SupportType;
 use quark\block\utils\WoodMaterial;
 use quark\block\utils\WoodType;
 use quark\block\utils\WoodTypeTrait;
-use pocketmine\color\Color;
 use quark\event\block\SignChangeEvent;
 use quark\item\Dye;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\utils\TextFormat;
 use quark\world\BlockTransaction;

@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\SignLikeRotation;
 use quark\block\utils\SignLikeRotationTrait;
 use quark\block\utils\StaticSupportTrait;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

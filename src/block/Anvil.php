@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\inventory\AnvilInventory;
 use quark\block\utils\Fallable;
 use quark\block\utils\FallableTrait;
@@ -32,9 +35,6 @@ use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\object\FallingBlock;
 use quark\item\Item;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\utils\Utils;
 use quark\world\BlockTransaction;

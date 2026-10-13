@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\item;
 
+use pocketmine\nbt\tag\CompoundTag;
 use quark\block\Bed;
 use quark\block\Block;
 use quark\block\CopperDoor;
@@ -49,7 +50,6 @@ use quark\item\Potion;
 use quark\item\SplashPotion;
 use quark\item\SuspiciousStew;
 use quark\item\VanillaItems as Items;
-use pocketmine\nbt\tag\CompoundTag;
 
 final class ItemSerializerDeserializerRegistrar{
 

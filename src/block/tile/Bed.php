@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\utils\DyeColor;
-use quark\data\bedrock\DyeColorIdMap;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\utils\DyeColor;
+use quark\data\bedrock\DyeColorIdMap;
 
 class Bed extends Spawnable{
 	public const TAG_COLOR = "color";

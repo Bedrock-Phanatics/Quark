@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\upgrade;
 
+use pocketmine\nbt\tag\ByteTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\StringTag;
+use pocketmine\nbt\tag\Tag;
 use quark\data\bedrock\block\upgrade\model\BlockStateUpgradeSchemaModel;
 use quark\data\bedrock\block\upgrade\model\BlockStateUpgradeSchemaModelBlockRemap;
 use quark\data\bedrock\block\upgrade\model\BlockStateUpgradeSchemaModelFlattenInfo;
 use quark\data\bedrock\block\upgrade\model\BlockStateUpgradeSchemaModelTag;
 use quark\data\bedrock\block\upgrade\model\BlockStateUpgradeSchemaModelValueRemap;
-use pocketmine\nbt\tag\ByteTag;
-use pocketmine\nbt\tag\IntTag;
-use pocketmine\nbt\tag\StringTag;
-use pocketmine\nbt\tag\Tag;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;

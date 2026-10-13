@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\region;
 
-use quark\block\Block;
-use quark\data\bedrock\BiomeIds;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\ByteArrayTag;
@@ -32,12 +30,14 @@ use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntArrayTag;
 use pocketmine\nbt\tag\ListTag;
+use pocketmine\world\format\PalettedBlockArray;
+use quark\block\Block;
+use quark\data\bedrock\BiomeIds;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\ChunkUtils;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\LoadedChunkData;
-use pocketmine\world\format\PalettedBlockArray;
 use quark\world\format\SubChunk;
 use function strlen;
 use function zlib_decode;

@@ -25,8 +25,8 @@ namespace quark\thread;
 
 use pmmp\thread\Thread as NativeThread;
 use pmmp\thread\ThreadSafeArray;
-use quark\crash\CrashDump;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
+use quark\crash\CrashDump;
 use quark\Server;
 use function error_get_last;
 use function error_reporting;

@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use quark\data\bedrock\block\BlockLegacyMetadata;
 use pocketmine\math\Facing;
+use quark\data\bedrock\block\BlockLegacyMetadata;
 
 final class RailConnectionInfo{
 

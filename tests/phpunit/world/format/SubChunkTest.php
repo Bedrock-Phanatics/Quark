@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\format;
 
-use pocketmine\world\format\PalettedBlockArray;
-
 use PHPUnit\Framework\TestCase;
+
+use pocketmine\world\format\PalettedBlockArray;
 use quark\data\bedrock\BiomeIds;
 
 class SubChunkTest extends TestCase{

@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use quark\block\Block;
 use pocketmine\math\Vector3;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\block\Block;
+use quark\network\mcpe\convert\TypeConverter;
 
 class BlockBreakSound implements Sound{
 	public function __construct(private Block $block){}

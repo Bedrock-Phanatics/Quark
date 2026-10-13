@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use quark\item\GoatHornType;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\item\GoatHornType;
 
 class GoatHornSound implements Sound{
 	public function __construct(private GoatHornType $goatHornType){}

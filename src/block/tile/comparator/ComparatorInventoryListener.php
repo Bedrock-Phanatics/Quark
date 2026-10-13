@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block\tile\comparator;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\inventory\BlockInventory;
 use quark\block\RedstoneComparator;
 use quark\inventory\Inventory;
 use quark\inventory\InventoryListener;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 
 final class ComparatorInventoryListener implements InventoryListener{
 

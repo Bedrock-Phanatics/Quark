@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\FortuneDropHelper;
 use quark\block\utils\LeavesType;
 use quark\block\utils\SupportType;
@@ -30,8 +32,6 @@ use quark\data\runtime\RuntimeDataDescriber;
 use quark\event\block\LeavesDecayEvent;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\World;

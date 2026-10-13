@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use quark\block\utils\Colored;
 use quark\block\utils\ColoredTrait;
 use quark\block\utils\StaticSupportTrait;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 
 class Carpet extends Flowable implements Colored{
 	use ColoredTrait;

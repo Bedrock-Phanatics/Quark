@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\SupportType;
 use pocketmine\math\Vector3;
+use quark\block\utils\SupportType;
 
 /**
  * "Flowable" blocks are destroyed if water flows into the same space as the block. These blocks usually don't have any

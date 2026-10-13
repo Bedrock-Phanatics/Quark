@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use quark\data\SavedDataLoadingException;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
+use quark\data\SavedDataLoadingException;
 use quark\world\World;
 use function count;
 use function is_infinite;

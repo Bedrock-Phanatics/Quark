@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\RedstoneComparator;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\RedstoneComparator;
 use function max;
 use function min;
 

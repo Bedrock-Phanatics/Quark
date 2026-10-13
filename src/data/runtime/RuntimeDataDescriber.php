@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\data\runtime;
 
+use pocketmine\math\Facing;
 use quark\block\utils\BrewingStandSlot;
 use quark\block\utils\WallConnectionType;
-use pocketmine\math\Facing;
 
 /**
  * Interface implemented by {@link RuntimeDataReader}, {@link RuntimeDataWriter} and {@link RuntimeDataSizeCalculator}.

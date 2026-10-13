@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\upgrade;
 
+use pocketmine\nbt\tag\Tag;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaFlattenInfo as FlattenInfo;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaValueRemap as ValueRemap;
-use pocketmine\nbt\tag\Tag;
 use function count;
 
 final class BlockStateUpgradeSchema{

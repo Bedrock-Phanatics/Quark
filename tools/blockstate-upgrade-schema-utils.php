@@ -23,6 +23,13 @@ declare(strict_types=1);
 
 namespace quark\tools\blockstate_upgrade_schema_utils;
 
+use pocketmine\nbt\LittleEndianNbtSerializer;
+use pocketmine\nbt\tag\ByteTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\StringTag;
+use pocketmine\nbt\tag\Tag;
+use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\upgrade\BlockStateUpgrader;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchema;
@@ -30,14 +37,7 @@ use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaBlockRemap;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaFlattenInfo;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaUtils;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchemaValueRemap;
-use pocketmine\nbt\LittleEndianNbtSerializer;
-use pocketmine\nbt\tag\ByteTag;
-use pocketmine\nbt\tag\IntTag;
-use pocketmine\nbt\tag\StringTag;
-use pocketmine\nbt\tag\Tag;
-use pocketmine\nbt\TreeRoot;
 use quark\network\mcpe\convert\BlockStateDictionary;
-use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Filesystem;
 use quark\utils\Utils;

@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use quark\entity\Living;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
+use quark\entity\Living;
 
 class MagicHitAnimation implements Animation{
 	public function __construct(private Living $entity, private int $particleCount = 15){}

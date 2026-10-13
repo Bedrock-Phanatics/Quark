@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\inventory\EnderChestInventory;
 use quark\block\tile\EnderChest as TileEnderChest;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\SupportType;
 use quark\item\Item;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 class EnderChest extends Transparent implements HorizontalFacing{

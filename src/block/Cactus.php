@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use quark\block\utils\Ageable;
 use quark\block\utils\AgeableTrait;
 use quark\block\utils\BlockEventHelper;
@@ -31,8 +33,6 @@ use quark\block\utils\SupportType;
 use quark\entity\Entity;
 use quark\event\entity\EntityDamageByBlockEvent;
 use quark\event\entity\EntityDamageEvent;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use function mt_rand;
 
 class Cactus extends Transparent implements Ageable{

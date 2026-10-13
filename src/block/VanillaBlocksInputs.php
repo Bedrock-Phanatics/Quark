@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\BlockBreakInfo as BreakInfo;
 use quark\block\BlockIdentifier as BID;
 use quark\block\BlockToolType as ToolType;
@@ -70,7 +71,6 @@ use quark\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
 use quark\item\Item;
 use quark\item\ToolTier;
 use quark\item\VanillaItems;
-use pocketmine\math\Facing;
 use quark\utils\RegistrySource;
 use quark\world\generator\object\TreeType;
 use function is_int;
@@ -93,7 +93,7 @@ final class VanillaBlocksInputs extends RegistrySource{
 
 	public function getTargetClassDocComment() : array{
 		return [
-			"Allows getting a new instance of any block implemented by PocketMine-MP",
+			"Allows getting a new instance of any block implemented by Quark",
 			"Every block here also has a constant of the same name in {@link BlockTypeIds} to enable blocks to be identified"
 		];
 	}

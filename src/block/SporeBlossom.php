@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\utils\StaticSupportTrait;
 use quark\block\utils\SupportType;
-use pocketmine\math\Facing;
 
 final class SporeBlossom extends Flowable{
 	use StaticSupportTrait;

@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\Note as BlockNote;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\Note as BlockNote;
 
 /**
  * @deprecated

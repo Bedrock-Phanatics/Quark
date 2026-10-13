@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use quark\entity\Living;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
+use quark\entity\Living;
 
 final class CriticalHitAnimation implements Animation{
 

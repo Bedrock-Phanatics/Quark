@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\item;
 
+use pocketmine\nbt\NbtException;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\data\bedrock\block\BlockStateDeserializeException;
@@ -31,7 +32,6 @@ use quark\data\bedrock\block\convert\UnsupportedBlockStateException;
 use quark\data\bedrock\item\SavedItemData as Data;
 use quark\item\Durable;
 use quark\item\Item;
-use pocketmine\nbt\NbtException;
 use function min;
 
 final class ItemDeserializer{

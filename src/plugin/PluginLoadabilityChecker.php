@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\plugin;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\utils\Utils;
 use quark\utils\VersionString;
 use function array_intersect;

@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use quark\block\Block;
 use pocketmine\math\Vector3;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\block\Block;
+use quark\network\mcpe\convert\TypeConverter;
 
 class TerrainParticle implements Particle{
 	public function __construct(private Block $b){}

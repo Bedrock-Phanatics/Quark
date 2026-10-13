@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\build\generate_block_serializer_consts;
 
-use quark\data\bedrock\block\BlockStateData;
-use quark\data\bedrock\block\BlockStateNames;
-use quark\data\bedrock\block\BlockStateStringValues;
-use quark\data\bedrock\block\BlockTypeNames;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
+use quark\data\bedrock\block\BlockStateData;
+use quark\data\bedrock\block\BlockStateNames;
+use quark\data\bedrock\block\BlockStateStringValues;
+use quark\data\bedrock\block\BlockTypeNames;
 use quark\network\mcpe\convert\BlockStateDictionary;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Filesystem;
@@ -217,4 +217,4 @@ generateBlockIds(array_values($report->seenTypes), $fileHeader);
 generateBlockStateNames($report, $fileHeader);
 generateBlockStringValues($report, $fileHeader);
 
-echo "Done. Don't forget to run CS fixup after generating code.\n";
+echo "Done generating block serializer constants.\n";

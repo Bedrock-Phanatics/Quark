@@ -23,10 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use quark\block\VanillaBlocks;
-use quark\entity\Entity;
 use pocketmine\math\Vector3;
-use quark\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
 use pocketmine\network\mcpe\protocol\RemoveActorPacket;
 use pocketmine\network\mcpe\protocol\types\entity\ByteMetadataProperty;
@@ -38,6 +35,9 @@ use pocketmine\network\mcpe\protocol\types\entity\IntMetadataProperty;
 use pocketmine\network\mcpe\protocol\types\entity\LongMetadataProperty;
 use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
 use pocketmine\network\mcpe\protocol\types\entity\StringMetadataProperty;
+use quark\block\VanillaBlocks;
+use quark\entity\Entity;
+use quark\network\mcpe\convert\TypeConverter;
 
 class FloatingTextParticle implements Particle{
 	//TODO: HACK!

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use quark\entity\Squid;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
+use quark\entity\Squid;
 
 final class SquidInkCloudAnimation implements Animation{
 

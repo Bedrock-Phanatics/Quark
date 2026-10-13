@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\HorizontalConnectable;
-use quark\block\utils\HorizontalConnectableTrait;
-use quark\block\utils\SupportType;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use quark\block\utils\HorizontalConnectable;
+use quark\block\utils\HorizontalConnectableTrait;
+use quark\block\utils\SupportType;
 use function count;
 
 class Fence extends Transparent implements HorizontalConnectable{

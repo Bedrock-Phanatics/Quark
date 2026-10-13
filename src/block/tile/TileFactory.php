@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\data\SavedDataLoadingException;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\data\SavedDataLoadingException;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
 use quark\world\World;

@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\item\Item;
-use quark\item\VanillaItems;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\world\World;
 

@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\RandomOffsetGenerator;
 use quark\block\utils\StaticSupportTrait;
 use quark\block\utils\SupportType;
@@ -32,9 +35,6 @@ use quark\item\Bamboo as ItemBamboo;
 use quark\item\Fertilizer;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use function count;

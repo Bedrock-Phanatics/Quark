@@ -24,11 +24,11 @@ declare(strict_types=1);
 namespace quark\block\tile\dispenser;
 
 use InvalidArgumentException;
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Vector3;
 use quark\entity\Living;
 use quark\inventory\ArmorInventory;
 use quark\inventory\Inventory;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\Position;
 

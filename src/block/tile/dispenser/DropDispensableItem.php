@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\tile\dispenser;
 
-use quark\inventory\Inventory;
 use pocketmine\math\Vector3;
+use quark\inventory\Inventory;
 use quark\player\Player;
 use quark\world\Position;
 

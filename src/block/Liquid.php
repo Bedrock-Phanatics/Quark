@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\MinimumCostFlowCalculator;
 use quark\block\utils\SupportType;
@@ -30,8 +32,6 @@ use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
 use quark\event\block\BlockSpreadEvent;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\utils\Utils;
 use quark\world\sound\FizzSound;
 use quark\world\sound\Sound;

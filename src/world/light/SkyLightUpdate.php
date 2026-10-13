@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\light;
 
+use pocketmine\world\format\LightArray;
 use quark\world\format\Chunk;
 use quark\world\format\HeightArray;
-use pocketmine\world\format\LightArray;
 use quark\world\format\SubChunk;
 use quark\world\utils\SubChunkExplorer;
 use quark\world\utils\SubChunkExplorerStatus;

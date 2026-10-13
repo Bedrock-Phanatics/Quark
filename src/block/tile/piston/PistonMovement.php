@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\tile\piston;
 
-use quark\block\Block;
 use pocketmine\math\Vector3;
+use quark\block\Block;
 
 final class PistonMovement{
 

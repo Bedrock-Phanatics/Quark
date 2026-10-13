@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\RayTraceResult;
 use quark\block\utils\DripleafState;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
 use quark\entity\projectile\Projectile;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\RayTraceResult;
 use quark\world\sound\DripleafTiltDownSound;
 use quark\world\sound\DripleafTiltUpSound;
 

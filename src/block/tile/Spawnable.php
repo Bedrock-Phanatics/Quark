@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\Block;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use quark\block\Block;
 use function get_class;
 
 abstract class Spawnable extends Tile{

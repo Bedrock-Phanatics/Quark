@@ -23,13 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
-use quark\entity\Entity;
-use quark\entity\EntitySizeInfo;
-use quark\entity\Explosive;
-use quark\event\entity\EntityDamageEvent;
-use quark\event\entity\EntityPreExplodeEvent;
-use quark\item\Item;
-use quark\item\VanillaItems;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -38,6 +31,13 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use quark\entity\Entity;
+use quark\entity\EntitySizeInfo;
+use quark\entity\Explosive;
+use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\EntityPreExplodeEvent;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use quark\world\Explosion;
 
 class EndCrystal extends Entity implements Explosive{

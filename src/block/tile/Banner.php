@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\ListTag;
 use quark\block\utils\BannerPatternLayer;
 use quark\block\utils\DyeColor;
 use quark\data\bedrock\BannerPatternTypeIdMap;
 use quark\data\bedrock\DyeColorIdMap;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\IntTag;
-use pocketmine\nbt\tag\ListTag;
 
 /**
  * @deprecated

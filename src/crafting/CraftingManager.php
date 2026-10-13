@@ -25,9 +25,9 @@ namespace quark\crafting;
 
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
-use quark\item\Item;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\TreeRoot;
+use quark\item\Item;
 use quark\utils\DestructorCallbackTrait;
 use quark\utils\ObjectSet;
 use function array_shift;

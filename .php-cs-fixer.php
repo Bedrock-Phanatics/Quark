@@ -2,11 +2,12 @@
 
 $finder = PhpCsFixer\Finder::create()
 	->in(__DIR__ . '/src')
-	->in(__DIR__ . '/generated') //TODO: maybe this is unnecessary???
+	// Generated output is validated by regenerating it, not by rewriting it.
 	->in(__DIR__ . '/build')
 	->in(__DIR__ . '/tests')
 	->in(__DIR__ . '/tools')
 	->notPath('plugins/DevTools')
+	->notPath('#^php/#') // Upstream PHP build submodule.
 	//JsonMapper will break if the FQNs in the doc comments for these are shortened :(
 	->notPath('crafting/json')
 	->notPath('inventory/json')
@@ -49,28 +50,7 @@ return (new PhpCsFixer\Config)
 			'import_functions' => true,
 			'import_classes' => null,
 		],
-		'header_comment' => [
-			'comment_type' => 'comment',
-			'header' => <<<BODY
-
-  ___  _   _   _    ____  _  __
- / _ \| | | | / \  |  _ \| |/ /
-| | | | | | |/ _ \ | |_) | ' /
-| |_| | |_| / ___ \|  _ <| . \
- \__\_|\___/_/   \_\_| \_\_|\_\
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Lesser General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-@author Quark Team
-@link https://github.com/Bedrock-Phanatics/Quark
-
-
-BODY,
-			'location' => 'after_open'
-		],
+		// Preserve original license and author notices in inherited files.
 		'indentation_type' => true,
 		'logical_operators' => true,
 		'native_constant_invocation' => [
@@ -80,7 +60,7 @@ BODY,
 			'scope' => 'namespaced',
 			'include' => ['@all'],
 		],
-		'new_with_braces' => [
+		'new_with_parentheses' => [
 			'named_class' => true,
 			'anonymous_class' => false,
 		],

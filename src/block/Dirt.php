@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\DirtType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Fertilizer;
@@ -31,8 +33,6 @@ use quark\item\Item;
 use quark\item\Potion;
 use quark\item\PotionType;
 use quark\item\SplashPotion;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\ItemUseOnBlockSound;
 use quark\world\sound\WaterSplashSound;

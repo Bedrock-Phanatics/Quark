@@ -23,6 +23,12 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -31,12 +37,6 @@ use quark\entity\Location;
 use quark\event\entity\EntityDamageEvent;
 use quark\event\entity\EntityPreExplodeEvent;
 use quark\item\Item;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\world\Explosion;
 use quark\world\Position;
 use quark\world\tnt\TntLimiter;

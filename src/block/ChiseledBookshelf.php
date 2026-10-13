@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\tile\ChiseledBookshelf as TileChiseledBookshelf;
 use quark\block\utils\ChiseledBookshelfSlot;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
@@ -33,9 +36,6 @@ use quark\item\Book;
 use quark\item\EnchantedBook;
 use quark\item\Item;
 use quark\item\WritableBookBase;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\ChiseledBookshelfInsertSound;
 use quark\world\sound\ChiseledBookshelfPickupSound;

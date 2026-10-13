@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\StaticSupportTrait;
-use quark\item\Item;
-use quark\item\VanillaItems;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use quark\block\utils\StaticSupportTrait;
+use quark\item\Item;
+use quark\item\VanillaItems;
 use function mt_rand;
 
 final class ChorusPlant extends Flowable{

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\inventory\SmithingTableInventory;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 final class SmithingTable extends Opaque{

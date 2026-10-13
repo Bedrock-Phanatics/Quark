@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\CyclingPotentSulfur;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\CyclingPotentSulfur;
 
 /**
  * Holds the phase-shift countdown at runtime only ({@see CyclingPotentSulfur});

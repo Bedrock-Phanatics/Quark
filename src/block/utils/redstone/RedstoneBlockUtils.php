@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use Generator;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\tile\Tile;
 use quark\block\tile\TileFactory;
@@ -32,8 +34,6 @@ use quark\inventory\BaseInventory;
 use quark\inventory\Inventory;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\world\Position;
 use quark\world\World;
 use function count;

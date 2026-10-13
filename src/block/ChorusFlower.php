@@ -23,16 +23,16 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\Ageable;
-use quark\block\utils\AgeableTrait;
-use quark\block\utils\StaticSupportTrait;
-use quark\entity\projectile\Projectile;
-use quark\event\block\StructureGrowEvent;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
+use quark\block\utils\Ageable;
+use quark\block\utils\AgeableTrait;
+use quark\block\utils\StaticSupportTrait;
+use quark\entity\projectile\Projectile;
+use quark\event\block\StructureGrowEvent;
 use quark\world\BlockTransaction;
 use quark\world\sound\ChorusFlowerDieSound;
 use quark\world\sound\ChorusFlowerGrowSound;

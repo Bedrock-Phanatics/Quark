@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\inventory\HopperInventory;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\inventory\HopperInventory;
 use quark\world\World;
 
 class Hopper extends Spawnable implements Container, Nameable{

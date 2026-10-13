@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\convert\property;
 
+use pocketmine\math\Facing;
 use quark\block\Button;
 use quark\block\Door;
 use quark\block\DoublePlant;
@@ -57,7 +58,6 @@ use quark\block\Wood;
 use quark\data\bedrock\block\BlockLegacyMetadata;
 use quark\data\bedrock\block\BlockStateNames as StateNames;
 use quark\data\bedrock\block\BlockStateStringValues;
-use pocketmine\math\Facing;
 use quark\utils\SingletonTrait;
 
 final class CommonProperties{

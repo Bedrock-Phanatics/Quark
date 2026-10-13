@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\data\runtime;
 
-use quark\block\utils\BrewingStandSlot;
 use pocketmine\math\Facing;
+use quark\block\utils\BrewingStandSlot;
 use function count;
 use function log;
 

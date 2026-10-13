@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\StaticSupportTrait;
-use quark\event\block\StructureGrowEvent;
-use quark\item\Fertilizer;
-use quark\item\Item;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\block\utils\StaticSupportTrait;
+use quark\event\block\StructureGrowEvent;
+use quark\item\Fertilizer;
+use quark\item\Item;
 use quark\player\Player;
 use quark\utils\Random;
 use quark\world\generator\object\TreeFactory;

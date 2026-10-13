@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\redstone\ButtonTrait;
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\RedstoneBlockAccessTrait;
@@ -31,9 +34,6 @@ use quark\block\utils\WoodTypeTrait;
 use quark\entity\Entity;
 use quark\entity\projectile\Arrow;
 use quark\item\VanillaItems;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 
 class WoodenButton extends Button implements WoodMaterial, PowerSource{
 	use ButtonTrait{ onScheduledUpdate as private updateButtonState; }

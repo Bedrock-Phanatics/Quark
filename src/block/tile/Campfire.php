@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
 use quark\block\Campfire as BlockCampfire;
 use quark\block\inventory\CampfireInventory;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\item\Item;
-use pocketmine\math\Vector3;
-use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\IntTag;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\world\World;
 

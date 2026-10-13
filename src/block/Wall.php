@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\SupportType;
-use quark\block\utils\WallConnectionType;
-use quark\data\runtime\RuntimeDataDescriber;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use quark\block\utils\SupportType;
+use quark\block\utils\WallConnectionType;
+use quark\data\runtime\RuntimeDataDescriber;
 
 /**
  * @phpstan-type WallConnectionSet array<Facing::NORTH|Facing::EAST|Facing::SOUTH|Facing::WEST, WallConnectionType>

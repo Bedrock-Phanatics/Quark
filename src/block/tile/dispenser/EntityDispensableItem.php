@@ -24,11 +24,11 @@ declare(strict_types=1);
 namespace quark\block\tile\dispenser;
 
 use Closure;
+use pocketmine\math\Vector3;
 use quark\entity\Entity;
 use quark\entity\Location;
 use quark\inventory\Inventory;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\Position;
 use quark\world\World;

@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use quark\block\Block;
 use pocketmine\math\Vector3;
+use quark\block\Block;
 
 /**
  * Used by blocks which always have the same support requirements no matter what state they are in.

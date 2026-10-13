@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\world\generator\object;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\BlockTypeIds;
 use quark\block\utils\DirtType;
 use quark\block\VanillaBlocks;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\utils\Random;
 use quark\world\BlockTransaction;
 use quark\world\ChunkManager;

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\tile\Furnace as TileFurnace;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
@@ -31,7 +32,6 @@ use quark\block\utils\LightableTrait;
 use quark\crafting\FurnaceType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use function mt_rand;
 

@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\permission\DefaultPermissionNames;
 use quark\plugin\Plugin;
 use quark\utils\TextFormat;

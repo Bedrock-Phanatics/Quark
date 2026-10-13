@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\utils\PillarRotation;
 use quark\block\utils\PillarRotationTrait;
 use quark\block\utils\WoodMaterial;
@@ -30,7 +31,6 @@ use quark\block\utils\WoodTypeTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Axe;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\ItemUseOnBlockSound;
 

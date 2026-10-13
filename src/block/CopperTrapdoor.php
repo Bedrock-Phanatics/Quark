@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\utils\CopperMaterial;
 use quark\block\utils\CopperTrait;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 class CopperTrapdoor extends Trapdoor implements CopperMaterial{

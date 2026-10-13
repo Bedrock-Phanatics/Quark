@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\StaticSupportTrait;
 use quark\block\utils\SupportType;
 use quark\entity\effect\EffectInstance;
 use quark\entity\FoodSource;
 use quark\entity\Living;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 abstract class BaseCake extends Transparent implements FoodSource{

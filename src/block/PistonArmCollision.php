@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\AnyFacing;
+use pocketmine\math\Facing;
 
+use quark\block\utils\AnyFacing;
 use quark\block\utils\redstone\RedstoneBlockAccessTrait;
 use quark\block\utils\redstone\RedstoneBlockUtils;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use pocketmine\math\Facing;
 use quark\player\Player;
 
 class PistonArmCollision extends Transparent implements AnyFacing{

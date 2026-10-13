@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use Generator;
-use quark\block\Block;
-use quark\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\block\Block;
+use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

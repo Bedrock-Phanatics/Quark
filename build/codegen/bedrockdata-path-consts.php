@@ -115,4 +115,4 @@ foreach($consts as $constName => $fileName){
 fwrite($output, "}\n");
 fclose($output);
 
-echo "Done. Don't forget to run CS fixup after generating code.\n";
+echo "Done generating BedrockDataFiles.\n";

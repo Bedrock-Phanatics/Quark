@@ -25,8 +25,8 @@ namespace quark\scheduler;
 
 use PHPUnit\Framework\TestCase;
 use pmmp\thread\ThreadSafeArray;
-use quark\promise\PromiseResolver;
 use pocketmine\snooze\SleeperHandler;
+use quark\promise\PromiseResolver;
 use quark\thread\ThreadSafeClassLoader;
 use quark\utils\MainLogger;
 use function define;

@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\upgrade;
 
-use quark\data\bedrock\block\BlockStateData;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
+use quark\data\bedrock\block\BlockStateData;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Utils;
 use function count;

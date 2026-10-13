@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\utils\RailConnectionInfo;
 use quark\data\bedrock\block\BlockLegacyMetadata;
 use quark\data\runtime\RuntimeDataDescriber;
-use pocketmine\math\Facing;
 use function array_keys;
 use function implode;
 

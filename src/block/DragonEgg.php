@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\utils\Fallable;
 use quark\block\utils\FallableTrait;
 use quark\block\utils\SupportType;
 use quark\event\block\BlockTeleportEvent;
 use quark\item\Item;
-use pocketmine\math\Vector3;
 use quark\player\GameMode;
 use quark\player\Player;
 use quark\world\particle\DragonEggTeleportParticle;

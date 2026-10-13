@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\tile\Cauldron as TileCauldron;
 use quark\entity\Entity;
 use quark\event\entity\EntityCombustByBlockEvent;
@@ -31,7 +32,6 @@ use quark\event\entity\EntityDamageEvent;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
 use quark\item\VanillaItems;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\CauldronEmptyLavaSound;
 use quark\world\sound\CauldronFillLavaSound;

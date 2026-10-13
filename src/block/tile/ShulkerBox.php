@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use quark\block\inventory\ShulkerBoxInventory;
-use quark\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\inventory\ShulkerBoxInventory;
+use quark\item\Item;
 use quark\world\World;
 
 class ShulkerBox extends Spawnable implements Container, Nameable{

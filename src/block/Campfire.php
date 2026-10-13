@@ -23,6 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\RayTraceResult;
+use pocketmine\math\Vector3;
 use quark\block\inventory\CampfireInventory;
 use quark\block\tile\Campfire as TileCampfire;
 use quark\block\utils\HorizontalFacing;
@@ -47,10 +51,6 @@ use quark\item\ItemTypeIds;
 use quark\item\PotionType;
 use quark\item\Shovel;
 use quark\item\VanillaItems;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\sound\BlazeShootSound;

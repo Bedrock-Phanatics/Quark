@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Axis;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\LeverFacing;
 use quark\block\utils\redstone\LeverRedstoneTrait;
 use quark\block\utils\redstone\PowerSource;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;
 use quark\world\BlockTransaction;

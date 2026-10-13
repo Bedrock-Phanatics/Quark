@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Vector3;
 use quark\block\tile\Jukebox as JukeboxTile;
 use quark\item\Item;
 use quark\item\Record;
 use quark\lang\KnownTranslationFactory;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\RecordSound;
 use quark\world\sound\RecordStopSound;

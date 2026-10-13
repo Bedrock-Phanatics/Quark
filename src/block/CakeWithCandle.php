@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\CandleTrait;
 use quark\block\utils\Lightable;
 use quark\entity\Living;
 use quark\item\Item;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 
 class CakeWithCandle extends BaseCake implements Lightable{

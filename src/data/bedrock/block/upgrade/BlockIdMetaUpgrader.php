@@ -26,9 +26,9 @@ namespace quark\data\bedrock\block\upgrade;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
+use pocketmine\nbt\LittleEndianNbtSerializer;
 use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\BlockStateDeserializeException;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 
 /**
  * Handles translating legacy 1.12 block ID/meta into modern blockstates.

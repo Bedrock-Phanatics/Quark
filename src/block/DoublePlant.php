@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\data\runtime\RuntimeDataDescriber;
-use quark\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\data\runtime\RuntimeDataDescriber;
+use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

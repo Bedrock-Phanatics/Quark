@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\StaticSupportTrait;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\block\utils\StaticSupportTrait;
 
 class WaterLily extends Flowable{
 	use StaticSupportTrait {

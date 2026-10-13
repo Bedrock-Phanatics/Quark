@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use quark\block\utils\Ageable;
 use quark\block\utils\AgeableTrait;
 use quark\block\utils\FortuneDropHelper;
@@ -32,8 +34,6 @@ use quark\entity\Entity;
 use quark\event\block\StructureGrowEvent;
 use quark\item\Fertilizer;
 use quark\item\Item;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use function min;
