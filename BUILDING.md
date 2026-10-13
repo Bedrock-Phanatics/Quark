@@ -13,7 +13,7 @@ Quark requires several non-standard PHP extensions and configuration.
 
 The compiler's `-P5` option and `bin/php7/bin/php` directory select the inherited binary layout and extension family. Quark's plugin API is **6.0.0**; changing these binary identifiers to `6` would break the current compiler.
 
-CI and release builds use Bedrock-Phanatics PHP 8.4 binaries. The PHP 8.5 CI matrix temporarily uses PMMP binaries because the Quark binary repository does not yet publish 8.5 assets; migrate that matrix entry when those assets are available.
+CI and release builds use Bedrock-Phanatics PHP 8.4 binaries. PHP 8.5 CI is temporarily paused until the Quark binary repository publishes 8.5 assets.
 
 The optional `tests/plugins/DevTools` and `examples/plugins/ExamplePlugin` submodules are inherited PocketMine-MP projects, not Quark 6 plugins. CI does not initialize them. Build a migrated folder plugin with `php -dphar.readonly=0 tests/build-plugin-phar.php path/to/plugin path/to/plugin.phar`.
 
@@ -39,7 +39,7 @@ To select an output filename, first install production dependencies with `compos
 
 ## CI and releases
 
-CI runs PHPStan, PHPUnit, integration tests and two clean code-generation passes on both PHP 8.4 and 8.5. It also checks handwritten PHP style, translations, tracked shell scripts and Docker startup/plugin persistence. Generated PHP is owned by the generators; formatting must be corrected in the generator rather than applied to generated output.
+CI runs PHPStan, PHPUnit, integration tests and two clean code-generation passes on PHP 8.4. PHP 8.5 coverage is temporarily paused. CI also checks handwritten PHP style, translations, tracked shell scripts and Docker startup/plugin persistence. Generated PHP is owned by the generators; formatting must be corrected in the generator rather than applied to generated output.
 
 Push builds cover `stable` and `v6.0.0`; other branches are checked through pull requests or manual dispatch to avoid duplicate push/PR builds.
 

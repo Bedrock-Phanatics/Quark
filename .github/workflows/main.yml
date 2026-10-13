@@ -20,7 +20,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ["8.4", "8.5"]
+        # PHP 8.5 is paused until our binary repository publishes 8.5 assets.
+        php: ["8.4"]
 
     uses: ./.github/workflows/main-php-matrix.yml
     with:
