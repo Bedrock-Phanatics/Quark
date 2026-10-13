@@ -18,4 +18,4 @@ fi
 # Run the server
 cd /opt/quark
 read -ra pm_args <<<"$QUARK_ARGS"
-exec php Quark.phar --no-wizard --enable-ansi --data=/data --plugins=/plugins "${pm_args[@]}"
+exec php Quark.phar --no-wizard --data=/data --plugins=/plugins "${pm_args[@]}"

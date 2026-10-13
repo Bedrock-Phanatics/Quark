@@ -1,0 +1,36 @@
+name: Set up Quark PHP
+description: Install the native PHP runtime and locked Composer dependencies
+inputs:
+  php:
+    description: PHP version in X.Y format
+    required: true
+  dev:
+    description: Install development dependencies
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    # PM5 selects the extension-compatible binary family, not Quark's plugin API.
+    # Retain this provider until a replacement supports both PHP 8.4 and 8.5.
+    - uses: pmmp/setup-php-action@3c38c259834f945351a662392836d90eb08abff0 # 3.2.0
+      with:
+        php-version: ${{ inputs.php }}
+        install-path: ./bin
+        pm-version-major: 5
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ~/.cache/composer/files
+        key: composer-v2-${{ runner.os }}-${{ inputs.php }}-${{ hashFiles('composer.lock') }}
+        restore-keys: composer-v2-${{ runner.os }}-${{ inputs.php }}-
+
+    - name: Install locked dependencies
+      shell: bash
+      env:
+        INSTALL_DEV: ${{ inputs.dev }}
+      run: |
+        if [ "$INSTALL_DEV" = true ]; then
+          composer install --prefer-dist --no-interaction --no-progress
+        else
+          composer install --no-dev --classmap-authoritative --prefer-dist --no-interaction --no-progress
+        fi

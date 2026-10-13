@@ -1,28 +1,29 @@
 name: Docker image CI
 
 on:
-  push:
-  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 40
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
-        submodules: true #needed for build/php submodule
+        persist-credentials: false
+
+    - name: Initialize PHP build submodule
+      run: git submodule update --init build/php
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
-
-    - name: Create data directories
-      run: |
-        mkdir ./docker/test_data
-        sudo chown -R 1000:1000 ./docker/testsuite ./docker/test_data
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
     - name: Build image for tag
-      uses: docker/build-push-action@v7.4.0
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
         context: ${{ github.workspace }}
         push: false
@@ -34,14 +35,5 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Test if it runs the normal server properly
-      run: echo stop | docker run --rm -i -e QUARK_ARGS="--settings.enable-dev-builds=1" local-quark
-
-    - name: Test if it loads plugins
-      run: |
-        echo stop | docker run --rm -i -v ./docker/test_data:/data -v ./docker/testsuite/create-data:/plugins -e QUARK_ARGS="--settings.enable-dev-builds=1" local-quark
-        test -f ./docker/test_data/plugin_data/data-test/create-data
-        test "$(cat ./docker/test_data/plugin_data/data-test/create-data)" = "successful"
-
-    - name: Test if it persists plugin data
-      run: echo stop | docker run --rm -i -v ./docker/test_data:/data -v ./docker/testsuite/verify-data:/plugins -e QUARK_ARGS="--settings.enable-dev-builds=1" local-quark
+    - name: Verify startup, Quark 6 plugins and persistence
+      run: bash docker/test.sh local-quark

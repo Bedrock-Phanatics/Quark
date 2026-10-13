@@ -7,8 +7,7 @@ updates:
     time: "10:00"
   open-pull-requests-limit: 10
   ignore:
-    #since we lock this to exact versions, it causes conflicts with minor-next & major-next in composer.lock
-    #better to just test updates to this locally anyway since almost every version breaks something
+    # Review analyzer upgrades separately because they can change diagnostics.
     - dependency-name: phpstan/phpstan
   groups:
     production-patch-updates:
@@ -39,3 +38,8 @@ updates:
   groups:
     github-actions:
       patterns: ["*"]
+
+- package-ecosystem: docker
+  directory: "/docker"
+  schedule:
+    interval: weekly

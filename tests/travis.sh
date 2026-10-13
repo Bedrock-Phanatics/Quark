@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 PM_WORKERS="auto"
 
@@ -18,7 +19,7 @@ DATA_DIR="$(pwd)/test_data"
 PLUGINS_DIR="$DATA_DIR/plugins"
 
 rm -rf "$DATA_DIR"
-rm Quark.phar 2> /dev/null
+rm -f Quark.phar
 mkdir "$DATA_DIR"
 mkdir "$PLUGINS_DIR"
 
@@ -45,13 +46,13 @@ echo -e "stop\n" | php Quark.phar \
   --settings.enable-dev-builds=1 \
   --auto-report.enabled=0
 
-output=$(grep '\[TesterPlugin\]' "$DATA_DIR/server.log")
+output=$(grep '\[TesterPlugin\]' "$DATA_DIR/server.log" || true)
 if [ "$output" == "" ]; then
 	echo TesterPlugin failed to run tests, check the logs
 	exit 1
 fi
 
-result=$(echo "$output" | grep 'Finished' | grep -v 'PASS')
+result=$(echo "$output" | grep 'Finished' | grep -v 'PASS' || true)
 if [ "$result" != "" ]; then
 	echo "$result"
 	echo Some tests did not complete successfully, changing build status to failed

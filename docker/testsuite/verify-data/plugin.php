@@ -3,9 +3,9 @@
 /**
  * @name data-test
  * @version 1.0.0
- * @api 5.0.0
+ * @api 6.0.0
  * @main DataTest
- * @author QUARK Team
+ * @author Quark Team
  */
 
 class DataTest extends \quark\plugin\PluginBase {
