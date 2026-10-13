@@ -10,9 +10,48 @@ inputs:
 runs:
   using: composite
   steps:
-    # PM5 selects the extension-compatible binary family, not Quark's plugin API.
-    # Retain this provider until a replacement supports both PHP 8.4 and 8.5.
+    - name: Validate PHP version
+      shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php }}
+      run: |
+        case "$PHP_VERSION" in
+          8.4|8.5) ;;
+          *) echo "Unsupported PHP version: $PHP_VERSION"; exit 1 ;;
+        esac
+
+    - name: Set up Composer
+      uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      if: inputs.php == '8.4'
+      with:
+        php-version: '8.4'
+        tools: composer:2.10.3
+        coverage: none
+
+    - name: Install Bedrock-Phanatics PHP binary
+      if: inputs.php == '8.4'
+      shell: bash
+      env:
+        PHP_VERSION: ${{ inputs.php }}
+      run: |
+        runtime="$RUNNER_TEMP/quark-php"
+        mkdir -p "$runtime"
+        curl --fail --location --retry 3 \
+          "https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/download/pm5-php-$PHP_VERSION-latest/PHP-$PHP_VERSION-Linux-x86_64-PM5.tar.gz" \
+          --output "$runtime/php.tar.gz"
+        tar -xzf "$runtime/php.tar.gz" -C "$runtime"
+        php_bin="$runtime/bin/php7/bin"
+        # PM5 and php7 are the existing release asset/layout identifiers.
+        extension_dir=$(find "$runtime/bin/php7/lib/php/extensions" -mindepth 1 -maxdepth 1 -type d -name '*debug-zts*')
+        test -d "$extension_dir"
+        printf '\nextension_dir="%s"\n' "$extension_dir" >> "$php_bin/php.ini"
+        test "$("$php_bin/php" -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')" = "$PHP_VERSION"
+        "$php_bin/php" -v
+        echo "$php_bin" >> "$GITHUB_PATH"
+
+    # Temporary: our binary repository does not yet publish PHP 8.5 assets.
     - uses: pmmp/setup-php-action@3c38c259834f945351a662392836d90eb08abff0 # 3.2.0
+      if: inputs.php == '8.5'
       with:
         php-version: ${{ inputs.php }}
         install-path: ./bin
