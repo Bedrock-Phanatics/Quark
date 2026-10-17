@@ -64,6 +64,7 @@ use quark\command\defaults\TransferServerCommand;
 use quark\command\defaults\VanillaCommand;
 use quark\command\defaults\VersionCommand;
 use quark\command\defaults\WhitelistCommand;
+use quark\command\defaults\WorldCommand;
 use quark\command\defaults\XpCommand;
 use quark\command\utils\CommandStringHelper;
 use quark\command\utils\InvalidCommandSyntaxException;
@@ -134,6 +135,7 @@ class SimpleCommandMap implements CommandMap{
 			new TransferServerCommand(),
 			new VersionCommand(),
 			new WhitelistCommand(),
+			new WorldCommand(),
 			new XpCommand(),
 		]);
 	}

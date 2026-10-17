@@ -46,12 +46,23 @@ use function count;
 use function floor;
 use function implode;
 use function intdiv;
+use function is_dir;
+use function is_file;
 use function iterator_to_array;
 use function microtime;
+use function preg_match;
 use function round;
+use function scandir;
+use function sort;
 use function sprintf;
+use function str_contains;
+use function str_ends_with;
+use function str_starts_with;
+use function strlen;
+use function strtolower;
 use function strval;
 use function trim;
+use const SORT_STRING;
 
 class WorldManager{
 	public const TICKS_PER_AUTOSAVE = 300 * Server::TARGET_TICKS_PER_SECOND;
@@ -75,6 +86,34 @@ class WorldManager{
 
 	public function getProviderManager() : WorldProviderManager{
 		return $this->providerManager;
+	}
+
+	public function getDataPath() : string{
+		return $this->dataPath;
+	}
+
+	/**
+	 * Validates whether a world folder name is safe and portable across platforms.
+	 * Rejects empty names, traversal attempts, Windows reserved device names, control characters,
+	 * leading/trailing whitespace, and trailing dots.
+	 */
+	public static function isValidWorldName(string $name) : bool{
+		if($name === "" || strlen($name) > 64 || $name !== trim($name)){
+			return false;
+		}
+		if(str_starts_with($name, ".") || str_ends_with($name, ".")){
+			return false;
+		}
+		if(str_contains($name, "/") || str_contains($name, "\\")){
+			return false;
+		}
+		if(preg_match('/^[a-zA-Z0-9_\-\. ]+$/D', $name) !== 1){
+			return false;
+		}
+		if(preg_match('/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i', $name) === 1){
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -309,8 +348,69 @@ class WorldManager{
 		return true;
 	}
 
-	private function getWorldPath(string $name) : string{
+	public function getWorldPath(string $name) : string{
 		return Path::join($this->dataPath, $name) . "/"; //TODO: check if we still need the trailing dirsep (I'm a little scared to remove it)
+	}
+
+	/**
+	 * Checks if a world name already exists either in loaded worlds or on disk, case-insensitively.
+	 * This prevents cross-platform case collision bugs between case-sensitive (Linux) and case-insensitive (Windows/macOS) filesystems.
+	 */
+	public function isWorldNameCollision(string $name) : bool{
+		$lower = strtolower($name);
+		foreach($this->worlds as $world){
+			if(strtolower($world->getFolderName()) === $lower){
+				return true;
+			}
+		}
+
+		if(is_dir($this->dataPath)){
+			$files = scandir($this->dataPath);
+			if($files !== false){
+				foreach($files as $file){
+					if($file === "." || $file === ".."){
+						continue;
+					}
+					if(strtolower($file) === $lower && is_file(Path::join($this->dataPath, $file, "level.dat"))){
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the folder names of all generated worlds found in the worlds data directory.
+	 * Does NOT load chunks or parse world data.
+	 *
+	 * @return string[]
+	 * @phpstan-return list<string>
+	 */
+	public function getGeneratedWorlds() : array{
+		$names = [];
+		foreach($this->worlds as $world){
+			$names[$world->getFolderName()] = true;
+		}
+
+		if(is_dir($this->dataPath)){
+			$files = scandir($this->dataPath);
+			if($files !== false){
+				foreach($files as $file){
+					if($file === "." || $file === ".." || !self::isValidWorldName($file)){
+						continue;
+					}
+					if(is_file(Path::join($this->dataPath, $file, "level.dat"))){
+						$names[$file] = true;
+					}
+				}
+			}
+		}
+
+		$result = array_keys($names);
+		sort($result, SORT_STRING);
+		return $result;
 	}
 
 	public function isWorldGenerated(string $name) : bool{

@@ -2139,6 +2139,14 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_WHITELIST_DESCRIPTION, []);
 	}
 
+	public static function quark_command_world_description() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_WORLD_DESCRIPTION, []);
+	}
+
+	public static function quark_command_world_usage() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_WORLD_USAGE, []);
+	}
+
 	public static function quark_command_xp_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_XP_DESCRIPTION, []);
 	}
@@ -2643,6 +2651,38 @@ final class KnownTranslationFactory{
 
 	public static function quark_permission_command_whitelist_remove() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WHITELIST_REMOVE, []);
+	}
+
+	public static function quark_permission_command_world() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD, []);
+	}
+
+	public static function quark_permission_command_world_create() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_CREATE, []);
+	}
+
+	public static function quark_permission_command_world_info() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_INFO, []);
+	}
+
+	public static function quark_permission_command_world_list() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_LIST, []);
+	}
+
+	public static function quark_permission_command_world_load() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_LOAD, []);
+	}
+
+	public static function quark_permission_command_world_tp_other() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_TP_OTHER, []);
+	}
+
+	public static function quark_permission_command_world_tp_self() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_TP_SELF, []);
+	}
+
+	public static function quark_permission_command_world_unload() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PERMISSION_COMMAND_WORLD_UNLOAD, []);
 	}
 
 	public static function quark_permission_command_xp_other() : Translatable{
