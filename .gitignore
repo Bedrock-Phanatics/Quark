@@ -20,6 +20,11 @@ server.lock
 /docker/test_data/
 tests/*
 
+# NetherNet identity key and certificate files
+nethernet.key
+nethernet-cert.pem
+nethernet-key.pem
+
 # Common IDEs
 .idea/*
 !.idea/codeStyles/

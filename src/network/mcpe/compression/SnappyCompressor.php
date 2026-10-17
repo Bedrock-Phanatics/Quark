@@ -75,7 +75,7 @@ final class SnappyCompressor implements Compressor{
 		return Utils::assumeNotFalse(snappy_compress($payload), "Snappy compression failed");
 	}
 
-	public function getNetworkId() : int {
+	public function getNetworkType() : CompressionAlgorithm {
 		return CompressionAlgorithm::SNAPPY;
 	}
 }
