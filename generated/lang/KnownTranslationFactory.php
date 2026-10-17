@@ -2957,6 +2957,30 @@ final class KnownTranslationFactory{
 		]);
 	}
 
+	public static function quark_server_nethernet_builtinSignalingDisabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_BUILTINSIGNALINGDISABLED, []);
+	}
+
+	public static function quark_server_nethernet_identityKeySaveFailed(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_IDENTITYKEYSAVEFAILED, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_nethernet_tls_disabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_TLS_DISABLED, []);
+	}
+
+	public static function quark_server_nethernet_tls_enabled() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_TLS_ENABLED, []);
+	}
+
+	public static function quark_server_nethernet_udpMuxWithoutPortRange(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_UDPMUXWITHOUTPORTRANGE, [
+			0 => $param0,
+		]);
+	}
+
 	public static function quark_server_networkStart(Translatable|string $param0, Translatable|string $param1) : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETWORKSTART, [
 			0 => $param0,
@@ -2999,6 +3023,10 @@ final class KnownTranslationFactory{
 		]);
 	}
 
+	public static function quark_server_raknet_deprecated() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_RAKNET_DEPRECATED, []);
+	}
+
 	public static function quark_server_start(Translatable|string $param0) : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_SERVER_START, [
 			0 => $param0,
@@ -3013,6 +3041,27 @@ final class KnownTranslationFactory{
 
 	public static function quark_server_tickOverload() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_SERVER_TICKOVERLOAD, []);
+	}
+
+	public static function quark_server_transport_noneConfigured() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_TRANSPORT_NONECONFIGURED, []);
+	}
+
+	public static function quark_server_transport_unavailable(Translatable|string $param0, Translatable|string $param1) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_TRANSPORT_UNAVAILABLE, [
+			0 => $param0,
+			1 => $param1,
+		]);
+	}
+
+	public static function quark_server_transport_unknown(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_TRANSPORT_UNKNOWN, [
+			0 => $param0,
+		]);
+	}
+
+	public static function quark_server_upnp_deprecated() : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_SERVER_UPNP_DEPRECATED, []);
 	}
 
 	public static function quark_server_url_bugReporting(Translatable|string $bugReportingUrl) : Translatable{

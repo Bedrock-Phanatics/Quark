@@ -81,6 +81,7 @@ use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
+use quark\event\player\PlayerIdentityVerifyEvent;
 use quark\event\player\PlayerResourcePackOfferEvent;
 use quark\event\server\DataPacketDecodeEvent;
 use quark\event\server\DataPacketReceiveEvent;
@@ -111,6 +112,8 @@ use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\handler\SpawnResponsePacketHandler;
 use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
+use quark\network\TransportIdentityException;
+use quark\network\TransportIdentityKey;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\player\GameMode;
@@ -267,7 +270,9 @@ class NetworkSession{
 		private Compressor $compressor,
 		private TypeConverter $typeConverter,
 		private string $ip,
-		private int $port
+		private int $port,
+		private ?TransportIdentityKey $transportIdentityKey = null,
+		private bool $transportEncrypted = false
 	){
 		$this->logger = new \PrefixedLogger($this->server->getLogger(), $this->getLogPrefix());
 
@@ -489,11 +494,12 @@ class NetworkSession{
 			}
 
 			if($this->enableCompression){
-				$compressionType = ord($payload[0]);
+				$compressionTypeId = ord($payload[0]);
+				$compressionType = CompressionAlgorithm::tryFrom($compressionTypeId);
 				$compressed = substr($payload, 1);
 				if($compressionType === CompressionAlgorithm::NONE){
 					$decompressed = $compressed;
-				}elseif($compressionType === $this->compressor->getNetworkId()){
+				}elseif($compressionType === $this->compressor->getNetworkType()){
 					$work?->stage($workToken, PulseNetworkWork::DECOMPRESS);
 					$playerNetworkReceiveDecompressScope = PulseZones::$playerNetworkReceiveDecompress->start();
 					try{
@@ -506,8 +512,8 @@ class NetworkSession{
 						PulseZones::$playerNetworkReceiveDecompress->stop($playerNetworkReceiveDecompressScope);
 					}
 				}else{
-					$this->recordNetworkSecurityEvent("compression.algorithm", "reject_batch", observed: $compressionType, limit: $this->compressor->getNetworkId());
-					throw new PacketHandlingException("Packet compressed with unexpected compression type $compressionType");
+					$this->recordNetworkSecurityEvent("compression.algorithm", "reject_batch", observed: $compressionTypeId, limit: $this->compressor->getNetworkType()->value);
+					throw new PacketHandlingException("Packet compressed with unexpected compression type $compressionTypeId");
 				}
 			}else{
 				$decompressed = $payload;
@@ -1123,6 +1129,12 @@ class NetworkSession{
 				$error = "Expected XUID but none found";
 			}elseif($clientPubKey === null){
 				$error = "Missing client public key"; //failsafe
+			}elseif($authenticated && $this->transportIdentityKey !== null){
+				try{
+					$this->transportIdentityKey->verify($clientPubKey);
+				}catch(TransportIdentityException $e){
+					$error = $e->getMessage();
+				}
 			}
 		}
 
@@ -1133,6 +1145,9 @@ class NetworkSession{
 			);
 
 			return;
+		}
+		if($clientPubKey === null){
+			throw new AssumptionFailedError("Client public key should have been checked above");
 		}
 
 		$this->authenticated = $authenticated;
@@ -1148,6 +1163,21 @@ class NetworkSession{
 			}
 		}
 		$this->logger->debug("Xbox Live authenticated: " . ($this->authenticated ? "YES" : "NO"));
+		$ev = new PlayerIdentityVerifyEvent(
+			$this,
+			$this->info ?? throw new AssumptionFailedError("Player info is set before login verification starts"),
+			$this->authenticated,
+			$authRequired,
+			$clientPubKey,
+			$this->transportIdentityKey,
+			"Plugin reason",
+			KnownTranslationFactory::quark_disconnect_error_authentication()
+		);
+		$ev->call();
+		if($ev->isCancelled()){
+			$this->disconnect($ev->getDisconnectReason(), $ev->getDisconnectScreenMessage());
+			return;
+		}
 
 		$checkXUID = $this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::PLAYER_VERIFY_XUID, true);
 		$myXUID = $this->info instanceof XboxLivePlayerInfo ? $this->info->getXuid() : "";
@@ -1196,7 +1226,7 @@ class NetworkSession{
 			}
 		}
 
-		if(EncryptionContext::$ENABLED){
+		if(EncryptionContext::$ENABLED && !($this->transportEncrypted && $this->transportIdentityKey !== null)){
 			$this->server->getAsyncPool()->submitTask(new PrepareEncryptionTask($clientPubKey, function(string $encryptionKey, string $handshakeJwt) : void{
 				if(!$this->connected){
 					return;

@@ -123,5 +123,26 @@ final class YmlServerProperties{
 	public const TNT_LIMITS_MAX_ACTIVE_PER_CHUNK = 'tnt-limits.max-active-per-chunk';
 	public const TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND = 'tnt-limits.max-dispenser-ignitions-per-second';
 	public const TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK = 'tnt-limits.max-ignitions-per-chunk-per-tick';
+	public const TRANSPORT = 'transport';
+	public const TRANSPORT_NAME = 'transport.name';
+	public const TRANSPORT_NETHERNET = 'transport.nethernet';
+	public const TRANSPORT_NETHERNET_ADVERTISE_ADDRESSES = 'transport.nethernet.advertise-addresses';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING = 'transport.nethernet.builtin-signaling';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_ENABLED = 'transport.nethernet.builtin-signaling.enabled';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_PORT = 'transport.nethernet.builtin-signaling.port';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_REVERSE_PROXY = 'transport.nethernet.builtin-signaling.reverse-proxy';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_REVERSE_PROXY_ENABLED = 'transport.nethernet.builtin-signaling.reverse-proxy.enabled';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_REVERSE_PROXY_HEADER = 'transport.nethernet.builtin-signaling.reverse-proxy.header';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_REVERSE_PROXY_TRUSTED_IPS = 'transport.nethernet.builtin-signaling.reverse-proxy.trusted-ips';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_TLS = 'transport.nethernet.builtin-signaling.tls';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_TLS_CERTIFICATE = 'transport.nethernet.builtin-signaling.tls.certificate';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_TLS_KEY = 'transport.nethernet.builtin-signaling.tls.key';
+	public const TRANSPORT_NETHERNET_BUILTIN_SIGNALING_TLS_PASSPHRASE = 'transport.nethernet.builtin-signaling.tls.passphrase';
+	public const TRANSPORT_NETHERNET_ICE_SERVERS = 'transport.nethernet.ice-servers';
+	public const TRANSPORT_NETHERNET_ICE_UDP_MUX = 'transport.nethernet.ice-udp-mux';
+	public const TRANSPORT_NETHERNET_IDENTITY_DOMAIN = 'transport.nethernet.identity-domain';
+	public const TRANSPORT_NETHERNET_KEY_FILE = 'transport.nethernet.key-file';
+	public const TRANSPORT_NETHERNET_MTU = 'transport.nethernet.mtu';
+	public const TRANSPORT_NETHERNET_PORT_RANGE = 'transport.nethernet.port-range';
 	public const WORLDS = 'worlds';
 }

@@ -38,6 +38,9 @@ use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
+use pocketmine\network\mcpe\protocol\types\InputMode;
+use pocketmine\network\mcpe\protocol\types\InteractionMode;
 use pocketmine\network\mcpe\protocol\types\inventory\HandSlot;
 use pocketmine\network\mcpe\protocol\types\inventory\InventoryTransactionChangedSlotsHack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
@@ -55,6 +58,7 @@ use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
+use pocketmine\network\mcpe\protocol\types\PlayMode;
 use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
@@ -181,7 +185,7 @@ final class PulseNetworkTest extends TestCase{
 		$this->rejected($session, $this->batch(["\xff\x07" . $padding]));
 		$this->rejected($session, $this->batch([substr($this->packet(), 0, -1)]));
 		$compressor = $this->createMock(Compressor::class);
-		$compressor->method("getNetworkId")->willReturn(0);
+		$compressor->method("getNetworkType")->willReturn(CompressionAlgorithm::ZLIB);
 		$compressor->method("decompress")->willThrowException(new DecompressionException("invalid compressed data"));
 		$this->set($session, "compressor", $compressor);
 		$this->set($session, "enableCompression", true);
@@ -316,7 +320,7 @@ final class PulseNetworkTest extends TestCase{
 				InventoryTransactionPacket::create(-7, [$slots], NormalTransactionData::new([])),
 				PlayerAuthInputPacket::create(
 					new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
-					1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0),
+					InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0),
 					new ItemInteractionData(-7, [$slots], $transaction), null, null, null,
 					0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
 				)
@@ -377,7 +381,7 @@ final class PulseNetworkTest extends TestCase{
 		$buffers = [];
 		foreach([0, 1, TransactionData::MAX_ACTIONS, 101, 100000] as $count){
 			$transaction = UseItemTransactionData::new(array_fill(0, $count, $action), 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
-			$packet = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), 1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), new ItemInteractionData(-7, null, $transaction), null, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
+			$packet = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), new ItemInteractionData(-7, null, $transaction), null, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
 			$writer = new ByteBufferWriter();
 			$packet->encode($writer);
 			$buffer = $this->batch([$writer->getData()]);
@@ -444,7 +448,7 @@ final class PulseNetworkTest extends TestCase{
 	private function authInputPacket(array $flags) : string{
 		$packet = PlayerAuthInputPacket::create(
 			new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
-			1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, null, null, null,
+			InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, null, null, null,
 			0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
 		);
 		$packet->senderSubId = 2;
@@ -581,7 +585,7 @@ final class PulseNetworkTest extends TestCase{
 				ItemStackRequestPacket::create([$request]),
 				PlayerAuthInputPacket::create(
 					new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
-					1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, $request, null, null,
+					InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, $request, null, null,
 					0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
 				)
 			] as $packet){
@@ -1088,7 +1092,7 @@ final class PulseNetworkTest extends TestCase{
 					$request = new ItemStackRequest(-7, $actions, $kind === "filters" ? array_fill(0, $count, "") : [], 0);
 					$standalone = ItemStackRequestPacket::create([$request]);
 				}
-				$movement = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), 1, 0, 0, new Vector2(0, 0), 123, new Vector3(0, 0, 0), $interaction, $request, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
+				$movement = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), $interaction, $request, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
 				foreach([$standalone, $movement] as $packet){
 					$writer = new ByteBufferWriter();
 					$packet->encode($writer);

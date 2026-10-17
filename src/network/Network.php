@@ -28,11 +28,16 @@ namespace quark\network;
 
 use quark\event\server\NetworkInterfaceRegisterEvent;
 use quark\event\server\NetworkInterfaceUnregisterEvent;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\PacketBroadcaster;
 use quark\utils\Utils;
 use function get_class;
 use function preg_match;
 use function spl_object_id;
+use function strtolower;
 use function time;
+use function trim;
 use const PHP_INT_MAX;
 
 class Network{
@@ -41,6 +46,12 @@ class Network{
 
 	/** @var AdvancedNetworkInterface[] */
 	private array $advancedInterfaces = [];
+
+	/** @var array<string, Transport> */
+	private array $transports = [];
+	/** @var array<string, Transport> */
+	private array $activeTransports = [];
+	private bool $transportsStarted = false;
 
 	/** @var RawPacketHandler[] */
 	private array $rawPacketHandlers = [];
@@ -95,6 +106,11 @@ class Network{
 	 * @throws NetworkInterfaceStartException
 	 */
 	public function registerInterface(NetworkInterface $interface) : bool{
+		return $this->addInterface($interface);
+	}
+
+	/** @throws NetworkInterfaceStartException */
+	private function addInterface(NetworkInterface $interface) : bool{
 		$ev = new NetworkInterfaceRegisterEvent($interface);
 		$ev->call();
 		if(!$ev->isCancelled()){
@@ -114,6 +130,60 @@ class Network{
 			return true;
 		}
 		return false;
+	}
+
+	public function registerTransport(string $name, Transport $transport) : void{
+		$name = strtolower(trim($name));
+		if(isset($this->transports[$name])){
+			throw new \InvalidArgumentException("Transport \"$name\" is already registered");
+		}
+		$this->transports[$name] = $transport;
+	}
+
+	public function getTransport(string $name) : ?Transport{
+		return $this->transports[strtolower(trim($name))] ?? null;
+	}
+
+	/** @return array<string, Transport> */
+	public function getTransports() : array{
+		return $this->transports;
+	}
+
+	public function activateTransport(string $name) : void{
+		$name = strtolower(trim($name));
+		if(!isset($this->transports[$name])){
+			throw new \InvalidArgumentException("Transport \"$name\" is not registered");
+		}
+		if($this->transportsStarted){
+			throw new \LogicException("Transports have already been started");
+		}
+		$this->activeTransports[$name] = $this->transports[$name];
+	}
+
+	/** @return array<string, Transport> */
+	public function getActiveTransports() : array{
+		return $this->activeTransports;
+	}
+
+	/** @throws NetworkInterfaceStartException */
+	public function startActiveTransports(
+		PacketBroadcaster $packetBroadcaster,
+		EntityEventBroadcaster $entityEventBroadcaster,
+		TypeConverter $typeConverter
+	) : void{
+		if($this->transportsStarted){
+			throw new \LogicException("Transports have already been started");
+		}
+		$this->transportsStarted = true;
+		foreach(Utils::stringifyKeys($this->activeTransports) as $name => $transport){
+			try{
+				foreach($transport->createInterfaces($packetBroadcaster, $entityEventBroadcaster, $typeConverter) as $interface){
+					$this->addInterface($interface);
+				}
+			}catch(NetworkInterfaceStartException $e){
+				throw new NetworkInterfaceStartException("Failed to start transport \"$name\": " . $e->getMessage(), 0, $e);
+			}
+		}
 	}
 
 	/**
