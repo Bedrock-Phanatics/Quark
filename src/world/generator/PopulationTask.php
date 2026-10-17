@@ -35,9 +35,7 @@ use function igbinary_unserialize;
 /**
  * @internal
  *
- * TODO: this should be moved to the executor namespace, but plugins have unfortunately used it directly due to the
- * difficulty of regenerating chunks. This should be addressed in the future.
- * For the remainder of PM5, we can't relocate this class.
+ * Some plugins instantiate this task to regenerate chunks, so its namespace is retained.
  *
  * @phpstan-type OnCompletion \Closure(Chunk $centerChunk, array<int, Chunk> $adjacentChunks) : void
  */

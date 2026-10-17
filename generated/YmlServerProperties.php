@@ -36,10 +36,6 @@ final class YmlServerProperties{
 	}
 
 	public const ALIASES = 'aliases';
-	public const AUTO_REPORT = 'auto-report';
-	public const AUTO_REPORT_ENABLED = 'auto-report.enabled';
-	public const AUTO_REPORT_HOST = 'auto-report.host';
-	public const AUTO_REPORT_USE_HTTPS = 'auto-report.use-https';
 	public const AUTO_UPDATER = 'auto-updater';
 	public const AUTO_UPDATER_ENABLED = 'auto-updater.enabled';
 	public const AUTO_UPDATER_HOST = 'auto-updater.host';

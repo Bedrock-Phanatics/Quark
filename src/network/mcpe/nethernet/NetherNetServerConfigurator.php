@@ -37,7 +37,7 @@ abstract class NetherNetServerConfigurator extends ThreadSafe{
 	/**
 	 * Runs on the NetherNet thread before the server is created.
 	 *
-	 * @param ServerConfiguration $defaults What PocketMine-MP would run the server with.
+	 * @param ServerConfiguration $defaults What Quark would run the server with.
 	 *
 	 * @throws \InvalidArgumentException
 	 */

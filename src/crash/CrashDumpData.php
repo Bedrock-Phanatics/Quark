@@ -34,7 +34,7 @@ final class CrashDumpData implements \JsonSerializable{
 	/** @var mixed[] */
 	public array $lastError = [];
 
-	/** @var mixed[] */
+	/** @var array{type: int|string, message: string, file: string, line: int, thread: string} */
 	public array $error;
 
 	public string $thread;

@@ -476,7 +476,6 @@ final class KnownTranslationParameterInfo{
 		Keys::QUARK_COMMAND_WHITELIST_DESCRIPTION => [],
 		Keys::QUARK_COMMAND_XP_DESCRIPTION => [],
 		Keys::QUARK_COMMAND_XP_USAGE => [],
-		Keys::QUARK_CRASH_ARCHIVE => ["0", "1"],
 		Keys::QUARK_CRASH_CREATE => [],
 		Keys::QUARK_CRASH_ERROR => ["0"],
 		Keys::QUARK_CRASH_SUBMIT => ["0"],

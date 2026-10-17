@@ -41,9 +41,7 @@ use const quark\BEDROCK_BLOCK_UPGRADE_SCHEMA_PATH;
 
 /**
  * Provides global access to blockstate serializers for all world providers.
- * TODO: Get rid of this. This is necessary to enable plugins to register custom serialize/deserialize handlers, and
- * also because we can't break BC of WorldProvider before PM5. While this is a sucky hack, it provides meaningful
- * benefits for now.
+ * Plugins use this registry to register custom serialize and deserialize handlers.
  */
 final class GlobalBlockStateHandlers{
 	private static ?BlockDataUpgrader $blockDataUpgrader = null;

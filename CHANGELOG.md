@@ -53,6 +53,8 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Changed the root PHP namespace from `pocketmine` to `quark`.
 - Renamed the Composer root package to `quark/quark` while retaining the existing `axolotl-pm/*` and `pocketmine/*` dependencies.
 - Renamed the bootstrap to `src/Quark.php`, the release artifact to `Quark.phar`, and the main configuration to `quark.yml`.
+- Replaced the inherited example plugin with a Quark 6 example and updated the script example to API 6.0.0.
+- Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.
 - Retained the existing `pmmpthread` native extension contract.
 - Added the redstone manager and runtime world/chunk override API.
 - Changed `TNT::ignite()` to return activation success as `bool`.
@@ -71,7 +73,7 @@ Added or expanded settings for:
 - Adaptive and periodic garbage collection.
 - Redstone enablement, world policy, world list, component limits, piston limits, and dispenser limits.
 - TNT enablement and activation/entity limits.
-- Crash reports, anonymous statistics, updater, timings, console behavior, memory limits, and plugin data placement.
+- Local crash reports, anonymous statistics, updater, timings, console behavior, memory limits, and plugin data placement.
 
 Review the new `resources/quark.yml` instead of copying an older configuration unchanged.
 

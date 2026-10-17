@@ -76,8 +76,7 @@ The primary configuration is `quark.yml`. Notable sections include:
 - `memory` — limits, garbage collection, and memory dumps
 - `redstone` — world policy and component-processing limits
 - `tnt-limits` — active entity and ignition limits
-- `crash-dumps` — local crash-dump contents
-- `auto-report` — optional PMMP crash-archive upload (disabled by default)
+- `crash-dumps` — crash details in the console and local `.txt` reports
 - `auto-updater` and `timings` — external services
 
 The source template is available at [resources/quark.yml](resources/quark.yml).
@@ -87,6 +86,8 @@ The source template is available at [resources/quark.yml](resources/quark.yml).
 Quark plugins use the `quark\` PHP namespace and target `quark/quark` through Composer. Plugins written for PocketMine-MP 5.x must be migrated and rebuilt.
 
 Declare plugin API `6.0.0`. Quark does not advertise Composer compatibility with `pocketmine/pocketmine-mp`; its external `pocketmine/*` and `axolotl-pm/*` library identifiers remain unchanged.
+
+See the [Quark 6 folder plugin](examples/plugins/QuarkExample) and [script plugin](examples/plugins/ExampleScriptPlugin.php) examples.
 
 Before submitting changes, run:
 
@@ -111,7 +112,6 @@ These links belong to PocketMine-MP and are useful as upstream references; they 
 - [PocketMine-MP API documentation](https://apidoc.pmmp.io/)
 - [PocketMine-MP translations on Crowdin](https://crowdin.com/project/pocketmine)
 - [PocketMine-MP releases and downloads](https://github.com/pmmp/PocketMine-MP/releases)
-- [PMMP crash archive](https://crash.pmmp.io/)
 
 ## License
 

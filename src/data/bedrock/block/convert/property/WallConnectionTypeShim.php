@@ -27,9 +27,7 @@ use quark\block\utils\WallConnectionType;
 use quark\data\bedrock\block\BlockStateStringValues;
 
 /**
- * Internally we use null for no connections, but accepting this in the mapping code would require a fair amount of
- * extra complexity for this one case. This shim allows us to use the regular systems for handling walls.
- * TODO: get rid of this in PM6 and make the internal enum have a NONE case
+ * Maps nullable wall connections to Bedrock's explicit none state.
  * @internal
  */
 enum WallConnectionTypeShim : string{

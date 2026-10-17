@@ -1,6 +1,6 @@
 name: TesterPlugin
-main: pmmp\TesterPlugin\Main
-src-namespace-prefix: pmmp\TesterPlugin
+main: quark\TesterPlugin\Main
+src-namespace-prefix: quark\TesterPlugin
 version: 0.1.0
 api: [6.0.0]
 load: POSTWORLD

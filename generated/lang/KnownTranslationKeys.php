@@ -473,7 +473,6 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_WHITELIST_DESCRIPTION = "quark.command.whitelist.description";
 	public const QUARK_COMMAND_XP_DESCRIPTION = "quark.command.xp.description";
 	public const QUARK_COMMAND_XP_USAGE = "quark.command.xp.usage";
-	public const QUARK_CRASH_ARCHIVE = "quark.crash.archive";
 	public const QUARK_CRASH_CREATE = "quark.crash.create";
 	public const QUARK_CRASH_ERROR = "quark.crash.error";
 	public const QUARK_CRASH_SUBMIT = "quark.crash.submit";

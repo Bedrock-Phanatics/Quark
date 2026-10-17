@@ -13,7 +13,7 @@ use quark\plugin\PluginBase;
  *
  * Required fields
  * @main quark\ExampleScriptPlugin\Main
- * @api 5.37.0
+ * @api 6.0.0
  *
  * Optional fields
  * Version and name are optional in script plugins for convenience, and will be filled with 1.0.0 and

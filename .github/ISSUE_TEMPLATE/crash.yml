@@ -13,7 +13,7 @@ body:
         > [!TIP]
         > Don't paste raw crashdump data into the issue.
         >
-        > Attach the local crashdump `.log` file to the issue after checking it for sensitive information.
+        > Attach the local crashdump `.txt` file to the issue after checking it for sensitive information.
         > You may also link a reviewed crashdump using [GitHub Gist](https://gist.github.com).
 
   - type: input

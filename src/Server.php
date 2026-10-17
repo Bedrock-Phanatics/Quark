@@ -138,7 +138,6 @@ use function array_fill;
 use function array_find;
 use function array_slice;
 use function array_sum;
-use function base64_encode;
 use function chr;
 use function cli_set_process_title;
 use function copy;
@@ -149,19 +148,16 @@ use function explode;
 use function fclose;
 use function file_exists;
 use function file_put_contents;
-use function filemtime;
 use function fopen;
 use function function_exists;
 use function get_class;
 use function gettype;
+use function implode;
 use function ini_set;
 use function is_array;
 use function is_dir;
-use function is_int;
-use function is_object;
 use function is_resource;
 use function is_string;
-use function json_decode;
 use function max;
 use function microtime;
 use function min;
@@ -179,7 +175,6 @@ use function str_repeat;
 use function str_replace;
 use function strlen;
 use function strncasecmp;
-use function strrpos;
 use function strtolower;
 use function strval;
 use function time;
@@ -1781,17 +1776,19 @@ class Server{
 		if(!is_dir($crashFolder)){
 			mkdir($crashFolder);
 		}
-		$crashDumpPath = Path::join($crashFolder, date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . ".log");
+		$crashDumpPath = Path::join($crashFolder, date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . ".txt");
 
 		$fp = @fopen($crashDumpPath, "wb");
 		if(!is_resource($fp)){
 			throw new \RuntimeException("Unable to open new file to generate crashdump");
 		}
-		$writer = new CrashDumpRenderer($fp, $dump->getData());
-		$writer->renderHumanReadable();
-		$dump->encodeData($writer);
-
-		fclose($fp);
+		try{
+			$writer = new CrashDumpRenderer($fp, $dump->getData());
+			$writer->renderHumanReadable();
+			$dump->encodeData($writer);
+		}finally{
+			fclose($fp);
+		}
 		return $crashDumpPath;
 	}
 
@@ -1807,38 +1804,12 @@ class Server{
 		try{
 			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_crash_create()));
 			$dump = new CrashDump($this, $this->pluginManager ?? null);
+			$error = $dump->getData()->error;
+			$this->logger->emergency(sprintf("%s: %s in %s:%s\n%s", $error["type"], $error["message"], $error["file"], $error["line"], implode("\n", $dump->getData()->trace)));
 
 			$crashDumpPath = $this->writeCrashDumpFile($dump);
 
-			$this->logger->emergency("Crash dump saved to: $crashDumpPath");
-
-			if($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_ENABLED, false)){
-				$report = true;
-				$stamp = Path::join($this->dataPath, "crashdumps", ".last_crash");
-				$crashInterval = 120;
-				if(($lastReportTime = @filemtime($stamp)) !== false && $lastReportTime + $crashInterval >= time()){
-					$report = false;
-					$this->logger->debug("Not sending crash dump because another crash was reported less than $crashInterval seconds ago");
-				}
-				@touch($stamp);
-				if($dump->getData()->error["type"] === \ParseError::class){ $report = false; }
-				if(strrpos(VersionInfo::GIT_HASH(), "-dirty") !== false || VersionInfo::GIT_HASH() === str_repeat("00", 20)){
-					$this->logger->debug("Not sending crash dump from a locally modified build");
-					$report = false;
-				}
-				if($report){
-					$url = ($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_USE_HTTPS, true) ? "https" : "http") . "://" . $this->configGroup->getPropertyString(Yml::AUTO_REPORT_HOST, "crash.pmmp.io") . "/submit/api";
-					$postUrlError = "Unknown error";
-					$reply = Internet::postURL($url, ["report" => "yes", "name" => $this->getName() . " " . $this->getQuarkVersion(), "email" => "", "reportPaste" => base64_encode($dump->getEncodedData())], 10, [], $postUrlError);
-					if($reply !== null && is_object($data = json_decode($reply->getBody()))){
-						if(isset($data->crashId) && is_int($data->crashId) && isset($data->crashUrl) && is_string($data->crashUrl)){
-							$this->logger->emergency("Crash dump archived by PMMP: $data->crashUrl (ID: $data->crashId)");
-						}elseif(isset($data->error) && is_string($data->error)){ $this->logger->emergency("Automatic crash report submission failed: $data->error"); }
-						else{ $this->logger->emergency("Invalid response received from the PMMP crash archive"); }
-					}else{ $this->logger->emergency("Failed to communicate with the PMMP crash archive: $postUrlError"); }
-				}
-			}
-
+			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_crash_submit($crashDumpPath)));
 		}catch(\Throwable $e){
 			$this->logger->logException($e);
 			try{

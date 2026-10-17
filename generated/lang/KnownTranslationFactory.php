@@ -2147,13 +2147,6 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_XP_USAGE, []);
 	}
 
-	public static function quark_crash_archive(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_CRASH_ARCHIVE, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
 	public static function quark_crash_create() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_CRASH_CREATE, []);
 	}

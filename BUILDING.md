@@ -15,7 +15,7 @@ The compiler's `-P5` option and `bin/php7/bin/php` directory select the inherite
 
 CI and release builds use Bedrock-Phanatics PHP 8.4 binaries. PHP 8.5 CI is temporarily paused until the Quark binary repository publishes 8.5 assets.
 
-The optional `tests/plugins/DevTools` and `examples/plugins/ExamplePlugin` submodules are inherited PocketMine-MP projects, not Quark 6 plugins. CI does not initialize them. Build a migrated folder plugin with `php -dphar.readonly=0 tests/build-plugin-phar.php path/to/plugin path/to/plugin.phar`.
+The optional `tests/plugins/DevTools` submodule is an inherited PocketMine-MP project. CI does not initialize it. The tracked [Quark 6 example plugin](examples/plugins/QuarkExample) can be built with `php -dphar.readonly=0 tests/build-plugin-phar.php examples/plugins/QuarkExample QuarkExample.phar`.
 
 If you use a custom binary, you'll need to replace `composer` usages in this guide with `path/to/your/php path/to/your/composer.phar`.
 

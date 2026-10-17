@@ -221,13 +221,6 @@ crash-dumps:
   include-settings: true
   include-phpinfo: false
 
-auto-report:
-  #Optionally upload eligible, unmodified-build crash dumps to PMMP's public crash archive.
-  #A local crash dump is always written first. Fork reports may not receive upstream support.
-  enabled: false
-  use-https: true
-  host: crash.pmmp.io
-
 auto-updater:
   enabled: false
   on-update:
