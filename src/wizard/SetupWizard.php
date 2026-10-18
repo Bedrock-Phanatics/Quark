@@ -31,6 +31,7 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\LanguageNotFoundException;
 use quark\lang\Translatable;
+use quark\FilesystemPaths;
 use quark\player\GameMode;
 use quark\Server;
 use quark\ServerProperties;
@@ -58,7 +59,7 @@ class SetupWizard{
 	private Language $lang;
 
 	public function __construct(
-		private string $dataPath
+		private FilesystemPaths $paths
 	){}
 
 	public function run() : bool{
@@ -93,7 +94,7 @@ class SetupWizard{
 		}
 
 		//This has to happen here to prevent user avoiding agreeing to license
-		$config = new Config(Path::join($this->dataPath, "server.properties"), Config::PROPERTIES);
+		$config = new Config($this->paths->serverProperties(), Config::PROPERTIES);
 		$config->set(ServerProperties::LANGUAGE, $lang);
 		$config->save();
 
@@ -189,7 +190,7 @@ LICENSE;
 		if($op === ""){
 			$this->error($this->lang->translate(KnownTranslationFactory::op_warning()));
 		}else{
-			$ops = new Config(Path::join($this->dataPath, "ops.txt"), Config::ENUM);
+			$ops = new Config(Path::join($this->paths->config(), "ops.txt"), Config::ENUM);
 			$ops->set($op, true);
 			$ops->save();
 		}

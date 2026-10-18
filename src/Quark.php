@@ -296,15 +296,21 @@ JIT_WARNING
 
 		$cwd = Utils::assumeNotFalse(realpath(Utils::assumeNotFalse(getcwd())));
 		$dataPath = getopt_string(BootstrapOptions::DATA) ?? $cwd;
-		$pluginPath = getopt_string(BootstrapOptions::PLUGINS) ?? $cwd . DIRECTORY_SEPARATOR . "plugins";
-		Filesystem::addCleanedPath($pluginPath, Filesystem::CLEAN_PATH_PLUGINS_PREFIX);
+		$pluginPath = getopt_string(BootstrapOptions::PLUGINS) ?? $dataPath . DIRECTORY_SEPARATOR . "plugins";
 
 		if(!@mkdir($dataPath, 0777, true) && !is_dir($dataPath)){
 			critical_error("Unable to create/access data directory at $dataPath. Check that the target location is accessible by the current user.");
 			exit(1);
 		}
+		for($part = Path::makeAbsolute($dataPath, $cwd); $part !== dirname($part); $part = dirname($part)){
+			if(is_link($part)){
+				critical_error("Filesystem root cannot use a symbolic link: $part");
+				exit(1);
+			}
+		}
 		//this has to be done after we're sure the data path exists
 		$dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
+		$paths = new FilesystemPaths($dataPath, $pluginPath);
 
 		$lockFilePath = Path::join($dataPath, 'server.lock');
 		try{
@@ -320,11 +326,35 @@ JIT_WARNING
 			exit(1);
 		}
 
-		if(!@mkdir($pluginPath, 0777, true) && !is_dir($pluginPath)){
-			critical_error("Unable to create plugin directory at $pluginPath. Check that the target location is accessible by the current user.");
+		$migrationOptions = getopt("", [BootstrapOptions::MIGRATE_LEGACY, BootstrapOptions::MIGRATION_DRY_RUN]);
+		try{
+			$migrationConfig = Path::join($paths->config(), "migration.ini");
+			if(is_link($paths->config()) || is_link($migrationConfig)){
+				throw new \RuntimeException("Migration configuration cannot be a symbolic link: $migrationConfig");
+			}
+			$settings = is_file($migrationConfig) ? parse_ini_file($migrationConfig, true, INI_SCANNER_TYPED) : [];
+			if($settings === false || !is_bool($settings["migration"]["auto_on_startup"] ?? false)){
+				throw new \RuntimeException("Invalid migration setting in $migrationConfig");
+			}
+			$result = (new FilesystemMigration($paths))->prepare(isset($migrationOptions[BootstrapOptions::MIGRATE_LEGACY]) || ($settings["migration"]["auto_on_startup"] ?? false), isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN]));
+			if(isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN])){
+				echo $result . PHP_EOL;
+				Filesystem::releaseLockFile($lockFilePath);
+				exit(0);
+			}
+			if(!is_file($migrationConfig)){
+				if(file_put_contents($migrationConfig, "[migration]\nauto_on_startup = false\n") === false){
+					throw new \RuntimeException("Cannot write migration configuration: $migrationConfig");
+				}
+			}
+		}catch(\Throwable $e){
+			critical_error($e->getMessage());
+			Filesystem::releaseLockFile($lockFilePath);
 			exit(1);
 		}
 		$pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
+		$paths = new FilesystemPaths($dataPath, $pluginPath);
+		Filesystem::addCleanedPath($pluginPath, Filesystem::CLEAN_PATH_PLUGINS_PREFIX);
 
 		//Logger has a dependency on timezone
 		Timezone::init();
@@ -337,9 +367,9 @@ JIT_WARNING
 		}else{
 			Terminal::init();
 		}
-		$logFile = isset($opts[BootstrapOptions::NO_LOG_FILE]) ? null : Path::join($dataPath, "server.log");
+		$logFile = isset($opts[BootstrapOptions::NO_LOG_FILE]) ? null : Path::join($paths->logs(), "server.log");
 
-		$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), false, Path::join($dataPath, "log_archive"));
+		$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), false, Path::join($paths->logs(), "archive"));
 		if($logFile === null){
 			$logger->notice("Logging to file disabled. Ensure logs are collected by other means (e.g. Docker logs).");
 		}
@@ -350,8 +380,8 @@ JIT_WARNING
 
 		$exitCode = 0;
 		do{
-			if(!file_exists(Path::join($dataPath, "server.properties")) && !isset($opts[BootstrapOptions::NO_WIZARD])){
-				$installer = new SetupWizard($dataPath);
+			if(!file_exists($paths->serverProperties()) && !isset($opts[BootstrapOptions::NO_WIZARD])){
+				$installer = new SetupWizard($paths);
 				if(!$installer->run()){
 					$exitCode = -1;
 					break;

@@ -239,7 +239,7 @@ class WorldManager{
 			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_conversion_start($name)));
 
 			$providerClass = $this->providerManager->getDefault();
-			$converter = new FormatConverter($provider, $providerClass, Path::join($this->server->getDataPath(), "backups", "worlds"), $this->server->getLogger());
+			$converter = new FormatConverter($provider, $providerClass, Path::join($this->server->getFilesystemPaths()->backups(), "worlds"), $this->server->getLogger());
 			$converter->execute();
 			$provider = $providerClass->fromPath($path, new \PrefixedLogger($this->server->getLogger(), "World Provider: $name"));
 

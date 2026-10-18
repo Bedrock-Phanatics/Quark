@@ -296,6 +296,7 @@ class Server{
 
 	private string $dataPath;
 	private string $pluginPath;
+	private FilesystemPaths $paths;
 
 	private PlayerDataProvider $playerDataProvider;
 
@@ -350,6 +351,8 @@ class Server{
 	public function getPluginPath() : string{
 		return $this->pluginPath;
 	}
+
+	public function getFilesystemPaths() : FilesystemPaths{ return $this->paths; }
 
 	public function getMaxPlayers() : int{
 		return $this->maxPlayers;
@@ -545,7 +548,7 @@ class Server{
 		$collection->onCompletion(
 			function(array $captures) use ($metadata) : void{
 				try{
-					$directory = Path::join($this->getDataPath(), "pulse");
+					$directory = $this->getFilesystemPaths()->profiles();
 					if(isset($this->tickSleeper, $this->autoloader, $this->logger)){
 						// Disk writes must not occupy the networking and generation workers.
 						$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
@@ -897,22 +900,12 @@ class Server{
 		});
 
 		try{
-			foreach([
-				$dataPath,
-				$pluginPath,
-				Path::join($dataPath, "worlds"),
-				Path::join($dataPath, "players")
-			] as $neededPath){
-				if(!file_exists($neededPath)){
-					mkdir($neededPath, 0777);
-				}
-			}
-
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
+			$this->paths = new FilesystemPaths($this->dataPath, $this->pluginPath);
 
 			$this->logger->info("Loading server configuration");
-			$quarkYmlPath = Path::join($this->dataPath, "quark.yml");
+			$quarkYmlPath = $this->paths->quarkYml();
 			if(!file_exists($quarkYmlPath)){
 				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "quark.yml"));
 				if(VersionInfo::IS_DEVELOPMENT_BUILD){
@@ -923,7 +916,7 @@ class Server{
 
 			$this->configGroup = new ServerConfigGroup(
 				new Config($quarkYmlPath, Config::YAML, []),
-				new Config(Path::join($this->dataPath, "server.properties"), Config::PROPERTIES, [
+				new Config($this->paths->serverProperties(), Config::PROPERTIES, [
 					ServerProperties::MOTD => self::DEFAULT_SERVER_NAME,
 					ServerProperties::SERVER_PORT_IPV4 => self::DEFAULT_PORT_IPV4,
 					ServerProperties::SERVER_PORT_IPV6 => self::DEFAULT_PORT_IPV6,
@@ -1053,18 +1046,18 @@ class Server{
 
 			$this->doTitleTick = $this->configGroup->getPropertyBool(Yml::CONSOLE_TITLE_TICK, true) && Terminal::hasFormattingCodes();
 
-			$this->operators = new Config(Path::join($this->dataPath, "ops.txt"), Config::ENUM);
-			$this->whitelist = new Config(Path::join($this->dataPath, "white-list.txt"), Config::ENUM);
+			$this->operators = new Config(Path::join($this->paths->config(), "ops.txt"), Config::ENUM);
+			$this->whitelist = new Config(Path::join($this->paths->config(), "white-list.txt"), Config::ENUM);
 
-			$bannedTxt = Path::join($this->dataPath, "banned.txt");
-			$bannedPlayersTxt = Path::join($this->dataPath, "banned-players.txt");
+			$bannedTxt = Path::join($this->paths->config(), "banned.txt");
+			$bannedPlayersTxt = Path::join($this->paths->config(), "banned-players.txt");
 			if(file_exists($bannedTxt) && !file_exists($bannedPlayersTxt)){
 				@rename($bannedTxt, $bannedPlayersTxt);
 			}
 			@touch($bannedPlayersTxt);
 			$this->banByName = new BanList($bannedPlayersTxt);
 			$this->banByName->load();
-			$bannedIpsTxt = Path::join($this->dataPath, "banned-ips.txt");
+			$bannedIpsTxt = Path::join($this->paths->config(), "banned-ips.txt");
 			@touch($bannedIpsTxt);
 			$this->banByIP = new BanList($bannedIpsTxt);
 			$this->banByIP->load();
@@ -1135,10 +1128,10 @@ class Server{
 
 			$this->craftingManager = CraftingManagerFromDataHelper::make(BedrockDataFiles::RECIPES);
 
-			$this->resourceManager = new ResourcePackManager(Path::join($this->dataPath, "resource_packs"), $this->logger);
+			$this->resourceManager = new ResourcePackManager($this->paths->resourcePacks(), $this->logger);
 
 			$pluginGraylist = null;
-			$graylistFile = Path::join($this->dataPath, "plugin_list.yml");
+			$graylistFile = $this->paths->pluginList();
 			if(!file_exists($graylistFile)){
 				copy(Path::join(\quark\RESOURCE_PATH, 'plugin_list.yml'), $graylistFile);
 			}
@@ -1153,7 +1146,10 @@ class Server{
 				$this->forceShutdownExit();
 				return;
 			}
-			$this->pluginManager = new PluginManager($this, $this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, true) ? null : Path::join($this->dataPath, "plugin_data"), $pluginGraylist);
+			if($this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, false)){
+				throw new \RuntimeException("Colocated plugin data is unsupported in filesystem layout version 1; migrate it to data/plugins first");
+			}
+			$this->pluginManager = new PluginManager($this, $this->paths->pluginData(), $pluginGraylist);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
@@ -1167,7 +1163,7 @@ class Server{
 				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_level_badDefaultFormat($formatName)));
 			}
 
-			$this->worldManager = new WorldManager($this, Path::join($this->dataPath, "worlds"), $providerManager);
+			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
@@ -1176,7 +1172,7 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataProvider = new DatFilePlayerDataProvider(Path::join($this->dataPath, "players"));
+			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players());
 
 			register_shutdown_function($this->crashDump(...));
 
@@ -1772,7 +1768,7 @@ class Server{
 	}
 
 	private function writeCrashDumpFile(CrashDump $dump) : string{
-		$crashFolder = Path::join($this->dataPath, "crashdumps");
+		$crashFolder = $this->paths->crashes();
 		if(!is_dir($crashFolder)){
 			mkdir($crashFolder);
 		}

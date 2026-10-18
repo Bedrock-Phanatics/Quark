@@ -164,10 +164,10 @@ class CrashDump{
 
 		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CRASH_DUMPS_INCLUDE_SETTINGS, true)){
 			$this->data->parameters = (array) $argv;
-			if(($serverDotProperties = @file_get_contents(Path::join($this->server->getDataPath(), "server.properties"))) !== false){
+			if(($serverDotProperties = @file_get_contents($this->server->getFilesystemPaths()->serverProperties())) !== false){
 				$this->data->serverDotProperties = preg_replace("#^rcon\\.password=(.*)$#m", "rcon.password=******", $serverDotProperties) ?? throw new AssumptionFailedError("Pattern is valid");
 			}
-			if(($quarkDotYml = @file_get_contents(Path::join($this->server->getDataPath(), "quark.yml"))) !== false){
+			if(($quarkDotYml = @file_get_contents($this->server->getFilesystemPaths()->quarkYml())) !== false){
 				$this->data->quarkDotYml = $quarkDotYml;
 			}
 		}

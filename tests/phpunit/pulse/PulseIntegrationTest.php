@@ -561,9 +561,10 @@ final class PulseIntegrationTest extends TestCase{
 
 	public function testServerReportWorksBeforeManagersAreInitialized() : void{
 		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-startup-", true);
-		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath", "getFilesystemPaths"])->getMock();
 		$server->method("getQuarkVersion")->willReturn("test");
 		$server->method("getDataPath")->willReturn($directory);
+		$server->method("getFilesystemPaths")->willReturn(new \quark\FilesystemPaths($directory, $directory . "/plugins"));
 		$recorder = $this->recorder();
 		$recorder->start();
 		$recorder->stop();
@@ -579,7 +580,8 @@ final class PulseIntegrationTest extends TestCase{
 			self::assertSame([], $metadata["worlds"]);
 		}finally{
 			if($file !== null){ unlink($file); }
-			rmdir($directory . "/pulse");
+			rmdir($directory . "/diagnostics/profiles");
+			rmdir($directory . "/diagnostics");
 			rmdir($directory);
 		}
 	}

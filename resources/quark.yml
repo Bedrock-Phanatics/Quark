@@ -313,7 +313,5 @@ worlds:
   # preset: 2;bedrock,59xstone,3xdirt,grass;1
 
 plugins:
-  #Setting this to true will cause the legacy structure to be used where plugin data is placed inside the --plugins dir.
-  #False will place plugin data under plugin_data under --data.
-  #This option exists for backwards compatibility with existing installations.
+  #Colocated plugin data cannot be used with the versioned filesystem layout.
   legacy-data-dir: false

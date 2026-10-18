@@ -69,9 +69,10 @@ final class PulseWorkerTest extends TestCase{
 		$logger = new MainLogger(null, false, "Pulse shutdown test", new \DateTimeZone("UTC"));
 		$threads = ThreadManager::getInstance()->getAll();
 		$directory = sys_get_temp_dir() . "/" . uniqid("quark-pulse-shutdown-", true);
-		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath", "getFilesystemPaths"])->getMock();
 		$server->method("getQuarkVersion")->willReturn("test");
 		$server->method("getDataPath")->willReturn($directory);
+		$server->method("getFilesystemPaths")->willReturn(new \quark\FilesystemPaths($directory, $directory . "/plugins"));
 		$world = self::createStub(World::class);
 		$world->method("getFolderName")->willReturn("test-world");
 		$worldManager = self::createMock(WorldManager::class);
@@ -116,7 +117,7 @@ final class PulseWorkerTest extends TestCase{
 			self::assertSame([45, 45], $guards);
 			self::assertSame($threads, ThreadManager::getInstance()->getAll());
 			self::assertNull((new \ReflectionProperty(Server::class, "pulseReportPool"))->getValue($server));
-			$files = glob($directory . "/pulse/*");
+			$files = glob($directory . "/diagnostics/profiles/*");
 			self::assertIsArray($files);
 			self::assertCount(1, $files);
 			$contents = file_get_contents($files[0]);
@@ -127,9 +128,9 @@ final class PulseWorkerTest extends TestCase{
 		}finally{
 			Pulse::reset();
 			$logger->shutdownLogWriterThread();
-			$files = glob($directory . "/pulse/*");
+			$files = glob($directory . "/diagnostics/profiles/*");
 			if($files !== false){ foreach($files as $file){ unlink($file); } }
-			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
+			if(is_dir($directory . "/diagnostics/profiles")){ rmdir($directory . "/diagnostics/profiles"); rmdir($directory . "/diagnostics"); }
 			if(is_dir($directory)){ rmdir($directory); }
 		}
 	}
@@ -211,9 +212,10 @@ final class PulseWorkerTest extends TestCase{
 		$path = $directory;
 		$pool = new AsyncPool(2, 256, new ThreadSafeClassLoader(), $logger, new SleeperHandler(), 0);
 		$recorder = new PulseRecorder($pool);
-		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath", "getFilesystemPaths"])->getMock();
 		$server->method("getQuarkVersion")->willReturn("test");
 		$server->method("getDataPath")->willReturnCallback(static function() use (&$path) : string{ return $path; });
+		$server->method("getFilesystemPaths")->willReturnCallback(static function() use (&$path) : \quark\FilesystemPaths{ return new \quark\FilesystemPaths($path, $path . "/plugins"); });
 		foreach(["pulse" => $recorder, "asyncPool" => $pool, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "tickSleeper" => new TimeTrackingSleeperHandler(Pulse::zone("export.notifier"))] as $property => $value){
 			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
 		}
@@ -362,9 +364,9 @@ final class PulseWorkerTest extends TestCase{
 			$pool->shutdown();
 			Pulse::reset();
 			$logger->shutdownLogWriterThread();
-			$files = glob($directory . "/pulse/*");
+			$files = glob($directory . "/diagnostics/profiles/*");
 			if($files !== false){ foreach($files as $file){ unlink($file); } }
-			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
+			if(is_dir($directory . "/diagnostics/profiles")){ rmdir($directory . "/diagnostics/profiles"); rmdir($directory . "/diagnostics"); }
 			if(is_dir($directory)){ rmdir($directory); }
 		}
 		self::assertSame([], $pool->getRunningWorkers());
@@ -381,9 +383,10 @@ final class PulseWorkerTest extends TestCase{
 		/** @var \pmmp\thread\ThreadSafeArray<string, bool> $gate */
 		$gate = new \pmmp\thread\ThreadSafeArray();
 		$gate["release"] = false;
-		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath"])->getMock();
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods(["getQuarkVersion", "getDataPath", "getFilesystemPaths"])->getMock();
 		$server->method("getQuarkVersion")->willReturn("test");
 		$server->method("getDataPath")->willReturn($directory);
+		$server->method("getFilesystemPaths")->willReturn(new \quark\FilesystemPaths($directory, $directory . "/plugins"));
 		foreach(["pulse" => $recorder, "asyncPool" => $pool, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "tickSleeper" => new TimeTrackingSleeperHandler(Pulse::zone("timeout.notifier"))] as $property => $value){
 			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
 		}
@@ -459,9 +462,9 @@ final class PulseWorkerTest extends TestCase{
 			$pool->shutdown();
 			Pulse::reset();
 			$logger->shutdownLogWriterThread();
-			$files = glob($directory . "/pulse/*");
+			$files = glob($directory . "/diagnostics/profiles/*");
 			if($files !== false){ foreach($files as $file){ unlink($file); } }
-			if(is_dir($directory . "/pulse")){ rmdir($directory . "/pulse"); }
+			if(is_dir($directory . "/diagnostics/profiles")){ rmdir($directory . "/diagnostics/profiles"); rmdir($directory . "/diagnostics"); }
 			if(is_dir($directory)){ rmdir($directory); }
 		}
 		self::assertSame([], $pool->getRunningWorkers());
