@@ -10,17 +10,23 @@ $legacyProperties = "motd=Quark Server\nserver-port=19132\nserver-portv6=19133\n
 $resources = dirname(__DIR__) . '/resources/';
 $cases = [
 	'legacy' => static function() use ($resources, $legacyProperties) : void{
-		yaml_parse(\quark\utils\Config::fixYAMLIndexes(Filesystem::fileGetContents($resources . 'quark.yml')));
-		\quark\utils\Config::parseProperties($legacyProperties);
+		yaml_parse(quark\utils\Config::fixYAMLIndexes(Filesystem::fileGetContents($resources . 'quark.yml')));
+		quark\utils\Config::parseProperties($legacyProperties);
 		$plugins = yaml_parse(Filesystem::fileGetContents($resources . 'plugin_list.yml'));
 		if(!is_array($plugins)){
-			throw new \RuntimeException("Invalid legacy plugin list fixture");
+			throw new RuntimeException("Invalid legacy plugin list fixture");
 		}
-		\quark\plugin\PluginGraylist::fromArray($plugins);
+		quark\plugin\PluginGraylist::fromArray($plugins);
 	},
-	'toml' => static function() use ($resources) : void{
-		\quark\CoreConfig::validateServer(\quark\CoreConfig::parse(Filesystem::fileGetContents($resources . 'server.toml')));
-		\quark\CoreConfig::validatePlugins(\quark\CoreConfig::parse(Filesystem::fileGetContents($resources . 'plugins.toml')));
+	'toml-native' => static function() use ($resources) : void{
+		quark\CoreConfig::forget($resources . 'server.toml');
+		quark\CoreConfig::validateServer(quark\CoreConfig::load($resources . 'server.toml'));
+		quark\CoreConfig::forget($resources . 'plugins.toml');
+		quark\CoreConfig::validatePlugins(quark\CoreConfig::load($resources . 'plugins.toml'));
+	},
+	'toml-php' => static function() use ($resources) : void{
+		quark\CoreConfig::validateServer(Internal\Toml\Toml::parseToArray(Filesystem::fileGetContents($resources . 'server.toml')));
+		quark\CoreConfig::validatePlugins(Internal\Toml\Toml::parseToArray(Filesystem::fileGetContents($resources . 'plugins.toml')));
 	}
 ];
 foreach($cases as $name => $run){

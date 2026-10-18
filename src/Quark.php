@@ -113,6 +113,7 @@ namespace quark {
 			"reflection" => "Reflection",
 			"sockets" => "Sockets",
 			"spl" => "SPL",
+			"toml" => "TOML",
 			"yaml" => "YAML",
 			"zip" => "Zip",
 			"zlib" => "Zlib"

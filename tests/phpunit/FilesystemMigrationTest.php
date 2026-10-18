@@ -6,6 +6,33 @@ namespace quark;
 
 use PHPUnit\Framework\TestCase;
 use quark\utils\Filesystem;
+use function assert;
+use function bin2hex;
+use function copy;
+use function dirname;
+use function extension_loaded;
+use function fclose;
+use function file_get_contents;
+use function file_put_contents;
+use function flock;
+use function fopen;
+use function function_exists;
+use function glob;
+use function is_array;
+use function is_dir;
+use function is_link;
+use function json_decode;
+use function json_encode;
+use function mkdir;
+use function random_bytes;
+use function rename;
+use function rmdir;
+use function sys_get_temp_dir;
+use function unlink;
+use const DIRECTORY_SEPARATOR;
+use const LOCK_EX;
+use const LOCK_NB;
+use const LOCK_UN;
 
 final class FilesystemMigrationTest extends TestCase{
 	private string $root;
@@ -256,7 +283,7 @@ final class FilesystemMigrationTest extends TestCase{
 		$this->migration->prepare();
 		copy(RESOURCE_PATH . "server.toml", $this->paths->serverToml());
 		copy(RESOURCE_PATH . "plugins.toml", $this->paths->pluginsToml());
-		$config = new \quark\utils\Config($this->paths->serverToml(), \quark\utils\Config::TOML);
+		$config = new utils\Config($this->paths->serverToml(), utils\Config::TOML);
 		self::assertSame(CoreConfig::parse(Filesystem::fileGetContents(RESOURCE_PATH . "server.toml")), require dirname(__DIR__, 2) . "/generated/CoreConfigSchema.php");
 		CoreConfig::validateServer($config->getAll());
 		CoreConfig::validatePlugins(CoreConfig::load($this->paths->pluginsToml()));
@@ -265,7 +292,7 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("Server closed", $group->getPropertyString("settings.shutdown-message", ""));
 		$group->setConfigInt(ServerProperties::SERVER_PORT_IPV4, 19140);
 		$group->save();
-		self::assertSame(19140, (new \quark\utils\Config($this->paths->serverToml(), \quark\utils\Config::TOML))->getNested("server.server-port"));
+		self::assertSame(19140, (new utils\Config($this->paths->serverToml(), utils\Config::TOML))->getNested("server.server-port"));
 	}
 
 	public function testInvalidKnownValuesIdentifyKeys() : void{
@@ -291,11 +318,28 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame($value, CoreConfig::parse(CoreConfig::encode($value)));
 	}
 
+	public function testNativeTomlFileParsingAndErrorReporting() : void{
+		self::assertTrue(extension_loaded("toml"));
+		file_put_contents($this->root . "/config.toml", "[server]\nserver-port = 19132\n");
+		self::assertSame(["server" => ["server-port" => 19132]], CoreConfig::load($this->root . "/config.toml"));
+		unlink($this->root . "/config.toml");
+		self::assertSame(["server" => ["server-port" => 19132]], CoreConfig::load($this->root . "/config.toml"));
+		file_put_contents($this->root . "/invalid.toml", "[server]\nserver-port = \n");
+		try{
+			CoreConfig::load($this->root . "/invalid.toml");
+			self::fail("Expected invalid TOML to be rejected");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("invalid.toml", $e->getMessage());
+			self::assertInstanceOf(\TomlParseException::class, $e->getPrevious());
+			self::assertSame(2, $e->getPrevious()->getTomlLine());
+		}
+	}
+
 	public function testMissingOptionalSettingsKeepGetterDefaults() : void{
 		CoreConfig::validateServer(["settings" => ["force-language" => true]]);
 		$this->migration->prepare();
 		file_put_contents($this->paths->serverToml(), "[settings]\nforce-language = true\n");
-		$config = new \quark\utils\Config($this->paths->serverToml(), \quark\utils\Config::TOML);
+		$config = new utils\Config($this->paths->serverToml(), utils\Config::TOML);
 		$group = new ServerConfigGroup($config, $config, true);
 		self::assertSame(19132, $group->getConfigInt(ServerProperties::SERVER_PORT_IPV4, 19132));
 		self::assertTrue($group->getPropertyBool("settings.force-language", false));

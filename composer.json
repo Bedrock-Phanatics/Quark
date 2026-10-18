@@ -34,6 +34,7 @@
       "ext-simplexml": "*",
       "ext-sockets": "*",
       "ext-spl": "*",
+      "ext-toml": "^0.1.1",
       "ext-yaml": ">=2.0.0",
       "ext-zip": "*",
       "ext-zlib": ">=1.2.11",

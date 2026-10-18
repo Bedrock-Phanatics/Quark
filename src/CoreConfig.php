@@ -7,6 +7,19 @@ namespace quark;
 use Internal\Toml\Toml;
 use quark\plugin\PluginGraylist;
 use quark\utils\Utils;
+use function array_is_list;
+use function array_key_exists;
+use function array_keys;
+use function get_debug_type;
+use function is_array;
+use function is_bool;
+use function is_int;
+use function is_string;
+use function json_decode;
+use function json_encode;
+use function toml_parse;
+use function toml_parse_file;
+use const JSON_THROW_ON_ERROR;
 
 final class CoreConfig{
 	/** @var array<string, array<string, mixed>> */
@@ -17,14 +30,12 @@ final class CoreConfig{
 	/** @return array<string, mixed> */
 	public static function load(string $path) : array{
 		if(!isset(self::$loaded[$path])){
-			$content = @file_get_contents($path);
-			if($content === false){
-				throw new \RuntimeException("Cannot read configuration: $path");
-			}
 			try{
-				self::$loaded[$path] = self::parse($content);
-			}catch(\Throwable $e){
+				self::$loaded[$path] = self::restoreNulls(toml_parse_file($path));
+			}catch(\TomlParseException|\InvalidArgumentException $e){
 				throw new \RuntimeException("Invalid TOML in $path: " . $e->getMessage(), 0, $e);
+			}catch(\TomlException $e){
+				throw new \RuntimeException("Cannot read configuration: $path: " . $e->getMessage(), 0, $e);
 			}
 		}
 		return self::$loaded[$path];
@@ -36,7 +47,14 @@ final class CoreConfig{
 
 	/** @return array<string, mixed> */
 	public static function parse(string $content) : array{
-		$data = Toml::parseToArray($content);
+		return self::restoreNulls(toml_parse($content));
+	}
+
+	/**
+	 * @param array<string, mixed> $data
+	 * @return array<string, mixed>
+	 */
+	private static function restoreNulls(array $data) : array{
 		$nulls = $data["__quark_nulls"] ?? [];
 		unset($data["__quark_nulls"]);
 		if(!is_array($nulls) || !array_is_list($nulls)){
