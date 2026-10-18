@@ -28,6 +28,7 @@
       "ext-morton": "^0.1.0",
       "ext-openssl": "*",
       "ext-pcre": "*",
+      "ext-pdo_sqlite": "*",
       "ext-phar": "*",
       "ext-pmmpthread": "^6.1.0",
       "ext-reflection": "*",

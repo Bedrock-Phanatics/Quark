@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\permission;
 
-use quark\utils\Utils;
 use function array_shift;
 use function count;
 use function explode;
@@ -86,10 +85,13 @@ class BanEntry{
 	}
 
 	public function hasExpired() : bool{
+		if($this->expirationDate === null){
+			return false;
+		}
 		/** @noinspection PhpUnhandledExceptionInspection */
 		$now = new \DateTime();
 
-		return $this->expirationDate === null ? false : $this->expirationDate < $now;
+		return $this->expirationDate < $now;
 	}
 
 	public function getReason() : string{
@@ -109,6 +111,15 @@ class BanEntry{
 			$expires === null ? "Forever" : $expires->format(self::$format),
 			$this->getReason()
 		]);
+	}
+
+	public static function fromStorage(string $name, string $created, string $source, ?string $expires, string $reason) : self{
+		$entry = new self($name);
+		$entry->setCreated(self::parseDate($created));
+		$entry->setSource($source);
+		$entry->setExpires($expires === null ? null : self::parseDate($expires));
+		$entry->setReason($reason);
+		return $entry;
 	}
 
 	/**
@@ -132,9 +143,9 @@ class BanEntry{
 	 */
 	private static function parseDate(string $date) : \DateTime{
 		$datetime = \DateTime::createFromFormat(self::$format, $date);
-		if(!($datetime instanceof \DateTime)){
-			$lastErrors = Utils::assumeNotFalse(\DateTime::getLastErrors(), "DateTime::getLastErrors() should not be returning false in here");
-			throw new \RuntimeException("Corrupted date/time: " . implode(", ", $lastErrors["errors"]));
+		$lastErrors = \DateTime::getLastErrors();
+		if(!($datetime instanceof \DateTime) || $lastErrors !== false && ($lastErrors["warning_count"] > 0 || $lastErrors["error_count"] > 0)){
+			throw new \RuntimeException("Corrupted date/time: $date");
 		}
 
 		return $datetime;
@@ -148,9 +159,7 @@ class BanEntry{
 			return null;
 		}
 
-		//we expect at most 5 parts, but accept 6 in case of an extra unexpected delimiter
-		//we don't want to include unexpected data into the ban reason
-		$parts = explode("|", trim($str), limit: 6);
+		$parts = explode("|", trim($str), limit: 5);
 		$entry = new BanEntry(trim(array_shift($parts)));
 		if(count($parts) > 0){
 			$entry->setCreated(self::parseDate(array_shift($parts)));

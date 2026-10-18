@@ -29,6 +29,7 @@ use function fgets;
 use function fopen;
 use function fwrite;
 use function is_resource;
+use function is_string;
 use function strtolower;
 use function trim;
 
@@ -42,7 +43,8 @@ class BanList{
 	private bool $enabled = true;
 
 	public function __construct(
-		private string $file
+		private string|AccessStorage $file,
+		private ?string $kind = null
 	){}
 
 	public function isEnabled() : bool{
@@ -54,9 +56,12 @@ class BanList{
 	}
 
 	public function getEntry(string $name) : ?BanEntry{
-		$this->removeExpired();
-
-		return $this->list[strtolower($name)] ?? null;
+		$entry = $this->list[strtolower($name)] ?? null;
+		if($entry !== null && $entry->hasExpired()){
+			unset($this->list[$entry->getName()]);
+			return null;
+		}
+		return $entry;
 	}
 
 	/**
@@ -69,19 +74,18 @@ class BanList{
 	}
 
 	public function isBanned(string $name) : bool{
-		$name = strtolower($name);
-		if(!$this->isEnabled()){
-			return false;
-		}else{
-			$this->removeExpired();
-
-			return isset($this->list[$name]);
-		}
+		return $this->isEnabled() && $this->getEntry($name) !== null;
 	}
 
 	public function add(BanEntry $entry) : void{
+		if($this->file instanceof AccessStorage){
+			$this->file->putBan($this->kind ?? throw new \LogicException("Missing ban kind"), $entry);
+		}else{
+			$this->list[$entry->getName()] = $entry;
+			$this->save();
+			return;
+		}
 		$this->list[$entry->getName()] = $entry;
-		$this->save();
 	}
 
 	public function addBan(string $target, ?string $reason = null, ?\DateTime $expires = null, ?string $source = null) : BanEntry{
@@ -90,17 +94,21 @@ class BanList{
 		$entry->setExpires($expires);
 		$entry->setReason($reason ?? $entry->getReason());
 
-		$this->list[$entry->getName()] = $entry;
-		$this->save();
+		$this->add($entry);
 
 		return $entry;
 	}
 
 	public function remove(string $name) : void{
 		$name = strtolower($name);
+		if($this->file instanceof AccessStorage){
+			$this->file->removeBan($this->kind ?? throw new \LogicException("Missing ban kind"), $name);
+		}
 		if(isset($this->list[$name])){
 			unset($this->list[$name]);
-			$this->save();
+			if(is_string($this->file)){
+				$this->save();
+			}
 		}
 	}
 
@@ -113,6 +121,11 @@ class BanList{
 	}
 
 	public function load() : void{
+		if($this->file instanceof AccessStorage){
+			$this->list = $this->file->loadBans($this->kind ?? throw new \LogicException("Missing ban kind"));
+			$this->removeExpired();
+			return;
+		}
 		$this->list = [];
 		$fp = @fopen($this->file, "r");
 		if(is_resource($fp)){
@@ -138,6 +151,10 @@ class BanList{
 
 	public function save(bool $writeHeader = true) : void{
 		$this->removeExpired();
+		if($this->file instanceof AccessStorage){
+			$this->file->replaceBans($this->kind ?? throw new \LogicException("Missing ban kind"), $this->list);
+			return;
+		}
 		$fp = @fopen($this->file, "w");
 		if(is_resource($fp)){
 			if($writeHeader){

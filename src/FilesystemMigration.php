@@ -4,12 +4,51 @@ declare(strict_types=1);
 
 namespace quark;
 
-use Symfony\Component\Filesystem\Path;
 use quark\utils\Utils;
+use Symfony\Component\Filesystem\Path;
+use function array_push;
+use function assert;
+use function basename;
+use function copy;
+use function dirname;
+use function disk_free_space;
+use function fclose;
+use function file_exists;
+use function file_get_contents;
+use function file_put_contents;
+use function filesize;
+use function flock;
+use function fopen;
+use function hash_file;
+use function hash_final;
+use function hash_init;
+use function hash_update;
+use function implode;
+use function in_array;
+use function is_array;
+use function is_dir;
+use function is_file;
+use function is_link;
+use function is_string;
+use function json_decode;
+use function json_encode;
+use function mkdir;
+use function rename;
+use function rmdir;
+use function sort;
+use function unlink;
+use function yaml_parse_file;
+use const JSON_THROW_ON_ERROR;
+use const LOCK_EX;
+use const LOCK_NB;
+use const LOCK_UN;
+use const SORT_STRING;
 
-/** Runs before anything opens server storage. */
+/**
+ * Runs before anything opens server storage.
+ */
 final class FilesystemMigration{
-	public const VERSION = 2;
+	public const VERSION = 3;
 
 	public function __construct(private FilesystemPaths $paths){}
 
@@ -69,13 +108,15 @@ final class FilesystemMigration{
 		foreach([$this->paths->config(), $this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles()] as $path){
 			$modern = $modern || $this->exists($path);
 		}
-		if($this->exists($this->paths->migrationJournal()) || $this->exists(Path::join($this->paths->root, ".quark-config-migration.json"))){
+		if($this->exists($this->paths->migrationJournal()) || $this->exists(Path::join($this->paths->root, ".quark-config-migration.json")) || $this->exists(Path::join($this->paths->root, ".quark-access-migration.json"))){
 			return ["state" => "partial", "moves" => $legacy];
 		}
 		$configLegacy = (new ConfigurationMigration($this->paths))->hasLegacy();
+		$accessLegacy = (new AccessMigration($this->paths))->hasLegacy();
+		$this->assertSafe($this->paths->accessDatabase());
 		if($this->exists($this->paths->layoutFile())){
 			$version = $this->readJson($this->paths->layoutFile())["version"] ?? null;
-			if($version !== 1 && $version !== self::VERSION){
+			if(!in_array($version, [1, 2, self::VERSION], true)){
 				throw new \RuntimeException("Unsupported filesystem layout version in " . $this->paths->layoutFile());
 			}
 			foreach($this->requiredDirectories() as $path){
@@ -83,7 +124,10 @@ final class FilesystemMigration{
 					throw new \RuntimeException("Versioned filesystem is incomplete: $path");
 				}
 			}
-			return ["state" => $version === self::VERSION && $legacy === [] && !$configLegacy ? "modern" : "mixed", "moves" => $legacy];
+			if($version === self::VERSION && !$this->exists($this->paths->accessDatabase())){
+				throw new \RuntimeException("Versioned filesystem is incomplete: " . $this->paths->accessDatabase());
+			}
+			return ["state" => $version === self::VERSION && $legacy === [] && !$configLegacy && !$accessLegacy ? "modern" : "mixed", "moves" => $legacy];
 		}
 		if($legacy === [] && is_dir($this->paths->plugins)){
 			foreach(new \FilesystemIterator($this->paths->plugins, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO) as $child){
@@ -93,17 +137,19 @@ final class FilesystemMigration{
 				}
 			}
 		}
-		return ["state" => $legacy !== [] || $configLegacy ? ($modern ? "mixed" : "legacy") : ($modern ? "unversioned" : "empty"), "moves" => $legacy];
+		return ["state" => $legacy !== [] || $configLegacy || $accessLegacy ? ($modern ? "mixed" : "legacy") : ($modern ? "unversioned" : "empty"), "moves" => $legacy];
 	}
 
 	public function prepare(bool $allowMigration = false, bool $dryRun = false) : string{
 		$this->assertSafe($this->paths->root);
 		if($dryRun){
 			$lines = [$this->diagnose()["state"]];
+			$accessMoves = false;
 			foreach(Utils::stringifyKeys($this->moves()) as $source => $destination){
 				if(!$this->exists($source)){
 					continue;
 				}
+				$accessMoves = $accessMoves || in_array(basename($source), ["ops.txt", "white-list.txt", "banned.txt", "banned-players.txt", "banned-ips.txt"], true);
 				$parent = dirname($destination);
 				while(!is_dir($parent) && $parent !== dirname($parent)){
 					$parent = dirname($parent);
@@ -112,7 +158,11 @@ final class FilesystemMigration{
 				$available = disk_free_space($parent);
 				$lines[] = ($this->exists($destination) ? "COLLISION " : "MOVE ") . "$source -> $destination ($bytes bytes, " . ($available === false ? "unknown" : (string) $available) . " bytes free at $parent)";
 			}
+			if($accessMoves){
+				$lines[] = "SNAPSHOT legacy access files and IMPORT to " . $this->paths->accessDatabase();
+			}
 			array_push($lines, ...(new ConfigurationMigration($this->paths))->dryRun());
+			array_push($lines, ...(new AccessMigration($this->paths))->dryRun());
 			return implode("\n", $lines);
 		}
 		$lock = @fopen($this->paths->migrationLock(), "c+b");
@@ -139,6 +189,7 @@ final class FilesystemMigration{
 			}
 			$this->createDirectories();
 			$configMigration->finish();
+			(new AccessMigration($this->paths))->run();
 			$this->writeJson($this->paths->layoutFile(), ["version" => self::VERSION]);
 			if($this->exists($this->paths->migrationJournal()) && !@unlink($this->paths->migrationJournal())){
 				throw new \RuntimeException("Unable to remove completed migration journal");
@@ -153,7 +204,7 @@ final class FilesystemMigration{
 	private function migrate() : void{
 		$journalPath = $this->paths->migrationJournal();
 		$journal = $this->exists($journalPath) ? $this->readJson($journalPath) : ["version" => self::VERSION, "completed" => [], "copying" => null];
-		if(!in_array($journal["version"] ?? null, [1, self::VERSION], true) || !is_array($journal["completed"] ?? null)){
+		if(!in_array($journal["version"] ?? null, [1, 2, self::VERSION], true) || !is_array($journal["completed"] ?? null)){
 			throw new \RuntimeException("Invalid migration journal: $journalPath");
 		}
 		$moves = $this->moves();

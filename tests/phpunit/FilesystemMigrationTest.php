@@ -82,7 +82,8 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertIsString($layout);
 		$data = json_decode($layout, true);
 		self::assertIsArray($data);
-		self::assertSame(2, $data["version"]);
+		self::assertSame(3, $data["version"]);
+		self::assertFileExists($this->paths->accessDatabase());
 		self::assertDirectoryExists($this->paths->players());
 		self::assertDirectoryExists($this->paths->pluginData());
 	}

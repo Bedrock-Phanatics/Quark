@@ -27,11 +27,12 @@ declare(strict_types=1);
  */
 namespace quark\wizard;
 
+use quark\FilesystemPaths;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\LanguageNotFoundException;
 use quark\lang\Translatable;
-use quark\FilesystemPaths;
+use quark\permission\AccessStorage;
 use quark\player\GameMode;
 use quark\Server;
 use quark\ServerProperties;
@@ -41,7 +42,9 @@ use quark\utils\InternetException;
 use quark\utils\Utils;
 use quark\VersionInfo;
 use Symfony\Component\Filesystem\Path;
+use function copy;
 use function fgets;
+use function is_file;
 use function sleep;
 use function strtolower;
 use function trim;
@@ -193,9 +196,12 @@ LICENSE;
 		if($op === ""){
 			$this->error($this->lang->translate(KnownTranslationFactory::op_warning()));
 		}else{
-			$ops = new Config(Path::join($this->paths->config(), "ops.txt"), Config::ENUM);
-			$ops->set($op, true);
-			$ops->save();
+			$storage = new AccessStorage($this->paths->accessDatabase());
+			try{
+				$storage->putName("op", $op);
+			}finally{
+				$storage->close();
+			}
 		}
 
 		$this->message($this->lang->translate(KnownTranslationFactory::whitelist_info()));

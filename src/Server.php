@@ -74,6 +74,7 @@ use quark\network\query\DedicatedQueryNetworkInterface;
 use quark\network\query\QueryHandler;
 use quark\network\query\QueryInfo;
 use quark\network\upnp\UPnPNetworkInterface;
+use quark\permission\AccessStorage;
 use quark\permission\BanList;
 use quark\permission\DefaultPermissions;
 use quark\player\DatFilePlayerDataProvider;
@@ -143,15 +144,14 @@ use function cli_set_process_title;
 use function copy;
 use function count;
 use function date;
-use function extension_loaded;
 use function explode;
+use function extension_loaded;
 use function fclose;
 use function file_exists;
 use function file_put_contents;
 use function fopen;
 use function function_exists;
 use function get_class;
-use function gettype;
 use function implode;
 use function ini_set;
 use function is_array;
@@ -166,7 +166,6 @@ use function ob_end_flush;
 use function preg_replace;
 use function realpath;
 use function register_shutdown_function;
-use function rename;
 use function round;
 use function sleep;
 use function spl_object_id;
@@ -178,10 +177,8 @@ use function strncasecmp;
 use function strtolower;
 use function strval;
 use function time;
-use function touch;
 use function trim;
 use function usleep;
-use function yaml_parse;
 use const DIRECTORY_SEPARATOR;
 use const PHP_EOL;
 use const PHP_INT_MAX;
@@ -232,6 +229,7 @@ class Server{
 	private BanList $banByName;
 
 	private BanList $banByIP;
+	private AccessStorage $accessStorage;
 
 	private Config $operators;
 
@@ -1025,20 +1023,12 @@ class Server{
 
 			$this->doTitleTick = $this->configGroup->getPropertyBool(Yml::CONSOLE_TITLE_TICK, true) && Terminal::hasFormattingCodes();
 
-			$this->operators = new Config(Path::join($this->paths->config(), "ops.txt"), Config::ENUM);
-			$this->whitelist = new Config(Path::join($this->paths->config(), "white-list.txt"), Config::ENUM);
-
-			$bannedTxt = Path::join($this->paths->config(), "banned.txt");
-			$bannedPlayersTxt = Path::join($this->paths->config(), "banned-players.txt");
-			if(file_exists($bannedTxt) && !file_exists($bannedPlayersTxt)){
-				@rename($bannedTxt, $bannedPlayersTxt);
-			}
-			@touch($bannedPlayersTxt);
-			$this->banByName = new BanList($bannedPlayersTxt);
+			$this->accessStorage = new AccessStorage($this->paths->accessDatabase());
+			$this->operators = new Config($this->paths->accessDatabase(), Config::ENUM, [], $this->accessStorage, "op");
+			$this->whitelist = new Config($this->paths->accessDatabase(), Config::ENUM, [], $this->accessStorage, "allow");
+			$this->banByName = new BanList($this->accessStorage, "player");
 			$this->banByName->load();
-			$bannedIpsTxt = Path::join($this->paths->config(), "banned-ips.txt");
-			@touch($bannedIpsTxt);
-			$this->banByIP = new BanList($bannedIpsTxt);
+			$this->banByIP = new BanList($this->accessStorage, "ip");
 			$this->banByIP->load();
 
 			$this->maxPlayers = $this->configGroup->getConfigInt(ServerProperties::MAX_PLAYERS, self::DEFAULT_MAX_PLAYERS);
@@ -1650,6 +1640,9 @@ class Server{
 			if(isset($this->configGroup)){
 				$this->logger->debug("Saving properties");
 				$this->configGroup->save();
+			}
+			if(isset($this->accessStorage)){
+				$this->accessStorage->close();
 			}
 			$killer = null;
 			if($this->pulseReport !== null || $this->pulseReportPool !== null || (isset($this->pulse) && $this->pulse->getPendingOperations() > 0)){

@@ -108,6 +108,7 @@ namespace quark {
 			"morton" => "morton",
 			"openssl" => "OpenSSL",
 			"pcre" => "PCRE",
+			"pdo_sqlite" => "PDO SQLite",
 			"phar" => "Phar",
 			"pmmpthread" => "pmmpthread",
 			"reflection" => "Reflection",
