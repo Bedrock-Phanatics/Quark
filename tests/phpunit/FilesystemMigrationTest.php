@@ -34,6 +34,7 @@ final class FilesystemMigrationTest extends TestCase{
 	}
 
 	public function testFreshAndRepeatedStartup() : void{
+		mkdir($this->paths->runtime());
 		self::assertSame("empty", $this->migration->prepare());
 		self::assertSame("modern", $this->migration->prepare());
 		$layout = file_get_contents($this->paths->layoutFile());

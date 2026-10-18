@@ -12,7 +12,7 @@ The `--data` option selects the installation root. Without `--data`, the current
 | `logs/` | Current and archived server logs |
 | `diagnostics/crashes/`, `diagnostics/profiles/` | Crash and performance reports |
 | `backups/` | World conversion backups and operator-created migration snapshots |
-| `runtime/` | Temporary runtime state |
+| `runtime/` | Temporary runtime state and the active server lock |
 
 `.quark-layout.json` records the layout version. `.quark-migration.json` records incomplete work; `.quark-migration.lock` excludes concurrent migration. An installation with an incomplete journal cannot start normally.
 

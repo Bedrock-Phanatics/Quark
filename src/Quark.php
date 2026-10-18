@@ -326,6 +326,27 @@ JIT_WARNING
 			exit(1);
 		}
 
+		if(is_link($paths->runtime()) || (!@mkdir($paths->runtime(), 0777, true) && !is_dir($paths->runtime()))){
+			critical_error("Unable to create a safe runtime directory at " . $paths->runtime());
+			Filesystem::releaseLockFile($lockFilePath);
+			exit(1);
+		}
+		$runtimeLockFilePath = Path::join($paths->runtime(), "server.lock");
+		try{
+			$pid = Filesystem::createLockFile($runtimeLockFilePath);
+		}catch(\InvalidArgumentException $e){
+			critical_error($e->getMessage());
+			Filesystem::releaseLockFile($lockFilePath);
+			exit(1);
+		}
+		if($pid !== null){
+			critical_error("Another " . VersionInfo::NAME . " instance (PID $pid) is already using $runtimeLockFilePath.");
+			Filesystem::releaseLockFile($lockFilePath);
+			exit(1);
+		}
+		Filesystem::releaseLockFile($lockFilePath);
+		$lockFilePath = $runtimeLockFilePath;
+
 		$migrationOptions = getopt("", [BootstrapOptions::MIGRATE_LEGACY, BootstrapOptions::MIGRATION_DRY_RUN]);
 		try{
 			$migrationConfig = Path::join($paths->config(), "migration.ini");
