@@ -37,7 +37,7 @@ This improves how quickly hits feel visible to players; it does not reduce Minec
 
 See the complete [Quark 6.0.0 changelog](CHANGELOG.md) and [PocketMine-MP 5.47 migration guide](docs/MIGRATING-FROM-POCKETMINE-5.md).
 
-Existing installations should read the [versioned filesystem layout and migration guide](docs/FILESYSTEM-LAYOUT.md) before starting Quark 6.
+Existing installations can inspect required changes with `--migration-dry-run` and migrate with `--migrate-legacy` before starting Quark 6.
 
 ## Requirements
 
@@ -81,7 +81,7 @@ Core settings are in `config/server.toml`; plugin loading rules are in `config/p
 - `crash-dumps` — crash details in the console and local `.txt` reports
 - `auto-updater` and `timings` — external services
 
-The templates are [server.toml](resources/server.toml) and [plugins.toml](resources/plugins.toml). See [filesystem migration](docs/FILESYSTEM-LAYOUT.md) before starting an older installation.
+The templates are [server.toml](resources/server.toml) and [plugins.toml](resources/plugins.toml).
 
 ## Plugin development
 
