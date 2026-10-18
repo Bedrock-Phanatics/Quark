@@ -25,7 +25,7 @@ namespace quark;
 
 /**
  * @internal
- * Constants for all properties available in server.properties.
+ * Constants for [server] properties in config/server.toml.
  */
 final class ServerProperties{
 

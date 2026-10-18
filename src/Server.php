@@ -905,40 +905,19 @@ class Server{
 			$this->paths = new FilesystemPaths($this->dataPath, $this->pluginPath);
 
 			$this->logger->info("Loading server configuration");
-			$quarkYmlPath = $this->paths->quarkYml();
-			if(!file_exists($quarkYmlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "quark.yml"));
+			$serverTomlPath = $this->paths->serverToml();
+			if(!file_exists($serverTomlPath)){
+				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "server.toml"));
 				if(VersionInfo::IS_DEVELOPMENT_BUILD){
-					$content = str_replace("preferred-channel: stable", "preferred-channel: beta", $content);
+					$content = str_replace("preferred-channel = 'stable'", "preferred-channel = 'beta'", $content);
 				}
-				@file_put_contents($quarkYmlPath, $content);
+				if(@file_put_contents($serverTomlPath, $content) === false){
+					throw new \RuntimeException("Cannot create $serverTomlPath");
+				}
 			}
-
-			$this->configGroup = new ServerConfigGroup(
-				new Config($quarkYmlPath, Config::YAML, []),
-				new Config($this->paths->serverProperties(), Config::PROPERTIES, [
-					ServerProperties::MOTD => self::DEFAULT_SERVER_NAME,
-					ServerProperties::SERVER_PORT_IPV4 => self::DEFAULT_PORT_IPV4,
-					ServerProperties::SERVER_PORT_IPV6 => self::DEFAULT_PORT_IPV6,
-					ServerProperties::ENABLE_IPV6 => true,
-					ServerProperties::WHITELIST => false,
-					ServerProperties::MAX_PLAYERS => self::DEFAULT_MAX_PLAYERS,
-					ServerProperties::GAME_MODE => GameMode::SURVIVAL->name, //TODO: this probably shouldn't use the enum name directly
-					ServerProperties::FORCE_GAME_MODE => false,
-					ServerProperties::HARDCORE => false,
-					ServerProperties::PVP => true,
-					ServerProperties::DIFFICULTY => World::DIFFICULTY_NORMAL,
-					ServerProperties::DEFAULT_WORLD_GENERATOR_SETTINGS => "",
-					ServerProperties::DEFAULT_WORLD_NAME => "world",
-					ServerProperties::DEFAULT_WORLD_SEED => "",
-					ServerProperties::DEFAULT_WORLD_GENERATOR => "DEFAULT",
-					ServerProperties::ENABLE_QUERY => true,
-					ServerProperties::AUTO_SAVE => true,
-					ServerProperties::VIEW_DISTANCE => self::DEFAULT_MAX_VIEW_DISTANCE,
-					ServerProperties::XBOX_AUTH => true,
-					ServerProperties::LANGUAGE => "eng"
-				])
-			);
+			$config = new Config($serverTomlPath, Config::TOML);
+			CoreConfig::validateServer($config->getAll());
+			$this->configGroup = new ServerConfigGroup($config, $config, true);
 
 			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
@@ -1131,17 +1110,16 @@ class Server{
 			$this->resourceManager = new ResourcePackManager($this->paths->resourcePacks(), $this->logger);
 
 			$pluginGraylist = null;
-			$graylistFile = $this->paths->pluginList();
+			$graylistFile = $this->paths->pluginsToml();
 			if(!file_exists($graylistFile)){
-				copy(Path::join(\quark\RESOURCE_PATH, 'plugin_list.yml'), $graylistFile);
+				if(!copy(Path::join(\quark\RESOURCE_PATH, 'plugins.toml'), $graylistFile)){
+					throw new \RuntimeException("Cannot create $graylistFile");
+				}
 			}
 			try{
-				$array = yaml_parse(Filesystem::fileGetContents($graylistFile));
-				if(!is_array($array)){
-					throw new \InvalidArgumentException("Expected array for root, but have " . gettype($array));
-				}
+				$array = CoreConfig::load($graylistFile);
 				$pluginGraylist = PluginGraylist::fromArray($array);
-			}catch(\InvalidArgumentException $e){
+		}catch(\Throwable $e){
 				$this->logger->emergency("Failed to load $graylistFile: " . $e->getMessage());
 				$this->forceShutdownExit();
 				return;

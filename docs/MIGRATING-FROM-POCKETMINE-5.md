@@ -30,7 +30,7 @@ Quark no longer declares that it replaces `pocketmine/pocketmine-mp`: API 6 and 
 |---|---|
 | `PocketMine-MP.phar` | `Quark.phar` |
 | `src/PocketMine.php` | `src/Quark.php` |
-| `pocketmine.yml` | `quark.yml` |
+| `pocketmine.yml` | `config/server.toml` |
 The `pmmpthread` extension name is unchanged.
 
 Update deployment scripts, service units, containers, health checks, file paths, environment validation, and download automation.
@@ -83,7 +83,7 @@ Network compression is selected by configuration. Plugins should not assume zlib
 
 ## Configuration migration
 
-Start with the Quark 6 `resources/quark.yml` and transfer only settings you understand. Important additions include:
+Run `--migration-dry-run`, then `--migrate-legacy` to convert supported configuration files with a recoverable snapshot. Review the generated [server.toml](../resources/server.toml) and [plugins.toml](../resources/plugins.toml). Important additions include:
 
 - `network.compression-algorithm`
 - `network.async-compression`
@@ -94,7 +94,7 @@ Start with the Quark 6 `resources/quark.yml` and transfer only settings you unde
 - `redstone.*`
 - `tnt-limits.*`
 
-Do not rename an old configuration file and assume equivalent behavior.
+Migration stops on conflicting or invalid values; resolve the reported key and resume with `--migrate-legacy`.
 
 ## Migration checklist
 
@@ -102,6 +102,6 @@ Do not rename an old configuration file and assume equivalent behavior.
 2. Update every plugin namespace and Composer dependency.
 3. Review TNT, damage, redstone, armor, and compression assumptions.
 4. Install the Quark PHP runtime and required native extensions.
-5. Generate a fresh `quark.yml` and migrate settings selectively.
+5. Convert legacy configuration with `--migrate-legacy` and review both TOML files.
 6. Test on copies of production worlds with representative player and plugin load.
 7. Review logs for deprecated assumptions, missing classes, rejected TNT activation, and redstone limits before deployment.

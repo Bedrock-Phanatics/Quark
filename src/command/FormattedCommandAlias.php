@@ -38,8 +38,8 @@ use function substr;
 
 /**
  * @internal
- * Used to register commands defined in the `aliases` section of quark.yml.
- * See the comments in resources/quark.yml in the `aliases` section for configuration instructions and examples.
+ * Used to register commands defined in the `aliases` section of config/server.toml.
+ * See the comments in resources/server.toml for examples.
  */
 class FormattedCommandAlias extends Command{
 	/**

@@ -45,6 +45,7 @@
       "axolotl-pm/bedrock-protocol": "dev-master#f66ccd3d43ab45900354f157820ba351861c94ec",
       "axolotl-pm/nethernet": "^0.3.1",
       "axolotl-pm/xoroshiro128pp": "^0.1.0",
+      "internal/toml": "^1.1.3",
       "netresearch/jsonmapper": "~v6.0.0",
       "pocketmine/binaryutils": "^0.2.1",
       "pocketmine/callback-validator": "~1.0.4",
@@ -100,6 +101,7 @@
          "@php -dphar.readonly=0 build/server-phar.php"
       ],
       "update-codegen": [
+		"@php build/codegen/core-config-schema.php",
          "@php build/codegen/bedrockdata-path-consts.php",
          "@php build/codegen/biome-ids.php",
          "@php build/codegen/block-serializer-consts.php vendor/axolotl-pm/bedrock-data/canonical_block_states.nbt",

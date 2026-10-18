@@ -69,6 +69,7 @@ class Config{
 	//const EXPORT = 3; // .export, .xport
 	public const SERIALIZED = 4; // .sl
 	public const ENUM = 5; // .txt, .list, .enum
+	public const TOML = 6;
 	public const ENUMERATION = Config::ENUM;
 
 	/**
@@ -99,6 +100,7 @@ class Config{
 		"js" => Config::JSON,
 		"yml" => Config::YAML,
 		"yaml" => Config::YAML,
+		"toml" => Config::TOML,
 		//"export" => Config::EXPORT,
 		//"xport" => Config::EXPORT,
 		"sl" => Config::SERIALIZED,
@@ -124,6 +126,9 @@ class Config{
 	public function reload() : void{
 		$this->config = [];
 		$this->nestedCache = [];
+		if($this->type === Config::TOML){
+			\quark\CoreConfig::forget($this->file);
+		}
 		$this->load($this->file, $this->type);
 	}
 
@@ -162,7 +167,7 @@ class Config{
 			$this->config = $default;
 			$this->save();
 		}else{
-			$content = Filesystem::fileGetContents($this->file);
+			$content = $this->type === Config::TOML ? "" : Filesystem::fileGetContents($this->file);
 			switch($this->type){
 				case Config::PROPERTIES:
 					$config = self::parseProperties($content);
@@ -179,6 +184,13 @@ class Config{
 					try{
 						$config = ErrorToExceptionHandler::trap(fn() => yaml_parse($content));
 					}catch(\ErrorException $e){
+						throw ConfigLoadException::wrap($this->file, $e);
+					}
+					break;
+				case Config::TOML:
+					try{
+						$config = \quark\CoreConfig::load($this->file);
+					}catch(\Exception $e){
 						throw ConfigLoadException::wrap($this->file, $e);
 					}
 					break;
@@ -227,6 +239,9 @@ class Config{
 			case Config::YAML:
 				$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
 				break;
+			case Config::TOML:
+				$content = \quark\CoreConfig::encode($this->config);
+				break;
 			case Config::SERIALIZED:
 				$content = serialize($this->config);
 				break;
@@ -238,6 +253,9 @@ class Config{
 		}
 
 		Filesystem::safeFilePutContents($this->file, $content);
+		if($this->type === Config::TOML){
+			\quark\CoreConfig::forget($this->file);
+		}
 
 		$this->changed = false;
 	}

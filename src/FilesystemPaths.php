@@ -17,6 +17,8 @@ final class FilesystemPaths{
 		$diagnostics = Path::join($root, "diagnostics");
 		$this->paths = [
 			"config" => $config,
+			"serverToml" => Path::join($config, "server.toml"),
+			"pluginsToml" => Path::join($config, "plugins.toml"),
 			"serverProperties" => Path::join($config, "server.properties"),
 			"quarkYml" => Path::join($config, "quark.yml"),
 			"pluginList" => Path::join($config, "plugin_list.yml"),
@@ -37,6 +39,8 @@ final class FilesystemPaths{
 	}
 
 	public function config() : string{ return $this->paths["config"]; }
+	public function serverToml() : string{ return $this->paths["serverToml"]; }
+	public function pluginsToml() : string{ return $this->paths["pluginsToml"]; }
 	public function serverProperties() : string{ return $this->paths["serverProperties"]; }
 	public function quarkYml() : string{ return $this->paths["quarkYml"]; }
 	public function pluginList() : string{ return $this->paths["pluginList"]; }

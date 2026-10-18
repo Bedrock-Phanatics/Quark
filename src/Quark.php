@@ -353,7 +353,7 @@ JIT_WARNING
 			if(is_link($paths->config()) || is_link($migrationConfig)){
 				throw new \RuntimeException("Migration configuration cannot be a symbolic link: $migrationConfig");
 			}
-			$settings = is_file($migrationConfig) ? parse_ini_file($migrationConfig, true, INI_SCANNER_TYPED) : [];
+			$settings = is_file($paths->serverToml()) ? CoreConfig::load($paths->serverToml()) : (is_file($migrationConfig) ? parse_ini_file($migrationConfig, true, INI_SCANNER_TYPED) : []);
 			if($settings === false || !is_bool($settings["migration"]["auto_on_startup"] ?? false)){
 				throw new \RuntimeException("Invalid migration setting in $migrationConfig");
 			}
@@ -362,11 +362,6 @@ JIT_WARNING
 				echo $result . PHP_EOL;
 				Filesystem::releaseLockFile($lockFilePath);
 				exit(0);
-			}
-			if(!is_file($migrationConfig)){
-				if(file_put_contents($migrationConfig, "[migration]\nauto_on_startup = false\n") === false){
-					throw new \RuntimeException("Cannot write migration configuration: $migrationConfig");
-				}
 			}
 		}catch(\Throwable $e){
 			critical_error($e->getMessage());
@@ -401,7 +396,7 @@ JIT_WARNING
 
 		$exitCode = 0;
 		do{
-			if(!file_exists($paths->serverProperties()) && !isset($opts[BootstrapOptions::NO_WIZARD])){
+			if(!file_exists($paths->serverToml()) && !isset($opts[BootstrapOptions::NO_WIZARD])){
 				$installer = new SetupWizard($paths);
 				if(!$installer->run()){
 					$exitCode = -1;

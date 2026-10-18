@@ -68,11 +68,11 @@ Start Quark:
 php Quark.phar
 ```
 
-On first launch, review the generated `quark.yml` before exposing the server publicly.
+On first launch, review `config/server.toml` and `config/plugins.toml` before exposing the server publicly.
 
 ## Configuration
 
-The primary configuration is `quark.yml`. Notable sections include:
+Core settings are in `config/server.toml`; plugin loading rules are in `config/plugins.toml`. Notable server sections include:
 
 - `network` — compression, batching, latency, encryption, and MTU behavior
 - `memory` — limits, garbage collection, and memory dumps
@@ -81,7 +81,7 @@ The primary configuration is `quark.yml`. Notable sections include:
 - `crash-dumps` — crash details in the console and local `.txt` reports
 - `auto-updater` and `timings` — external services
 
-The source template is available at [resources/quark.yml](resources/quark.yml).
+The templates are [server.toml](resources/server.toml) and [plugins.toml](resources/plugins.toml). See [filesystem migration](docs/FILESYSTEM-LAYOUT.md) before starting an older installation.
 
 ## Plugin development
 

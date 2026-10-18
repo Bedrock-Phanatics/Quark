@@ -158,7 +158,7 @@ final class NetherNetTransport implements Transport{
 				$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_server_nethernet_builtinSignalingDisabled()));
 			}
 		}catch(\InvalidArgumentException $e){
-			throw new NetworkInterfaceStartException("Invalid NetherNet settings in quark.yml: " . $e->getMessage(), 0, $e);
+			throw new NetworkInterfaceStartException("Invalid NetherNet settings in config/server.toml: " . $e->getMessage(), 0, $e);
 		}
 		if($iceConfig->isUdpMux() && $iceConfig->getPortRangeBegin() === null){
 			$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_server_nethernet_udpMuxWithoutPortRange(Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX)));

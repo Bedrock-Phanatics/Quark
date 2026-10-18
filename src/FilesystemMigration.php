@@ -9,7 +9,7 @@ use quark\utils\Utils;
 
 /** Runs before anything opens server storage. */
 final class FilesystemMigration{
-	public const VERSION = 1;
+	public const VERSION = 2;
 
 	public function __construct(private FilesystemPaths $paths){}
 
@@ -69,12 +69,13 @@ final class FilesystemMigration{
 		foreach([$this->paths->config(), $this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles()] as $path){
 			$modern = $modern || $this->exists($path);
 		}
-		if($this->exists($this->paths->migrationJournal())){
+		if($this->exists($this->paths->migrationJournal()) || $this->exists(Path::join($this->paths->root, ".quark-config-migration.json"))){
 			return ["state" => "partial", "moves" => $legacy];
 		}
+		$configLegacy = (new ConfigurationMigration($this->paths))->hasLegacy();
 		if($this->exists($this->paths->layoutFile())){
 			$version = $this->readJson($this->paths->layoutFile())["version"] ?? null;
-			if($version !== self::VERSION){
+			if($version !== 1 && $version !== self::VERSION){
 				throw new \RuntimeException("Unsupported filesystem layout version in " . $this->paths->layoutFile());
 			}
 			foreach($this->requiredDirectories() as $path){
@@ -82,7 +83,7 @@ final class FilesystemMigration{
 					throw new \RuntimeException("Versioned filesystem is incomplete: $path");
 				}
 			}
-			return ["state" => $legacy === [] ? "modern" : "mixed", "moves" => $legacy];
+			return ["state" => $version === self::VERSION && $legacy === [] && !$configLegacy ? "modern" : "mixed", "moves" => $legacy];
 		}
 		if($legacy === [] && is_dir($this->paths->plugins)){
 			foreach(new \FilesystemIterator($this->paths->plugins, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO) as $child){
@@ -92,7 +93,7 @@ final class FilesystemMigration{
 				}
 			}
 		}
-		return ["state" => $legacy !== [] ? ($modern ? "mixed" : "legacy") : ($modern ? "unversioned" : "empty"), "moves" => $legacy];
+		return ["state" => $legacy !== [] || $configLegacy ? ($modern ? "mixed" : "legacy") : ($modern ? "unversioned" : "empty"), "moves" => $legacy];
 	}
 
 	public function prepare(bool $allowMigration = false, bool $dryRun = false) : string{
@@ -111,6 +112,7 @@ final class FilesystemMigration{
 				$available = disk_free_space($parent);
 				$lines[] = ($this->exists($destination) ? "COLLISION " : "MOVE ") . "$source -> $destination ($bytes bytes, " . ($available === false ? "unknown" : (string) $available) . " bytes free at $parent)";
 			}
+			array_push($lines, ...(new ConfigurationMigration($this->paths))->dryRun());
 			return implode("\n", $lines);
 		}
 		$lock = @fopen($this->paths->migrationLock(), "c+b");
@@ -123,17 +125,20 @@ final class FilesystemMigration{
 				return $state;
 			}
 			if(!$allowMigration && $state !== "empty"){
-				throw new \RuntimeException("Filesystem layout is $state. Set [migration] auto_on_startup = true in config/migration.ini or run --migrate-legacy; use --migration-dry-run to inspect first.");
+				throw new \RuntimeException("Filesystem layout is $state. Set [migration] auto_on_startup = true in config/server.toml or run --migrate-legacy; use --migration-dry-run to inspect first.");
 			}
 			if($state === "unversioned"){
 				throw new \RuntimeException("Modern paths exist without a layout marker. Inspect this partial installation before retrying.");
 			}
+			$configMigration = new ConfigurationMigration($this->paths);
 			if($state !== "empty"){
+				$configMigration->begin();
 				$this->migrate();
 			}else{
 				$this->writeJson($this->paths->migrationJournal(), ["version" => self::VERSION, "completed" => [], "copying" => null]);
 			}
 			$this->createDirectories();
+			$configMigration->finish();
 			$this->writeJson($this->paths->layoutFile(), ["version" => self::VERSION]);
 			if($this->exists($this->paths->migrationJournal()) && !@unlink($this->paths->migrationJournal())){
 				throw new \RuntimeException("Unable to remove completed migration journal");
@@ -148,7 +153,7 @@ final class FilesystemMigration{
 	private function migrate() : void{
 		$journalPath = $this->paths->migrationJournal();
 		$journal = $this->exists($journalPath) ? $this->readJson($journalPath) : ["version" => self::VERSION, "completed" => [], "copying" => null];
-		if(($journal["version"] ?? null) !== self::VERSION || !is_array($journal["completed"] ?? null)){
+		if(!in_array($journal["version"] ?? null, [1, self::VERSION], true) || !is_array($journal["completed"] ?? null)){
 			throw new \RuntimeException("Invalid migration journal: $journalPath");
 		}
 		$moves = $this->moves();
@@ -181,6 +186,13 @@ final class FilesystemMigration{
 			$pluginDataMode = is_array($plugins) ? ($plugins["legacy-data-dir"] ?? null) : null;
 			if($pluginDataMode === true){
 				throw new \RuntimeException("Colocated plugin data needs a migration handler. Move plugin data to plugin_data and set plugins.legacy-data-dir to false before retrying.");
+			}
+		}
+		if($pluginDataMode === null && is_file($this->paths->serverToml())){
+			$modernPlugins = CoreConfig::load($this->paths->serverToml())["plugins"] ?? [];
+			$pluginDataMode = is_array($modernPlugins) ? ($modernPlugins["legacy-data-dir"] ?? null) : null;
+			if($pluginDataMode === true){
+				throw new \RuntimeException("Colocated plugin data needs a migration handler. Move plugin data to data/plugins first.");
 			}
 		}
 		if($pluginDataMode === null && !$this->exists(Path::join($this->paths->root, "plugin_data")) && is_dir($this->paths->plugins)){

@@ -25,7 +25,7 @@ namespace quark;
 
 /**
  * Constants for all the command-line options that Quark supports.
- * Other options not listed here can be used to override server.properties and quark.yml values temporarily.
+ * Other options not listed here can temporarily override config/server.toml values.
  *
  * @internal
  */

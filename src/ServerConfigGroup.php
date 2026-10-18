@@ -25,7 +25,6 @@ namespace quark;
 
 use quark\utils\Config;
 use function array_key_exists;
-use function getopt;
 use function is_bool;
 use function is_int;
 use function is_string;
@@ -38,16 +37,30 @@ final class ServerConfigGroup{
 	 */
 	private array $propertyCache = [];
 
+	/** @var array<string, string|bool> */
+	private array $overrides = [];
+
 	public function __construct(
 		private Config $quarkYml,
-		private Config $serverProperties
-	){}
+		private Config $serverProperties,
+		private bool $toml = false
+	){
+		$arguments = $_SERVER["argv"] ?? [];
+		if(!is_array($arguments)){
+			return;
+		}
+		foreach($arguments as $argument){
+			if(is_string($argument) && str_starts_with($argument, "--")){
+				[$key, $value] = array_pad(explode("=", substr($argument, 2), 2), 2, false);
+				$this->overrides[(string) $key] = $value;
+			}
+		}
+	}
 
 	public function getProperty(string $variable, mixed $defaultValue = null) : mixed{
 		if(!array_key_exists($variable, $this->propertyCache)){
-			$v = getopt("", ["$variable::"]);
-			if(isset($v[$variable])){
-				$this->propertyCache[$variable] = $v[$variable];
+			if(isset($this->overrides[$variable])){
+				$this->propertyCache[$variable] = $this->overrides[$variable];
 			}else{
 				$this->propertyCache[$variable] = $this->quarkYml->getNested($variable);
 			}
@@ -69,37 +82,36 @@ final class ServerConfigGroup{
 	}
 
 	public function getConfigString(string $variable, string $defaultValue = "") : string{
-		$v = getopt("", ["$variable::"]);
-		if(isset($v[$variable])){
-			return (string) $v[$variable];
+		if(isset($this->overrides[$variable])){
+			return (string) $this->overrides[$variable];
 		}
 
-		return $this->serverProperties->exists($variable) ? (string) $this->serverProperties->get($variable) : $defaultValue;
+		$value = $this->toml ? $this->serverProperties->getNested("server.$variable", $defaultValue) : ($this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue);
+		return is_scalar($value) ? (string) $value : $defaultValue;
 	}
 
 	public function setConfigString(string $variable, string $value) : void{
-		$this->serverProperties->set($variable, $value);
+		$this->toml ? $this->serverProperties->setNested("server.$variable", $value) : $this->serverProperties->set($variable, $value);
 	}
 
 	public function getConfigInt(string $variable, int $defaultValue = 0) : int{
-		$v = getopt("", ["$variable::"]);
-		if(isset($v[$variable])){
-			return (int) $v[$variable];
+		if(isset($this->overrides[$variable])){
+			return (int) $this->overrides[$variable];
 		}
 
-		return $this->serverProperties->exists($variable) ? (int) $this->serverProperties->get($variable) : $defaultValue;
+		$value = $this->toml ? $this->serverProperties->getNested("server.$variable", $defaultValue) : ($this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue);
+		return is_scalar($value) ? (int) $value : $defaultValue;
 	}
 
 	public function setConfigInt(string $variable, int $value) : void{
-		$this->serverProperties->set($variable, $value);
+		$this->toml ? $this->serverProperties->setNested("server.$variable", $value) : $this->serverProperties->set($variable, $value);
 	}
 
 	public function getConfigBool(string $variable, bool $defaultValue = false) : bool{
-		$v = getopt("", ["$variable::"]);
-		if(isset($v[$variable])){
-			$value = $v[$variable];
+		if(isset($this->overrides[$variable])){
+			$value = $this->overrides[$variable];
 		}else{
-			$value = $this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue;
+			$value = $this->toml ? $this->serverProperties->getNested("server.$variable", $defaultValue) : ($this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue);
 		}
 		if(is_bool($value)){
 			return $value;
@@ -121,14 +133,17 @@ final class ServerConfigGroup{
 	}
 
 	public function setConfigBool(string $variable, bool $value) : void{
-		$this->serverProperties->set($variable, $value ? "1" : "0");
+		$this->toml ? $this->serverProperties->setNested("server.$variable", $value) : $this->serverProperties->set($variable, $value ? "1" : "0");
 	}
 
 	public function save() : void{
+		if($this->toml){
+			CoreConfig::validateServer($this->serverProperties->getAll());
+		}
 		if($this->serverProperties->hasChanged()){
 			$this->serverProperties->save();
 		}
-		if($this->quarkYml->hasChanged()){
+		if($this->quarkYml !== $this->serverProperties && $this->quarkYml->hasChanged()){
 			$this->quarkYml->save();
 		}
 	}

@@ -1,0 +1,159 @@
+# Quark server configuration. [server] contains the former server.properties keys.
+# Other sections retain the setting names from quark.yml.
+# Use --migration-dry-run to inspect an old installation before conversion.
+
+# Memory limits are in MiB. Zero disables a limit.
+memory.global-limit = 0
+memory.main-limit = 0
+memory.main-hard-limit = 1024
+memory.async-worker-hard-limit = 256
+memory.check-rate = 20
+memory.continuous-trigger = true
+memory.continuous-trigger-rate = 30
+
+# Up to eight comma-separated transports; plugins may register additional names.
+transport.name = 'nethernet,raknet'
+transport.nethernet.key-file = 'nethernet.key'
+transport.nethernet.ice-udp-mux = false
+transport.nethernet.mtu = 1200
+transport.nethernet.builtin-signaling.enabled = true
+transport.nethernet.builtin-signaling.port = 0
+
+# The update channel may be stable, beta, or development.
+auto-updater.enabled = false
+auto-updater.preferred-channel = 'stable'
+auto-updater.suggest-channels = true
+auto-updater.host = ''
+
+[migration]
+# Opt in to conversion during startup. The --migrate-legacy flag works before
+# this file exists. Quark keeps a snapshot of the original files in backups/.
+auto_on_startup = false
+
+[server]
+# Player-facing server name, network ports, and admission settings.
+motd = 'Quark Server'
+server-port = 19132
+server-portv6 = 19133
+enable-ipv6 = true
+white-list = false
+max-players = 20
+gamemode = 'SURVIVAL'
+force-gamemode = false
+hardcore = false
+pvp = true
+difficulty = 2
+generator-settings = ''
+level-name = 'world'
+level-seed = ''
+level-type = 'DEFAULT'
+enable-query = true
+auto-save = true
+view-distance = 16
+xbox-auth = true
+language = 'eng'
+
+[settings]
+# Use "auto" for a core-count-based async worker count, or a positive integer.
+force-language = false
+shutdown-message = 'Server closed'
+query-plugins = true
+enable-profiling = false
+async-workers = 'auto'
+enable-dev-builds = false
+
+[memory.garbage-collection]
+threshold = 10001
+period = 36000
+
+[memory.memory-dump]
+dump-async-worker = true
+
+[memory.max-chunks]
+chunk-radius = 4
+
+[network]
+# Compression choices: zlib or snappy. A batch threshold of -1 disables it.
+compression-algorithm = 'zlib'
+batch-threshold = 256
+compression-level = 6
+async-compression = false
+async-compression-threshold = 10000
+combat-low-latency-feedback = true
+upnp-forwarding = false
+max-mtu-size = 1492
+enable-encryption = true
+
+[transport.nethernet.builtin-signaling.reverse-proxy]
+enabled = false
+header = 'X-Forwarded-For'
+
+[debug]
+level = 1
+
+[player]
+save-player-data = true
+verify-xuid = true
+
+[level-settings]
+default-format = 'leveldb'
+
+[chunk-sending]
+per-tick = 4
+spawn-radius = 4
+
+[chunk-ticking]
+tick-radius = 3
+blocks-per-subchunk-per-tick = 3
+
+[chunk-generation]
+population-queue-size = 32
+
+[ticks-per]
+autosave = 6000
+
+[crash-dumps]
+include-code = true
+include-settings = true
+include-phpinfo = false
+
+[auto-updater.on-update]
+warn-console = true
+
+[console]
+enable-input = true
+title-tick = true
+
+[redstone]
+# Limits bound work performed within a tick.
+enabled = true
+world-policy = 'all'
+worlds = []
+max-wire-network-size = 65536
+max-scheduled-updates = 262144
+max-updates-per-tick = 8192
+pistons-enabled = true
+max-piston-actions-per-tick = 1024
+dispensers-enabled = true
+max-dispenser-actions-per-tick = 4096
+
+[tnt-limits]
+enabled = false
+max-active-per-chunk = 64
+max-active-nearby = 192
+max-ignitions-per-chunk-per-tick = 24
+max-dispenser-ignitions-per-second = 20
+
+[plugins]
+# Colocated plugin data is unsupported in layout version 2.
+legacy-data-dir = false
+
+# Optional command aliases can override built-in or plugin aliases.
+# [aliases]
+# stop = []
+# abort = ["quark:stop"]
+
+# Optional world generation overrides are keyed by world name.
+# [worlds.example]
+# seed = 404
+# generator = "FLAT"
