@@ -100,14 +100,14 @@ class UpdateChecker{
 	protected function showChannelSuggestionStable() : void{
 		$this->printConsoleMessage([
 			"You're running a Stable build, but you're receiving update notifications for " . ucfirst($this->getChannel()) . " builds.",
-			"To get notified about new Stable builds only, change 'preferred-channel' in your quark.yml to 'stable'."
+			"To get notified about new Stable builds only, change 'preferred-channel' in config/server.toml to 'stable'."
 		]);
 	}
 
 	protected function showChannelSuggestionBeta() : void{
 		$this->printConsoleMessage([
 			"You're running a Beta build, but you're receiving update notifications for Stable builds.",
-			"To get notified about new Beta or Development builds, change 'preferred-channel' in your quark.yml to 'beta' or 'development'."
+			"To get notified about new Beta or Development builds, change 'preferred-channel' in config/server.toml to 'beta' or 'development'."
 		]);
 	}
 

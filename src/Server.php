@@ -63,10 +63,9 @@ use quark\network\mcpe\compression\SnappyCompressor;
 use quark\network\mcpe\compression\ZlibCompressor;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\encryption\EncryptionContext;
-use quark\network\mcpe\EntityEventBroadcaster;
+use quark\network\mcpe\nethernet\NetherNetTransport;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\PacketBroadcaster;
-use quark\network\mcpe\raklib\RakLibInterface;
+use quark\network\mcpe\raklib\RakLibTransport;
 use quark\network\mcpe\StandardEntityEventBroadcaster;
 use quark\network\mcpe\StandardPacketBroadcaster;
 use quark\network\Network;
@@ -75,6 +74,7 @@ use quark\network\query\DedicatedQueryNetworkInterface;
 use quark\network\query\QueryHandler;
 use quark\network\query\QueryInfo;
 use quark\network\upnp\UPnPNetworkInterface;
+use quark\permission\AccessStorage;
 use quark\permission\BanList;
 use quark\permission\DefaultPermissions;
 use quark\player\DatFilePlayerDataProvider;
@@ -137,30 +137,27 @@ use Ramsey\Uuid\UuidInterface;
 use Symfony\Component\Filesystem\Path;
 use function array_fill;
 use function array_find;
+use function array_slice;
 use function array_sum;
-use function base64_encode;
 use function chr;
 use function cli_set_process_title;
 use function copy;
 use function count;
 use function date;
+use function explode;
 use function extension_loaded;
 use function fclose;
 use function file_exists;
 use function file_put_contents;
-use function filemtime;
 use function fopen;
 use function function_exists;
 use function get_class;
-use function gettype;
+use function implode;
 use function ini_set;
 use function is_array;
 use function is_dir;
-use function is_int;
-use function is_object;
 use function is_resource;
 use function is_string;
-use function json_decode;
 use function max;
 use function microtime;
 use function min;
@@ -169,7 +166,6 @@ use function ob_end_flush;
 use function preg_replace;
 use function realpath;
 use function register_shutdown_function;
-use function rename;
 use function round;
 use function sleep;
 use function spl_object_id;
@@ -178,14 +174,11 @@ use function str_repeat;
 use function str_replace;
 use function strlen;
 use function strncasecmp;
-use function strrpos;
 use function strtolower;
 use function strval;
 use function time;
-use function touch;
 use function trim;
 use function usleep;
-use function yaml_parse;
 use const DIRECTORY_SEPARATOR;
 use const PHP_EOL;
 use const PHP_INT_MAX;
@@ -205,6 +198,7 @@ class Server{
 	public const DEFAULT_PORT_IPV4 = 19132;
 	public const DEFAULT_PORT_IPV6 = 19133;
 	public const DEFAULT_MAX_VIEW_DISTANCE = 16;
+	private const MAX_ACTIVE_TRANSPORTS = 8;
 
 	/**
 	 * Worlds, network, commands and most other things are polled this many times per second on average.
@@ -235,6 +229,7 @@ class Server{
 	private BanList $banByName;
 
 	private BanList $banByIP;
+	private AccessStorage $accessStorage;
 
 	private Config $operators;
 
@@ -299,6 +294,7 @@ class Server{
 
 	private string $dataPath;
 	private string $pluginPath;
+	private FilesystemPaths $paths;
 
 	private PlayerDataProvider $playerDataProvider;
 
@@ -353,6 +349,8 @@ class Server{
 	public function getPluginPath() : string{
 		return $this->pluginPath;
 	}
+
+	public function getFilesystemPaths() : FilesystemPaths{ return $this->paths; }
 
 	public function getMaxPlayers() : int{
 		return $this->maxPlayers;
@@ -548,7 +546,7 @@ class Server{
 		$collection->onCompletion(
 			function(array $captures) use ($metadata) : void{
 				try{
-					$directory = Path::join($this->getDataPath(), "pulse");
+					$directory = $this->getFilesystemPaths()->profiles();
 					if(isset($this->tickSleeper, $this->autoloader, $this->logger)){
 						// Disk writes must not occupy the networking and generation workers.
 						$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
@@ -900,55 +898,24 @@ class Server{
 		});
 
 		try{
-			foreach([
-				$dataPath,
-				$pluginPath,
-				Path::join($dataPath, "worlds"),
-				Path::join($dataPath, "players")
-			] as $neededPath){
-				if(!file_exists($neededPath)){
-					mkdir($neededPath, 0777);
-				}
-			}
-
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
+			$this->paths = new FilesystemPaths($this->dataPath, $this->pluginPath);
 
 			$this->logger->info("Loading server configuration");
-			$quarkYmlPath = Path::join($this->dataPath, "quark.yml");
-			if(!file_exists($quarkYmlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "quark.yml"));
+			$serverTomlPath = $this->paths->serverToml();
+			if(!file_exists($serverTomlPath)){
+				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "server.toml"));
 				if(VersionInfo::IS_DEVELOPMENT_BUILD){
-					$content = str_replace("preferred-channel: stable", "preferred-channel: beta", $content);
+					$content = str_replace("preferred-channel = 'stable'", "preferred-channel = 'beta'", $content);
 				}
-				@file_put_contents($quarkYmlPath, $content);
+				if(@file_put_contents($serverTomlPath, $content) === false){
+					throw new \RuntimeException("Cannot create $serverTomlPath");
+				}
 			}
-
-			$this->configGroup = new ServerConfigGroup(
-				new Config($quarkYmlPath, Config::YAML, []),
-				new Config(Path::join($this->dataPath, "server.properties"), Config::PROPERTIES, [
-					ServerProperties::MOTD => self::DEFAULT_SERVER_NAME,
-					ServerProperties::SERVER_PORT_IPV4 => self::DEFAULT_PORT_IPV4,
-					ServerProperties::SERVER_PORT_IPV6 => self::DEFAULT_PORT_IPV6,
-					ServerProperties::ENABLE_IPV6 => true,
-					ServerProperties::WHITELIST => false,
-					ServerProperties::MAX_PLAYERS => self::DEFAULT_MAX_PLAYERS,
-					ServerProperties::GAME_MODE => GameMode::SURVIVAL->name, //TODO: this probably shouldn't use the enum name directly
-					ServerProperties::FORCE_GAME_MODE => false,
-					ServerProperties::HARDCORE => false,
-					ServerProperties::PVP => true,
-					ServerProperties::DIFFICULTY => World::DIFFICULTY_NORMAL,
-					ServerProperties::DEFAULT_WORLD_GENERATOR_SETTINGS => "",
-					ServerProperties::DEFAULT_WORLD_NAME => "world",
-					ServerProperties::DEFAULT_WORLD_SEED => "",
-					ServerProperties::DEFAULT_WORLD_GENERATOR => "DEFAULT",
-					ServerProperties::ENABLE_QUERY => true,
-					ServerProperties::AUTO_SAVE => true,
-					ServerProperties::VIEW_DISTANCE => self::DEFAULT_MAX_VIEW_DISTANCE,
-					ServerProperties::XBOX_AUTH => true,
-					ServerProperties::LANGUAGE => "eng"
-				])
-			);
+			$config = new Config($serverTomlPath, Config::TOML);
+			CoreConfig::validateServer($config->getAll());
+			$this->configGroup = new ServerConfigGroup($config, $config, true);
 
 			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
@@ -1033,6 +1000,7 @@ class Server{
 				$this->logger->warning("Invalid network compression level $netCompressionLevel set, setting to default 6");
 				$netCompressionLevel = 6;
 			}
+			ZlibCompressor::setInstance(new ZlibCompressor($netCompressionLevel, $netCompressionThreshold, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
 			$compressionAlgorithm = strtolower($this->configGroup->getPropertyString(Yml::NETWORK_COMPRESSION_ALGORITHM, "zlib"));
 			if($compressionAlgorithm === "snappy" && extension_loaded("snappy") && function_exists('snappy_compress') && function_exists('snappy_uncompress')){
 				$this->networkCompressor = new SnappyCompressor($netCompressionThreshold, SnappyCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE);
@@ -1042,7 +1010,7 @@ class Server{
 						"Snappy network compression requested, but ext-snappy is unavailable; falling back to zlib" :
 						"Unknown network compression algorithm '$compressionAlgorithm'; falling back to zlib");
 				}
-				$this->networkCompressor = new ZlibCompressor($netCompressionLevel, $netCompressionThreshold, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE);
+				$this->networkCompressor = ZlibCompressor::getInstance();
 			}
 
 			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, true);
@@ -1055,20 +1023,12 @@ class Server{
 
 			$this->doTitleTick = $this->configGroup->getPropertyBool(Yml::CONSOLE_TITLE_TICK, true) && Terminal::hasFormattingCodes();
 
-			$this->operators = new Config(Path::join($this->dataPath, "ops.txt"), Config::ENUM);
-			$this->whitelist = new Config(Path::join($this->dataPath, "white-list.txt"), Config::ENUM);
-
-			$bannedTxt = Path::join($this->dataPath, "banned.txt");
-			$bannedPlayersTxt = Path::join($this->dataPath, "banned-players.txt");
-			if(file_exists($bannedTxt) && !file_exists($bannedPlayersTxt)){
-				@rename($bannedTxt, $bannedPlayersTxt);
-			}
-			@touch($bannedPlayersTxt);
-			$this->banByName = new BanList($bannedPlayersTxt);
+			$this->accessStorage = new AccessStorage($this->paths->accessDatabase());
+			$this->operators = new Config($this->paths->accessDatabase(), Config::ENUM, [], $this->accessStorage, "op");
+			$this->whitelist = new Config($this->paths->accessDatabase(), Config::ENUM, [], $this->accessStorage, "allow");
+			$this->banByName = new BanList($this->accessStorage, "player");
 			$this->banByName->load();
-			$bannedIpsTxt = Path::join($this->dataPath, "banned-ips.txt");
-			@touch($bannedIpsTxt);
-			$this->banByIP = new BanList($bannedIpsTxt);
+			$this->banByIP = new BanList($this->accessStorage, "ip");
 			$this->banByIP->load();
 
 			$this->maxPlayers = $this->configGroup->getConfigInt(ServerProperties::MAX_PLAYERS, self::DEFAULT_MAX_PLAYERS);
@@ -1097,6 +1057,8 @@ class Server{
 
 			$this->network = new Network($this->logger);
 			$this->network->setName($this->getMotd());
+			$this->network->registerTransport(RakLibTransport::NAME, new RakLibTransport($this));
+			$this->network->registerTransport(NetherNetTransport::NAME, new NetherNetTransport($this));
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_info(
 				$this->getName(),
@@ -1135,25 +1097,27 @@ class Server{
 
 			$this->craftingManager = CraftingManagerFromDataHelper::make(BedrockDataFiles::RECIPES);
 
-			$this->resourceManager = new ResourcePackManager(Path::join($this->dataPath, "resource_packs"), $this->logger);
+			$this->resourceManager = new ResourcePackManager($this->paths->resourcePacks(), $this->logger);
 
 			$pluginGraylist = null;
-			$graylistFile = Path::join($this->dataPath, "plugin_list.yml");
+			$graylistFile = $this->paths->pluginsToml();
 			if(!file_exists($graylistFile)){
-				copy(Path::join(\quark\RESOURCE_PATH, 'plugin_list.yml'), $graylistFile);
+				if(!copy(Path::join(\quark\RESOURCE_PATH, 'plugins.toml'), $graylistFile)){
+					throw new \RuntimeException("Cannot create $graylistFile");
+				}
 			}
 			try{
-				$array = yaml_parse(Filesystem::fileGetContents($graylistFile));
-				if(!is_array($array)){
-					throw new \InvalidArgumentException("Expected array for root, but have " . gettype($array));
-				}
+				$array = CoreConfig::load($graylistFile);
 				$pluginGraylist = PluginGraylist::fromArray($array);
-			}catch(\InvalidArgumentException $e){
+		}catch(\Throwable $e){
 				$this->logger->emergency("Failed to load $graylistFile: " . $e->getMessage());
 				$this->forceShutdownExit();
 				return;
 			}
-			$this->pluginManager = new PluginManager($this, $this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, true) ? null : Path::join($this->dataPath, "plugin_data"), $pluginGraylist);
+			if($this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, false)){
+				throw new \RuntimeException("Colocated plugin data is unsupported in filesystem layout version 1; migrate it to data/plugins first");
+			}
+			$this->pluginManager = new PluginManager($this, $this->paths->pluginData(), $pluginGraylist);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
@@ -1167,7 +1131,7 @@ class Server{
 				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_level_badDefaultFormat($formatName)));
 			}
 
-			$this->worldManager = new WorldManager($this, Path::join($this->dataPath, "worlds"), $providerManager);
+			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
@@ -1176,7 +1140,7 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataProvider = new DatFilePlayerDataProvider(Path::join($this->dataPath, "players"));
+			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players());
 
 			register_shutdown_function($this->crashDump(...));
 
@@ -1368,58 +1332,49 @@ class Server{
 		return !$anyWorldFailedToLoad;
 	}
 
-	private function startupPrepareConnectableNetworkInterfaces(
-		string $ip,
-		int $port,
-		bool $ipV6,
-		bool $useQuery,
-		PacketBroadcaster $packetBroadcaster,
-		EntityEventBroadcaster $entityEventBroadcaster,
-		TypeConverter $typeConverter
-	) : bool{
+	private function startupPrepareQueryInterface(string $ip, int $port, bool $ipV6) : void{
+		if(!RakLibTransport::isListeningOn($this->network, $ip, $port, $ipV6)){
+			$this->network->registerInterface(new DedicatedQueryNetworkInterface($ip, $port, $ipV6, new \PrefixedLogger($this->logger, "Dedicated Query Interface")));
+		}
 		$prettyIp = $ipV6 ? "[$ip]" : $ip;
-		try{
-			$rakLibRegistered = $this->network->registerInterface(new RakLibInterface($this, $ip, $port, $ipV6, $packetBroadcaster, $entityEventBroadcaster, $typeConverter));
-		}catch(NetworkInterfaceStartException $e){
-			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_networkStartFailed(
-				$ip,
-				(string) $port,
-				$e->getMessage()
-			)));
-			return false;
-		}
-		if($rakLibRegistered){
-			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_networkStart($prettyIp, (string) $port)));
-		}
-		if($useQuery){
-			if(!$rakLibRegistered){
-				//RakLib would normally handle the transport for Query packets
-				//if it's not registered we need to make sure Query still works
-				$this->network->registerInterface(new DedicatedQueryNetworkInterface($ip, $port, $ipV6, new \PrefixedLogger($this->logger, "Dedicated Query Interface")));
-			}
-			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_query_running($prettyIp, (string) $port)));
-		}
-		return true;
+		$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_query_running($prettyIp, (string) $port)));
 	}
 
 	private function startupPrepareNetworkInterfaces() : bool{
-		$useQuery = $this->configGroup->getConfigBool(ServerProperties::ENABLE_QUERY, true);
+		foreach(array_slice(explode(
+			",",
+			$this->configGroup->getPropertyString(Yml::TRANSPORT_NAME, NetherNetTransport::NAME . "," . RakLibTransport::NAME),
+			limit: self::MAX_ACTIVE_TRANSPORTS + 1
+		), 0, self::MAX_ACTIVE_TRANSPORTS) as $name){
+			$name = strtolower(trim($name));
+			if($name === ""){
+				continue;
+			}
+			if($this->network->getTransport($name) === null){
+				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_transport_unknown($name)));
+				continue;
+			}
+			$this->network->activateTransport($name);
+		}
 
 		$typeConverter = TypeConverter::getInstance();
 		$packetBroadcaster = new StandardPacketBroadcaster($this);
-		$entityEventBroadcaster = new StandardEntityEventBroadcaster($packetBroadcaster, $typeConverter);
-
-		if(
-			!$this->startupPrepareConnectableNetworkInterfaces($this->getIp(), $this->getPort(), false, $useQuery, $packetBroadcaster, $entityEventBroadcaster, $typeConverter) ||
-			(
-				$this->configGroup->getConfigBool(ServerProperties::ENABLE_IPV6, true) &&
-				!$this->startupPrepareConnectableNetworkInterfaces($this->getIpV6(), $this->getPortV6(), true, $useQuery, $packetBroadcaster, $entityEventBroadcaster, $typeConverter)
-			)
-		){
+		try{
+			$this->network->startActiveTransports($packetBroadcaster, new StandardEntityEventBroadcaster($packetBroadcaster, $typeConverter), $typeConverter);
+		}catch(NetworkInterfaceStartException $e){
+			$this->logger->emergency($e->getMessage());
+			return false;
+		}
+		if(count($this->network->getInterfaces()) === 0){
+			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_transport_noneConfigured()));
 			return false;
 		}
 
-		if($useQuery){
+		if($this->configGroup->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
+			$this->startupPrepareQueryInterface($this->getIp(), $this->getPort(), false);
+			if($this->configGroup->getConfigBool(ServerProperties::ENABLE_IPV6, true)){
+				$this->startupPrepareQueryInterface($this->getIpV6(), $this->getPortV6(), true);
+			}
 			$this->network->registerRawPacketHandler(new QueryHandler($this));
 		}
 
@@ -1428,6 +1383,7 @@ class Server{
 		}
 
 		if($this->configGroup->getPropertyBool(Yml::NETWORK_UPNP_FORWARDING, false)){
+			$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_upnp_deprecated()));
 			$this->network->registerInterface(new UPnPNetworkInterface($this->logger, Internet::getInternalIP(), $this->getPort()));
 		}
 
@@ -1576,11 +1532,11 @@ class Server{
 					return $promise;
 				}
 
-				$compressionType = $compressor->getNetworkId();
+				$compressionType = $compressor->getNetworkType();
 				$compressed = $compressor->compress($buffer);
 			}
 
-			return chr($compressionType) . $compressed;
+			return chr($compressionType->value) . $compressed;
 		}finally{
 			$pulse->stop($scope);
 		}
@@ -1685,6 +1641,9 @@ class Server{
 				$this->logger->debug("Saving properties");
 				$this->configGroup->save();
 			}
+			if(isset($this->accessStorage)){
+				$this->accessStorage->close();
+			}
 			$killer = null;
 			if($this->pulseReport !== null || $this->pulseReportPool !== null || (isset($this->pulse) && $this->pulse->getPendingOperations() > 0)){
 				$this->logger->debug("Waiting for Pulse reports (up to 45 seconds)");
@@ -1780,21 +1739,23 @@ class Server{
 	}
 
 	private function writeCrashDumpFile(CrashDump $dump) : string{
-		$crashFolder = Path::join($this->dataPath, "crashdumps");
+		$crashFolder = $this->paths->crashes();
 		if(!is_dir($crashFolder)){
 			mkdir($crashFolder);
 		}
-		$crashDumpPath = Path::join($crashFolder, date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . ".log");
+		$crashDumpPath = Path::join($crashFolder, date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . ".txt");
 
 		$fp = @fopen($crashDumpPath, "wb");
 		if(!is_resource($fp)){
 			throw new \RuntimeException("Unable to open new file to generate crashdump");
 		}
-		$writer = new CrashDumpRenderer($fp, $dump->getData());
-		$writer->renderHumanReadable();
-		$dump->encodeData($writer);
-
-		fclose($fp);
+		try{
+			$writer = new CrashDumpRenderer($fp, $dump->getData());
+			$writer->renderHumanReadable();
+			$dump->encodeData($writer);
+		}finally{
+			fclose($fp);
+		}
 		return $crashDumpPath;
 	}
 
@@ -1810,38 +1771,12 @@ class Server{
 		try{
 			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_crash_create()));
 			$dump = new CrashDump($this, $this->pluginManager ?? null);
+			$error = $dump->getData()->error;
+			$this->logger->emergency(sprintf("%s: %s in %s:%s\n%s", $error["type"], $error["message"], $error["file"], $error["line"], implode("\n", $dump->getData()->trace)));
 
 			$crashDumpPath = $this->writeCrashDumpFile($dump);
 
-			$this->logger->emergency("Crash dump saved to: $crashDumpPath");
-
-			if($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_ENABLED, false)){
-				$report = true;
-				$stamp = Path::join($this->dataPath, "crashdumps", ".last_crash");
-				$crashInterval = 120;
-				if(($lastReportTime = @filemtime($stamp)) !== false && $lastReportTime + $crashInterval >= time()){
-					$report = false;
-					$this->logger->debug("Not sending crash dump because another crash was reported less than $crashInterval seconds ago");
-				}
-				@touch($stamp);
-				if($dump->getData()->error["type"] === \ParseError::class){ $report = false; }
-				if(strrpos(VersionInfo::GIT_HASH(), "-dirty") !== false || VersionInfo::GIT_HASH() === str_repeat("00", 20)){
-					$this->logger->debug("Not sending crash dump from a locally modified build");
-					$report = false;
-				}
-				if($report){
-					$url = ($this->configGroup->getPropertyBool(Yml::AUTO_REPORT_USE_HTTPS, true) ? "https" : "http") . "://" . $this->configGroup->getPropertyString(Yml::AUTO_REPORT_HOST, "crash.pmmp.io") . "/submit/api";
-					$postUrlError = "Unknown error";
-					$reply = Internet::postURL($url, ["report" => "yes", "name" => $this->getName() . " " . $this->getQuarkVersion(), "email" => "", "reportPaste" => base64_encode($dump->getEncodedData())], 10, [], $postUrlError);
-					if($reply !== null && is_object($data = json_decode($reply->getBody()))){
-						if(isset($data->crashId) && is_int($data->crashId) && isset($data->crashUrl) && is_string($data->crashUrl)){
-							$this->logger->emergency("Crash dump archived by PMMP: $data->crashUrl (ID: $data->crashId)");
-						}elseif(isset($data->error) && is_string($data->error)){ $this->logger->emergency("Automatic crash report submission failed: $data->error"); }
-						else{ $this->logger->emergency("Invalid response received from the PMMP crash archive"); }
-					}else{ $this->logger->emergency("Failed to communicate with the PMMP crash archive: $postUrlError"); }
-				}
-			}
-
+			$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_crash_submit($crashDumpPath)));
 		}catch(\Throwable $e){
 			$this->logger->logException($e);
 			try{

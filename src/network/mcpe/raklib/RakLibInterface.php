@@ -25,17 +25,16 @@ namespace quark\network\mcpe\raklib;
 
 use pmmp\thread\ThreadSafeArray;
 use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\lang\KnownTranslationFactory;
 use quark\network\AdvancedNetworkInterface;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketBroadcaster;
+use quark\network\mcpe\ServerPongData;
 use quark\network\Network;
 use quark\network\NetworkInterfaceStartException;
 use quark\network\PacketHandlingException;
-use quark\player\GameMode;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\thread\ThreadCrashException;
@@ -49,11 +48,8 @@ use raklib\server\ipc\RakLibToUserThreadMessageReceiver;
 use raklib\server\ipc\UserToRakLibThreadMessageSender;
 use raklib\server\ServerEventListener;
 use raklib\utils\InternetAddress;
-use function addcslashes;
-use function implode;
 use function mt_rand;
 use function ord;
-use function rtrim;
 use function substr;
 use const PHP_INT_MAX;
 
@@ -66,13 +62,11 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 
 	private const MCPE_RAKNET_PACKET_ID = "\xfe";
 
-	private const SERVER_NAME_FLAG_TRUE = "1";
-	private const SERVER_NAME_FLAG_FALSE = "0";
-
 	private Server $server;
 	private Network $network;
 
 	private int $rakServerId;
+	private InternetAddress $bindAddress;
 	private RakLibServer $rakLib;
 
 	/** @var NetworkSession[] */
@@ -102,6 +96,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 		$this->typeConverter = $typeConverter;
 
 		$this->rakServerId = mt_rand(0, PHP_INT_MAX);
+		$this->bindAddress = new InternetAddress($ip, $port, $ipV6 ? 6 : 4);
 
 		$sleeperEntry = $this->server->getTickSleeper()->addNotifier(function() : void{
 			$connectionScope = PulseZones::$connection->start();
@@ -122,7 +117,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			$this->server->getLogger(),
 			$mainToThreadBuffer,
 			$threadToMainBuffer,
-			new InternetAddress($ip, $port, $ipV6 ? 6 : 4),
+			$this->bindAddress,
 			$this->rakServerId,
 			$this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::NETWORK_MAX_MTU_SIZE, 1492),
 			self::MCPE_RAKNET_PROTOCOL_VERSION,
@@ -144,10 +139,17 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			throw new NetworkInterfaceStartException($e->getMessage(), 0, $e);
 		}
 		$this->server->getLogger()->debug("RakLib booted successfully");
+		$ip = $this->bindAddress->getIp();
+		$prettyIp = $this->bindAddress->getVersion() === 6 ? "[$ip]" : $ip;
+		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_server_networkStart($prettyIp, (string) $this->bindAddress->getPort())));
 	}
 
 	public function setNetwork(Network $network) : void{
 		$this->network = $network;
+	}
+
+	public function getBindAddress() : InternetAddress{
+		return $this->bindAddress;
 	}
 
 	public function tick() : void{
@@ -262,33 +264,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 	}
 
 	public function setName(string $name) : void{
-		$info = $this->server->getQueryInformation();
-
-		$this->interface->setName(implode(";",
-			[
-				"MCPE",
-				rtrim(addcslashes($name, ";"), '\\'),
-				ProtocolInfo::CURRENT_PROTOCOL,
-				ProtocolInfo::MINECRAFT_VERSION_NETWORK,
-				$info->getPlayerCount(),
-				$info->getMaxPlayerCount(),
-				$this->rakServerId,
-				$this->server->getName(),
-				match($this->server->getGamemode()){
-					GameMode::SURVIVAL => "Survival",
-					GameMode::ADVENTURE => "Adventure",
-					default => "Creative"
-				},
-				self::SERVER_NAME_FLAG_TRUE, //isJoinableThroughServerScreen
-				(string) $this->server->getPort(),
-				(string) $this->server->getPortV6(),
-				self::SERVER_NAME_FLAG_FALSE, //isEditorWorld
-				//if the server can actually reach Xbox services
-				($isOnline = $this->server->getOnlineMode()) ? self::SERVER_NAME_FLAG_TRUE : self::SERVER_NAME_FLAG_FALSE,
-				//inverse of online-mode
-				!$isOnline ? self::SERVER_NAME_FLAG_TRUE : self::SERVER_NAME_FLAG_FALSE,
-			]) . ";"
-		);
+		$this->interface->setName(ServerPongData::build($this->server, $name, $this->rakServerId));
 	}
 
 	public function setPortCheck(bool $name) : void{

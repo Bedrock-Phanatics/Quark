@@ -1,0 +1,5 @@
+# Plugin loading rules. blacklist loads all plugins except those listed.
+# whitelist loads only the listed plugins.
+
+mode = "blacklist"
+plugins = []

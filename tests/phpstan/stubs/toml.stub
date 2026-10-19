@@ -1,0 +1,14 @@
+<?php
+
+/** @return array<string, mixed> */
+function toml_parse(string $source) : array{}
+
+/** @return array<string, mixed> */
+function toml_parse_file(string $path) : array{}
+
+class TomlException extends Exception{}
+
+final class TomlParseException extends TomlException{
+	public function getTomlLine() : int{}
+	public function getTomlColumn() : int{}
+}

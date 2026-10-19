@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\utils;
 
 use pocketmine\errorhandler\ErrorToExceptionHandler;
+use quark\permission\AccessStorage;
 use Symfony\Component\Filesystem\Path;
 use function array_change_key_case;
 use function array_fill_keys;
@@ -35,6 +36,7 @@ use function explode;
 use function file_exists;
 use function get_debug_type;
 use function implode;
+use function in_array;
 use function is_array;
 use function is_bool;
 use function json_decode;
@@ -69,6 +71,7 @@ class Config{
 	//const EXPORT = 3; // .export, .xport
 	public const SERIALIZED = 4; // .sl
 	public const ENUM = 5; // .txt, .list, .enum
+	public const TOML = 6;
 	public const ENUMERATION = Config::ENUM;
 
 	/**
@@ -88,6 +91,8 @@ class Config{
 	private int $jsonOptions = JSON_PRETTY_PRINT | JSON_BIGINT_AS_STRING;
 
 	private bool $changed = false;
+	/** @var array<string, string> */
+	private array $accessIndex = [];
 
 	/** @var int[] */
 	public static array $formats = [
@@ -99,6 +104,7 @@ class Config{
 		"js" => Config::JSON,
 		"yml" => Config::YAML,
 		"yaml" => Config::YAML,
+		"toml" => Config::TOML,
 		//"export" => Config::EXPORT,
 		//"xport" => Config::EXPORT,
 		"sl" => Config::SERIALIZED,
@@ -114,7 +120,7 @@ class Config{
 	 * @param mixed[] $default Array with the default values that will be written to the file if it did not exist
 	 * @phpstan-param array<string, mixed> $default
 	 */
-	public function __construct(string $file, int $type = Config::DETECT, array $default = []){
+	public function __construct(string $file, int $type = Config::DETECT, array $default = [], private ?AccessStorage $accessStorage = null, private ?string $accessKind = null){
 		$this->load($file, $type, $default);
 	}
 
@@ -124,6 +130,10 @@ class Config{
 	public function reload() : void{
 		$this->config = [];
 		$this->nestedCache = [];
+		$this->accessIndex = [];
+		if($this->type === Config::TOML){
+			\quark\CoreConfig::forget($this->file);
+		}
 		$this->load($this->file, $this->type);
 	}
 
@@ -157,12 +167,22 @@ class Config{
 				throw new \InvalidArgumentException("Cannot detect config type of " . $this->file);
 			}
 		}
+		if($this->accessStorage !== null){
+			if($this->type !== Config::ENUM || !in_array($this->accessKind, ["op", "allow"], true)){
+				throw new \InvalidArgumentException("Access storage requires an operator or allowlist configuration");
+			}
+			$this->config = $this->accessStorage->loadNames($this->accessKind);
+			foreach(array_keys($this->config) as $name){
+				$this->accessIndex[strtolower((string) $name)] = (string) $name;
+			}
+			return;
+		}
 
 		if(!file_exists($file)){
 			$this->config = $default;
 			$this->save();
 		}else{
-			$content = Filesystem::fileGetContents($this->file);
+			$content = $this->type === Config::TOML ? "" : Filesystem::fileGetContents($this->file);
 			switch($this->type){
 				case Config::PROPERTIES:
 					$config = self::parseProperties($content);
@@ -179,6 +199,13 @@ class Config{
 					try{
 						$config = ErrorToExceptionHandler::trap(fn() => yaml_parse($content));
 					}catch(\ErrorException $e){
+						throw ConfigLoadException::wrap($this->file, $e);
+					}
+					break;
+				case Config::TOML:
+					try{
+						$config = \quark\CoreConfig::load($this->file);
+					}catch(\Exception $e){
 						throw ConfigLoadException::wrap($this->file, $e);
 					}
 					break;
@@ -216,6 +243,10 @@ class Config{
 	 * Flushes the config to disk in the appropriate format.
 	 */
 	public function save() : void{
+		if($this->accessStorage !== null){
+			$this->changed = false;
+			return;
+		}
 		$content = null;
 		switch($this->type){
 			case Config::PROPERTIES:
@@ -226,6 +257,9 @@ class Config{
 				break;
 			case Config::YAML:
 				$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
+				break;
+			case Config::TOML:
+				$content = \quark\CoreConfig::encode($this->config);
 				break;
 			case Config::SERIALIZED:
 				$content = serialize($this->config);
@@ -238,6 +272,9 @@ class Config{
 		}
 
 		Filesystem::safeFilePutContents($this->file, $content);
+		if($this->type === Config::TOML){
+			\quark\CoreConfig::forget($this->file);
+		}
 
 		$this->changed = false;
 	}
@@ -340,6 +377,9 @@ class Config{
 	}
 
 	public function setNested(string $key, mixed $value) : void{
+		if($this->accessStorage !== null){
+			throw new \LogicException("Access lists do not support nested values");
+		}
 		$vars = explode(".", $key, limit: PHP_INT_MAX);
 		$base = array_shift($vars);
 
@@ -388,6 +428,9 @@ class Config{
 	}
 
 	public function removeNested(string $key) : void{
+		if($this->accessStorage !== null){
+			throw new \LogicException("Access lists do not support nested values");
+		}
 		$this->nestedCache = [];
 		$this->changed = true;
 
@@ -413,6 +456,14 @@ class Config{
 	}
 
 	public function set(string $k, mixed $v = true) : void{
+		if($this->accessStorage !== null){
+			$this->accessStorage->putName($this->accessKind ?? throw new \LogicException("Missing access kind"), $k);
+			$lower = strtolower($k);
+			if(isset($this->accessIndex[$lower])){
+				unset($this->config[$this->accessIndex[$lower]]);
+			}
+			$this->accessIndex[$lower] = $k;
+		}
 		$this->config[$k] = $v;
 		$this->changed = true;
 		foreach(Utils::stringifyKeys($this->nestedCache) as $nestedKey => $nvalue){
@@ -427,6 +478,13 @@ class Config{
 	 * @phpstan-param array<string, mixed> $v
 	 */
 	public function setAll(array $v) : void{
+		if($this->accessStorage !== null){
+			$this->accessStorage->replaceNames($this->accessKind ?? throw new \LogicException("Missing access kind"), $v);
+			$this->accessIndex = [];
+			foreach(array_keys($v) as $name){
+				$this->accessIndex[strtolower((string) $name)] = (string) $name;
+			}
+		}
 		$this->config = $v;
 		$this->changed = true;
 	}
@@ -435,6 +493,9 @@ class Config{
 	 * @param bool $lowercase If set, searches Config in single-case / lowercase.
 	 */
 	public function exists(string $k, bool $lowercase = false) : bool{
+		if($this->accessStorage !== null && $lowercase){
+			return isset($this->accessIndex[strtolower($k)]);
+		}
 		if($lowercase){
 			$k = strtolower($k); //Convert requested  key to lower
 			$array = array_change_key_case($this->config, CASE_LOWER); //Change all keys in array to lower
@@ -445,6 +506,12 @@ class Config{
 	}
 
 	public function remove(string $k) : void{
+		if($this->accessStorage !== null){
+			$this->accessStorage->removeName($this->accessKind ?? throw new \LogicException("Missing access kind"), $k);
+			$lower = strtolower($k);
+			$k = $this->accessIndex[$lower] ?? $k;
+			unset($this->accessIndex[$lower]);
+		}
 		unset($this->config[$k]);
 		$this->changed = true;
 	}
@@ -461,6 +528,14 @@ class Config{
 	 * @param mixed[] $defaults
 	 */
 	public function setDefaults(array $defaults) : void{
+		if($this->accessStorage !== null){
+			foreach(Utils::promoteKeys($defaults) as $name => $value){
+				if(!$this->exists((string) $name, true)){
+					$this->set((string) $name, $value);
+				}
+			}
+			return;
+		}
 		$this->fillDefaults($defaults, $this->config);
 	}
 

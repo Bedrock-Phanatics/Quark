@@ -19,12 +19,18 @@ server.lock
 /phpstan.neon
 /docker/test_data/
 tests/*
+
+# NetherNet identity key and certificate files
+nethernet.key
+nethernet-cert.pem
+nethernet-key.pem
 !tests/build-plugin-phar.php
 !tests/phpunit/
 tests/phpunit/*
 !tests/phpunit/pulse/
 !tests/phpunit/command/
 !tests/phpunit/world/
+!tests/phpunit/FilesystemMigrationTest.php
 
 # Common IDEs
 .idea/*

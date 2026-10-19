@@ -25,7 +25,7 @@ namespace quark;
 
 /**
  * Constants for all the command-line options that Quark supports.
- * Other options not listed here can be used to override server.properties and quark.yml values temporarily.
+ * Other options not listed here can temporarily override config/server.toml values.
  *
  * @internal
  */
@@ -49,4 +49,6 @@ final class BootstrapOptions{
 	public const VERSION = "version";
 	/** Disables writing logs to server.log */
 	public const NO_LOG_FILE = "no-log-file";
+	public const MIGRATE_LEGACY = "migrate-legacy";
+	public const MIGRATION_DRY_RUN = "migration-dry-run";
 }

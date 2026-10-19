@@ -34,7 +34,7 @@ final class CrashDumpData implements \JsonSerializable{
 	/** @var mixed[] */
 	public array $lastError = [];
 
-	/** @var mixed[] */
+	/** @var array{type: int|string, message: string, file: string, line: int, thread: string} */
 	public array $error;
 
 	public string $thread;
@@ -64,9 +64,9 @@ final class CrashDumpData implements \JsonSerializable{
 	 */
 	public array $parameters = [];
 
-	public string $serverDotProperties = "";
+	public string $serverToml = "";
 
-	public string $quarkDotYml = "";
+	public string $pluginsToml = "";
 
 	/**
 	 * @var string[]
@@ -85,10 +85,9 @@ final class CrashDumpData implements \JsonSerializable{
 	 */
 	public function jsonSerialize() : array{
 		$result = (array) $this;
-		unset($result["serverDotProperties"]);
-		unset($result["quarkDotYml"]);
-		$result["quark.yml"] = $this->quarkDotYml;
-		$result["server.properties"] = $this->serverDotProperties;
+		unset($result["serverToml"], $result["pluginsToml"]);
+		$result["server.toml"] = $this->serverToml;
+		$result["plugins.toml"] = $this->pluginsToml;
 		return $result;
 	}
 }

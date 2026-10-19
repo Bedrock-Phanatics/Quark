@@ -80,7 +80,7 @@ use const ZLIB_ENCODING_DEFLATE;
 class CrashDump{
 
 	/**
-	 * Crashdump data format version, used by the crash archive to decide how to decode the crashdump
+	 * Crashdump data format version for decoding the embedded data in local reports
 	 * This should be incremented when backwards incompatible changes are introduced, such as fields being removed or
 	 * having their content changed, version format changing, etc.
 	 * It is not necessary to increase this when adding new fields.
@@ -164,11 +164,11 @@ class CrashDump{
 
 		if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CRASH_DUMPS_INCLUDE_SETTINGS, true)){
 			$this->data->parameters = (array) $argv;
-			if(($serverDotProperties = @file_get_contents(Path::join($this->server->getDataPath(), "server.properties"))) !== false){
-				$this->data->serverDotProperties = preg_replace("#^rcon\\.password=(.*)$#m", "rcon.password=******", $serverDotProperties) ?? throw new AssumptionFailedError("Pattern is valid");
+			if(($serverToml = @file_get_contents($this->server->getFilesystemPaths()->serverToml())) !== false){
+				$this->data->serverToml = preg_replace("#^(rcon\\.password\\s*=).*$#m", "$1 '******'", $serverToml) ?? throw new AssumptionFailedError("Pattern is valid");
 			}
-			if(($quarkDotYml = @file_get_contents(Path::join($this->server->getDataPath(), "quark.yml"))) !== false){
-				$this->data->quarkDotYml = $quarkDotYml;
+			if(($pluginsToml = @file_get_contents($this->server->getFilesystemPaths()->pluginsToml())) !== false){
+				$this->data->pluginsToml = $pluginsToml;
 			}
 		}
 		$extensions = [];
@@ -198,7 +198,7 @@ class CrashDump{
 			if($error === null || ($error["type"] & self::FATAL_ERROR_MASK) === 0){
 				throw new \RuntimeException("Crash error information missing - did something use exit()?");
 			}
-			$error["trace"] = Utils::printableTrace(Utils::currentTrace(3)); //Skipping CrashDump->baseCrash, CrashDump->construct, Server->crashDump
+			$error["trace"] = Utils::printableTraceWithMetadata(Utils::currentTrace(3));
 			$error["fullFile"] = $error["file"];
 			$error["file"] = Filesystem::cleanPath($error["file"]);
 			try{
@@ -211,6 +211,7 @@ class CrashDump{
 			}
 			$error["thread"] = "Main";
 		}
+		/** @var array{type: int|string, message: string, file: string, line: int, fullFile: string, trace: list<ThreadCrashInfoFrame>, thread: string} $error */
 		$error["message"] = mb_scrub($error["message"], 'UTF-8');
 
 		if(isset($lastError)){
@@ -219,9 +220,13 @@ class CrashDump{
 			$this->data->lastError["trace"] = array_map(array: $lastError["trace"], callback: fn(ThreadCrashInfoFrame $frame) => $frame->getPrintableFrame());
 		}
 
-		$this->data->error = $error;
-		unset($this->data->error["fullFile"]);
-		unset($this->data->error["trace"]);
+		$this->data->error = [
+			"type" => $error["type"],
+			"message" => $error["message"],
+			"file" => $error["file"],
+			"line" => $error["line"],
+			"thread" => $error["thread"]
+		];
 
 		$this->data->plugin_involvement = self::PLUGIN_INVOLVEMENT_NONE;
 		if(!$this->determinePluginFromFile($error["fullFile"], true)){ //fatal errors won't leave any stack trace

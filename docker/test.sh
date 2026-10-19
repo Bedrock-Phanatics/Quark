@@ -10,7 +10,7 @@ sudo chown 1000:1000 "$TEST_ROOT/data"
 
 run_server() {
 	printf 'stop\n' | timeout 120 docker run --rm -i --name "$CONTAINER" \
-		-e QUARK_ARGS="--settings.enable-dev-builds=1 --auto-report.enabled=0 --disable-ansi" \
+		-e QUARK_ARGS="--settings.enable-dev-builds=1 --disable-ansi" \
 		"$@" "$IMAGE" 2>&1 | tee "$TEST_ROOT/server.log"
 	if grep -Eq 'CRITICAL|EMERGENCY|ERROR|axolotl-pm.org/docs|PocketMine-MP' "$TEST_ROOT/server.log"; then
 		return 1

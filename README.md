@@ -37,6 +37,8 @@ This improves how quickly hits feel visible to players; it does not reduce Minec
 
 See the complete [Quark 6.0.0 changelog](CHANGELOG.md) and [PocketMine-MP 5.47 migration guide](docs/MIGRATING-FROM-POCKETMINE-5.md).
 
+Existing installations can inspect required changes with `--migration-dry-run` and migrate with `--migrate-legacy` before starting Quark 6.
+
 ## Requirements
 
 - A 64-bit operating system
@@ -66,27 +68,28 @@ Start Quark:
 php Quark.phar
 ```
 
-On first launch, review the generated `quark.yml` before exposing the server publicly.
+On first launch, review `config/server.toml` and `config/plugins.toml` before exposing the server publicly.
 
 ## Configuration
 
-The primary configuration is `quark.yml`. Notable sections include:
+Core settings are in `config/server.toml`; plugin loading rules are in `config/plugins.toml`. Notable server sections include:
 
 - `network` — compression, batching, latency, encryption, and MTU behavior
 - `memory` — limits, garbage collection, and memory dumps
 - `redstone` — world policy and component-processing limits
 - `tnt-limits` — active entity and ignition limits
-- `crash-dumps` — local crash-dump contents
-- `auto-report` — optional PMMP crash-archive upload (disabled by default)
+- `crash-dumps` — crash details in the console and local `.txt` reports
 - `auto-updater` and `timings` — external services
 
-The source template is available at [resources/quark.yml](resources/quark.yml).
+The templates are [server.toml](resources/server.toml) and [plugins.toml](resources/plugins.toml).
 
 ## Plugin development
 
 Quark plugins use the `quark\` PHP namespace and target `quark/quark` through Composer. Plugins written for PocketMine-MP 5.x must be migrated and rebuilt.
 
 Declare plugin API `6.0.0`. Quark does not advertise Composer compatibility with `pocketmine/pocketmine-mp`; its external `pocketmine/*` and `axolotl-pm/*` library identifiers remain unchanged.
+
+See the [Quark 6 folder plugin](examples/plugins/QuarkExample) and [script plugin](examples/plugins/ExampleScriptPlugin.php) examples.
 
 Before submitting changes, run:
 
@@ -111,7 +114,6 @@ These links belong to PocketMine-MP and are useful as upstream references; they 
 - [PocketMine-MP API documentation](https://apidoc.pmmp.io/)
 - [PocketMine-MP translations on Crowdin](https://crowdin.com/project/pocketmine)
 - [PocketMine-MP releases and downloads](https://github.com/pmmp/PocketMine-MP/releases)
-- [PMMP crash archive](https://crash.pmmp.io/)
 
 ## License
 

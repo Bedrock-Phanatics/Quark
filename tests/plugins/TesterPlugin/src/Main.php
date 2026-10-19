@@ -21,7 +21,7 @@
 
 declare(strict_types=1);
 
-namespace pmmp\TesterPlugin;
+namespace quark\TesterPlugin;
 
 use quark\event\Listener;
 use quark\event\server\CommandEvent;

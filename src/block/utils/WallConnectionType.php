@@ -26,9 +26,6 @@ namespace quark\block\utils;
 use quark\utils\LegacyEnumShimTrait;
 
 /**
- * TODO: These tags need to be removed once we get rid of LegacyEnumShimTrait (PM6)
- *  These are retained for backwards compatibility only.
- *
  * @method static WallConnectionType SHORT()
  * @method static WallConnectionType TALL()
  */

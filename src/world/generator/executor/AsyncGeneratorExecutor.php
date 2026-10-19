@@ -52,7 +52,6 @@ final class AsyncGeneratorExecutor implements GeneratorExecutor{
 	){
 		$this->logger = new \PrefixedLogger($logger, "AsyncGeneratorExecutor");
 
-		//TODO: we only allow setting this for PM5 because of PopulationTask uses in plugins
 		$this->asyncContextId = $asyncContextId ?? self::$nextAsyncContextId++;
 
 		$this->workerStartHook = function(int $workerId) : void{

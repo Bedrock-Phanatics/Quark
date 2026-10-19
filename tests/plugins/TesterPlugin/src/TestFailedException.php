@@ -21,7 +21,7 @@
 
 declare(strict_types=1);
 
-namespace pmmp\TesterPlugin;
+namespace quark\TesterPlugin;
 
 class TestFailedException extends \Exception{
 
