@@ -23,6 +23,8 @@ tests/*
 !tests/phpunit/
 tests/phpunit/*
 !tests/phpunit/pulse/
+!tests/phpunit/command/
+!tests/phpunit/world/
 
 # Common IDEs
 .idea/*
