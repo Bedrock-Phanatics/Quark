@@ -177,6 +177,52 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("persistent", file_get_contents($this->paths->pluginData() . "/unknown.bin"));
 	}
 
+	public function testResourcePacksMoveWithoutChangingFilesAndRestart() : void{
+		mkdir($this->root . "/resource_packs");
+		file_put_contents($this->root . "/resource_packs/resource_packs.yml", "resource_stack:\n  - Example.mcpack\n");
+		file_put_contents($this->root . "/resource_packs/Example.mcpack", random_bytes(1024));
+		file_put_contents($this->root . "/resource_packs/Example.mcpack.key", "12345678901234567890123456789012");
+		$before = hash_file("sha256", $this->root . "/resource_packs/Example.mcpack");
+		self::assertSame("legacy", $this->migration->diagnose()["state"]);
+		self::assertStringContainsString("resource_packs", $this->migration->prepare(false, true));
+		try{
+			$this->migration->prepare();
+			self::fail("Legacy resource packs must require migration");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("--migrate-legacy", $e->getMessage());
+		}
+		self::assertSame("legacy", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame($before, hash_file("sha256", $this->paths->resourcePacks() . "/Example.mcpack"));
+		self::assertSame("resource_stack:\n  - Example.mcpack\n", file_get_contents($this->paths->resourcePacks() . "/resource_packs.yml"));
+		self::assertFileExists($this->paths->resourcePacks() . "/Example.mcpack.key");
+		self::assertDirectoryDoesNotExist($this->root . "/resource_packs");
+	}
+
+	public function testResourcePackCollisionPreservesBothCopies() : void{
+		mkdir($this->root . "/resource_packs");
+		file_put_contents($this->root . "/resource_packs/pack.mcpack", "legacy");
+		mkdir($this->paths->resourcePacks());
+		file_put_contents($this->paths->resourcePacks() . "/pack.mcpack", "modern");
+		$this->expectExceptionMessage("collision");
+		try{
+			$this->migration->prepare(true);
+		}finally{
+			self::assertSame("legacy", file_get_contents($this->root . "/resource_packs/pack.mcpack"));
+			self::assertSame("modern", file_get_contents($this->paths->resourcePacks() . "/pack.mcpack"));
+		}
+	}
+
+	public function testInterruptedResourcePackRenameResumes() : void{
+		mkdir($this->root . "/resource_packs");
+		file_put_contents($this->root . "/resource_packs/pack.zip", "bytes");
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 3, "completed" => [], "copying" => null]));
+		rename($this->root . "/resource_packs", $this->paths->resourcePacks());
+		self::assertSame("partial", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("bytes", file_get_contents($this->paths->resourcePacks() . "/pack.zip"));
+	}
+
 	public function testMigrationAndRecoveryAfterInterruptedRename() : void{
 		mkdir($this->root . "/worlds");
 		file_put_contents($this->root . "/worlds/level.dat", "world data");

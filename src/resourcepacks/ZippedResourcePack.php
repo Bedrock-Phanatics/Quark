@@ -29,7 +29,6 @@ use quark\utils\Utils;
 use Ramsey\Uuid\Uuid;
 use function assert;
 use function fclose;
-use function feof;
 use function file_exists;
 use function filesize;
 use function fopen;
@@ -38,6 +37,8 @@ use function fseek;
 use function gettype;
 use function hash_file;
 use function implode;
+use function is_resource;
+use function min;
 use function preg_match;
 use function strlen;
 
@@ -45,9 +46,10 @@ class ZippedResourcePack implements ResourcePack{
 	protected string $path;
 	protected Manifest $manifest;
 	protected ?string $sha256 = null;
+	private int $size;
 
-	/** @var resource */
-	protected $fileResource;
+	/** @var resource|null */
+	protected $fileResource = null;
 
 	/**
 	 * @param string $zipPath Path to the resource pack zip
@@ -66,6 +68,7 @@ class ZippedResourcePack implements ResourcePack{
 		if($size === 0){
 			throw new ResourcePackException("Empty file, probably corrupted");
 		}
+		$this->size = $size;
 
 		$archive = new \ZipArchive();
 		if(($openResult = $archive->open($zipPath)) !== true){
@@ -123,11 +126,17 @@ class ZippedResourcePack implements ResourcePack{
 
 		$this->manifest = $manifest;
 
-		$this->fileResource = fopen($zipPath, "rb");
+		$fileResource = @fopen($zipPath, "rb");
+		if($fileResource === false){
+			throw new ResourcePackException("Unable to open resource pack file: $zipPath");
+		}
+		$this->fileResource = $fileResource;
 	}
 
 	public function __destruct(){
-		fclose($this->fileResource);
+		if(is_resource($this->fileResource)){
+			fclose($this->fileResource);
+		}
 	}
 
 	public function getPath() : string{
@@ -147,7 +156,7 @@ class ZippedResourcePack implements ResourcePack{
 	}
 
 	public function getPackSize() : int{
-		return filesize($this->path);
+		return $this->size;
 	}
 
 	public function getSha256(bool $cached = true) : string{
@@ -158,13 +167,24 @@ class ZippedResourcePack implements ResourcePack{
 	}
 
 	public function getPackChunk(int $start, int $length) : string{
+		if($length < 1 || $start < 0 || $start >= $this->size){
+			throw new \InvalidArgumentException("Invalid resource pack chunk range");
+		}
+		$stream = $this->fileResource;
+		if(!is_resource($stream)){
+			throw new ResourcePackException("Resource pack file is closed");
+		}
+		if(fseek($stream, $start) !== 0){
+			throw new ResourcePackException("Unable to seek resource pack file");
+		}
+		$length = min($length, $this->size - $start);
 		if($length < 1){
-			throw new \InvalidArgumentException("Pack length must be positive");
+			throw new \InvalidArgumentException("Invalid resource pack chunk range");
 		}
-		fseek($this->fileResource, $start);
-		if(feof($this->fileResource)){
-			throw new \InvalidArgumentException("Requested a resource pack chunk with invalid start offset");
+		$data = fread($stream, $length);
+		if($data === false || strlen($data) !== $length){
+			throw new ResourcePackException("Unable to read resource pack chunk");
 		}
-		return Utils::assumeNotFalse(fread($this->fileResource, $length), "Already checked that we're not at EOF");
+		return $data;
 	}
 }

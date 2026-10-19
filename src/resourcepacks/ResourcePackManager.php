@@ -37,10 +37,12 @@ use function is_array;
 use function is_dir;
 use function is_float;
 use function is_int;
+use function is_link;
 use function is_string;
 use function mkdir;
 use function rtrim;
 use function strlen;
+use function strpbrk;
 use function strtolower;
 use const DIRECTORY_SEPARATOR;
 
@@ -72,16 +74,25 @@ class ResourcePackManager{
 	public function __construct(string $path, \Logger $logger){
 		$this->path = $path;
 
+		if(is_link($this->path)){
+			throw new \InvalidArgumentException("Resource packs path $path must not be a symbolic link");
+		}
 		if(!file_exists($this->path)){
 			$logger->debug("Resource packs path $path does not exist, creating directory");
-			mkdir($this->path);
+			if(!mkdir($this->path)){
+				throw new \InvalidArgumentException("Cannot create resource packs path $path");
+			}
 		}elseif(!is_dir($this->path)){
 			throw new \InvalidArgumentException("Resource packs path $path exists and is not a directory");
 		}
 
 		$resourcePacksYml = Path::join($this->path, "resource_packs.yml");
 		if(!file_exists($resourcePacksYml)){
-			copy(Path::join(\quark\RESOURCE_PATH, "resource_packs.yml"), $resourcePacksYml);
+			if(is_link($resourcePacksYml) || !copy(Path::join(\quark\RESOURCE_PATH, "resource_packs.yml"), $resourcePacksYml)){
+				throw new \InvalidArgumentException("Cannot create resource pack configuration $resourcePacksYml");
+			}
+		}elseif(is_link($resourcePacksYml)){
+			throw new \InvalidArgumentException("Resource pack configuration must not be a symbolic link: $resourcePacksYml");
 		}
 
 		$resourcePacksConfig = new Config($resourcePacksYml, Config::YAML, []);
@@ -102,6 +113,9 @@ class ResourcePackManager{
 			}
 			$pack = (string) $pack;
 			try{
+				if($pack === "" || $pack === "." || $pack === ".." || strpbrk($pack, "/\\\0") !== false){
+					throw new ResourcePackException("Pack entry must be a filename inside the resource-packs directory");
+				}
 				$newPack = $this->loadPackFromPath(Path::join($this->path, $pack));
 
 				$index = strtolower($newPack->getPackId());
@@ -110,10 +124,14 @@ class ResourcePackManager{
 					//for now we need to validate this here to make sure it doesn't cause crashes later on
 					throw new ResourcePackException("Invalid UUID ($index)");
 				}
-				$this->uuidList[$index] = $newPack;
-				$this->resourcePacks[] = $newPack;
+				if(isset($this->uuidList[$index])){
+					throw new ResourcePackException("Duplicate resource pack UUID ($index)");
+				}
 
 				$keyPath = Path::join($this->path, $pack . ".key");
+				if(is_link($keyPath)){
+					throw new ResourcePackException("Encryption key file must not be a symbolic link");
+				}
 				if(file_exists($keyPath)){
 					try{
 						$key = Filesystem::fileGetContents($keyPath);
@@ -126,6 +144,8 @@ class ResourcePackManager{
 					}
 					$this->encryptionKeys[$index] = $key;
 				}
+				$this->uuidList[$index] = $newPack;
+				$this->resourcePacks[] = $newPack;
 			}catch(ResourcePackException $e){
 				$logger->critical("Could not load resource pack \"$pack\": " . $e->getMessage());
 			}
@@ -135,6 +155,9 @@ class ResourcePackManager{
 	}
 
 	private function loadPackFromPath(string $packPath) : ResourcePack{
+		if(is_link($packPath)){
+			throw new ResourcePackException("Symbolic links are not supported");
+		}
 		if(!file_exists($packPath)){
 			throw new ResourcePackException("File or directory not found");
 		}
