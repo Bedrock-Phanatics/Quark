@@ -39,7 +39,6 @@ use quark\Server;
 use quark\world\Position;
 use quark\world\World;
 use quark\world\WorldManager;
-use function count;
 use function gc_collect_cycles;
 use function implode;
 use function in_array;
