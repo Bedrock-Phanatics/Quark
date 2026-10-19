@@ -55,15 +55,17 @@ use function is_a;
 use function is_array;
 use function is_dir;
 use function is_file;
+use function is_link;
 use function is_string;
 use function is_subclass_of;
 use function iterator_to_array;
 use function mkdir;
 use function realpath;
-use function shuffle;
+use function sort;
 use function sprintf;
 use function str_contains;
 use function strtolower;
+use const SORT_STRING;
 
 /**
  * Manages all the plugins
@@ -85,6 +87,8 @@ class PluginManager{
 	private array $pluginDependents = [];
 
 	private bool $loadPluginsGuard = false;
+	/** @var array<string, true> */
+	private array $dataDirectoryNames = [];
 
 	/**
 	 * @var PluginLoader[]
@@ -98,10 +102,13 @@ class PluginManager{
 		private ?PluginGraylist $graylist = null
 	){
 		if($this->pluginDataDirectory !== null){
-			if(!file_exists($this->pluginDataDirectory)){
-				@mkdir($this->pluginDataDirectory, 0777, true);
-			}elseif(!is_dir($this->pluginDataDirectory)){
-				throw new \RuntimeException("Plugin data path $this->pluginDataDirectory exists and is not a directory");
+			for($part = $this->pluginDataDirectory; $part !== dirname($part); $part = dirname($part)){
+				if(is_link($part)){
+					throw new \RuntimeException("Plugin data path contains a symbolic link: $part");
+				}
+			}
+			if(!is_dir($this->pluginDataDirectory) && !@mkdir($this->pluginDataDirectory, 0777, true) && !is_dir($this->pluginDataDirectory)){
+				throw new \RuntimeException("Cannot create plugin data directory: $this->pluginDataDirectory");
 			}
 		}
 	}
@@ -127,10 +134,7 @@ class PluginManager{
 	}
 
 	private function getDataDirectory(string $pluginPath, string $pluginName) : string{
-		if($this->pluginDataDirectory !== null){
-			return Path::join($this->pluginDataDirectory, $pluginName);
-		}
-		return Path::join(dirname($pluginPath), $pluginName);
+		return Path::join($this->pluginDataDirectory ?? dirname($pluginPath), $pluginName);
 	}
 
 	private function internalLoadPlugin(string $path, PluginLoader $loader, PluginDescription $description) : ?Plugin{
@@ -138,15 +142,16 @@ class PluginManager{
 		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_load($description->getFullName())));
 
 		$dataFolder = $this->getDataDirectory($path, $description->getName());
-		if(file_exists($dataFolder) && !is_dir($dataFolder)){
+		if(is_link($dataFolder) || file_exists($dataFolder) && !is_dir($dataFolder)){
 			$this->server->getLogger()->critical($language->translate(KnownTranslationFactory::quark_plugin_loadError(
 				$description->getName(),
 				KnownTranslationFactory::quark_plugin_badDataFolder($dataFolder)
 			)));
 			return null;
 		}
-		if(!file_exists($dataFolder)){
-			mkdir($dataFolder, 0777, true);
+		if(!is_dir($dataFolder) && !@mkdir($dataFolder, 0777, true) && !is_dir($dataFolder)){
+			$this->server->getLogger()->critical("Cannot create plugin data directory: $dataFolder");
+			return null;
 		}
 
 		$prefixed = $loader->getAccessProtocol() . $path;
@@ -242,14 +247,27 @@ class PluginManager{
 			$loaders = $this->fileAssociations;
 		}
 
+		for($part = $path; $part !== dirname($part); $part = dirname($part)){
+			if(is_link($part)){
+				throw new \RuntimeException("Plugin package path contains a symbolic link: $part");
+			}
+		}
 		if(is_dir($path)){
 			$files = iterator_to_array(new \FilesystemIterator($path, \FilesystemIterator::CURRENT_AS_PATHNAME | \FilesystemIterator::SKIP_DOTS));
-			shuffle($files); //this prevents plugins implicitly relying on the filesystem name order when they should be using dependency properties
+			sort($files, SORT_STRING);
 		}elseif(is_file($path)){
 			$realPath = Utils::assumeNotFalse(realpath($path), "realpath() should not return false on an accessible, existing file");
 			$files = [$realPath];
 		}else{
 			return;
+		}
+		foreach($files as $key => $file){
+			if(!is_string($file)) throw new AssumptionFailedError("FilesystemIterator current should be string when using CURRENT_AS_PATHNAME");
+			if(is_link($file)){
+				$this->server->getLogger()->critical("Plugin package cannot be a symbolic link: $file");
+				unset($files[$key]);
+				++$loadErrorCount;
+			}
 		}
 
 		$loadabilityChecker = new PluginLoadabilityChecker($this->server->getApiVersion());
@@ -297,7 +315,7 @@ class PluginManager{
 					continue;
 				}
 
-				if(isset($triage->plugins[$name]) || $this->getPlugin($name) instanceof Plugin){
+				if(isset($this->dataDirectoryNames[strtolower($name)])){
 					$this->server->getLogger()->critical($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_duplicateError($name)));
 					$loadErrorCount++;
 					continue;
@@ -308,6 +326,7 @@ class PluginManager{
 				}
 
 				$triage->plugins[$name] = new PluginLoadTriageEntry($file, $loader, $description);
+				$this->dataDirectoryNames[strtolower($name)] = true;
 
 				$triage->softDependencies[$name] = array_merge($triage->softDependencies[$name] ?? [], $description->getSoftDepend());
 				$triage->dependencies[$name] = $description->getDepend();
@@ -355,9 +374,18 @@ class PluginManager{
 			throw new \LogicException(__METHOD__ . "() cannot be called from within itself");
 		}
 		$this->loadPluginsGuard = true;
+		$this->dataDirectoryNames = [];
+		foreach(array_keys($this->plugins) as $name){
+			$this->dataDirectoryNames[strtolower($name)] = true;
+		}
 
 		$triage = new PluginLoadTriage();
-		$this->triagePlugins($path, $triage, $loadErrorCount);
+		try{
+			$this->triagePlugins($path, $triage, $loadErrorCount);
+		}catch(\Throwable $e){
+			$this->loadPluginsGuard = false;
+			throw $e;
+		}
 
 		$loadedPlugins = [];
 

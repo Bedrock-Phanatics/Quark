@@ -136,6 +136,47 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("modern", file_get_contents($this->paths->worlds() . "/level.dat"));
 	}
 
+	public function testPluginDataMovesWithoutTouchingPackagesOrUnknownFiles() : void{
+		mkdir($this->root . "/plugin_data/Example", 0777, true);
+		file_put_contents($this->root . "/plugin_data/Example/config.yml", "enabled: true\n");
+		file_put_contents($this->root . "/plugin_data/unknown.bin", "opaque data");
+		mkdir($this->paths->plugins);
+		file_put_contents($this->paths->plugins . "/Example.phar", "package bytes");
+		self::assertStringContainsString("getDataFolder()", $this->migration->prepare(false, true));
+		self::assertSame("legacy", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("enabled: true\n", file_get_contents($this->paths->pluginData() . "/Example/config.yml"));
+		self::assertSame("opaque data", file_get_contents($this->paths->pluginData() . "/unknown.bin"));
+		self::assertSame("package bytes", file_get_contents($this->paths->plugins . "/Example.phar"));
+		self::assertDirectoryDoesNotExist($this->root . "/plugin_data");
+	}
+
+	public function testPluginDataCollisionRetainsBothDirectories() : void{
+		mkdir($this->root . "/plugin_data");
+		file_put_contents($this->root . "/plugin_data/legacy.bin", "legacy");
+		mkdir($this->paths->pluginData(), 0777, true);
+		file_put_contents($this->paths->pluginData() . "/modern.bin", "modern");
+		try{
+			$this->migration->prepare(true);
+			self::fail("Plugin data collision must stop migration");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("collision", $e->getMessage());
+		}
+		self::assertSame("legacy", file_get_contents($this->root . "/plugin_data/legacy.bin"));
+		self::assertSame("modern", file_get_contents($this->paths->pluginData() . "/modern.bin"));
+	}
+
+	public function testPluginDataInterruptedRenameResumes() : void{
+		mkdir($this->root . "/plugin_data");
+		file_put_contents($this->root . "/plugin_data/unknown.bin", "persistent");
+		mkdir(dirname($this->paths->pluginData()));
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 3, "completed" => [], "copying" => null]));
+		rename($this->root . "/plugin_data", $this->paths->pluginData());
+		self::assertSame("partial", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("persistent", file_get_contents($this->paths->pluginData() . "/unknown.bin"));
+	}
+
 	public function testMigrationAndRecoveryAfterInterruptedRename() : void{
 		mkdir($this->root . "/worlds");
 		file_put_contents($this->root . "/worlds/level.dat", "world data");

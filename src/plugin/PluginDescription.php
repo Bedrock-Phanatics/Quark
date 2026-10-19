@@ -33,6 +33,7 @@ use function get_debug_type;
 use function is_array;
 use function is_string;
 use function preg_match;
+use function str_ends_with;
 use function str_replace;
 use function stripos;
 use function yaml_parse;
@@ -143,11 +144,14 @@ class PluginDescription{
 	private function loadMap(array $plugin) : void{
 		$this->map = $plugin;
 
-		$this->name = $plugin[self::KEY_NAME];
-		if(preg_match('/^[A-Za-z0-9 _.-]+$/', $this->name) === 0){
+		$name = $plugin[self::KEY_NAME] ?? null;
+		if(!is_string($name) || preg_match('/^[A-Za-z0-9 _.-]+$/D', $name) !== 1){
 			throw new PluginDescriptionParseException("Invalid Plugin name");
 		}
-		$this->name = str_replace(" ", "_", $this->name);
+		$this->name = str_replace(" ", "_", $name);
+		if($this->name === "." || $this->name === ".." || str_ends_with($this->name, ".") || preg_match('/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i', $this->name) === 1){
+			throw new PluginDescriptionParseException("Plugin name cannot be used as a data directory");
+		}
 		$this->version = (string) $plugin[self::KEY_VERSION];
 		$this->main = $plugin[self::KEY_MAIN];
 		if(stripos($this->main, "quark\\") === 0){

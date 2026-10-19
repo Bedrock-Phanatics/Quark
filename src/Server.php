@@ -1115,7 +1115,7 @@ class Server{
 				return;
 			}
 			if($this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, false)){
-				throw new \RuntimeException("Colocated plugin data is unsupported in filesystem layout version 1; migrate it to data/plugins first");
+				throw new \RuntimeException("Colocated plugin data is unsupported; migrate it to data/plugins and set plugins.legacy-data-dir to false");
 			}
 			$this->pluginManager = new PluginManager($this, $this->paths->pluginData(), $pluginGraylist);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));

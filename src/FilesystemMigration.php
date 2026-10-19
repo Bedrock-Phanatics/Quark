@@ -9,6 +9,7 @@ use Symfony\Component\Filesystem\Path;
 use function array_push;
 use function assert;
 use function basename;
+use function chmod;
 use function copy;
 use function dirname;
 use function disk_free_space;
@@ -16,6 +17,8 @@ use function fclose;
 use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
+use function filemtime;
+use function fileperms;
 use function filesize;
 use function flock;
 use function fopen;
@@ -36,6 +39,7 @@ use function mkdir;
 use function rename;
 use function rmdir;
 use function sort;
+use function touch;
 use function unlink;
 use function yaml_parse_file;
 use const JSON_THROW_ON_ERROR;
@@ -160,6 +164,9 @@ final class FilesystemMigration{
 			}
 			if($accessMoves){
 				$lines[] = "SNAPSHOT legacy access files and IMPORT to " . $this->paths->accessDatabase();
+			}
+			if($this->exists(Path::join($this->paths->root, "plugin_data"))){
+				$lines[] = "NOTICE plugins using hardcoded plugin_data/ paths must use getDataFolder(); no compatibility symlink is created";
 			}
 			array_push($lines, ...(new ConfigurationMigration($this->paths))->dryRun());
 			array_push($lines, ...(new AccessMigration($this->paths))->dryRun());
@@ -395,6 +402,12 @@ final class FilesystemMigration{
 			}
 		}elseif(!@copy($source, $destination)){
 			throw new \RuntimeException("Cannot copy $source to $destination");
+		}
+		if(($permissions = @fileperms($source)) !== false){
+			@chmod($destination, $permissions & 0777);
+		}
+		if(($modified = @filemtime($source)) !== false){
+			@touch($destination, $modified);
 		}
 	}
 
