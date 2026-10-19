@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace quark;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\nbt\tag\CompoundTag;
+use quark\player\DatFilePlayerDataProvider;
 use quark\utils\Filesystem;
+use quark\world\format\io\data\BedrockWorldData;
+use quark\world\format\io\WorldProviderManager;
+use quark\world\WorldCreationOptions;
 use function assert;
 use function bin2hex;
 use function copy;
@@ -18,6 +23,7 @@ use function flock;
 use function fopen;
 use function function_exists;
 use function glob;
+use function hash_file;
 use function is_array;
 use function is_dir;
 use function is_link;
@@ -99,6 +105,37 @@ final class FilesystemMigrationTest extends TestCase{
 		$this->migration->prepare();
 	}
 
+	public function testLegacyWorldAndPlayerDirectoriesRequireMigration() : void{
+		mkdir($this->root . "/worlds");
+		mkdir($this->root . "/players");
+		file_put_contents($this->root . "/worlds/level.dat", "world");
+		file_put_contents($this->root . "/players/alice.dat", "player");
+		self::assertSame("legacy", $this->migration->diagnose()["state"]);
+		try{
+			$this->migration->prepare();
+			self::fail("Legacy storage must not boot without migration");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("--migrate-legacy", $e->getMessage());
+		}
+		self::assertFileExists($this->root . "/worlds/level.dat");
+		self::assertFileExists($this->root . "/players/alice.dat");
+	}
+
+	public function testWorldDirectoryCollisionDoesNotOverwriteEitherCopy() : void{
+		mkdir($this->root . "/worlds");
+		file_put_contents($this->root . "/worlds/level.dat", "legacy");
+		mkdir($this->paths->worlds(), 0777, true);
+		file_put_contents($this->paths->worlds() . "/level.dat", "modern");
+		try{
+			$this->migration->prepare(true);
+			self::fail("World collision must stop migration");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("collision", $e->getMessage());
+		}
+		self::assertSame("legacy", file_get_contents($this->root . "/worlds/level.dat"));
+		self::assertSame("modern", file_get_contents($this->paths->worlds() . "/level.dat"));
+	}
+
 	public function testMigrationAndRecoveryAfterInterruptedRename() : void{
 		mkdir($this->root . "/worlds");
 		file_put_contents($this->root . "/worlds/level.dat", "world data");
@@ -113,6 +150,47 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("legacy", self::table(CoreConfig::load($this->paths->serverToml()), "server")["motd"]);
 		self::assertFileDoesNotExist($this->paths->serverProperties());
 		self::assertSame("modern", $this->migration->prepare());
+	}
+
+	public function testMigratedWorldAndPlayerDataLoadSaveAndRestart() : void{
+		file_put_contents($this->root . "/server.properties", "level-name=Lobby\n");
+		$legacyWorld = $this->root . "/worlds/Lobby";
+		mkdir($legacyWorld . "/db", 0777, true);
+		BedrockWorldData::generate($legacyWorld, "Lobby", WorldCreationOptions::create()->setSeed(42));
+		$originalMetadata = hash_file("sha256", $legacyWorld . "/level.dat");
+		mkdir($this->root . "/players");
+		$legacyPlayers = new DatFilePlayerDataProvider($this->root . "/players");
+		$legacyPlayers->saveData("Alice", CompoundTag::create()->setString("name", "Alice"));
+
+		self::assertSame("legacy", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("Lobby", self::table(CoreConfig::load($this->paths->serverToml()), "server")["level-name"]);
+		$worldPath = $this->paths->worlds() . "/Lobby";
+		self::assertSame($originalMetadata, hash_file("sha256", $worldPath . "/level.dat"));
+		$providers = (new WorldProviderManager())->getMatchingProviders($worldPath);
+		self::assertArrayHasKey("leveldb", $providers);
+		$provider = $providers["leveldb"]->fromPath($worldPath, $this->createMock(\Logger::class));
+		try{
+			$metadata = $provider->getWorldData();
+			self::assertSame("Lobby", $metadata->getName());
+			self::assertSame(42, $metadata->getSeed());
+			$metadata->setTime(123);
+			$metadata->save();
+		}finally{
+			$provider->close();
+		}
+		self::assertSame(123, (new BedrockWorldData($worldPath . "/level.dat"))->getTime());
+
+		$players = new DatFilePlayerDataProvider($this->paths->players());
+		self::assertTrue($players->hasData("ALICE"));
+		$data = $players->loadData("alice");
+		self::assertNotNull($data);
+		self::assertSame("Alice", $data->getString("name"));
+		$data->setString("rank", "admin");
+		$players->saveData("ALICE", $data);
+		self::assertSame("admin", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("Alice")?->getString("rank"));
+		self::assertFileDoesNotExist($this->root . "/players/alice.dat");
+		self::assertDirectoryDoesNotExist($this->root . "/worlds");
 	}
 
 	public function testCollisionIsRejectedBeforeMovingAnything() : void{
@@ -157,6 +235,23 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("partial", $this->migration->prepare(true));
 		self::assertFileDoesNotExist($this->root . "/worlds");
 		self::assertSame("prior data", file_get_contents($this->paths->worlds() . "/already-retired.dat"));
+	}
+
+	public function testChangedWorldFileDuringInterruptedRetirementIsPreserved() : void{
+		mkdir($this->root . "/worlds/Lobby", 0777, true);
+		file_put_contents($this->root . "/worlds/Lobby/level.dat", "newer data");
+		mkdir($this->paths->worlds() . "/Lobby", 0777, true);
+		file_put_contents($this->paths->worlds() . "/Lobby/level.dat", "older data");
+		$digest = (new \ReflectionMethod(FilesystemMigration::class, "fingerprint"))->invoke($this->migration, $this->paths->worlds());
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 3, "completed" => [], "copying" => \Symfony\Component\Filesystem\Path::join($this->root, "worlds"), "phase" => "retiring", "digest" => $digest]));
+		try{
+			$this->migration->prepare(true);
+			self::fail("Changed source must not be retired");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("differs", $e->getMessage());
+		}
+		self::assertSame("newer data", file_get_contents($this->root . "/worlds/Lobby/level.dat"));
+		self::assertSame("older data", file_get_contents($this->paths->worlds() . "/Lobby/level.dat"));
 	}
 
 	public function testModernMarkerWithMissingDirectoryIsRejected() : void{

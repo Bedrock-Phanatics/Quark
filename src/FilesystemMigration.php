@@ -97,7 +97,6 @@ final class FilesystemMigration{
 		foreach(Utils::stringifyKeys($this->moves()) as $source => $destination){
 			if($this->exists($source)){
 				$this->assertSafe($source);
-				$this->assertTreeSafe($source);
 				$legacy[] = "$source -> $destination";
 			}
 			if($this->exists($destination)){
@@ -149,6 +148,7 @@ final class FilesystemMigration{
 				if(!$this->exists($source)){
 					continue;
 				}
+				$this->assertTreeSafe($source);
 				$accessMoves = $accessMoves || in_array(basename($source), ["ops.txt", "white-list.txt", "banned.txt", "banned-players.txt", "banned-ips.txt"], true);
 				$parent = dirname($destination);
 				while(!is_dir($parent) && $parent !== dirname($parent)){
@@ -284,6 +284,7 @@ final class FilesystemMigration{
 					if(($journal["digest"] ?? null) !== $this->fingerprint($destination)){
 						throw new \RuntimeException("Verified migration copy changed: $destination");
 					}
+					$this->verifyRemaining($source, $destination);
 				}else{
 					$this->verify($source, $destination);
 					$journal["phase"] = "retiring";
@@ -415,6 +416,22 @@ final class FilesystemMigration{
 				if(!isset($names[$child->getFilename()])){
 					throw new \RuntimeException("Migration copy has unexpected content: $destination");
 				}
+			}
+		}elseif(!is_file($destination) || filesize($source) !== filesize($destination) || hash_file("sha256", $source) !== hash_file("sha256", $destination)){
+			throw new \RuntimeException("Migration copy differs: $destination");
+		}
+	}
+
+	private function verifyRemaining(string $source, string $destination) : void{
+		$this->assertSafe($source);
+		$this->assertSafe($destination);
+		if(is_dir($source)){
+			if(!is_dir($destination)){
+				throw new \RuntimeException("Migration copy differs: $destination");
+			}
+			foreach(new \FilesystemIterator($source, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO) as $child){
+				assert($child instanceof \SplFileInfo);
+				$this->verifyRemaining($child->getPathname(), Path::join($destination, $child->getFilename()));
 			}
 		}elseif(!is_file($destination) || filesize($source) !== filesize($destination) || hash_file("sha256", $source) !== hash_file("sha256", $destination)){
 			throw new \RuntimeException("Migration copy differs: $destination");
