@@ -44,7 +44,6 @@ use function is_file;
 use function is_link;
 use function ltrim;
 use function mkdir;
-use function preg_match;
 use function realpath;
 use function rename;
 use function rmdir;
@@ -53,7 +52,6 @@ use function scandir;
 use function str_ends_with;
 use function str_replace;
 use function str_starts_with;
-use function stream_get_contents;
 use function strlen;
 use function uksort;
 use function unlink;
@@ -61,7 +59,6 @@ use function usort;
 use const DIRECTORY_SEPARATOR;
 use const LOCK_EX;
 use const LOCK_NB;
-use const LOCK_SH;
 use const LOCK_UN;
 use const SCANDIR_SORT_NONE;
 
@@ -212,35 +209,33 @@ final class Filesystem{
 	 * inform other processes that some file or folder is already in use, to avoid data corruption.
 	 * If this function succeeds in gaining a lock on the file, it writes the current PID to the file.
 	 *
-	 * @return int|null process ID of the process currently holding the lock failure, null on success.
+	 * @return int|null Process ID of the current holder, -1 if unavailable, or null on success.
 	 * @throws \InvalidArgumentException if the lock file path is invalid (e.g. parent directory doesn't exist, permission denied)
 	 */
 	public static function createLockFile(string $lockFilePath) : ?int{
+		if(is_link($lockFilePath)){
+			throw new \InvalidArgumentException("Lock file cannot be a symbolic link: $lockFilePath");
+		}
 		try{
 			$resource = ErrorToExceptionHandler::trapAndRemoveFalse(fn() => fopen($lockFilePath, "a+b"));
 		}catch(\ErrorException $e){
 			throw new \InvalidArgumentException("Failed to open lock file: " . $e->getMessage(), 0, $e);
 		}
 		if(!flock($resource, LOCK_EX | LOCK_NB)){
-			//wait for a shared lock to avoid race conditions if two servers started at the same time - this makes sure the
-			//other server wrote its PID and released exclusive lock before we get our lock
-			flock($resource, LOCK_SH);
-			$pid = Utils::assumeNotFalse(stream_get_contents($resource), "This is a known valid file resource, at worst we should receive an empty string");
-			if(preg_match('/^\d+$/', $pid) === 1){
-				return (int) $pid;
-			}
+			fclose($resource);
 			return -1;
 		}
-		ftruncate($resource, 0);
-		fwrite($resource, (string) getmypid());
-		fflush($resource);
-		flock($resource, LOCK_SH); //prevent acquiring an exclusive lock from another process, but allow reading
+		$pid = (string) getmypid();
+		if(!@ftruncate($resource, 0) || @fwrite($resource, $pid) !== strlen($pid) || !@fflush($resource)){
+			fclose($resource);
+			throw new \InvalidArgumentException("Failed to write lock file: $lockFilePath");
+		}
 		self::$lockFileHandles[realpath($lockFilePath)] = $resource; //keep the resource alive to preserve the lock
 		return null;
 	}
 
 	/**
-	 * Releases a file lock previously acquired by createLockFile() and deletes the lock file.
+	 * Releases a file lock previously acquired by createLockFile().
 	 *
 	 * @throws \InvalidArgumentException if the lock file path is invalid (e.g. parent directory doesn't exist, permission denied)
 	 */
@@ -253,7 +248,6 @@ final class Filesystem{
 			flock(self::$lockFileHandles[$lockFilePath], LOCK_UN);
 			fclose(self::$lockFileHandles[$lockFilePath]);
 			unset(self::$lockFileHandles[$lockFilePath]);
-			@unlink($lockFilePath);
 		}
 	}
 

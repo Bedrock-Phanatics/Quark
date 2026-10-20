@@ -6,7 +6,9 @@ namespace quark;
 
 use Symfony\Component\Filesystem\Path;
 
-/** Paths owned by one server installation. */
+/**
+ * Paths owned by one server installation.
+ */
 final class FilesystemPaths{
 	/** @var array<string, string> */
 	private array $paths;
@@ -32,6 +34,9 @@ final class FilesystemPaths{
 			"profiles" => Path::join($diagnostics, "profiles"),
 			"backups" => Path::join($root, "backups"),
 			"runtime" => Path::join($root, "runtime"),
+			"runtimeCache" => Path::join($root, "runtime", "cache"),
+			"runtimeTmp" => Path::join($root, "runtime", "tmp"),
+			"serverLock" => Path::join($root, "runtime", "server.lock"),
 			"layoutFile" => Path::join($root, ".quark-layout.json"),
 			"migrationJournal" => Path::join($root, ".quark-migration.json"),
 			"migrationLock" => Path::join($root, ".quark-migration.lock")
@@ -54,6 +59,9 @@ final class FilesystemPaths{
 	public function profiles() : string{ return $this->paths["profiles"]; }
 	public function backups() : string{ return $this->paths["backups"]; }
 	public function runtime() : string{ return $this->paths["runtime"]; }
+	public function runtimeCache() : string{ return $this->paths["runtimeCache"]; }
+	public function runtimeTmp() : string{ return $this->paths["runtimeTmp"]; }
+	public function serverLock() : string{ return $this->paths["serverLock"]; }
 	public function layoutFile() : string{ return $this->paths["layoutFile"]; }
 	public function migrationJournal() : string{ return $this->paths["migrationJournal"]; }
 	public function migrationLock() : string{ return $this->paths["migrationLock"]; }

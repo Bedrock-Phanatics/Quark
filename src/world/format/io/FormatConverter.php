@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\world\format\io;
 
-use quark\utils\Filesystem;
 use quark\world\format\Chunk;
 use quark\world\generator\GeneratorManager;
 use quark\world\generator\normal\Normal;
@@ -34,6 +33,7 @@ use function crc32;
 use function file_exists;
 use function floor;
 use function flush;
+use function is_link;
 use function microtime;
 use function mkdir;
 use function random_bytes;
@@ -62,7 +62,7 @@ class FormatConverter{
 		do{
 			$this->backupPath = Path::join($backupPath, basename($this->oldProvider->getPath()) . $nextSuffix);
 			$nextSuffix = "_" . crc32(random_bytes(4));
-		}while(file_exists($this->backupPath));
+		}while(file_exists($this->backupPath) || is_link($this->backupPath));
 	}
 
 	public function getBackupPath() : string{
@@ -81,15 +81,13 @@ class FormatConverter{
 
 		$this->logger->info("Backing up pre-conversion world to " . $this->backupPath);
 		if(!@rename($path, $this->backupPath)){
-			$this->logger->warning("Moving old world files for backup failed, attempting copy instead. This might take a long time.");
-			Filesystem::recursiveCopy($path, $this->backupPath);
-			Filesystem::recursiveUnlink($path);
+			throw new \RuntimeException("Cannot move original world to " . $this->backupPath . ". The original and converted worlds remain at $path and " . $new->getPath());
 		}
 		if(!@rename($new->getPath(), $path)){
-			//we don't expect this to happen because worlds/ should most likely be all on the same FS, but just in case...
-			$this->logger->debug("Relocation of new world files to location failed, attempting copy and delete instead");
-			Filesystem::recursiveCopy($new->getPath(), $path);
-			Filesystem::recursiveUnlink($new->getPath());
+			if(!@rename($this->backupPath, $path)){
+				throw new \RuntimeException("Cannot activate converted world or restore the original. Recover the original from " . $this->backupPath . " before restarting. Converted data remains at " . $new->getPath());
+			}
+			throw new \RuntimeException("Cannot activate converted world. The original was restored at $path and converted data remains at " . $new->getPath());
 		}
 
 		$this->logger->info("Conversion completed");
@@ -100,9 +98,8 @@ class FormatConverter{
 		$data = $this->oldProvider->getWorldData();
 
 		$convertedOutput = rtrim($this->oldProvider->getPath(), "/" . DIRECTORY_SEPARATOR) . "_converted" . DIRECTORY_SEPARATOR;
-		if(file_exists($convertedOutput)){
-			$this->logger->info("Found previous conversion attempt, deleting...");
-			Filesystem::recursiveUnlink($convertedOutput);
+		if(file_exists($convertedOutput) || is_link($convertedOutput)){
+			throw new \RuntimeException("Previous world conversion data exists at $convertedOutput. Inspect or move it before retrying.");
 		}
 		$this->newProvider->generate($convertedOutput, $data->getName(), WorldCreationOptions::create()
 			//TODO: defaulting to NORMAL here really isn't very good behaviour, but it's consistent with what we already

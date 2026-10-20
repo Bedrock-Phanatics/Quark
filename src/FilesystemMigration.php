@@ -52,7 +52,7 @@ use const SORT_STRING;
  * Runs before anything opens server storage.
  */
 final class FilesystemMigration{
-	public const VERSION = 3;
+	public const VERSION = 4;
 
 	public function __construct(private FilesystemPaths $paths){}
 
@@ -120,10 +120,13 @@ final class FilesystemMigration{
 		$this->assertSafe($this->paths->accessDatabase());
 		if($this->exists($this->paths->layoutFile())){
 			$version = $this->readJson($this->paths->layoutFile())["version"] ?? null;
-			if(!in_array($version, [1, 2, self::VERSION], true)){
+			if(!in_array($version, [1, 2, 3, self::VERSION], true)){
 				throw new \RuntimeException("Unsupported filesystem layout version in " . $this->paths->layoutFile());
 			}
 			foreach($this->requiredDirectories() as $path){
+				if($version < 4 && ($path === $this->paths->runtimeCache() || $path === $this->paths->runtimeTmp())){
+					continue;
+				}
 				if(!is_dir($path) || is_link($path)){
 					throw new \RuntimeException("Versioned filesystem is incomplete: $path");
 				}
@@ -212,7 +215,7 @@ final class FilesystemMigration{
 	private function migrate() : void{
 		$journalPath = $this->paths->migrationJournal();
 		$journal = $this->exists($journalPath) ? $this->readJson($journalPath) : ["version" => self::VERSION, "completed" => [], "copying" => null];
-		if(!in_array($journal["version"] ?? null, [1, 2, self::VERSION], true) || !is_array($journal["completed"] ?? null)){
+		if(!in_array($journal["version"] ?? null, [1, 2, 3, self::VERSION], true) || !is_array($journal["completed"] ?? null)){
 			throw new \RuntimeException("Invalid migration journal: $journalPath");
 		}
 		$moves = $this->moves();
@@ -348,7 +351,7 @@ final class FilesystemMigration{
 
 	/** @return list<string> */
 	private function requiredDirectories() : array{
-		return [$this->paths->config(), $this->paths->plugins, $this->paths->players(), $this->paths->worlds(), $this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles(), $this->paths->backups(), $this->paths->runtime()];
+		return [$this->paths->config(), $this->paths->plugins, $this->paths->players(), $this->paths->worlds(), $this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles(), $this->paths->backups(), $this->paths->runtime(), $this->paths->runtimeCache(), $this->paths->runtimeTmp()];
 	}
 
 	private function makeDirectory(string $path) : void{

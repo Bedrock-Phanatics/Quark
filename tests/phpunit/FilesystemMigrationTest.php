@@ -17,6 +17,7 @@ use function copy;
 use function dirname;
 use function extension_loaded;
 use function fclose;
+use function fgets;
 use function file_get_contents;
 use function file_put_contents;
 use function flock;
@@ -30,15 +31,20 @@ use function is_link;
 use function json_decode;
 use function json_encode;
 use function mkdir;
+use function proc_close;
+use function proc_open;
+use function proc_terminate;
 use function random_bytes;
 use function rename;
 use function rmdir;
 use function sys_get_temp_dir;
 use function unlink;
+use function var_export;
 use const DIRECTORY_SEPARATOR;
 use const LOCK_EX;
 use const LOCK_NB;
 use const LOCK_UN;
+use const PHP_BINARY;
 
 final class FilesystemMigrationTest extends TestCase{
 	private string $root;
@@ -88,10 +94,70 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertIsString($layout);
 		$data = json_decode($layout, true);
 		self::assertIsArray($data);
-		self::assertSame(3, $data["version"]);
+		self::assertSame(4, $data["version"]);
 		self::assertFileExists($this->paths->accessDatabase());
 		self::assertDirectoryExists($this->paths->players());
 		self::assertDirectoryExists($this->paths->pluginData());
+		self::assertDirectoryExists($this->paths->runtimeCache());
+		self::assertDirectoryExists($this->paths->runtimeTmp());
+	}
+
+	public function testVersionThreeRequiresUpgradeAndPreservesRestoreData() : void{
+		$this->migration->prepare();
+		file_put_contents($this->paths->layoutFile(), json_encode(["version" => 3]));
+		rmdir($this->paths->runtimeCache());
+		rmdir($this->paths->runtimeTmp());
+		mkdir($this->root . "/restore");
+		file_put_contents($this->root . "/restore/unknown.dat", "keep");
+		self::assertSame("mixed", $this->migration->diagnose()["state"]);
+		try{
+			$this->migration->prepare();
+			self::fail("The version upgrade must require migration permission");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("--migrate-legacy", $e->getMessage());
+		}
+		$this->migration->prepare(true);
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("keep", file_get_contents($this->root . "/restore/unknown.dat"));
+	}
+
+	public function testServerLockSurvivesReleaseAndCanBeReacquired() : void{
+		mkdir($this->paths->runtime());
+		$path = $this->paths->serverLock();
+		self::assertNull(Filesystem::createLockFile($path));
+		try{
+			self::assertSame(-1, Filesystem::createLockFile($path));
+		}finally{
+			Filesystem::releaseLockFile($path);
+		}
+		self::assertFileExists($path);
+		self::assertNull(Filesystem::createLockFile($path));
+		Filesystem::releaseLockFile($path);
+	}
+
+	public function testServerLockIsReleasedAfterProcessTermination() : void{
+		if(!function_exists("proc_open")){
+			self::markTestSkipped("Process creation is unavailable");
+		}
+		mkdir($this->paths->runtime());
+		$path = $this->paths->serverLock();
+		$autoload = dirname(__DIR__, 2) . "/vendor/autoload.php";
+		$script = "require " . var_export($autoload, true) . "; quark\\utils\\Filesystem::createLockFile(" . var_export($path, true) . "); echo getmypid(), PHP_EOL; fflush(STDOUT); fgets(STDIN);";
+		$process = proc_open([PHP_BINARY, "-r", $script], [["pipe", "r"], ["pipe", "w"], ["pipe", "w"]], $pipes);
+		self::assertIsResource($process);
+		try{
+			$pid = fgets($pipes[1]);
+			self::assertIsString($pid);
+			self::assertSame(-1, Filesystem::createLockFile($path));
+		}finally{
+			proc_terminate($process);
+			foreach($pipes as $pipe){
+				fclose($pipe);
+			}
+			proc_close($process);
+		}
+		self::assertNull(Filesystem::createLockFile($path));
+		Filesystem::releaseLockFile($path);
 	}
 
 	public function testDisabledMigrationAndDryRunDoNotMoveData() : void{

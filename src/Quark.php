@@ -347,7 +347,7 @@ JIT_WARNING
 			exit(1);
 		}
 		if($pid !== null){
-			critical_error("Another " . VersionInfo::NAME . " instance (PID $pid) is already using this folder (" . realpath($dataPath) . ").");
+			critical_error("Another " . VersionInfo::NAME . " instance" . ($pid > 0 ? " (PID $pid)" : "") . " is already using this folder (" . realpath($dataPath) . ").");
 			critical_error("Please stop the other server first before running a new one.");
 			exit(1);
 		}
@@ -357,7 +357,7 @@ JIT_WARNING
 			Filesystem::releaseLockFile($lockFilePath);
 			exit(1);
 		}
-		$runtimeLockFilePath = Path::join($paths->runtime(), "server.lock");
+		$runtimeLockFilePath = $paths->serverLock();
 		try{
 			$pid = Filesystem::createLockFile($runtimeLockFilePath);
 		}catch(\InvalidArgumentException $e){
@@ -366,7 +366,7 @@ JIT_WARNING
 			exit(1);
 		}
 		if($pid !== null){
-			critical_error("Another " . VersionInfo::NAME . " instance (PID $pid) is already using $runtimeLockFilePath.");
+			critical_error("Another " . VersionInfo::NAME . " instance" . ($pid > 0 ? " (PID $pid)" : "") . " is already using $runtimeLockFilePath.");
 			Filesystem::releaseLockFile($lockFilePath);
 			exit(1);
 		}
