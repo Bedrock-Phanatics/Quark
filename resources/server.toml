@@ -30,6 +30,16 @@ auto-updater.host = ''
 # this file exists. Quark keeps a snapshot of the original files in backups/.
 auto_on_startup = false
 
+[logging]
+# Bytes per active log file. Zero archived files means no automatic deletion.
+max-file-size = 33554432
+max-archives = 0
+
+[diagnostics]
+# Zero keeps all crash reports and profiles. Limits apply to new reports.
+max-crash-reports = 0
+max-profiles = 0
+
 [server]
 # Player-facing server name, network ports, and admission settings.
 motd = 'Quark Server'

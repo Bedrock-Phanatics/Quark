@@ -37,21 +37,45 @@ namespace quark {
 	use quark\utils\Utils;
 	use quark\wizard\SetupWizard;
 	use Symfony\Component\Filesystem\Path;
+	use function count;
 	use function defined;
+	use function dirname;
+	use function error_reporting;
+	use function explode;
 	use function extension_loaded;
+	use function file_exists;
 	use function function_exists;
 	use function getcwd;
+	use function getenv;
 	use function getopt;
-	use function is_dir;
-	use function mkdir;
-	use function phpversion;
-	use function preg_match;
-	use function preg_quote;
-	use function printf;
-	use function realpath;
-	use function version_compare;
-	use const DIRECTORY_SEPARATOR;
-	use const PHP_EOL;
+	use function ini_get;
+	use function ini_set;
+	use function is_array;
+	use function is_bool;
+use function is_dir;
+use function is_file;
+use function is_link;
+use function is_string;
+use function mkdir;
+use function opcache_get_status;
+use function parse_ini_file;
+use function php_ini_loaded_file;
+use function php_sapi_name;
+use function phpversion;
+use function preg_match;
+use function preg_quote;
+use function printf;
+use function realpath;
+use function usleep;
+use function version_compare;
+use function xdebug_info;
+use const DIRECTORY_SEPARATOR;
+use const INI_SCANNER_TYPED;
+use const PHP_BINARY;
+use const PHP_EOL;
+use const PHP_INT_SIZE;
+use const PHP_VERSION;
+use const ZEND_DEBUG_BUILD;
 
 	require_once __DIR__ . '/VersionInfo.php';
 
@@ -387,7 +411,22 @@ JIT_WARNING
 		}
 		$logFile = isset($opts[BootstrapOptions::NO_LOG_FILE]) ? null : Path::join($paths->logs(), "server.log");
 
-		$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), false, Path::join($paths->logs(), "archive"));
+		try{
+			$configuration = is_file($paths->serverToml()) ? CoreConfig::load($paths->serverToml()) : require __DIR__ . "/../generated/CoreConfigSchema.php";
+			CoreConfig::validateServer($configuration);
+		}catch(\Throwable $e){
+			critical_error($e->getMessage());
+			Filesystem::releaseLockFile($lockFilePath);
+			exit(1);
+		}
+		$logging = $configuration["logging"] ?? [];
+		try{
+			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), false, Path::join($paths->logs(), "archive"), $logging["max-file-size"] ?? 32 * 1024 * 1024, $logging["max-archives"] ?? 0);
+		}catch(\Throwable $e){
+			critical_error($e->getMessage());
+			Filesystem::releaseLockFile($lockFilePath);
+			exit(1);
+		}
 		if($logFile === null){
 			$logger->notice("Logging to file disabled. Ensure logs are collected by other means (e.g. Docker logs).");
 		}
@@ -426,7 +465,12 @@ JIT_WARNING
 			}
 		}while(false);
 
-		$logger->shutdownLogWriterThread();
+		try{
+			$logger->shutdownLogWriterThread();
+		}catch(\RuntimeException $e){
+			critical_error($e->getMessage());
+			$exitCode = 1;
+		}
 
 		echo Terminal::$FORMAT_RESET . PHP_EOL;
 

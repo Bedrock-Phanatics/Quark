@@ -26,6 +26,7 @@ namespace quark\scheduler;
 use pmmp\thread\ThreadSafeArray;
 use quark\pulse\internal\PulseCapture;
 use quark\pulse\PulseReport;
+use quark\utils\Filesystem;
 use function count;
 use function igbinary_serialize;
 use function igbinary_unserialize;
@@ -45,7 +46,7 @@ final class PulseReportWriteTask extends AsyncTask{
 	 * @param array<string, mixed>              $metadata
 	 * @param \Closure(?string, ?string) : void $onComplete
 	 */
-	public function __construct(array $captures, array $metadata, private string $directory, \Closure $onComplete){
+	public function __construct(array $captures, array $metadata, private string $directory, \Closure $onComplete, private int $maxProfiles = 0){
 		if(count($captures) > 128){ throw new \LengthException("Pulse report has too many threads"); }
 		$rows = $bytes = 0;
 		foreach($captures as $capture){
@@ -72,7 +73,11 @@ final class PulseReportWriteTask extends AsyncTask{
 			/** @var array<string, mixed> $metadata */
 			$metadata = igbinary_unserialize($this->metadata);
 			$this->metadata = "";
-			$this->setResult(PulseReport::create($captures, $metadata)->write($this->directory));
+			$file = PulseReport::create($captures, $metadata)->write($this->directory);
+			$this->setResult($file);
+			if($this->maxProfiles > 0){
+				Filesystem::retainNewestFiles($this->directory, "pulse_", ".qpulse", $this->maxProfiles, $file);
+			}
 		}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 			$this->error = $e->getMessage();
 		}finally{

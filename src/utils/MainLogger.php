@@ -44,7 +44,7 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 	/**
 	 * @throws \RuntimeException
 	 */
-	public function __construct(?string $logFile, bool $useFormattingCodes, string $mainThreadName, \DateTimeZone $timezone, bool $logDebug = false, ?string $logArchiveDir = null){
+	public function __construct(?string $logFile, bool $useFormattingCodes, string $mainThreadName, \DateTimeZone $timezone, bool $logDebug = false, ?string $logArchiveDir = null, int $maxFileSize = 32 * 1024 * 1024, int $maxArchives = 0){
 		parent::__construct();
 		$this->logDebug = $logDebug;
 
@@ -53,7 +53,7 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 		$this->timezone = $timezone->getName();
 
 		if($logFile !== null){
-			$this->logWriterThread = new MainLoggerThread($logFile, $logArchiveDir);
+			$this->logWriterThread = new MainLoggerThread($logFile, $logArchiveDir, $maxFileSize, $maxArchives);
 			$this->logWriterThread->start(NativeThread::INHERIT_NONE);
 		}
 	}

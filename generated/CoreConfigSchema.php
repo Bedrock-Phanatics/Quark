@@ -60,6 +60,16 @@ return array (
   array (
     'auto_on_startup' => false,
   ),
+  'logging' =>
+  array (
+    'max-file-size' => 33554432,
+    'max-archives' => 0,
+  ),
+  'diagnostics' =>
+  array (
+    'max-crash-reports' => 0,
+    'max-profiles' => 0,
+  ),
   'server' =>
   array (
     'motd' => 'Quark Server',

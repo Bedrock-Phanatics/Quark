@@ -29,6 +29,8 @@ use function count;
 use function date;
 use function fwrite;
 use function implode;
+use function strlen;
+use function substr;
 use const PHP_EOL;
 
 final class CrashDumpRenderer{
@@ -99,6 +101,12 @@ final class CrashDumpRenderer{
 	}
 
 	public function addLine(string $line = "") : void{
-		fwrite($this->fp, $line . PHP_EOL);
+		$line .= PHP_EOL;
+		for($offset = 0, $length = strlen($line); $offset < $length; $offset += $written){
+			$written = fwrite($this->fp, $offset === 0 ? $line : substr($line, $offset));
+			if($written === false || $written === 0){
+				throw new \RuntimeException("Unable to write crash report");
+			}
+		}
 	}
 }

@@ -26,58 +26,101 @@ namespace quark\utils;
 use pmmp\thread\Thread;
 use pmmp\thread\ThreadSafeArray;
 use function clearstatcache;
+use function count;
 use function date;
 use function fclose;
+use function fflush;
 use function file_exists;
+use function file_put_contents;
 use function fopen;
 use function fstat;
 use function fwrite;
 use function is_dir;
 use function is_file;
+use function is_link;
 use function is_resource;
 use function mkdir;
 use function pathinfo;
 use function rename;
+use function stream_set_write_buffer;
 use function strlen;
+use function substr;
 use function touch;
 use const PATHINFO_EXTENSION;
 use const PATHINFO_FILENAME;
 
 final class MainLoggerThread extends Thread{
+	private const MAX_BUFFER_BYTES = 8 * 1024 * 1024;
 
 	/** @phpstan-var ThreadSafeArray<int, string> */
 	private ThreadSafeArray $buffer;
+	private int $bufferBytes = 0;
+	private int $droppedLines = 0;
+	private ?string $failure = null;
 	private bool $syncFlush = false;
 	private bool $shutdown = false;
+	private string $archiveTimestamp = "";
+	private int $archiveIndex = 0;
 
 	public function __construct(
 		private string $logFile,
 		private ?string $archiveDir,
-		private readonly int $maxFileSize = 32 * 1024 * 1024 //32 MB
+		private readonly int $maxFileSize = 32 * 1024 * 1024,
+		private readonly int $maxArchives = 0
 	){
+		if($maxFileSize < 1024 || $maxFileSize > 1_099_511_627_776 || $maxArchives < 0){
+			throw new \InvalidArgumentException("Invalid log rotation limits");
+		}
 		$this->buffer = new ThreadSafeArray();
-		touch($this->logFile);
-		if($this->archiveDir !== null && !@mkdir($this->archiveDir) && !is_dir($this->archiveDir)){
+		if(is_link($this->logFile) || !@touch($this->logFile)){
+			throw new \RuntimeException("Unable to create log file: $this->logFile");
+		}
+		if($this->archiveDir !== null && (is_link($this->archiveDir) || !@mkdir($this->archiveDir) && !is_dir($this->archiveDir))){
 			throw new \RuntimeException("Unable to create archive directory: " . (
 				is_file($this->archiveDir) ? "it already exists and is not a directory" : "permission denied"));
 		}
 	}
 
 	public function write(string $line) : void{
+		$bytes = strlen($line);
+		if($bytes > self::MAX_BUFFER_BYTES){
+			$line = substr($line, 0, self::MAX_BUFFER_BYTES - 32) . " [log line truncated]\n";
+			$bytes = strlen($line);
+		}
 		$this->synchronized(function() use ($line) : void{
+			if($this->failure !== null || $this->shutdown){
+				return;
+			}
+			$bytes = strlen($line);
+			while($this->bufferBytes + $bytes > self::MAX_BUFFER_BYTES){
+				$old = $this->buffer->shift();
+				if($old === null){ break; }
+				$this->bufferBytes -= strlen($old);
+				++$this->droppedLines;
+			}
 			$this->buffer[] = $line;
+			$this->bufferBytes += $bytes;
 			$this->notify();
 		});
 	}
 
 	public function syncFlushBuffer() : void{
 		$this->synchronized(function() : void{
+			if($this->failure !== null){
+				throw new \RuntimeException("Log writer failed: $this->failure");
+			}
+			if($this->shutdown){
+				throw new \RuntimeException("Log writer is shut down");
+			}
 			$this->syncFlush = true;
 			$this->notify(); //write immediately
 		});
 		$this->synchronized(function() : void{
-			while($this->syncFlush){
+			while($this->syncFlush && $this->failure === null){
 				$this->wait(); //block until it's all been written to disk
+			}
+			if($this->failure !== null){
+				throw new \RuntimeException("Log writer failed: $this->failure");
 			}
 		});
 	}
@@ -88,6 +131,9 @@ final class MainLoggerThread extends Thread{
 			$this->notify();
 		});
 		$this->join();
+		if($this->failure !== null){
+			throw new \RuntimeException("Log writer failed: $this->failure");
+		}
 	}
 
 	/** @return resource */
@@ -101,6 +147,7 @@ final class MainLoggerThread extends Thread{
 			throw new AssumptionFailedError("fstat() should not fail here");
 		}
 		$size = $stat['size'];
+		stream_set_write_buffer($logResource, 64 * 1024);
 		return $logResource;
 	}
 
@@ -109,27 +156,39 @@ final class MainLoggerThread extends Thread{
 	 * @return resource
 	 */
 	private function archiveLogFile($logResource, int &$size, string $archiveDir){
-		fclose($logResource);
+		if(!fflush($logResource) || !fclose($logResource)){
+			throw new \RuntimeException("Cannot flush log file before rotation: $this->logFile");
+		}
 
 		clearstatcache();
 
-		$i = 0;
 		$date = date("Y-m-d\TH.i.s");
+		if($date !== $this->archiveTimestamp){
+			$this->archiveTimestamp = $date;
+			$this->archiveIndex = 0;
+		}
 		$baseName = pathinfo($this->logFile, PATHINFO_FILENAME);
 		$extension = pathinfo($this->logFile, PATHINFO_EXTENSION);
 		do{
-			//this shouldn't be necessary, but in case the user messes with the system time for some reason ...
-			$fileName = "$baseName.$date.$i.$extension";
+			$fileName = "$baseName.$date." . $this->archiveIndex++ . ".$extension";
 			$out = $this->archiveDir . "/" . $fileName;
-			$i++;
-		}while(file_exists($out));
+		}while(file_exists($out) || is_link($out));
 
 		//the user may have externally deleted the whole directory - make sure it exists before we do anything
-		@mkdir($archiveDir);
-		rename($this->logFile, $out);
+		if(is_link($archiveDir) || (!is_dir($archiveDir) && !@mkdir($archiveDir)) || !@rename($this->logFile, $out)){
+			throw new \RuntimeException("Cannot rotate log file into $archiveDir");
+		}
 
 		$logResource = $this->openLogFile($this->logFile, $size);
-		fwrite($logResource, "--- Starting new log file - old log file archived as $fileName ---\n");
+		$header = "--- Starting new log file - old log file archived as $fileName ---\n";
+		if(fwrite($logResource, $header) !== strlen($header)){
+			throw new \RuntimeException("Cannot write rotated log header");
+		}
+		$size += strlen($header);
+		if($this->maxArchives > 0){
+			require_once __DIR__ . "/Filesystem.php";
+			Filesystem::retainNewestFiles($archiveDir, "$baseName.", ".$extension", $this->maxArchives, $out);
+		}
 
 		return $logResource;
 	}
@@ -138,45 +197,86 @@ final class MainLoggerThread extends Thread{
 		return $size >= $this->maxFileSize;
 	}
 
-	/**
-	 * @param resource $logResource
-	 */
-	private function writeLogStream(&$logResource, int &$size, ?string $archiveDir) : void{
-		while(($chunk = $this->buffer->shift()) !== null){
-			fwrite($logResource, $chunk);
-			$size += strlen($chunk);
-			if($archiveDir !== null && $this->logFileReadyToArchive($size)){
-				$logResource = $this->archiveLogFile($logResource, $size, $archiveDir);
+	/** @param resource $logResource */
+	private function writeLogLine(&$logResource, int &$size, ?string $archiveDir, string $line) : void{
+		$length = strlen($line);
+		if($archiveDir !== null && $size > 0 && $size + $length > $this->maxFileSize){
+			$logResource = $this->archiveLogFile($logResource, $size, $archiveDir);
+		}
+		for($offset = 0; $offset < $length; $offset += $written){
+			$written = fwrite($logResource, $offset === 0 ? $line : substr($line, $offset));
+			if($written === false || $written === 0){
+				throw new \RuntimeException("Cannot write log file: $this->logFile");
 			}
 		}
+		$size += $length;
+	}
 
+	/** @param resource $logResource */
+	private function writeLogStream(&$logResource, int &$size, ?string $archiveDir) : void{
+		while(true){
+			$chunk = null;
+			$dropped = 0;
+			$this->synchronized(function() use (&$chunk, &$dropped) : void{
+				$chunk = $this->buffer->shift();
+				if($chunk !== null){
+					$this->bufferBytes -= strlen($chunk);
+				}
+				$dropped = $this->droppedLines;
+				$this->droppedLines = 0;
+			});
+			if($dropped > 0){
+				$this->writeLogLine($logResource, $size, $archiveDir, date("Y-m-d H:i:s") . " [Logger/WARNING]: dropped $dropped buffered log lines\n");
+			}
+			if($chunk === null){
+				break;
+			}
+			$this->writeLogLine($logResource, $size, $archiveDir, $chunk);
+		}
+
+		if($this->syncFlush && !fflush($logResource)){
+			throw new \RuntimeException("Cannot flush log file: $this->logFile");
+		}
 		$this->synchronized(function() : void{
-			if($this->syncFlush){
+			if($this->syncFlush && count($this->buffer) === 0 && $this->droppedLines === 0){
 				$this->syncFlush = false;
-				$this->notify(); //if this was due to a sync flush, tell the caller to stop waiting
+				$this->notify();
 			}
 		});
 	}
 
 	public function run() : void{
-		$size = 0;
-		$logResource = $this->openLogFile($this->logFile, $size);
-		$archiveDir = $this->archiveDir;
-		if($archiveDir !== null && $this->logFileReadyToArchive($size)){
-			$logResource = $this->archiveLogFile($logResource, $size, $archiveDir);
-		}
-
-		while(!$this->shutdown){
-			$this->writeLogStream($logResource, $size, $archiveDir);
-			$this->synchronized(function() : void{
-				if(!$this->shutdown && !$this->syncFlush){
-					$this->wait();
+		$logResource = null;
+		try{
+			$size = 0;
+			$logResource = $this->openLogFile($this->logFile, $size);
+			$archiveDir = $this->archiveDir;
+			if($archiveDir !== null && $this->logFileReadyToArchive($size)){
+				$logResource = $this->archiveLogFile($logResource, $size, $archiveDir);
+			}
+			while(true){
+				$this->writeLogStream($logResource, $size, $archiveDir);
+				$done = false;
+				$this->synchronized(function() use (&$done) : void{
+					$done = $this->shutdown && count($this->buffer) === 0;
+					if(!$done && count($this->buffer) === 0 && !$this->syncFlush){
+						$this->wait();
+					}
+				});
+				if($done){
+					break;
 				}
+			}
+		}catch(\Throwable $e){
+			$this->synchronized(function() use ($e) : void{
+				$this->failure = $e->getMessage();
+				$this->notify();
 			});
+			@file_put_contents("php://stderr", "[ERROR] Log writer failed: " . $e->getMessage() . "\n");
+		}finally{
+			if(is_resource($logResource)){
+				fclose($logResource);
+			}
 		}
-
-		$this->writeLogStream($logResource, $size, $archiveDir);
-
-		fclose($logResource);
 	}
 }

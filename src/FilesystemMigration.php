@@ -77,6 +77,7 @@ final class FilesystemMigration{
 			Path::join($root, "log_archive") => Path::join($this->paths->logs(), "archive"),
 			Path::join($root, "crashdumps") => $this->paths->crashes(),
 			Path::join($root, "pulse") => $this->paths->profiles(),
+			Path::join($root, "timings") => Path::join($this->paths->profiles(), "timings"),
 			Path::join($root, "memory_dumps") => Path::join($this->paths->profiles(), "memory_dumps")
 		];
 	}

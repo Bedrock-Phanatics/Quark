@@ -139,6 +139,7 @@ use function array_fill;
 use function array_find;
 use function array_slice;
 use function array_sum;
+use function bin2hex;
 use function chr;
 use function cli_set_process_title;
 use function copy;
@@ -147,6 +148,7 @@ use function date;
 use function explode;
 use function extension_loaded;
 use function fclose;
+use function fflush;
 use function file_exists;
 use function file_put_contents;
 use function fopen;
@@ -156,6 +158,7 @@ use function implode;
 use function ini_set;
 use function is_array;
 use function is_dir;
+use function is_link;
 use function is_resource;
 use function is_string;
 use function max;
@@ -164,8 +167,10 @@ use function min;
 use function mkdir;
 use function ob_end_flush;
 use function preg_replace;
+use function random_bytes;
 use function realpath;
 use function register_shutdown_function;
+use function rename;
 use function round;
 use function sleep;
 use function spl_object_id;
@@ -178,6 +183,7 @@ use function strtolower;
 use function strval;
 use function time;
 use function trim;
+use function unlink;
 use function usleep;
 use const DIRECTORY_SEPARATOR;
 use const PHP_EOL;
@@ -542,23 +548,31 @@ class Server{
 		/** @var PromiseResolver<string> $result */
 		$result = new PromiseResolver();
 		$collection = $this->pulse->collectTransfers();
+		$maxProfiles = isset($this->configGroup) ? $this->configGroup->getPropertyInt("diagnostics.max-profiles", 0) : 0;
 		$this->pulseReport = $result;
 		$collection->onCompletion(
-			function(array $captures) use ($metadata) : void{
+			function(array $captures) use ($metadata, $maxProfiles) : void{
 				try{
 					$directory = $this->getFilesystemPaths()->profiles();
 					if(isset($this->tickSleeper, $this->autoloader, $this->logger)){
 						// Disk writes must not occupy the networking and generation workers.
 						$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
 						$this->pulseReportPool->submitTask(new PulseReportWriteTask($captures, $metadata, $directory, function(?string $file, ?string $error) : void{
-							if($error !== null){ $this->logger->error("Pulse report export failed: $error"); }
+							if($error !== null){ $this->logger->error("Pulse report export or retention failed: $error"); }
 							$this->finishPulseReport($file);
-						}));
+						}, $maxProfiles));
 						return;
 					}
 					$data = [];
 					foreach($captures as $capture){ $data[] = $capture->decode(); }
 					$file = PulseReport::create($data, $metadata)->write($directory);
+					if($maxProfiles > 0){
+						try{
+							Filesystem::retainNewestFiles($directory, "pulse_", ".qpulse", $maxProfiles, $file);
+						}catch(\RuntimeException $e){
+							$this->logger->warning("Pulse report retention failed: " . $e->getMessage());
+						}
+					}
 				}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 					if(isset($this->logger)){ $this->logger->logException($e); }
 					$this->finishPulseReport(null);
@@ -1740,12 +1754,13 @@ class Server{
 
 	private function writeCrashDumpFile(CrashDump $dump) : string{
 		$crashFolder = $this->paths->crashes();
-		if(!is_dir($crashFolder)){
-			mkdir($crashFolder);
+		if(is_link($crashFolder) || !is_dir($crashFolder) && !@mkdir($crashFolder, 0777, true)){
+			throw new \RuntimeException("Unable to create crash report directory: $crashFolder");
 		}
-		$crashDumpPath = Path::join($crashFolder, date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . ".txt");
+		$crashDumpPath = Path::join($crashFolder, "crash_" . date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . "_" . bin2hex(random_bytes(8)) . ".txt");
+		$temporary = $crashDumpPath . ".tmp";
 
-		$fp = @fopen($crashDumpPath, "wb");
+		$fp = @fopen($temporary, "xb");
 		if(!is_resource($fp)){
 			throw new \RuntimeException("Unable to open new file to generate crashdump");
 		}
@@ -1753,8 +1768,25 @@ class Server{
 			$writer = new CrashDumpRenderer($fp, $dump->getData());
 			$writer->renderHumanReadable();
 			$dump->encodeData($writer);
-		}finally{
+			if(!fflush($fp)){
+				throw new \RuntimeException("Unable to flush crash report");
+			}
+		} catch(\Throwable $e){
 			fclose($fp);
+			@unlink($temporary);
+			throw $e;
+		}
+		if(!fclose($fp) || file_exists($crashDumpPath) || is_link($crashDumpPath) || !@rename($temporary, $crashDumpPath)){
+			@unlink($temporary);
+			throw new \RuntimeException("Unable to publish crash report: $crashDumpPath");
+		}
+		$limit = isset($this->configGroup) ? $this->configGroup->getPropertyInt("diagnostics.max-crash-reports", 0) : 0;
+		if($limit > 0){
+			try{
+				Filesystem::retainNewestFiles($crashFolder, "crash_", ".txt", $limit, $crashDumpPath);
+			}catch(\RuntimeException $e){
+				$this->logger->warning("Crash report retention failed: " . $e->getMessage());
+			}
 		}
 		return $crashDumpPath;
 	}

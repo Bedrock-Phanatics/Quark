@@ -25,7 +25,9 @@ namespace quark\utils;
 
 use pocketmine\errorhandler\ErrorToExceptionHandler;
 use Symfony\Component\Filesystem\Path;
+use function basename;
 use function copy;
+use function count;
 use function dirname;
 use function fclose;
 use function fflush;
@@ -39,6 +41,7 @@ use function fwrite;
 use function getmypid;
 use function is_dir;
 use function is_file;
+use function is_link;
 use function ltrim;
 use function mkdir;
 use function preg_match;
@@ -47,12 +50,14 @@ use function rename;
 use function rmdir;
 use function rtrim;
 use function scandir;
+use function str_ends_with;
 use function str_replace;
 use function str_starts_with;
 use function stream_get_contents;
 use function strlen;
 use function uksort;
 use function unlink;
+use function usort;
 use const DIRECTORY_SEPARATOR;
 use const LOCK_EX;
 use const LOCK_NB;
@@ -76,6 +81,34 @@ final class Filesystem{
 
 	private function __construct(){
 		//NOOP
+	}
+
+	public static function retainNewestFiles(string $directory, string $prefix, string $suffix, int $limit, ?string $keep = null) : void{
+		if($limit === 0){
+			return;
+		}
+		if($limit < 0 || !is_dir($directory) || is_link($directory)){
+			throw new \InvalidArgumentException("Invalid retention directory or limit: $directory");
+		}
+		$files = [];
+		foreach(new \FilesystemIterator($directory, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO) as $entry){
+			if($entry instanceof \SplFileInfo && $entry->isFile() && !$entry->isLink() && str_starts_with($entry->getFilename(), $prefix) && str_ends_with($entry->getFilename(), $suffix)){
+				$files[] = [$entry->getMTime(), $entry->getFilename(), $entry->getPathname()];
+			}
+		}
+		$keepName = $keep === null ? null : basename($keep);
+		usort($files, static function(array $a, array $b) use ($keepName) : int{
+			if($a[1] === $keepName){ return -1; }
+			if($b[1] === $keepName){ return 1; }
+			$modified = $b[0] <=> $a[0];
+			return $modified !== 0 ? $modified : $b[1] <=> $a[1];
+		});
+		for($i = $limit, $total = count($files); $i < $total; ++$i){
+			$path = $files[$i][2];
+			if(is_file($path) && !is_link($path) && !@unlink($path)){
+				throw new \RuntimeException("Cannot remove expired diagnostic or log file: $path");
+			}
+		}
 	}
 
 	public static function recursiveUnlink(string $dir) : void{

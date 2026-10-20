@@ -223,6 +223,57 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("bytes", file_get_contents($this->paths->resourcePacks() . "/pack.zip"));
 	}
 
+	public function testLogsCrashesAndTimingsMigrateWithoutChangingContents() : void{
+		file_put_contents($this->root . "/server.log", "historical log\n");
+		mkdir($this->root . "/log_archive");
+		file_put_contents($this->root . "/log_archive/old.log", "historical archive");
+		mkdir($this->root . "/crashdumps");
+		file_put_contents($this->root . "/crashdumps/old.txt", "historical crash");
+		mkdir($this->root . "/pulse");
+		file_put_contents($this->root . "/pulse/old.qpulse", "historical profile");
+		mkdir($this->root . "/timings");
+		file_put_contents($this->root . "/timings/old.json", "historical timings");
+		self::assertSame("legacy", $this->migration->diagnose()["state"]);
+		self::assertStringContainsString("timings", $this->migration->prepare(false, true));
+		try{
+			$this->migration->prepare();
+			self::fail("Legacy diagnostics must require migration");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("--migrate-legacy", $e->getMessage());
+		}
+		self::assertSame("legacy", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("historical log\n", file_get_contents($this->paths->logs() . "/server.log"));
+		self::assertSame("historical archive", file_get_contents($this->paths->logs() . "/archive/old.log"));
+		self::assertSame("historical crash", file_get_contents($this->paths->crashes() . "/old.txt"));
+		self::assertSame("historical profile", file_get_contents($this->paths->profiles() . "/old.qpulse"));
+		self::assertSame("historical timings", file_get_contents($this->paths->profiles() . "/timings/old.json"));
+	}
+
+	public function testLogCollisionPreservesBothFiles() : void{
+		file_put_contents($this->root . "/server.log", "legacy");
+		mkdir($this->paths->logs());
+		file_put_contents($this->paths->logs() . "/server.log", "modern");
+		$this->expectExceptionMessage("collision");
+		try{
+			$this->migration->prepare(true);
+		}finally{
+			self::assertSame("legacy", file_get_contents($this->root . "/server.log"));
+			self::assertSame("modern", file_get_contents($this->paths->logs() . "/server.log"));
+		}
+	}
+
+	public function testInterruptedCrashDirectoryRenameResumes() : void{
+		mkdir($this->root . "/crashdumps");
+		file_put_contents($this->root . "/crashdumps/old.txt", "historical");
+		mkdir(dirname($this->paths->crashes()), 0777, true);
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 3, "completed" => [], "copying" => null]));
+		rename($this->root . "/crashdumps", $this->paths->crashes());
+		self::assertSame("partial", $this->migration->prepare(true));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame("historical", file_get_contents($this->paths->crashes() . "/old.txt"));
+	}
+
 	public function testMigrationAndRecoveryAfterInterruptedRename() : void{
 		mkdir($this->root . "/worlds");
 		file_put_contents($this->root . "/worlds/level.dat", "world data");
@@ -485,6 +536,22 @@ final class FilesystemMigrationTest extends TestCase{
 		$server["server"] = $properties;
 		$this->expectExceptionMessage("server.server-port");
 		CoreConfig::validateServer($server);
+	}
+
+	public function testInvalidLoggingAndDiagnosticsLimitsIdentifyKeys() : void{
+		foreach([
+			["logging" => ["max-file-size" => 0]],
+			["logging" => ["max-archives" => -1]],
+			["diagnostics" => ["max-profiles" => -1]],
+			["diagnostics" => ["max-crash-reports" => 100001]]
+		] as $configuration){
+			try{
+				CoreConfig::validateServer($configuration);
+				self::fail("Invalid retention limit was accepted");
+			}catch(\InvalidArgumentException $e){
+				self::assertStringContainsString(isset($configuration["logging"]) ? "logging." : "diagnostics.", $e->getMessage());
+			}
+		}
 	}
 
 	public function testRelatedMemoryLimitsAreValidated() : void{

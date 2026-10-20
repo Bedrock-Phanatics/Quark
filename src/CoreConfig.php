@@ -165,6 +165,19 @@ final class CoreConfig{
 		if(!is_array($migration) || !is_bool($migration["auto_on_startup"] ?? false)){
 			throw new \InvalidArgumentException("Invalid migration.auto_on_startup: expected boolean");
 		}
+		$logging = $data["logging"] ?? [];
+		if(!is_array($logging) || isset($logging["max-file-size"]) && (!is_int($logging["max-file-size"]) || $logging["max-file-size"] < 1024 || $logging["max-file-size"] > 1_099_511_627_776)){
+			throw new \InvalidArgumentException("Invalid logging.max-file-size: expected integer from 1024 bytes to 1 TiB");
+		}
+		$diagnostics = $data["diagnostics"] ?? [];
+		if(!is_array($diagnostics)){
+			throw new \InvalidArgumentException("Invalid diagnostics: expected table");
+		}
+		foreach(["logging.max-archives" => $logging["max-archives"] ?? null, "diagnostics.max-crash-reports" => $diagnostics["max-crash-reports"] ?? null, "diagnostics.max-profiles" => $diagnostics["max-profiles"] ?? null] as $key => $limit){
+			if($limit !== null && (!is_int($limit) || $limit < 0 || $limit > 100000)){
+				throw new \InvalidArgumentException("Invalid $key: expected integer from 0 to 100000");
+			}
+		}
 		foreach(Utils::stringifyKeys($data) as $key => $value){
 			if($key !== "server" && $key !== "migration" && array_key_exists($key, $defaults)){
 				self::validateShape($value, $defaults[$key], $key);
