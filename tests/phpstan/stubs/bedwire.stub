@@ -1,0 +1,68 @@
+<?php
+
+namespace Bedwire;
+
+class Exception extends \RuntimeException{}
+
+final class BackpressureException extends Exception{}
+
+final class PacketException extends Exception{}
+
+final class NbtException extends Exception{}
+
+final class Server{
+	public const EVENT_CONNECT = 1;
+	public const EVENT_DISCONNECT = 2;
+	public const EVENT_PACKET = 3;
+	public const EVENT_LOGIN = 4;
+	public const EVENT_UNRELIABLE = 5;
+
+	public const REASON_REMOTE = 0;
+	public const REASON_SERVER = 1;
+	public const REASON_PROTOCOL = 2;
+	public const REASON_OVERLOAD = 3;
+	public const REASON_SHUTDOWN = 4;
+	public const REASON_AUTHENTICATION = 5;
+	public const REASON_TIMEOUT = 6;
+
+	/** @param array<string, mixed> $options */
+	public function __construct(string $address, int $port, array $options = []){}
+
+	public function stop(int $timeoutMs = 2000) : void{}
+
+	public function isRunning() : bool{}
+
+	public function getPort() : int{}
+
+	public function setStatus(string $name, string $level, int $maxPlayers, int $gameType = 0) : void{}
+
+	/**
+	 * Flat triples of event kind, session and data.
+	 *
+	 * @return list<mixed>
+	 */
+	public function poll(int $maxEvents = 4096, int $timeoutMs = 0) : array{}
+
+	public function send(int $session, string $packet) : bool{}
+
+	/** @param list<string> $packets */
+	public function sendBatch(int $session, array $packets) : bool{}
+
+	/** @param list<array{string|int, array<string, mixed>}> $packets */
+	public function sendPackets(int $session, array $packets) : bool{}
+
+	public function sendRawBatch(int $session, string $batch, int $offset = 0) : bool{}
+
+	public function sendUnreliable(int $session, string $payload) : bool{}
+
+	public function eventSignal() : int{}
+
+	public static function waitForEvents(int $signal, int $seen, int $timeoutMs = 1000) : ?int{}
+
+	public function disconnect(int $session) : bool{}
+
+	public function acceptLogin(int $session, string $clientKeyDer) : bool{}
+
+	/** @return array<string, int> */
+	public function getStatistics() : array{}
+}

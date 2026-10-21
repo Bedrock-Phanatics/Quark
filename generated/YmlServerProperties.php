@@ -121,6 +121,12 @@ final class YmlServerProperties{
 	public const TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND = 'tnt-limits.max-dispenser-ignitions-per-second';
 	public const TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK = 'tnt-limits.max-ignitions-per-chunk-per-tick';
 	public const TRANSPORT = 'transport';
+	public const TRANSPORT_BEDWIRE = 'transport.bedwire';
+	public const TRANSPORT_BEDWIRE_ICE_SERVERS = 'transport.bedwire.ice-servers';
+	public const TRANSPORT_BEDWIRE_ICE_UDP_MUX = 'transport.bedwire.ice-udp-mux';
+	public const TRANSPORT_BEDWIRE_KEY_FILE = 'transport.bedwire.key-file';
+	public const TRANSPORT_BEDWIRE_LAN_DISCOVERY = 'transport.bedwire.lan-discovery';
+	public const TRANSPORT_BEDWIRE_PORT_RANGE = 'transport.bedwire.port-range';
 	public const TRANSPORT_NAME = 'transport.name';
 	public const TRANSPORT_NETHERNET = 'transport.nethernet';
 	public const TRANSPORT_NETHERNET_ADVERTISE_ADDRESSES = 'transport.nethernet.advertise-addresses';

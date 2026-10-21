@@ -27,7 +27,13 @@ return array (
   ),
   'transport' =>
   array (
-    'name' => 'nethernet,raknet',
+    'name' => 'bedwire',
+    'bedwire' =>
+    array (
+      'key-file' => 'bedwire-identity.der',
+      'lan-discovery' => true,
+      'ice-udp-mux' => false,
+    ),
     'nethernet' =>
     array (
       'key-file' => 'nethernet.key',

@@ -65,6 +65,7 @@ use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\encryption\EncryptionContext;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
+use quark\network\mcpe\bedwire\BedwireTransport;
 use quark\network\mcpe\nethernet\NetherNetTransport;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\raklib\RakLibTransport;
@@ -384,6 +385,16 @@ class Server{
 	 */
 	public function requiresAuthentication() : bool{
 		return $this->getOnlineMode();
+	}
+
+	/**
+	 * Returns the DER public keys listed in network.trusted-proxy-keys.
+	 *
+	 * @return string[]
+	 * @phpstan-return list<string>
+	 */
+	public function getTrustedProxyKeys() : array{
+		return $this->trustedProxyKeys;
 	}
 
 	public function isTrustedProxyKey(string $keyDer) : bool{
@@ -1136,6 +1147,7 @@ class Server{
 
 			$this->network = new Network($this->logger);
 			$this->network->setName($this->getMotd());
+			$this->network->registerTransport(BedwireTransport::NAME, new BedwireTransport($this));
 			$this->network->registerTransport(RakLibTransport::NAME, new RakLibTransport($this));
 			$this->network->registerTransport(NetherNetTransport::NAME, new NetherNetTransport($this));
 
@@ -1422,7 +1434,7 @@ class Server{
 	private function startupPrepareNetworkInterfaces() : bool{
 		foreach(array_slice(explode(
 			",",
-			$this->configGroup->getPropertyString(Yml::TRANSPORT_NAME, NetherNetTransport::NAME . "," . RakLibTransport::NAME),
+			$this->configGroup->getPropertyString(Yml::TRANSPORT_NAME, BedwireTransport::NAME),
 			limit: self::MAX_ACTIVE_TRANSPORTS + 1
 		), 0, self::MAX_ACTIVE_TRANSPORTS) as $name){
 			$name = strtolower(trim($name));

@@ -31,6 +31,7 @@ parameters:
 		- tools
 	scanFiles:
 		- src/Quark.php
+		- tests/phpstan/stubs/bedwire.stub
 		- tests/phpstan/stubs/toml.stub
 	paths:
 		- build

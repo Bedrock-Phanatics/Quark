@@ -100,7 +100,19 @@ network:
 transport:
   #Network transport(s) used for player connections. Accepts a comma-separated list (e.g. raknet,nethernet), up to 8 entries.
   #Built-in options: raknet, nethernet. Plugins may register additional transports.
-  name: nethernet,raknet
+  name: bedwire
+  #Settings for the bedwire transport, NetherNet served natively by ext-bedwire.
+  bedwire:
+    #Path to the persistent identity key, relative to the data directory. Clients trust this key upon their first join.
+    key-file: bedwire-identity.der
+    #Answer LAN discovery on UDP port 7551 so the server is listed for players on the same network.
+    lan-discovery: true
+    #Shares one UDP socket across connections. Not yet verified against vanilla clients.
+    ice-udp-mux: false
+    #UDP port range for connections, as [min, max]. Leave empty to use any available port.
+    port-range:
+    #STUN/TURN servers for NAT traversal, as URLs such as stun:stun.example.com:3478 or turn:user:pass@turn.example.com:3478.
+    ice-servers:
   #Settings for the NetherNet (WebRTC) transport.
   nethernet:
     #Path to the persistent identity key, relative to the data directory.
