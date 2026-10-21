@@ -27,6 +27,7 @@ use pmmp\encoding\ByteBufferWriter;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\types\ChunkPosition;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\Compressor;
@@ -77,7 +78,12 @@ class ChunkRequestTask extends AsyncTask{
 		PacketBatch::encodePackets($stream, [LevelChunkPacket::create(new ChunkPosition($this->chunkX, $this->chunkZ), $dimensionId, $subCount, null, false, [], $payload)]);
 
 		$compressor = $this->compressor->deserialize();
-		$this->setResult(chr($compressor->getNetworkType()->value) . $compressor->compress($stream->getData()));
+		//a compressor without a threshold leaves compression to the transport, as prepareBatch() does
+		if($compressor->getCompressionThreshold() === null){
+			$this->setResult(chr(CompressionAlgorithm::NONE->value) . $stream->getData());
+		}else{
+			$this->setResult(chr($compressor->getNetworkType()->value) . $compressor->compress($stream->getData()));
+		}
 	}
 
 	public function onCompletion() : void{

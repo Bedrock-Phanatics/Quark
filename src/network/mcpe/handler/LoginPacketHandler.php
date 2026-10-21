@@ -130,6 +130,14 @@ class LoginPacketHandler extends PacketHandler{
 				//plugin cancelled
 				return true;
 			}
+			$verified = $this->session->getTransportVerifiedLogin();
+			$clientKey = base64_decode($claims->cpk, strict: true);
+			if($verified !== null && $verified[2] === $xuid && $clientKey !== false){
+				//the transport already checked this token and the client data signature against Microsoft's keys
+				$this->session->setHandler(null);
+				($this->authCallback)(true, $authRequired, null, $clientKey);
+				return true;
+			}
 			$this->processOpenIdLogin($authInfo->Token, $header->kid, $packet->clientDataJwt, $authRequired);
 
 		}elseif($authInfo->AuthenticationType === AuthenticationType::SELF_SIGNED->value){

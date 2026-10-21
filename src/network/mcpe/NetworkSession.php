@@ -229,6 +229,8 @@ class NetworkSession{
 	private int $pulseSessionId = 0;
 	private ?int $protocolVersion = null;
 	private string $connectionPhase = "session_start";
+	/** @phpstan-var array{string, string, string}|null display name, UUID and XUID the transport verified */
+	private ?array $transportVerifiedLogin = null;
 
 	private function getPulseNetwork() : ?PulseNetwork{
 		$network = Pulse::getNetworkTelemetry();
@@ -400,6 +402,23 @@ class NetworkSession{
 		return $this->transportIdentityKey;
 	}
 
+	/**
+	 * @internal Called by transports that verify Microsoft-signed logins themselves, before the Login packet arrives.
+	 */
+	public function setTransportVerifiedLogin(string $displayName, string $uuid, string $xuid) : void{
+		$this->transportVerifiedLogin = [$displayName, $uuid, $xuid];
+	}
+
+	/**
+	 * Returns the display name, UUID and XUID of a login the transport already verified against Microsoft's keys,
+	 * or null if the login still has to be verified here.
+	 *
+	 * @phpstan-return array{string, string, string}|null
+	 */
+	public function getTransportVerifiedLogin() : ?array{
+		return $this->transportVerifiedLogin;
+	}
+
 	public function getDisplayName() : string{
 		return $this->info !== null ? $this->info->getUsername() : $this->ip . " " . $this->port;
 	}
@@ -532,71 +551,111 @@ class NetworkSession{
 			}
 			if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECOMPRESSED_BYTES, strlen($decompressed)); }
 
-			$count = 0;
-			try{
-				$work?->stage($workToken, PulseNetworkWork::BATCH_DECODE);
-				$stream = new ByteBufferReader($decompressed);
-				foreach(PacketBatch::decodeRaw($stream) as $buffer){
-					if(++$count >= self::INCOMING_PACKET_BATCH_HARD_LIMIT){
-						if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
-						$this->recordRawPacketSecurityEvent($buffer, "batch.packet_limit", $count, self::INCOMING_PACKET_BATCH_HARD_LIMIT);
-						throw new PacketHandlingException("Reached hard limit of " . self::INCOMING_PACKET_BATCH_HARD_LIMIT . " per batch packet");
-					}
-
-					if($this->checkRepeatedPacketFilter($buffer)){
-						if($network !== null && $window !== null){
-							$network->count($window, PulseNetwork::PACKETS);
-							$network->count($window, PulseNetwork::REPEATED_DROPPED);
-						}
-						continue;
-					}
-
-					try{
-						$this->gamePacketLimiter->decrement();
-					}catch(PacketRateLimitException $e){
-						if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
-						$this->recordRawPacketSecurityEvent($buffer, "rate.packet", $e->requested, $e->available);
-						throw $e;
-					}
-					try{
-						$packet = $this->packetPool->getPacket($buffer);
-					}catch(DataDecodeException $e){
-						if($network !== null && $window !== null){
-							$network->count($window, PulseNetwork::PACKETS);
-							$network->count($window, PulseNetwork::DECODE_FAILED);
-						}
-						throw $e;
-					}
-					if($packet === null){
-						if($network !== null && $window !== null){
-							$network->count($window, PulseNetwork::PACKETS);
-							$network->count($window, PulseNetwork::DECODE_FAILED);
-						}
-						$this->recordRawPacketSecurityEvent($buffer, "packet.unknown");
-						$this->logger->debug("Unknown packet: " . Utils::printablePacketBuffer($buffer));
-						throw new PacketHandlingException("Unknown packet received");
-					}
-					try{
-						$this->handleDataPacket($packet, $buffer);
-					}catch(PacketHandlingException $e){
-						$this->unhandledPacketDebug($packet, $buffer, "Packet processing error");
-						throw PacketHandlingException::wrap($e, "Error processing " . $packet->getName());
-					}catch(FilterNoisyPacketException){
-						$this->noisyPacketBuffer = $buffer;
-					}
-					if(!$this->isConnected()){
-						//handling this packet may have caused a disconnection
-						$this->logger->debug("Aborting batch processing due to server-side disconnection");
-						break;
-					}
-				}
-			}catch(PacketDecodeException|DataDecodeException $e){
-				$this->recordNetworkSecurityEvent("batch.malformed", "reject_batch");
-				$this->logger->logException($e);
-				throw PacketHandlingException::wrap($e, "Packet batch decode error");
-			}
+			$work?->stage($workToken, PulseNetworkWork::BATCH_DECODE);
+			$this->handleBatchBuffers(PacketBatch::decodeRaw(new ByteBufferReader($decompressed)), $network, $window);
 		}finally{
 			$work?->leave($workToken);
+			PulseZones::$playerNetworkReceive->stop($playerNetworkReceiveScope);
+		}
+	}
+
+	/**
+	 * Handles the packets of one batch in order.
+	 *
+	 * @param iterable<string> $buffers
+	 * @throws PacketHandlingException
+	 */
+	private function handleBatchBuffers(iterable $buffers, ?PulseNetwork $network, ?int $window) : void{
+		$count = 0;
+		try{
+			foreach($buffers as $buffer){
+				if(++$count >= self::INCOMING_PACKET_BATCH_HARD_LIMIT){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
+					$this->recordRawPacketSecurityEvent($buffer, "batch.packet_limit", $count, self::INCOMING_PACKET_BATCH_HARD_LIMIT);
+					throw new PacketHandlingException("Reached hard limit of " . self::INCOMING_PACKET_BATCH_HARD_LIMIT . " per batch packet");
+				}
+
+				if($this->checkRepeatedPacketFilter($buffer)){
+					if($network !== null && $window !== null){
+						$network->count($window, PulseNetwork::PACKETS);
+						$network->count($window, PulseNetwork::REPEATED_DROPPED);
+					}
+					continue;
+				}
+
+				try{
+					$this->gamePacketLimiter->decrement();
+				}catch(PacketRateLimitException $e){
+					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
+					$this->recordRawPacketSecurityEvent($buffer, "rate.packet", $e->requested, $e->available);
+					throw $e;
+				}
+				try{
+					$packet = $this->packetPool->getPacket($buffer);
+				}catch(DataDecodeException $e){
+					if($network !== null && $window !== null){
+						$network->count($window, PulseNetwork::PACKETS);
+						$network->count($window, PulseNetwork::DECODE_FAILED);
+					}
+					throw $e;
+				}
+				if($packet === null){
+					if($network !== null && $window !== null){
+						$network->count($window, PulseNetwork::PACKETS);
+						$network->count($window, PulseNetwork::DECODE_FAILED);
+					}
+					$this->recordRawPacketSecurityEvent($buffer, "packet.unknown");
+					$this->logger->debug("Unknown packet: " . Utils::printablePacketBuffer($buffer));
+					throw new PacketHandlingException("Unknown packet received");
+				}
+				try{
+					$this->handleDataPacket($packet, $buffer);
+				}catch(PacketHandlingException $e){
+					$this->unhandledPacketDebug($packet, $buffer, "Packet processing error");
+					throw PacketHandlingException::wrap($e, "Error processing " . $packet->getName());
+				}catch(FilterNoisyPacketException){
+					$this->noisyPacketBuffer = $buffer;
+				}
+				if(!$this->isConnected()){
+					//handling this packet may have caused a disconnection
+					$this->logger->debug("Aborting batch processing due to server-side disconnection");
+					break;
+				}
+			}
+		}catch(PacketDecodeException|DataDecodeException $e){
+			$this->recordNetworkSecurityEvent("batch.malformed", "reject_batch");
+			$this->logger->logException($e);
+			throw PacketHandlingException::wrap($e, "Packet batch decode error");
+		}
+	}
+
+	/**
+	 * Handles packets a native transport already decrypted, decompressed and split, in the order received.
+	 *
+	 * @param string[] $buffers
+	 * @phpstan-param list<string> $buffers
+	 * @throws PacketHandlingException
+	 */
+	public function handleDecodedPackets(array $buffers) : void{
+		if(!$this->connected){
+			return;
+		}
+
+		$network = $this->getPulseNetwork();
+		$window = $network?->window($this->pulseSessionId);
+		if($network !== null && $window !== null){
+			$network->count($window, PulseNetwork::BATCHES);
+		}
+		$playerNetworkReceiveScope = PulseZones::$playerNetworkReceive->start();
+		try{
+			try{
+				$this->packetBatchLimiter->decrement();
+			}catch(PacketRateLimitException $e){
+				$this->recordNetworkSecurityEvent("rate.batch", "reject_batch", observed: $e->requested, limit: $e->available);
+				throw $e;
+			}
+			$this->handleBatchBuffers($buffers, $network, $window);
+		}finally{
 			PulseZones::$playerNetworkReceive->stop($playerNetworkReceiveScope);
 		}
 	}
@@ -995,6 +1054,18 @@ class NetworkSession{
 	 * @phpstan-param list<PromiseResolver<true>> $ackPromises
 	 */
 	private function sendEncoded(string $payload, bool $immediate, array $ackPromises) : void{
+		if($this->sender instanceof NativeBatchPacketSender){
+			//once compression is on, batches carry an algorithm byte, which a NativeCompressor leaves as NONE
+			if($this->enableCompression && ord($payload[0]) !== CompressionAlgorithm::NONE->value){
+				throw new AssumptionFailedError("Native transports must be given uncompressed batches");
+			}
+			$this->sender->sendBatch($payload, $this->enableCompression ? 1 : 0);
+			//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
+			foreach($ackPromises as $promise){
+				$promise->resolve(true);
+			}
+			return;
+		}
 		if($this->cipher !== null){
 			$playerNetworkSendEncryptScope = PulseZones::$playerNetworkSendEncrypt->start();
 			$payload = $this->cipher->encrypt($payload);
@@ -1237,6 +1308,10 @@ class NetworkSession{
 			}elseif(!$kickForXUIDMismatch($recordedXUID->getValue())){
 				$this->logger->debug("XUID match");
 			}
+		}
+
+		if($this->sender instanceof NativeBatchPacketSender){
+			$this->sender->acceptLogin($clientPubKey);
 		}
 
 		if(EncryptionContext::$ENABLED && !($this->transportEncrypted && $this->transportIdentityKey !== null)){
