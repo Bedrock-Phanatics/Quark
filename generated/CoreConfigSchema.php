@@ -113,6 +113,9 @@ return array (
     'upnp-forwarding' => false,
     'max-mtu-size' => 1492,
     'enable-encryption' => true,
+    'trusted-proxy-keys' =>
+    array (
+    ),
   ),
   'debug' =>
   array (

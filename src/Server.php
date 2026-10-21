@@ -63,6 +63,8 @@ use quark\network\mcpe\compression\SnappyCompressor;
 use quark\network\mcpe\compression\ZlibCompressor;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\encryption\EncryptionContext;
+use quark\network\mcpe\JwtException;
+use quark\network\mcpe\JwtUtils;
 use quark\network\mcpe\nethernet\NetherNetTransport;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\raklib\RakLibTransport;
@@ -73,6 +75,8 @@ use quark\network\NetworkInterfaceStartException;
 use quark\network\query\DedicatedQueryNetworkInterface;
 use quark\network\query\QueryHandler;
 use quark\network\query\QueryInfo;
+use quark\network\TransportIdentityException;
+use quark\network\TransportIdentityKey;
 use quark\network\upnp\UPnPNetworkInterface;
 use quark\permission\AccessStorage;
 use quark\permission\BanList;
@@ -139,6 +143,7 @@ use function array_fill;
 use function array_find;
 use function array_slice;
 use function array_sum;
+use function base64_decode;
 use function bin2hex;
 use function chr;
 use function cli_set_process_title;
@@ -154,7 +159,9 @@ use function file_put_contents;
 use function fopen;
 use function function_exists;
 use function get_class;
+use function get_debug_type;
 use function implode;
+use function in_array;
 use function ini_set;
 use function is_array;
 use function is_dir;
@@ -287,6 +294,8 @@ class Server{
 
 	private bool $onlineMode = true;
 	private AuthKeyProvider $authKeyProvider;
+	/** @var string[] DER-encoded public keys */
+	private array $trustedProxyKeys = [];
 
 	private Network $network;
 	private Compressor $networkCompressor;
@@ -375,6 +384,51 @@ class Server{
 	 */
 	public function requiresAuthentication() : bool{
 		return $this->getOnlineMode();
+	}
+
+	public function isTrustedProxyKey(string $keyDer) : bool{
+		return in_array($keyDer, $this->trustedProxyKeys, true);
+	}
+
+	/**
+	 * Returns whether the connection was opened by a proxy listed in network.trusted-proxy-keys.
+	 */
+	public function isTrustedProxy(TransportIdentityKey $transportKey) : bool{
+		foreach($this->trustedProxyKeys as $keyDer){
+			try{
+				$transportKey->verify($keyDer);
+				return true;
+			}catch(TransportIdentityException){
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @return string[]
+	 * @throws \InvalidArgumentException
+	 */
+	private static function parseTrustedProxyKeys(mixed $keys) : array{
+		if($keys === null){
+			return [];
+		}
+		if(!is_array($keys)){
+			throw new \InvalidArgumentException(Yml::NETWORK_TRUSTED_PROXY_KEYS . " must be a list of base64 public keys, got " . get_debug_type($keys));
+		}
+		$parsed = [];
+		foreach(Utils::promoteKeys($keys) as $index => $key){
+			$der = is_string($key) ? base64_decode($key, strict: true) : false;
+			try{
+				if($der === false){
+					throw new JwtException("Invalid base64");
+				}
+				JwtUtils::parseDerPublicKey($der);
+			}catch(JwtException $e){
+				throw new \InvalidArgumentException(Yml::NETWORK_TRUSTED_PROXY_KEYS . " entry $index is not a base64 DER public key: " . $e->getMessage(), 0, $e);
+			}
+			$parsed[] = $der;
+		}
+		return $parsed;
 	}
 
 	public function getPort() : int{
@@ -1054,6 +1108,17 @@ class Server{
 				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_auth_disabled()));
 				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_authWarning()));
 				$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_authProperty_disabled()));
+			}
+
+			try{
+				$this->trustedProxyKeys = self::parseTrustedProxyKeys($this->configGroup->getProperty(Yml::NETWORK_TRUSTED_PROXY_KEYS));
+			}catch(\InvalidArgumentException $e){
+				$this->logger->emergency($e->getMessage());
+				$this->forceShutdownExit();
+				return;
+			}
+			if(count($this->trustedProxyKeys) > 0){
+				$this->logger->info("Trusting " . count($this->trustedProxyKeys) . " proxy key(s) to vouch for player logins");
 			}
 
 			$this->authKeyProvider = new AuthKeyProvider(new \PrefixedLogger($this->logger, "Minecraft Auth Key Provider"), $this->asyncPool);

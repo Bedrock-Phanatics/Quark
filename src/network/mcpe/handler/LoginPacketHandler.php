@@ -28,6 +28,7 @@ use pocketmine\network\mcpe\protocol\types\login\AuthenticationInfo;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
 use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientData;
 use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientDataToSkinDataHelper;
+use pocketmine\network\mcpe\protocol\types\login\legacy\LegacyAuthIdentityData;
 use pocketmine\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtHeader;
@@ -36,6 +37,7 @@ use quark\event\player\PlayerPreLoginEvent;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\mcpe\auth\ProcessOpenIdLoginTask;
+use quark\network\mcpe\auth\ProcessProxyLoginTask;
 use quark\network\mcpe\auth\ProcessSelfSignedLoginTask;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
@@ -50,8 +52,11 @@ use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function base64_decode;
 use function chr;
+use function count;
 use function gettype;
+use function is_array;
 use function is_object;
+use function is_string;
 use function json_decode;
 use function md5;
 use function ord;
@@ -85,7 +90,17 @@ class LoginPacketHandler extends PacketHandler{
 		$authInfo = $this->parseAuthInfo($packet->authInfoJson);
 		$clientData = $this->parseClientData($packet->clientDataJwt);
 
-		if($authInfo->AuthenticationType === AuthenticationType::FULL->value){
+		$proxyLogin = $this->parseProxyLogin($authInfo);
+		if($proxyLogin !== null){
+			[$chainJwt, $proxyKeyDer, $identity] = $proxyLogin;
+			$authRequired = $this->processLoginCommon($packet, $identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $clientData);
+			if($authRequired === null){
+				//plugin cancelled
+				return true;
+			}
+			$this->processProxyLogin($chainJwt, $proxyKeyDer, $packet->clientDataJwt, $identity->XUID !== "", $authRequired);
+
+		}elseif($authInfo->AuthenticationType === AuthenticationType::FULL->value){
 			try{
 				[$headerArray, $claimsArray,] = JwtUtils::parse($authInfo->Token);
 			}catch(JwtException $e){
@@ -279,6 +294,49 @@ class LoginPacketHandler extends PacketHandler{
 	}
 
 	/**
+	 * Returns the chain link, signing key and identity of a login signed by a trusted proxy, or null for any other
+	 * login. Proxy logins are only honoured on connections the proxy itself opened.
+	 *
+	 * @phpstan-return array{string, string, LegacyAuthIdentityData}|null
+	 * @throws PacketHandlingException
+	 */
+	protected function parseProxyLogin(AuthenticationInfo $authInfo) : ?array{
+		$transportKey = $this->session->getTransportIdentityKey();
+		if(!isset($authInfo->Certificate) || $transportKey === null || !$this->server->isTrustedProxy($transportKey)){
+			return null;
+		}
+		$certificate = json_decode($authInfo->Certificate, associative: true);
+		$chain = is_array($certificate) ? ($certificate["chain"] ?? null) : null;
+		if(!is_array($chain) || count($chain) !== 1 || !is_string($chain[0] ?? null)){
+			return null;
+		}
+		try{
+			[$header, $claims, ] = JwtUtils::parse($chain[0]);
+		}catch(JwtException){
+			return null;
+		}
+		$proxyKeyDer = is_string($header["x5u"] ?? null) ? base64_decode($header["x5u"], strict: true) : false;
+		if($proxyKeyDer === false || !$this->server->isTrustedProxyKey($proxyKeyDer)){
+			return null;
+		}
+
+		$extraData = $claims["extraData"] ?? null;
+		if(!is_array($extraData)){
+			throw new PacketHandlingException("Missing extraData in proxy login");
+		}
+		$mapper = $this->defaultJsonMapper("Proxy identity data");
+		try{
+			$identity = $mapper->map($extraData, new LegacyAuthIdentityData());
+		}catch(\JsonMapper_Exception $e){
+			throw PacketHandlingException::wrap($e, "Error parsing proxy identity data");
+		}
+		if(!Uuid::isValid($identity->identity)){
+			throw new PacketHandlingException("Invalid UUID string in proxy identity data: " . $identity->identity);
+		}
+		return [$chain[0], $proxyKeyDer, $identity];
+	}
+
+	/**
 	 * @throws PacketHandlingException
 	 */
 	protected function parseClientData(string $clientDataJwt) : ClientData{
@@ -315,6 +373,12 @@ class LoginPacketHandler extends PacketHandler{
 			},
 			fn() => ($this->authCallback)(false, $authRequired, "Unrecognized authentication key ID: $keyId", null)
 		);
+	}
+
+	protected function processProxyLogin(string $chainJwt, string $proxyKeyDer, string $clientData, bool $xboxLive, bool $authRequired) : void{
+		$this->session->setHandler(null); //drop packets received during login verification
+
+		$this->server->getAsyncPool()->submitTask(new ProcessProxyLoginTask($chainJwt, $proxyKeyDer, $clientData, $xboxLive, $authRequired, $this->authCallback));
 	}
 
 	protected function processSelfSignedLogin(string $token, string $clientPublicKey, string $clientData, bool $authRequired) : void{

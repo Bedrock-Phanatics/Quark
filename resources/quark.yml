@@ -89,6 +89,12 @@ network:
   #Enable encryption of Minecraft network traffic. This has an impact on performance, but prevents hackers from stealing sessions and pretending to be other players.
   #DO NOT DISABLE THIS unless you understand the risks involved.
   enable-encryption: true
+  #Base64 public keys of proxies (such as Bifrost) allowed to vouch for the players they forward.
+  #Connections from these keys skip the transport identity check, and logins they sign count as Xbox Live authenticated.
+  #Only list proxies you run yourself, since a listed proxy can log in as any player.
+  trusted-proxy-keys:
+  #Example:
+  #- MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE...
 
 transport:
   #Network transport(s) used for player connections. Accepts a comma-separated list (e.g. raknet,nethernet), up to 8 entries.

@@ -388,6 +388,10 @@ class NetworkSession{
 		return $this->port;
 	}
 
+	public function getTransportIdentityKey() : ?TransportIdentityKey{
+		return $this->transportIdentityKey;
+	}
+
 	public function getDisplayName() : string{
 		return $this->info !== null ? $this->info->getUsername() : $this->ip . " " . $this->port;
 	}
@@ -1129,7 +1133,8 @@ class NetworkSession{
 				$error = "Expected XUID but none found";
 			}elseif($clientPubKey === null){
 				$error = "Missing client public key"; //failsafe
-			}elseif($authenticated && $this->transportIdentityKey !== null){
+			}elseif($authenticated && $this->transportIdentityKey !== null && !$this->server->isTrustedProxy($this->transportIdentityKey)){
+				//a trusted proxy already bound the player's login to their own connection
 				try{
 					$this->transportIdentityKey->verify($clientPubKey);
 				}catch(TransportIdentityException $e){
