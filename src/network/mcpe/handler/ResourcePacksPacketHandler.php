@@ -64,7 +64,7 @@ class ResourcePacksPacketHandler extends PacketHandler{
 	private const MAX_CONCURRENT_CHUNK_REQUESTS = 1;
 
 	/**
-	 * All data/resource_packs/chemistry* packs need to be listed here to get chemistry blocks to render
+	 * All chemistry resource packs need to be listed here to get chemistry blocks to render
 	 * correctly, unfortunately there doesn't seem to be a better way to do this
 	 */
 	private const CHEMISTRY_RESOURCE_PACKS = [

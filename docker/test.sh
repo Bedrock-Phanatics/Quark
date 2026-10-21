@@ -22,6 +22,6 @@ run_server() {
 run_server
 run_server -v "$TEST_ROOT/data:/data" -v "$PWD/docker/testsuite/create-data:/plugins:ro"
 grep -F 'Test passed: create-data was written' "$TEST_ROOT/server.log"
-test "$(cat "$TEST_ROOT/data/plugin_data/data-test/create-data")" = successful
+test "$(cat "$TEST_ROOT/data/data/plugins/data-test/create-data")" = successful
 run_server -v "$TEST_ROOT/data:/data" -v "$PWD/docker/testsuite/verify-data:/plugins:ro"
 grep -F 'Test passed: create-data is successful' "$TEST_ROOT/server.log"

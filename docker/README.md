@@ -24,15 +24,15 @@ docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins gh
 ```
 
 ## Changing the server port
-Docker allows you to map ports, so you don't need to edit `server.properties`.
+Docker allows you to map ports, so you don't need to edit `config/server.toml`.
 
 In the run command shown above, change `19132:19132/udp` to `<port number you want>:19132/udp`. **Note: Do not change the second number.**
 
 > [!WARNING]
-> Do not change the port in `server.properties`. This is unnecessary when using Docker and will make things more complicated.
+> Do not change the port in `config/server.toml`. This is unnecessary when using Docker and will make things more complicated.
 
 ## Editing the server data
-The server data (e.g. worlds, `server.properties`, etc.) will be stored in the `data` folder you created above.
+The server data (e.g. `config/server.toml`, `data/worlds/`, and `data/plugins/`) will be stored in the host `data` folder you created above.
 
 **Note: If you add new files (e.g. a world), don't forget to change the ownership of the file/folder to `1000:1000`**:
 ```
@@ -80,7 +80,7 @@ Change `--tail=100` to the number of recent lines in the log you want to see.
 
 ## Volumes
 - `/data` is a read-write data directory where Quark stores all data in.
-	This includes Quark config files, player data, worlds and plugin config files/data.
+	This includes `config/`, `data/players/`, `data/worlds/`, `data/plugins/`, `data/access.sqlite`, `resource-packs/`, `logs/`, `diagnostics/`, `backups/`, and `runtime/`.
 - `/plugins` is a read-only data directory where Quark loads plugins from.
 
 ## Advanced usage: Passing args to Quark.phar inside the container

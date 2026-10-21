@@ -47,7 +47,7 @@ final class BootstrapOptions{
 	public const DATA = "data";
 	/** Shows basic server version information and exits */
 	public const VERSION = "version";
-	/** Disables writing logs to server.log */
+	/** Disables writing logs to logs/server.log */
 	public const NO_LOG_FILE = "no-log-file";
 	public const MIGRATE_LEGACY = "migrate-legacy";
 	public const MIGRATION_DRY_RUN = "migration-dry-run";
