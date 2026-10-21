@@ -53,6 +53,9 @@ use Ramsey\Uuid\UuidInterface;
 use function base64_decode;
 use function chr;
 use function count;
+use function ctype_digit;
+use function explode;
+use function filter_var;
 use function gettype;
 use function is_array;
 use function is_object;
@@ -60,7 +63,13 @@ use function is_string;
 use function json_decode;
 use function md5;
 use function ord;
+use function str_contains;
+use function str_ends_with;
+use function str_starts_with;
+use function strlen;
+use function strrpos;
 use function substr;
+use const FILTER_VALIDATE_IP;
 use const JSON_THROW_ON_ERROR;
 
 /**
@@ -92,7 +101,10 @@ class LoginPacketHandler extends PacketHandler{
 
 		$proxyLogin = $this->parseProxyLogin($authInfo);
 		if($proxyLogin !== null){
-			[$chainJwt, $proxyKeyDer, $identity] = $proxyLogin;
+			[$chainJwt, $proxyKeyDer, $identity, $playerAddress] = $proxyLogin;
+			if($playerAddress !== null){
+				$this->session->setProxiedAddress(...$playerAddress);
+			}
 			$authRequired = $this->processLoginCommon($packet, $identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $clientData);
 			if($authRequired === null){
 				//plugin cancelled
@@ -294,10 +306,10 @@ class LoginPacketHandler extends PacketHandler{
 	}
 
 	/**
-	 * Returns the chain link, signing key and identity of a login signed by a trusted proxy, or null for any other
-	 * login. Proxy logins are only honoured on connections the proxy itself opened.
+	 * Returns the chain link, signing key, identity and player address of a login signed by a trusted proxy, or null
+	 * for any other login. Proxy logins are only honoured on connections the proxy itself opened.
 	 *
-	 * @phpstan-return array{string, string, LegacyAuthIdentityData}|null
+	 * @phpstan-return array{string, string, LegacyAuthIdentityData, array{string, int}|null}|null
 	 * @throws PacketHandlingException
 	 */
 	protected function parseProxyLogin(AuthenticationInfo $authInfo) : ?array{
@@ -333,7 +345,39 @@ class LoginPacketHandler extends PacketHandler{
 		if(!Uuid::isValid($identity->identity)){
 			throw new PacketHandlingException("Invalid UUID string in proxy identity data: " . $identity->identity);
 		}
-		return [$chain[0], $proxyKeyDer, $identity];
+		$playerAddress = null;
+		if(isset($claims["PlayerAddress"])){
+			try{
+				$playerAddress = self::parsePlayerAddress($claims["PlayerAddress"]);
+			}catch(\InvalidArgumentException $e){
+				throw PacketHandlingException::wrap($e, "Invalid player address in proxy login");
+			}
+		}
+		return [$chain[0], $proxyKeyDer, $identity, $playerAddress];
+	}
+
+	/**
+	 * Splits "1.2.3.4:5" or "[::1]:5" into an IP and port.
+	 *
+	 * @phpstan-return array{string, int}
+	 * @throws \InvalidArgumentException
+	 */
+	public static function parsePlayerAddress(mixed $address) : array{
+		if(!is_string($address) || ($colon = strrpos($address, ":")) === false){
+			throw new \InvalidArgumentException("Expected ip:port");
+		}
+		$ip = substr($address, 0, $colon);
+		if(str_starts_with($ip, "[") && str_ends_with($ip, "]")){
+			$ip = substr($ip, 1, -1);
+		}elseif(str_contains($ip, ":")){
+			throw new \InvalidArgumentException("IPv6 addresses must be bracketed");
+		}
+		$ip = explode("%", $ip, 2)[0];
+		$port = substr($address, $colon + 1);
+		if(filter_var($ip, FILTER_VALIDATE_IP) === false || !ctype_digit($port) || strlen($port) > 5 || (int) $port > 65535){
+			throw new \InvalidArgumentException("Expected ip:port, got " . Utils::printable(substr($address, 0, 64)));
+		}
+		return [$ip, (int) $port];
 	}
 
 	/**

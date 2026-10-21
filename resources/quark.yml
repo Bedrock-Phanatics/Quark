@@ -90,7 +90,8 @@ network:
   #DO NOT DISABLE THIS unless you understand the risks involved.
   enable-encryption: true
   #Base64 public keys of proxies (such as Bifrost) allowed to vouch for the players they forward.
-  #Connections from these keys skip the transport identity check, and logins they sign count as Xbox Live authenticated.
+  #Connections from these keys skip the transport identity check. Logins they sign count as Xbox Live authenticated
+  #and carry the player's real address.
   #Only list proxies you run yourself, since a listed proxy can log in as any player.
   trusted-proxy-keys:
   #Example:

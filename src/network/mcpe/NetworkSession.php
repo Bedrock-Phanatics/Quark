@@ -388,6 +388,14 @@ class NetworkSession{
 		return $this->port;
 	}
 
+	/**
+	 * Replaces the connection's address with the player's, as reported by a trusted proxy.
+	 */
+	public function setProxiedAddress(string $ip, int $port) : void{
+		$this->ip = $ip;
+		$this->port = $port;
+	}
+
 	public function getTransportIdentityKey() : ?TransportIdentityKey{
 		return $this->transportIdentityKey;
 	}
