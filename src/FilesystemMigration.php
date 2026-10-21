@@ -39,6 +39,7 @@ use function mkdir;
 use function rename;
 use function rmdir;
 use function sort;
+use function strlen;
 use function touch;
 use function unlink;
 use function yaml_parse_file;
@@ -176,8 +177,13 @@ final class FilesystemMigration{
 			array_push($lines, ...(new AccessMigration($this->paths))->dryRun());
 			return implode("\n", $lines);
 		}
+		$this->assertSafe($this->paths->migrationLock());
 		$lock = @fopen($this->paths->migrationLock(), "c+b");
-		if($lock === false || !flock($lock, LOCK_EX | LOCK_NB)){
+		if($lock === false){
+			throw new \RuntimeException("Cannot open filesystem migration lock: " . $this->paths->migrationLock());
+		}
+		if(!flock($lock, LOCK_EX | LOCK_NB)){
+			fclose($lock);
 			throw new \RuntimeException("Another filesystem migration is running; check " . $this->paths->migrationLock());
 		}
 		try{
@@ -377,7 +383,8 @@ final class FilesystemMigration{
 		$tmp = $path . ".tmp";
 		$this->assertSafe($path);
 		$this->assertSafe($tmp);
-		if(file_put_contents($tmp, json_encode($data, JSON_THROW_ON_ERROR), LOCK_EX) === false || !@rename($tmp, $path)){
+		$content = json_encode($data, JSON_THROW_ON_ERROR);
+		if(@file_put_contents($tmp, $content, LOCK_EX) !== strlen($content) || !@rename($tmp, $path)){
 			throw new \RuntimeException("Cannot persist migration state: $path");
 		}
 	}

@@ -4,13 +4,52 @@ declare(strict_types=1);
 
 namespace quark;
 
+use quark\plugin\PluginGraylist;
 use quark\utils\Config;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
-use quark\plugin\PluginGraylist;
 use Symfony\Component\Filesystem\Path;
+use function array_key_exists;
+use function array_keys;
+use function array_replace;
+use function array_replace_recursive;
+use function basename;
+use function bin2hex;
+use function copy;
+use function ctype_digit;
+use function dirname;
+use function disk_free_space;
+use function file_exists;
+use function file_get_contents;
+use function file_put_contents;
+use function filesize;
+use function gmdate;
+use function hash;
+use function hash_file;
+use function in_array;
+use function is_array;
+use function is_bool;
+use function is_file;
+use function is_int;
+use function is_link;
+use function is_string;
+use function json_decode;
+use function json_encode;
+use function mkdir;
+use function parse_ini_string;
+use function preg_match;
+use function random_bytes;
+use function rename;
+use function str_starts_with;
+use function strlen;
+use function unlink;
+use function yaml_parse;
+use const INI_SCANNER_TYPED;
+use const JSON_THROW_ON_ERROR;
 
-/** The configuration stage runs while FilesystemMigration holds its exclusive lock. */
+/**
+ * The configuration stage runs while FilesystemMigration holds its exclusive lock.
+ */
 final class ConfigurationMigration{
 	public function __construct(private FilesystemPaths $paths){}
 
@@ -252,7 +291,7 @@ final class ConfigurationMigration{
 		}
 		$tmp = $path . ".migration-tmp";
 		$this->safe($tmp);
-		if(file_put_contents($tmp, $content) === false || !@rename($tmp, $path)){
+		if(@file_put_contents($tmp, $content) !== strlen($content) || !@rename($tmp, $path)){
 			throw new \RuntimeException("Cannot publish migrated configuration: $path");
 		}
 		$validate(CoreConfig::parse(Filesystem::fileGetContents($path)));
@@ -285,7 +324,8 @@ final class ConfigurationMigration{
 		$path = $this->journalPath();
 		$tmp = $path . ".tmp";
 		$this->safe($tmp);
-		if(file_put_contents($tmp, json_encode($data, JSON_THROW_ON_ERROR)) === false || !@rename($tmp, $path)){
+		$content = json_encode($data, JSON_THROW_ON_ERROR);
+		if(@file_put_contents($tmp, $content) !== strlen($content) || !@rename($tmp, $path)){
 			throw new \RuntimeException("Cannot write configuration migration journal: $path");
 		}
 	}

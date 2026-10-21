@@ -36,6 +36,7 @@ use function rename;
 use function sort;
 use function str_contains;
 use function str_starts_with;
+use function strlen;
 use function strtolower;
 use function trim;
 use function unlink;
@@ -209,7 +210,8 @@ final class AccessMigration{
 		$path = $this->journal();
 		$tmp = $path . ".tmp";
 		$this->safe($tmp);
-		if(file_put_contents($tmp, json_encode($journal, JSON_THROW_ON_ERROR), LOCK_EX) === false || !@rename($tmp, $path)){
+		$content = json_encode($journal, JSON_THROW_ON_ERROR);
+		if(@file_put_contents($tmp, $content, LOCK_EX) !== strlen($content) || !@rename($tmp, $path)){
 			throw new \RuntimeException("Cannot write access migration journal: $path");
 		}
 		return $journal;

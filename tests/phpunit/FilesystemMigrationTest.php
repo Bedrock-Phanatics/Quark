@@ -6,6 +6,7 @@ namespace quark;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\permission\AccessStorage;
 use quark\player\DatFilePlayerDataProvider;
 use quark\utils\Filesystem;
 use quark\world\format\io\data\BedrockWorldData;
@@ -37,6 +38,7 @@ use function proc_terminate;
 use function random_bytes;
 use function rename;
 use function rmdir;
+use function symlink;
 use function sys_get_temp_dir;
 use function unlink;
 use function var_export;
@@ -169,6 +171,105 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertFileDoesNotExist($this->paths->migrationLock());
 		$this->expectExceptionMessage("--migrate-legacy");
 		$this->migration->prepare();
+	}
+
+	public function testCompleteLegacyInstallationMigratesAndRestartsWithoutChangingData() : void{
+		$originals = [
+			"pocketmine.yml" => "settings:\n  async-workers: 2\n",
+			"quark.yml" => "plugins:\n  legacy-data-dir: false\nsettings:\n  force-language: true\n",
+			"server.properties" => "motd=Integrated Legacy\nlevel-name=Lobby\nmax-players=12\n",
+			"plugin_list.yml" => "mode: whitelist\nplugins:\n  - Example\n",
+			"ops.txt" => "Alice\n",
+			"white-list.txt" => "Bob\n",
+			"banned-players.txt" => "Griefer|2024-01-02 03:04:05 +0000|Console|Forever|griefing\n",
+			"banned-ips.txt" => "192.0.2.1|2024-01-02 03:04:05 +0000|Admin|2030-01-02 03:04:05 +0000|spam\n",
+			"plugin_data/Example/config.yml" => "enabled: true\n",
+			"plugin_data/unknown.bin" => "unknown plugin data",
+			"resource_packs/Example.mcpack" => random_bytes(4096),
+			"resource_packs/resource_packs.yml" => "resource_stack: []\n",
+			"server.log" => "old log\n",
+			"log_archive/old.log" => "old archive\n",
+			"crashdumps/old.txt" => "old crash\n",
+			"pulse/old.qpulse" => "old profile\n",
+			"timings/old.json" => "old timings\n",
+			"memory_dumps/old.bin" => "old memory dump"
+		];
+		foreach($originals as $name => $contents){
+			$path = $this->root . "/$name";
+			if(!is_dir(dirname($path))){
+				mkdir(dirname($path), 0777, true);
+			}
+			file_put_contents($path, $contents);
+		}
+		mkdir($this->paths->plugins);
+		file_put_contents($this->paths->plugins . "/Example.phar", "installed package");
+		$legacyWorld = $this->root . "/worlds/Lobby";
+		mkdir($legacyWorld . "/db", 0777, true);
+		BedrockWorldData::generate($legacyWorld, "Lobby", WorldCreationOptions::create()->setSeed(42));
+		$worldHash = hash_file("sha256", $legacyWorld . "/level.dat");
+		mkdir($this->root . "/players");
+		$players = new DatFilePlayerDataProvider($this->root . "/players");
+		$players->saveData("Alice", CompoundTag::create()->setString("name", "Alice"));
+		$playerHash = hash_file("sha256", $this->root . "/players/alice.dat");
+		mkdir($this->root . "/restore");
+		file_put_contents($this->root . "/restore/keep.bin", "unclassified recovery data");
+
+		self::assertSame("legacy", $this->migration->diagnose()["state"]);
+		try{
+			$this->migration->prepare();
+			self::fail("Disabled migration must reject the complete legacy installation");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("--migrate-legacy", $e->getMessage());
+		}
+		foreach($originals as $name => $contents){
+			self::assertSame($contents, file_get_contents($this->root . "/$name"));
+		}
+		self::assertSame($worldHash, hash_file("sha256", $legacyWorld . "/level.dat"));
+		self::assertSame($playerHash, hash_file("sha256", $this->root . "/players/alice.dat"));
+		self::assertFileDoesNotExist($this->paths->layoutFile());
+
+		self::assertSame("legacy", $this->migration->prepare(true));
+		self::assertSame("modern", (new FilesystemMigration($this->paths))->prepare());
+		self::assertSame("modern", (new FilesystemMigration($this->paths))->prepare());
+		foreach([$this->paths->config(), $this->paths->plugins, $this->paths->players(), $this->paths->worlds(), $this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles(), $this->paths->backups(), $this->paths->runtime(), $this->paths->runtimeCache(), $this->paths->runtimeTmp()] as $path){
+			self::assertDirectoryExists($path);
+		}
+		self::assertSame("installed package", file_get_contents($this->paths->plugins . "/Example.phar"));
+		self::assertSame("enabled: true\n", file_get_contents($this->paths->pluginData() . "/Example/config.yml"));
+		self::assertSame("unknown plugin data", file_get_contents($this->paths->pluginData() . "/unknown.bin"));
+		self::assertSame($originals["resource_packs/Example.mcpack"], file_get_contents($this->paths->resourcePacks() . "/Example.mcpack"));
+		self::assertSame("old log\n", file_get_contents($this->paths->logs() . "/server.log"));
+		self::assertSame("old archive\n", file_get_contents($this->paths->logs() . "/archive/old.log"));
+		self::assertSame("old crash\n", file_get_contents($this->paths->crashes() . "/old.txt"));
+		self::assertSame("old profile\n", file_get_contents($this->paths->profiles() . "/old.qpulse"));
+		self::assertSame("old timings\n", file_get_contents($this->paths->profiles() . "/timings/old.json"));
+		self::assertSame("old memory dump", file_get_contents($this->paths->profiles() . "/memory_dumps/old.bin"));
+		self::assertSame("unclassified recovery data", file_get_contents($this->root . "/restore/keep.bin"));
+		self::assertSame($worldHash, hash_file("sha256", $this->paths->worlds() . "/Lobby/level.dat"));
+		self::assertSame($playerHash, hash_file("sha256", $this->paths->players() . "/alice.dat"));
+		self::assertSame("Alice", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("alice")?->getString("name"));
+		$server = self::table(CoreConfig::load($this->paths->serverToml()), "server");
+		self::assertSame("Integrated Legacy", $server["motd"]);
+		self::assertSame("Lobby", $server["level-name"]);
+		self::assertSame(12, $server["max-players"]);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "settings")["force-language"]);
+		self::assertSame(2, self::table(CoreConfig::load($this->paths->serverToml()), "settings")["async-workers"]);
+		self::assertSame(["Example"], CoreConfig::load($this->paths->pluginsToml())["plugins"]);
+		$access = new AccessStorage($this->paths->accessDatabase());
+		try{
+			self::assertArrayHasKey("Alice", $access->loadNames("op"));
+			self::assertArrayHasKey("Bob", $access->loadNames("allow"));
+			self::assertSame("griefing", $access->loadBans("player")["griefer"]->getReason());
+			self::assertSame("spam", $access->loadBans("ip")["192.0.2.1"]->getReason());
+		}finally{
+			$access->close();
+		}
+		$configBackups = glob($this->paths->backups() . "/config-*");
+		$accessBackups = glob($this->paths->backups() . "/access-*");
+		self::assertIsArray($configBackups);
+		self::assertIsArray($accessBackups);
+		self::assertCount(1, $configBackups);
+		self::assertCount(1, $accessBackups);
 	}
 
 	public function testLegacyWorldAndPlayerDirectoriesRequireMigration() : void{
@@ -495,6 +596,27 @@ final class FilesystemMigrationTest extends TestCase{
 		}finally{
 			flock($lock, LOCK_UN);
 			fclose($lock);
+		}
+	}
+
+	public function testStaleMigrationLockDoesNotBlockStartup() : void{
+		file_put_contents($this->paths->migrationLock(), "stale pid");
+		self::assertSame("empty", $this->migration->prepare());
+		self::assertSame("modern", $this->migration->prepare());
+	}
+
+	public function testMigrationLockSymlinkIsRejected() : void{
+		$target = $this->root . "/outside.lock";
+		file_put_contents($target, "keep");
+		if(!@symlink($target, $this->paths->migrationLock())){
+			self::markTestSkipped("Creating symbolic links is unavailable");
+		}
+		$this->expectExceptionMessage("symbolic link");
+		try{
+			$this->migration->prepare();
+		}finally{
+			self::assertSame("keep", file_get_contents($target));
+			self::assertFileDoesNotExist($this->paths->layoutFile());
 		}
 	}
 
