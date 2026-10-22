@@ -28,6 +28,8 @@ nethernet-key.pem
 !tests/phpunit/
 tests/phpunit/*
 !tests/phpunit/pulse/
+!tests/phpunit/command/
+!tests/phpunit/world/
 !tests/phpunit/FilesystemMigrationTest.php
 
 # Common IDEs

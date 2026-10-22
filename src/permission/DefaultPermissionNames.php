@@ -84,6 +84,14 @@ final class DefaultPermissionNames{
 	public const COMMAND_WHITELIST_LIST = "quark.command.whitelist.list";
 	public const COMMAND_WHITELIST_RELOAD = "quark.command.whitelist.reload";
 	public const COMMAND_WHITELIST_REMOVE = "quark.command.whitelist.remove";
+	public const COMMAND_WORLD = "quark.command.world";
+	public const COMMAND_WORLD_CREATE = "quark.command.world.create";
+	public const COMMAND_WORLD_INFO = "quark.command.world.info";
+	public const COMMAND_WORLD_LIST = "quark.command.world.list";
+	public const COMMAND_WORLD_LOAD = "quark.command.world.load";
+	public const COMMAND_WORLD_TELEPORT_OTHER = "quark.command.world.tp.other";
+	public const COMMAND_WORLD_TELEPORT_SELF = "quark.command.world.tp.self";
+	public const COMMAND_WORLD_UNLOAD = "quark.command.world.unload";
 	public const COMMAND_XP_OTHER = "quark.command.xp.other";
 	public const COMMAND_XP_SELF = "quark.command.xp.self";
 	public const GROUP_CONSOLE = "quark.group.console";
