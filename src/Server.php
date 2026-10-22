@@ -295,7 +295,7 @@ class Server{
 
 	private bool $onlineMode = true;
 	private AuthKeyProvider $authKeyProvider;
-	/** @var string[] DER-encoded public keys */
+	/** @var list<string> DER-encoded public keys */
 	private array $trustedProxyKeys = [];
 
 	private Network $network;
@@ -417,6 +417,7 @@ class Server{
 
 	/**
 	 * @return string[]
+	 * @phpstan-return list<string>
 	 * @throws \InvalidArgumentException
 	 */
 	private static function parseTrustedProxyKeys(mixed $keys) : array{

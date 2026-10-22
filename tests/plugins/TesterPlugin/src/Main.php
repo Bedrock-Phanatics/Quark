@@ -21,7 +21,7 @@
 
 declare(strict_types=1);
 
-namespace quark\TesterPlugin;
+namespace quarktests\TesterPlugin;
 
 use quark\event\Listener;
 use quark\event\server\CommandEvent;

@@ -38,6 +38,7 @@ final class AccessMigrationTest extends TestCase{
 		$remove = static function(string $path) use (&$remove) : void{
 			if(is_dir($path) && !is_link($path)){
 				foreach(new \FilesystemIterator($path) as $child){
+					self::assertInstanceOf(\SplFileInfo::class, $child);
 					$remove($child->getPathname());
 				}
 				rmdir($path);
@@ -72,6 +73,7 @@ final class AccessMigrationTest extends TestCase{
 			$storage->close();
 		}
 		$backups = glob($this->paths->backups() . "/access-*");
+		self::assertNotFalse($backups);
 		self::assertCount(1, $backups);
 		self::assertSame("Alice\n", file_get_contents($backups[0] . "/ops.txt"));
 		self::assertFileDoesNotExist($this->paths->config() . "/ops.txt");

@@ -46,9 +46,14 @@ echo -e "stop\n" | php Quark.phar \
   --settings.enable-dev-builds=1 \
   --auto-report.enabled=0
 
-output=$(grep '\[TesterPlugin\]' "$DATA_DIR/server.log" || true)
+LOG_FILE="$DATA_DIR/logs/server.log"
+output=$(grep '\[TesterPlugin\]' "$LOG_FILE" || true)
 if [ "$output" == "" ]; then
 	echo TesterPlugin failed to run tests, check the logs
+	exit 1
+fi
+if ! grep -Fq 'All tests finished, stopping the server' <<< "$output"; then
+	echo TesterPlugin did not finish its tests
 	exit 1
 fi
 
@@ -57,7 +62,7 @@ if [ "$result" != "" ]; then
 	echo "$result"
 	echo Some tests did not complete successfully, changing build status to failed
 	exit 1
-elif [ "$(grep -c "ERROR\|CRITICAL\|EMERGENCY" "$DATA_DIR/server.log")" -ne 0 ]; then
+elif [ "$(grep -c "ERROR\|CRITICAL\|EMERGENCY" "$LOG_FILE")" -ne 0 ]; then
 	echo Server log contains error messages, changing build status to failed
 	exit 1
 else

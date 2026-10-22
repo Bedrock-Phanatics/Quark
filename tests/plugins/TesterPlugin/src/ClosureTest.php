@@ -21,7 +21,7 @@
 
 declare(strict_types=1);
 
-namespace quark\TesterPlugin;
+namespace quarktests\TesterPlugin;
 
 final class ClosureTest extends Test{
 

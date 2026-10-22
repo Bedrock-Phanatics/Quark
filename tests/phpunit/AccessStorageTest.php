@@ -30,6 +30,7 @@ final class AccessStorageTest extends TestCase{
 	protected function tearDown() : void{
 		$this->storage->close();
 		foreach(new \FilesystemIterator($this->root) as $file){
+			self::assertInstanceOf(\SplFileInfo::class, $file);
 			unlink($file->getPathname());
 		}
 		rmdir($this->root);

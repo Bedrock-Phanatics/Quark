@@ -21,12 +21,12 @@
 
 declare(strict_types=1);
 
-namespace quark\ScriptTest;
+namespace quarktests\ScriptTest;
 
 use quark\plugin\PluginBase;
 
 /**
- * @main quark\ScriptTest\Main
+ * @main quarktests\ScriptTest\Main
  * @api 6.0.0
  */
 class Main extends PluginBase{
