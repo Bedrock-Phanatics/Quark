@@ -24,13 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\nethernet;
 
 use pmmp\thread\ThreadSafeArray;
-use quark\lang\KnownTranslationFactory;
 use pocketmine\nethernet\identity\IdentityException;
 use pocketmine\nethernet\identity\PublicKey;
 use pocketmine\nethernet\identity\ServerIdentity;
 use pocketmine\nethernet\signaling\http\ReverseProxy;
 use pocketmine\nethernet\signaling\lan\LanSignaling;
 use pocketmine\nethernet\transport\webrtc\WebRtcTransportFactory;
+use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\PacketBroadcaster;

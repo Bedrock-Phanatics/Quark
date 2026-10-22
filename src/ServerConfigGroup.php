@@ -25,10 +25,16 @@ namespace quark;
 
 use quark\utils\Config;
 use function array_key_exists;
+use function array_pad;
+use function explode;
+use function is_array;
 use function is_bool;
 use function is_int;
+use function is_scalar;
 use function is_string;
+use function str_starts_with;
 use function strtolower;
+use function substr;
 
 final class ServerConfigGroup{
 	/**

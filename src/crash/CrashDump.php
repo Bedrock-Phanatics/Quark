@@ -35,7 +35,6 @@ use quark\utils\Filesystem;
 use quark\utils\Utils;
 use quark\VersionInfo;
 use quark\YmlServerProperties;
-use Symfony\Component\Filesystem\Path;
 use function array_map;
 use function base64_encode;
 use function error_get_last;
