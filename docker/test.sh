@@ -7,6 +7,7 @@ CONTAINER="quark-smoke-$$"
 trap 'docker rm -f "$CONTAINER" >/dev/null 2>&1 || true; sudo rm -rf "$TEST_ROOT"' EXIT
 mkdir "$TEST_ROOT/data"
 sudo chown 1000:1000 "$TEST_ROOT/data"
+docker run --rm --entrypoint php "$IMAGE" /usr/local/share/quark-runtime-check.php
 
 run_server() {
 	printf 'stop\n' | timeout 120 docker run --rm -i --name "$CONTAINER" \

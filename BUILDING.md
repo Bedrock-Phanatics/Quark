@@ -2,22 +2,26 @@
 ## Pre-requisites
 - A bash shell (git bash is sufficient for Windows)
 - [`git`](https://git-scm.com) available in your shell
-- 64-bit PHP 8.4 or 8.5 with the extensions listed in `composer.json`
+- 64-bit PHP 8.4 ZTS with the extensions listed in `composer.json`
 - [`composer`](https://getcomposer.org) available in your shell
 
 ## Custom PHP binaries
 Quark requires several non-standard PHP extensions and configuration.
 
 - [Prebuilt binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries/releases)
-- The [upstream PHP compile scripts](https://github.com/pmmp/php-build-scripts) are pinned as the `build/php` submodule. Initialize it with `git submodule update --init build/php` before building Docker.
+- The [Quark PHP build scripts](https://github.com/Bedrock-Phanatics/PHP-Binaries) are pinned as the `build/php` submodule. Initialize it with `git submodule update --init build/php` before building Docker.
 
 The compiler's `-P5` option and `bin/php7/bin/php` directory select the inherited binary layout and extension family. Quark's plugin API is **6.0.0**; changing these binary identifiers to `6` would break the current compiler.
 
-CI and release builds use Bedrock-Phanatics PHP 8.4 binaries. PHP 8.5 CI is temporarily paused until the Quark binary repository publishes 8.5 assets.
+CI builds PHP 8.4 ZTS from the pinned submodule on Linux x86_64 and Windows x64, extracts the package, and verifies its native extensions before installing Composer dependencies. Docker builds the same pinned sources, including checksum files. Other native packaging targets and PHP 8.5 remain disabled until verified.
+
+The runtime includes ext-bedwire ^0.3.0 and its pinned phpz/Zig dependencies and patched libdatachannel. Legacy NetherNet still requires ext-webrtc ^0.3.1, so both bindings share the patched native library during the transition. Keep the legacy Composer dependency until its callers are migrated. Quark rejects missing or incompatible extensions and mismatched native/PHP protocol versions before starting the server.
 
 The optional `tests/plugins/DevTools` submodule is an inherited PocketMine-MP project. CI does not initialize it. The tracked [Quark 6 example plugin](examples/plugins/QuarkExample) can be built with `php -dphar.readonly=0 tests/build-plugin-phar.php examples/plugins/QuarkExample QuarkExample.phar`.
 
 If you use a custom binary, you'll need to replace `composer` usages in this guide with `path/to/your/php path/to/your/composer.phar`.
+
+Use `bin\php\run-php.cmd` for the bundled Windows runtime when invoking PHP or Composer directly. It selects the runtime's OpenSSL configuration and providers. `start.cmd` and `start.ps1` set the same defaults for the server.
 
 ## Setting up environment
 1. `git clone https://github.com/Bedrock-Phanatics/Quark.git`
@@ -39,7 +43,7 @@ To select an output filename, first install production dependencies with `compos
 
 ## CI and releases
 
-CI runs PHPStan, PHPUnit, integration tests and two clean code-generation passes on PHP 8.4. PHP 8.5 coverage is temporarily paused. CI also checks handwritten PHP style, translations, tracked shell scripts and Docker startup/plugin persistence. Generated PHP is owned by the generators; formatting must be corrected in the generator rather than applied to generated output.
+CI runs native NBT/protocol and lifecycle checks, PHPStan, PHPUnit, integration tests and two clean code-generation passes on PHP 8.4. CI also checks handwritten PHP style, translations, tracked shell scripts and Docker startup/plugin persistence. Generated PHP is owned by the generators; formatting must be corrected in the generator rather than applied to generated output.
 
 Push builds cover `stable` and `v6.0.0`; other branches are checked through pull requests or manual dispatch to avoid duplicate push/PR builds.
 

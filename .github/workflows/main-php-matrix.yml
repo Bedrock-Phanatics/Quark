@@ -13,8 +13,15 @@ permissions:
 
 jobs:
   checks:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -30,6 +37,8 @@ jobs:
           # The protocol fork is deliberately pinned to a commit for reproducibility.
           composer validate
           composer check-platform-reqs
+          php tests/runtime.php
+          bash tests/runtime-bootstrap.sh
 
       - name: Verify generated code is reproducible
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
@@ -54,4 +63,4 @@ jobs:
       # make-server removes development dependencies, so integration must run last.
       - name: Run integration tests
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: bash tests/travis.sh -t4
+        run: timeout 180 bash tests/travis.sh -t4

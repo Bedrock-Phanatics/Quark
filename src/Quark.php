@@ -62,8 +62,6 @@ use function parse_ini_file;
 use function php_ini_loaded_file;
 use function php_sapi_name;
 use function phpversion;
-use function preg_match;
-use function preg_quote;
 use function printf;
 use function realpath;
 use function usleep;
@@ -75,6 +73,7 @@ use const PHP_BINARY;
 use const PHP_EOL;
 use const PHP_INT_SIZE;
 use const PHP_VERSION;
+use const PHP_ZTS;
 use const ZEND_DEBUG_BUILD;
 
 	require_once __DIR__ . '/VersionInfo.php';
@@ -112,11 +111,16 @@ use const ZEND_DEBUG_BUILD;
 			$messages[] = "32-bit systems/PHP are no longer supported. Please upgrade to a 64-bit system, or use a 64-bit PHP binary if this is a 64-bit system.";
 		}
 
+		if(PHP_ZTS === 0){
+			$messages[] = "A thread-safe (ZTS) PHP binary is required.";
+		}
+
 		if(php_sapi_name() !== "cli"){
 			$messages[] = "Only PHP CLI is supported.";
 		}
 
 		$extensions = [
+			"bedwire" => "Bedwire",
 			"chunkutils2" => "Quark ChunkUtils v2",
 			"curl" => "cURL",
 			"crypto" => "php-crypto",
@@ -136,9 +140,11 @@ use const ZEND_DEBUG_BUILD;
 			"phar" => "Phar",
 			"pmmpthread" => "pmmpthread",
 			"reflection" => "Reflection",
+			"simplexml" => "SimpleXML",
 			"sockets" => "Sockets",
 			"spl" => "SPL",
 			"toml" => "TOML",
+			"webrtc" => "WebRTC (legacy NetherNet)",
 			"yaml" => "YAML",
 			"zip" => "Zip",
 			"zlib" => "Zlib"
@@ -150,41 +156,34 @@ use const ZEND_DEBUG_BUILD;
 			}
 		}
 
-		if(($pmmpthread_version = phpversion("pmmpthread")) !== false){
-			if(version_compare($pmmpthread_version, "6.1.0") < 0 || version_compare($pmmpthread_version, "7.0.0") >= 0){
-				$messages[] = "pmmpthread ^6.1.0 is required, while you have $pmmpthread_version.";
+		foreach([
+			"bedwire" => ["0.3.0", "0.4.0"],
+			"chunkutils2" => ["0.3.1", "0.4.0"],
+			"crypto" => ["0.3.1", "0.4.0"],
+			"encoding" => ["1.0.0", "1.1.0"],
+			"igbinary" => ["3.0.1", "4.0.0"],
+			"leveldb" => ["0.2.1", "0.4.0"],
+			"morton" => ["0.1.0", "0.2.0"],
+			"pmmpthread" => ["6.1.0", "7.0.0"],
+			"toml" => ["0.1.1", "0.2.0"],
+			"webrtc" => ["0.3.1", "0.4.0"]
+		] as $ext => [$min, $max]){
+			$version = phpversion($ext);
+			if(extension_loaded($ext) && ($version === false || version_compare($version, $min, "<") || version_compare($version, $max . "-dev", ">="))){
+				$messages[] = "ext-$ext >= $min and < $max is required, while you have " . ($version === false ? "an unknown version" : $version) . ".";
 			}
 		}
 
-		if(($leveldb_version = phpversion("leveldb")) !== false){
-			if(version_compare($leveldb_version, "0.2.1") < 0){
-				$messages[] = "php-leveldb >= 0.2.1 is required, while you have $leveldb_version.";
-			}
+		if(extension_loaded("leveldb")){
 			if(!defined('LEVELDB_ZLIB_RAW_COMPRESSION')){
 				$messages[] = "Given version of php-leveldb doesn't support ZLIB_RAW compression (use https://github.com/pmmp/php-leveldb)";
 			}
-		}
-
-		$chunkutils2_version = phpversion("chunkutils2");
-		$wantedVersionLock = "0.3";
-		$wantedVersionMin = "$wantedVersionLock.0";
-		if($chunkutils2_version !== false && (
-			version_compare($chunkutils2_version, $wantedVersionMin) < 0 ||
-			preg_match("/^" . preg_quote($wantedVersionLock, "/") . "\.\d+(?:-dev)?$/", $chunkutils2_version) === 0 //lock in at ^0.2, optionally at a patch release
-		)){
-			$messages[] = "chunkutils2 ^$wantedVersionMin is required, while you have $chunkutils2_version.";
 		}
 
 		if(($libdeflate_version = phpversion("libdeflate")) !== false){
 			//make sure level 0 compression is available
 			if(version_compare($libdeflate_version, "0.2.0") < 0 || version_compare($libdeflate_version, "0.3.0") >= 0){
 				$messages[] = "php-libdeflate ^0.2.0 is required, while you have $libdeflate_version.";
-			}
-		}
-
-		if(($encoding_version = phpversion("encoding")) !== false){
-			if(version_compare($encoding_version, "1.0.0") < 0 || version_compare($encoding_version, "2.0.0") >= 0){
-				$messages[] = "pmmp/ext-encoding ^1.0.0 is required, while you have $encoding_version.";
 			}
 		}
 
@@ -293,6 +292,11 @@ JIT_WARNING
 			exit(1);
 		}
 		require_once($bootstrap);
+
+		if(\Bedwire\Protocol::VERSION !== ProtocolInfo::CURRENT_PROTOCOL){
+			critical_error("ext-bedwire protocol " . \Bedwire\Protocol::VERSION . " does not match Quark protocol " . ProtocolInfo::CURRENT_PROTOCOL . ". Install the matching Quark PHP runtime.");
+			exit(1);
+		}
 
 		$composerGitHash = InstalledVersions::getReference('quark/quark');
 		if($composerGitHash !== null){

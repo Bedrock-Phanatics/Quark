@@ -11,6 +11,8 @@ if($php -ne ""){
 }elseif(Test-Path "bin\php\php.exe"){
 	$env:PHPRC = ""
 	$binary = "bin\php\php.exe"
+	if (!$env:OPENSSL_CONF) { $env:OPENSSL_CONF = [IO.Path]::GetFullPath("bin\php\extras\ssl\openssl.cnf") }
+	if (!$env:OPENSSL_MODULES) { $env:OPENSSL_MODULES = [IO.Path]::GetFullPath("bin\php\extras\ssl") }
 }elseif((Get-Command php -ErrorAction SilentlyContinue)){
 	$binary = "php"
 }else{

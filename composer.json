@@ -13,6 +13,7 @@
    "require": {
       "php": "^8.4",
       "php-64bit": "*",
+      "ext-bedwire": "^0.3.0",
       "ext-chunkutils2": "^0.3.1",
       "ext-crypto": "^0.3.1",
       "ext-ctype": "*",
@@ -36,6 +37,7 @@
       "ext-sockets": "*",
       "ext-spl": "*",
       "ext-toml": "^0.1.1",
+      "ext-webrtc": "^0.3.1",
       "ext-yaml": ">=2.0.0",
       "ext-zip": "*",
       "ext-zlib": ">=1.2.11",

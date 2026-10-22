@@ -11,8 +11,10 @@ if %ERRORLEVEL%==0 (
 
 if exist bin\php\php.exe (
 	rem always use the local PHP binary if it exists
-	set PHPRC=""
+	set "PHPRC="
 	set PHP_BINARY=bin\php\php.exe
+	if not defined OPENSSL_CONF set "OPENSSL_CONF=%~dp0bin\php\extras\ssl\openssl.cnf"
+	if not defined OPENSSL_MODULES set "OPENSSL_MODULES=%~dp0bin\php\extras\ssl"
 )
 
 if "%PHP_BINARY%"=="" (

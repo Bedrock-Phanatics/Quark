@@ -1,5 +1,5 @@
 name: Set up Quark PHP
-description: Install the native PHP runtime and locked Composer dependencies
+description: Build and validate the pinned packaged runtime and install locked dependencies
 inputs:
   php:
     description: PHP version in X.Y format
@@ -14,48 +14,98 @@ runs:
       shell: bash
       env:
         PHP_VERSION: ${{ inputs.php }}
-      run: |
-        case "$PHP_VERSION" in
-          8.4|8.5) ;;
-          *) echo "Unsupported PHP version: $PHP_VERSION"; exit 1 ;;
-        esac
+      run: test "$PHP_VERSION" = 8.4
 
-    - name: Set up Composer
-      uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-      if: inputs.php == '8.4'
+    - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
       with:
         php-version: '8.4'
         tools: composer:2.10.3
         coverage: none
 
-    - name: Install Bedrock-Phanatics PHP binary
-      if: inputs.php == '8.4'
+    - name: Initialize pinned runtime sources
       shell: bash
-      env:
-        PHP_VERSION: ${{ inputs.php }}
+      run: git submodule update --init build/php
+
+    - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+      with:
+        version: 0.17.0
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      id: runtime
+      with:
+        path: build/php/bin
+        key: quark-runtime-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build/php/compile.sh', 'build/php/windows-compile-vs.ps1', 'build/php/native.py', 'build/php/versions.env', 'build/php/sources.sha256', 'build/php/windows-deps.sha256') }}
+
+    - name: Build Linux runtime
+      if: runner.os == 'Linux' && steps.runtime.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: build/php
       run: |
+        sudo apt-get update
+        sudo apt-get install -y make autoconf automake libtool libtool-bin m4 curl gzip bzip2 xz-utils bison g++ git cmake pkg-config re2c ca-certificates file python3 patchelf
+        ./compile.sh -t linux64 -j "$(nproc)" -g -P5 -z 8.4
+
+    - name: Build Windows runtime
+      if: runner.os == 'Windows' && steps.runtime.outputs.cache-hit != 'true'
+      shell: pwsh
+      working-directory: build/php
+      env:
+        PM_VERSION_MAJOR: '5'
+        PHP_VERSION_BASE: '8.4'
+        SOURCES_PATH: ${{ runner.temp }}\quark-php-sdk
+      run: ./windows-compile-vs.ps1
+
+    - name: Extract and validate runtime package
+      shell: bash
+      run: |
+        set -euo pipefail
         runtime="$RUNNER_TEMP/quark-php"
-        mkdir -p "$runtime"
-        curl --fail --location --retry 3 \
-          "https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/download/pm5-php-$PHP_VERSION-latest/PHP-$PHP_VERSION-Linux-x86_64-PM5.tar.gz" \
-          --output "$runtime/php.tar.gz"
-        tar -xzf "$runtime/php.tar.gz" -C "$runtime"
-        php_bin="$runtime/bin/php7/bin"
-        # PM5 and php7 are the existing release asset/layout identifiers.
-        extension_dir=$(find "$runtime/bin/php7/lib/php/extensions" -mindepth 1 -maxdepth 1 -type d -name '*debug-zts*')
+        mkdir -p "$runtime/empty-ini"
+        tar -czf "$runtime/runtime.tar.gz" -C build/php bin
+        tar -xzf "$runtime/runtime.tar.gz" -C "$runtime"
+        if [ "$RUNNER_OS" = Windows ]; then
+          php_bin="$runtime/bin/php"
+          extension_dir="$(cygpath -m "$php_bin/ext")"
+          ini="$(cygpath -m "$php_bin/php.ini")"
+          scan_dir="$(cygpath -m "$runtime/empty-ini")"
+          openssl_conf="$(cygpath -m "$php_bin/extras/ssl/openssl.cnf")"
+          openssl_modules="$(cygpath -m "$php_bin/extras/ssl")"
+        else
+          php_bin="$runtime/bin/php7/bin"
+          extension_dir=$(find "$runtime/bin/php7/lib/php/extensions" -mindepth 1 -maxdepth 1 -type d -name '*debug-zts*')
+          ini="$php_bin/php.ini"
+          scan_dir="$runtime/empty-ini"
+          openssl_conf="$runtime/bin/php7/openssl.cnf"
+          openssl_modules="$runtime/bin/php7/lib/ossl-modules"
+        fi
         test -d "$extension_dir"
         printf '\nextension_dir="%s"\n' "$extension_dir" >> "$php_bin/php.ini"
-        test "$("$php_bin/php" -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')" = "$PHP_VERSION"
+        export PHPRC="$ini"
+        export PHP_INI_SCAN_DIR="$scan_dir"
+        export OPENSSL_CONF="$openssl_conf"
+        export OPENSSL_MODULES="$openssl_modules"
+        expected_php=$(sed -n 's/^PHP_VERSION=//p' build/php/versions.env)
+        test "$("$php_bin/php" -r 'echo PHP_VERSION;')" = "$expected_php"
         "$php_bin/php" -v
         echo "$php_bin" >> "$GITHUB_PATH"
+        echo "PHPRC=$ini" >> "$GITHUB_ENV"
+        echo "PHP_INI_SCAN_DIR=$scan_dir" >> "$GITHUB_ENV"
+        echo "OPENSSL_CONF=$openssl_conf" >> "$GITHUB_ENV"
+        echo "OPENSSL_MODULES=$openssl_modules" >> "$GITHUB_ENV"
+        timeout 60 "$php_bin/php" -c "$ini" build/php/tests/generic/smoke.php
+        timeout 60 "$php_bin/php" -c "$ini" build/php/tests/generic/native.php
+        if [ "$RUNNER_OS" = Linux ]; then
+          python3 build/php/tests/validate-package.py "$runtime/runtime.tar.gz"
+          python3 build/php/tests/check-libraries.py "$runtime/bin/php7"
+        else
+          python build/php/tests/validate-package.py "$runtime/runtime.tar.gz"
+        fi
 
-    # Temporary: our binary repository does not yet publish PHP 8.5 assets.
-    - uses: pmmp/setup-php-action@3c38c259834f945351a662392836d90eb08abff0 # 3.2.0
-      if: inputs.php == '8.5'
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
-        php-version: ${{ inputs.php }}
-        install-path: ./bin
-        pm-version-major: 5
+        name: quark-runtime-${{ runner.os }}-${{ runner.arch }}
+        path: ${{ runner.temp }}/quark-php/runtime.tar.gz
+        if-no-files-found: error
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:

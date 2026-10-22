@@ -21,7 +21,7 @@ jobs:
   build:
     if: github.repository == 'Bedrock-Phanatics/Quark'
     runs-on: ubuntu-22.04
-    timeout-minutes: 40
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
