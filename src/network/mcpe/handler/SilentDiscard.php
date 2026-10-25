@@ -23,21 +23,18 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\Packet;
-
 /**
- * When a packet's default handler isn't overridden, packets will normally be dropped without decoding and a debug
- * message will be logged. This attribute allows suppressing the debug message in this case, without overriding the
- * handler (which would force the packet to be decoded, wasting CPU time).
+ * When a handler has no method for a packet, the packet is dropped without decoding and a debug message is logged.
+ * This attribute suppresses the debug message for the given packet, without the cost of decoding it.
  */
 #[\Attribute(\Attribute::TARGET_CLASS | \Attribute::IS_REPEATABLE)]
 final class SilentDiscard{
 
 	/**
-	 * @phpstan-param class-string<covariant Packet> $packetClass
+	 * @param int $packetId one of the Bedwire\PacketId constants
 	 */
 	public function __construct(
-		public readonly string $packetClass,
+		public readonly int $packetId,
 		public readonly string $comment = "",
 	){}
 }

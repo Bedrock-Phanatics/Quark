@@ -179,6 +179,7 @@ final class Generator{
 
 		$factories = "";
 		$handlers = "";
+		$clientbound = "";
 		foreach(Utils::promoteKeys(table($this->schema["packets"] ?? null, "packets")) as $name => $packet){
 			$name = (string) $name;
 			$packet = table($packet, "packet $name");
@@ -202,6 +203,9 @@ FACTORY;
 			}
 			if(($direction & Protocol::SERVERBOUND) !== 0){
 				$handlers .= "\t\tPacketId::$constant => \"handle$pascal\",\n";
+			}
+			if(($direction & Protocol::CLIENTBOUND) !== 0){
+				$clientbound .= "\t\tPacketId::$constant => true,\n";
 			}
 		}
 
@@ -232,6 +236,12 @@ final class Packets{
 	 */
 	public const HANDLERS = [
 $handlers	];
+
+	/**
+	 * Packets servers may send.
+	 */
+	public const CLIENTBOUND = [
+$clientbound	];
 
 	private function __construct(){
 		//NOOP

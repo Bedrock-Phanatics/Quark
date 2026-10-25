@@ -23,11 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use Bedwire\PacketId;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
-use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
-use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\BoolGameRule;
@@ -53,8 +52,8 @@ use function sprintf;
 /**
  * Handler used for the pre-spawn phase of the session.
  */
-#[SilentDiscard(PlayerAuthInputPacket::class, comment: "Spammed after StartGame even though player has no controls")]
-#[SilentDiscard(ServerboundLoadingScreenPacket::class, "Not needed")]
+#[SilentDiscard(PacketId::PLAYER_AUTH_INPUT, comment: "Spammed after StartGame even though player has no controls")]
+#[SilentDiscard(PacketId::SERVER_BOUND_LOADING_SCREEN, "Not needed")]
 class PreSpawnPacketHandler extends PacketHandler{
 	public function __construct(
 		private Server $server,

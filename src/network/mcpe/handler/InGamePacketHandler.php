@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use Bedwire\PacketId;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\ActorPickRequestPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
@@ -41,22 +41,14 @@ use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\ItemStackResponsePacket;
 use pocketmine\network\mcpe\protocol\LecternUpdatePacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
-use pocketmine\network\mcpe\protocol\MovePlayerPacket;
-use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
-use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
-use pocketmine\network\mcpe\protocol\ServerboundDiagnosticsPacket;
-use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
 use pocketmine\network\mcpe\protocol\SetPlayerGameTypePacket;
-use pocketmine\network\mcpe\protocol\SpawnExperienceOrbPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
@@ -119,15 +111,15 @@ use const JSON_THROW_ON_ERROR;
 /**
  * This handler handles packets related to general gameplay.
  */
-#[SilentDiscard(ActorEventPacket::class, comment: "Not needed")]
-#[SilentDiscard(LevelSoundEventPacket::class, comment: "Sounds are always handled server side")]
-#[SilentDiscard(MobArmorEquipmentPacket::class, comment: "Not needed")]
-#[SilentDiscard(MovePlayerPacket::class, comment: "Not needed, noisy debug when landing on ground")]
-#[SilentDiscard(NetworkStackLatencyPacket::class, comment: "Not used, noisy debug")]
-#[SilentDiscard(PlayerHotbarPacket::class, comment: "Not needed")]
-#[SilentDiscard(SetActorMotionPacket::class, comment: "Not needed, erroneously sent by client when in a vehicle")]
-#[SilentDiscard(SpawnExperienceOrbPacket::class, comment: "XP drops should be server-calculated")]
-#[SilentDiscard(ServerboundDiagnosticsPacket::class, comment: "Not needed, noisy debug")]
+#[SilentDiscard(PacketId::ACTOR_EVENT, comment: "Not needed")]
+#[SilentDiscard(PacketId::LEVEL_SOUND_EVENT, comment: "Sounds are always handled server side")]
+#[SilentDiscard(PacketId::MOB_ARMOUR_EQUIPMENT, comment: "Not needed")]
+#[SilentDiscard(PacketId::MOVE_PLAYER, comment: "Not needed, noisy debug when landing on ground")]
+#[SilentDiscard(PacketId::NETWORK_STACK_LATENCY, comment: "Not used, noisy debug")]
+#[SilentDiscard(PacketId::PLAYER_HOT_BAR, comment: "Not needed")]
+#[SilentDiscard(PacketId::SET_ACTOR_MOTION, comment: "Not needed, erroneously sent by client when in a vehicle")]
+#[SilentDiscard(PacketId::SPAWN_EXPERIENCE_ORB, comment: "XP drops should be server-calculated")]
+#[SilentDiscard(PacketId::SERVER_BOUND_DIAGNOSTICS, comment: "Not needed, noisy debug")]
 class InGamePacketHandler extends PacketHandler{
 	public const MAX_ITEM_STACK_REQUESTS = 80;
 	public const MAX_INVENTORY_TRANSACTION_ACTIONS = 50;

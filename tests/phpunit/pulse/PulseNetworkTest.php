@@ -32,7 +32,6 @@ use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
-use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
@@ -75,6 +74,7 @@ use quark\network\mcpe\encryption\EncryptionContext;
 use quark\network\mcpe\handler\InGamePacketHandler;
 use quark\network\mcpe\handler\PacketHandler;
 use quark\network\mcpe\handler\PacketHandlerAction;
+use quark\network\mcpe\handler\PacketHandlerInspector;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketRateLimiter;
@@ -142,14 +142,47 @@ final class PulseNetworkTest extends TestCase{
 	private function session(?NetworkSession $session = null) : NetworkSession{
 		$session ??= (new \ReflectionClass(NetworkSession::class))->newInstanceWithoutConstructor();
 		$this->set($session, "logger", new \PrefixedLogger($this->createMock(\Logger::class), "private-address"));
-		$this->set($session, "packetPool", new PacketPool());
 		$this->set($session, "packetBatchLimiter", new PacketRateLimiter("batch", 10000, 1));
 		$this->set($session, "gamePacketLimiter", new PacketRateLimiter("packet", 10000, 1));
-		$this->set($session, "handlerActions", [RequestNetworkSettingsPacket::class => PacketHandlerAction::HANDLED]);
-		$this->set($session, "handler", new class extends PacketHandler{
+		$this->handler($session, new class extends PacketHandler{
 			public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ return true; }
 		});
 		return $session;
+	}
+
+	/**
+	 * Attaches a handler the way NetworkSession::setHandler() does, without changing the session's phase.
+	 */
+	private function handler(NetworkSession $session, PacketHandler $handler) : void{
+		[$actions, $methods] = PacketHandlerInspector::inspect($handler);
+		$closures = [];
+		$legacy = [];
+		foreach($methods as $id => [$method, $takesFields]){
+			$closures[$id] = (new \ReflectionMethod($handler, $method))->getClosure($handler);
+			if(!$takesFields){
+				$legacy[$id] = true;
+			}
+		}
+		$this->set($session, "handler", $handler);
+		$this->set($session, "handlerActions", $actions);
+		$this->set($session, "handlerMethods", $closures);
+		$this->set($session, "legacyHandlers", $legacy);
+	}
+
+	/**
+	 * Marks packets as handled through BedrockProtocol objects, whatever the current handler implements.
+	 *
+	 * @param list<int> $ids
+	 */
+	private function actions(NetworkSession $session, array $ids) : void{
+		$actions = [];
+		$legacy = [];
+		foreach($ids as $id){
+			$actions[$id] = PacketHandlerAction::HANDLED;
+			$legacy[$id] = true;
+		}
+		$this->set($session, "handlerActions", $actions);
+		$this->set($session, "legacyHandlers", $legacy);
 	}
 
 	private function packet() : string{
@@ -239,10 +272,8 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testInventoryLimitsRunBeforeDecoding() : void{
 		$session = $this->session();
-		$packet = new class extends InventoryTransactionPacket{
-			protected function decodePayload(ByteBufferReader $in) : void{ TestCase::fail("Oversized inventory collection reached decoder"); }
-		};
-		$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED, InventoryTransactionPacket::class => PacketHandlerAction::HANDLED]);
+		$packet = InventoryTransactionPacket::NETWORK_ID;
+		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID]);
 		try{ $session->handleDataPacket($packet, $this->inventoryPrefix(actions: 51)); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
 			self::assertSame("Too many actions in inventory transaction", $e->getMessage());
 		}
@@ -277,13 +308,13 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testInventoryBoundariesPreservePacketFields() : void{
 		$session = $this->session();
-		$this->set($session, "handlerActions", [InventoryTransactionPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID]);
 		$handler = new class extends PacketHandler{
 			/** @var list<InventoryTransactionPacket> */
 			public array $packets = [];
 			public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{ $this->packets[] = $packet; return true; }
 		};
-		$this->set($session, "handler", $handler);
+		$this->handler($session, $handler);
 		$action = new NetworkInventoryAction();
 		$action->sourceType = NetworkInventoryAction::SOURCE_CONTAINER;
 		$action->windowId = 0;
@@ -311,7 +342,7 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getDisplayName")->willReturn("private-name");
 		$session->expects(self::exactly(8))->method("disconnectWithError");
 		$this->session($session);
-		$this->set($session, "handlerActions", [InventoryTransactionPacket::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID]);
 		$transaction = UseItemTransactionData::new([], 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
 		$buffers = [];
 		foreach([257, 100000] as $count){
@@ -369,10 +400,13 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getDisplayName")->willReturn("private-name");
 		$session->expects(self::exactly(4))->method("disconnectWithError");
 		$this->session($session);
-		$this->set($session, "handlerActions", [PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
-		$handler = $this->createMock(PacketHandler::class);
-		$handler->expects(self::exactly(3))->method("handlePlayerAuthInput")->willReturn(true);
-		$this->set($session, "handler", $handler);
+		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
+		$handler = new class extends PacketHandler{
+			public int $calls = 0;
+			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ ++$this->calls; return true; }
+		};
+		$this->handler($session, $handler);
+		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
 		$action = new NetworkInventoryAction();
 		$action->sourceType = NetworkInventoryAction::SOURCE_CONTAINER;
 		$action->windowId = 2;
@@ -413,6 +447,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 2));
 		self::assertSame([4, 0, 4, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
+		self::assertSame(3, $handler->calls);
 		$report = $capture->getReport()->encode();
 		self::assertStringNotContainsString("private-name", $report);
 		self::assertStringNotContainsString("192.0.2.1", $report);
@@ -424,7 +459,7 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getIp")->willReturn("192.0.2.1");
 		$session->method("getDisplayName")->willReturn("private-name");
 		$this->session($session);
-		$this->set($session, "handlerActions", [InventoryTransactionPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID]);
 		$prefix = $this->inventoryPrefix();
 		$buffers = [$this->inventoryPrefix(type: 5), $this->inventoryPrefix(type: 0xffffffff), $this->inventoryPrefix(1)];
 		for($length = 1; $length < strlen($prefix); ++$length){ $buffers[] = substr($prefix, 0, $length); }
@@ -471,10 +506,8 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testInputFlagLimitsRunBeforeDecoding() : void{
 		$session = $this->session();
-		$packet = new class extends PlayerAuthInputPacket{
-			protected function decodePayload(ByteBufferReader $in) : void{ TestCase::fail("Oversized flag list reached decoder"); }
-		};
-		$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$packet = PlayerAuthInputPacket::NETWORK_ID;
+		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
 		try{ $session->handleDataPacket($packet, $this->authInputPrefix(67)); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
 			self::assertSame("Too many input flags in PlayerAuthInputPacket", $e->getMessage());
 		}
@@ -501,13 +534,13 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testInputFlagBoundariesPreservePacketFields() : void{
 		$session = $this->session();
-		$this->set($session, "handlerActions", [PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
 		$handler = new class extends PacketHandler{
 			/** @var list<PlayerAuthInputPacket> */
 			public array $packets = [];
 			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ $this->packets[] = $packet; return true; }
 		};
-		$this->set($session, "handler", $handler);
+		$this->handler($session, $handler);
 		$cases = [[], [0], range(0, PlayerAuthInputFlags::NUMBER_OF_FLAGS - 1)];
 		foreach($cases as $flags){ $session->handleEncoded($this->batch([$this->authInputPacket($flags)])); }
 		self::assertCount(3, $handler->packets);
@@ -525,7 +558,7 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getIp")->willReturn("192.0.2.1");
 		$session->method("getDisplayName")->willReturn("private-name");
 		$this->session($session);
-		$this->set($session, "handlerActions", [PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
 		$header = substr($this->authInputPrefix(0), 0, -1);
 		$buffers = [$this->authInputPacket([-1]), $this->authInputPacket([66]), $this->authInputPacket([0x7fffffff]), $this->authInputPacket([0, 0]), substr($header, 0, -1), $header, $header . "\x80", $header . str_repeat("\x80", 6), $this->authInputPrefix(1)];
 		$session->expects(self::exactly(count($buffers)))->method("disconnectWithError");
@@ -544,10 +577,8 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testItemStackRequestLimitRunsBeforePayloadDecoding() : void{
 		$session = $this->session();
-		$packet = new class extends ItemStackRequestPacket{
-			protected function decodePayload(ByteBufferReader $in) : void{ TestCase::fail("Oversized collection reached decoder"); }
-		};
-		$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED, ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
+		$packet = ItemStackRequestPacket::NETWORK_ID;
+		$this->actions($session, [ItemStackRequestPacket::NETWORK_ID]);
 		$buffer = $this->itemStackPrefix(81);
 		try{ $session->handleDataPacket($packet, $buffer); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
 			self::assertSame("Too many requests in ItemStackRequestPacket", $e->getMessage());
@@ -577,7 +608,7 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testNestedItemStackLimitsPreserveEvidenceAcrossPacketPaths() : void{
 		$session = $this->session();
-		$this->set($session, "handlerActions", [ItemStackRequestPacket::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [ItemStackRequestPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID]);
 		$buffers = [];
 		foreach([61, 100000] as $count){
 			$request = new ItemStackRequest(-7, array_fill(0, $count, new LabTableCombineStackRequestAction()), ["filter"], 0);
@@ -625,7 +656,7 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testItemStackRequestBoundariesAndMalformedPrefixes() : void{
 		$session = $this->session();
-		$this->set($session, "handlerActions", [ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
+		$this->actions($session, [ItemStackRequestPacket::NETWORK_ID]);
 		$handler = new class extends PacketHandler{
 			public int $calls = 0;
 			public function handleItemStackRequest(ItemStackRequestPacket $packet) : bool{
@@ -635,7 +666,7 @@ final class PulseNetworkTest extends TestCase{
 				return true;
 			}
 		};
-		$this->set($session, "handler", $handler);
+		$this->handler($session, $handler);
 		$capture = Pulse::start();
 		foreach([0, 1, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS] as $count){
 			$packet = ItemStackRequestPacket::create(array_fill(0, $count, new ItemStackRequest(7, [], ["filter"], 0)));
@@ -648,7 +679,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(3, $handler->calls);
 		$header = substr($this->itemStackPrefix(0), 0, -1);
 		foreach(["", $header, $header . "\x80", $header . str_repeat("\x80", 6), "\x00\x51"] as $buffer){
-			try{ $session->handleDataPacket(new ItemStackRequestPacket(), $buffer); self::fail("Malformed prefix accepted"); }catch(PacketHandlingException){}
+			try{ $session->handleDataPacket(ItemStackRequestPacket::NETWORK_ID, $buffer); self::fail("Malformed prefix accepted"); }catch(PacketHandlingException){}
 		}
 		Pulse::stop();
 		$data = $this->network($capture);
@@ -667,10 +698,10 @@ final class PulseNetworkTest extends TestCase{
 		$capture = Pulse::start();
 		try{
 			foreach([ItemStackRequestPacket::class => $this->itemStackPrefix(81), PlayerAuthInputPacket::class => $this->authInputPrefix(67), InventoryTransactionPacket::class => $this->inventoryPrefix(actions: 51)] as $class => $buffer){
-				$this->set($session, "handlerActions", [$class => PacketHandlerAction::HANDLED]);
+				$this->actions($session, [$class::NETWORK_ID]);
 				$payload = $this->batch([$buffer]);
 				$session->handleEncoded($payload);
-				$this->set($session, "handlerActions", []);
+				$this->actions($session, []);
 				$this->rejected($session, $payload);
 			}
 		}finally{
@@ -678,7 +709,8 @@ final class PulseNetworkTest extends TestCase{
 			Pulse::stop();
 		}
 		$data = $this->network($capture);
-		self::assertSame(array_fill(0, 3, "packet.handler_validation"), array_column($data["events"], 4));
+		//packets the handler has no method for are decoded natively when a plugin asks for them, within the same bounds
+		self::assertSame(array_fill(0, 3, "packet.malformed"), array_column($data["events"], 4));
 		self::assertSame([6, 0, 3, 3, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8], $data["windows"][0][9]]);
 	}
 
@@ -732,7 +764,7 @@ final class PulseNetworkTest extends TestCase{
 				return true;
 			}
 		};
-		$this->set($session, "handler", $handler);
+		$this->handler($session, $handler);
 		$plugin = $this->createMock(Plugin::class);
 		$listeners = [];
 		foreach([DataPacketDecodeEvent::class => "decode_event", DataPacketReceiveEvent::class => "receive_event"] as $eventClass => $stage){
@@ -752,16 +784,15 @@ final class PulseNetworkTest extends TestCase{
 			self::assertSame("", $watchdog->record);
 			$this->rejected($session, $this->batch(["\xc1\x01"]));
 			self::assertSame("", $watchdog->record);
-			$this->set($session, "handler", new class extends PacketHandler{
+			$this->handler($session, new class extends PacketHandler{
 				public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ throw new \RuntimeException("plugin failure"); }
 			});
 			try{ $session->handleEncoded($payload); self::fail("Handler failure ignored"); }catch(\RuntimeException $e){ self::assertSame("plugin failure", $e->getMessage()); }
 			self::assertSame("", $watchdog->record);
-			$packet = new class extends RequestNetworkSettingsPacket{
-				protected function decodePayload(ByteBufferReader $in) : void{ throw new \InvalidArgumentException("decoder failure"); }
-			};
-			$this->set($session, "handlerActions", [$packet::class => PacketHandlerAction::HANDLED]);
-			try{ $session->handleDataPacket($packet, $this->packet()); self::fail("Unrelated decoder failure hidden"); }catch(\InvalidArgumentException $e){ self::assertSame("decoder failure", $e->getMessage()); }
+			$this->handler($session, new class extends PacketHandler{
+				public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ throw new \InvalidArgumentException("handler failure"); }
+			});
+			try{ $session->handleDataPacket(RequestNetworkSettingsPacket::NETWORK_ID, $this->packet()); self::fail("Unrelated handler failure hidden"); }catch(\InvalidArgumentException $e){ self::assertSame("handler failure", $e->getMessage()); }
 			self::assertSame("", $watchdog->record);
 		}finally{
 			foreach($listeners as [$list, $listener]){ $list->unregister($listener); }
@@ -846,7 +877,7 @@ final class PulseNetworkTest extends TestCase{
 		$session = $this->session();
 		$capture = Pulse::start();
 		$this->rejected($session, $this->batch([substr($this->packet(), 0, -1)]));
-		$this->set($session, "handlerActions", []);
+		$this->actions($session, []);
 		$session->handleEncoded($this->batch([$this->packet()]));
 		Pulse::stop();
 		$data = $this->network($capture);
@@ -1064,12 +1095,15 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getIp")->willReturn("192.0.2.1");
 		$session->method("getDisplayName")->willReturn("private-name");
 		$this->session($session);
-		$this->set($session, "handlerActions", [InventoryTransactionPacket::class => PacketHandlerAction::HANDLED, PlayerAuthInputPacket::class => PacketHandlerAction::HANDLED, ItemStackRequestPacket::class => PacketHandlerAction::HANDLED]);
-		$handler = $this->createMock(PacketHandler::class);
-		$handler->expects(self::exactly(2))->method("handleInventoryTransaction")->willReturn(true);
-		$handler->expects(self::exactly(8))->method("handlePlayerAuthInput")->willReturn(true);
-		$handler->expects(self::exactly(6))->method("handleItemStackRequest")->willReturn(true);
-		$this->set($session, "handler", $handler);
+		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID, ItemStackRequestPacket::NETWORK_ID]);
+		$handler = new class extends PacketHandler{
+			/** @var array<string, int> */
+			public array $calls = [];
+			public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
+			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
+			public function handleItemStackRequest(ItemStackRequestPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
+		};
+		$this->handler($session, $handler);
 		$buffers = [];
 		$observed = [];
 		$limits = [];
@@ -1132,6 +1166,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_fill(0, count($buffers) * 4, 1), array_column($data["events"], 1));
 		self::assertSame(array_fill(0, count($buffers) * 4, 1), array_column($data["events"], 2));
 		self::assertSame([count($buffers) * 2, 0, count($buffers) * 2, 0], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7], $data["windows"][0][8]]);
+		self::assertSame(["handleInventoryTransaction" => 2, "handlePlayerAuthInput" => 8, "handleItemStackRequest" => 6], $handler->calls);
 		$report = $capture->getReport()->encode();
 		self::assertStringNotContainsString("private-name", $report);
 		self::assertStringNotContainsString("192.0.2.1", $report);

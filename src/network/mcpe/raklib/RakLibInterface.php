@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\network\mcpe\raklib;
 
 use pmmp\thread\ThreadSafeArray;
-use pocketmine\network\mcpe\protocol\PacketPool;
 use quark\lang\KnownTranslationFactory;
 use quark\network\AdvancedNetworkInterface;
 use quark\network\mcpe\convert\TypeConverter;
@@ -192,7 +191,6 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 		$session = new NetworkSession(
 			$this->server,
 			$this->network->getSessionManager(),
-			PacketPool::getInstance(),
 			new RakLibPacketSender($sessionId, $this),
 			$this->packetBroadcaster,
 			$this->entityEventBroadcaster,

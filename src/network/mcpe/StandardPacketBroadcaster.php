@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use pmmp\encoding\ByteBufferWriter;
-use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use quark\event\server\DataPacketSendEvent;
+use quark\network\mcpe\protocol\LegacyPacketAdapter;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
+use function array_values;
 use function count;
 use function log;
 use function spl_object_id;
@@ -39,6 +39,7 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 	){}
 
 	public function broadcastPackets(array $recipients, array $packets) : void{
+		$packets = LegacyPacketAdapter::fromLegacyList(array_values($packets));
 		//TODO: this shouldn't really be called here, since the broadcaster might be replaced by an alternative
 		//implementation that doesn't fire events
 		if(DataPacketSendEvent::hasHandlers()){
@@ -48,6 +49,16 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 				return;
 			}
 			$packets = $ev->getPackets();
+		}
+
+		if(count($recipients) === 1){
+			//nothing to share, so leave encoding to the recipient's next flush
+			foreach($recipients as $recipient){
+				foreach($packets as $packet){
+					$recipient->addToSendBuffer($packet);
+				}
+			}
+			return;
 		}
 
 		$compressors = [];
@@ -63,13 +74,16 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 
 		$totalLength = 0;
 		$packetBuffers = [];
-		$writer = new ByteBufferWriter();
-		foreach($packets as $packet){
-			$writer->clear(); //memory reuse let's gooooo
-			$buffer = NetworkSession::encodePacketTimed($writer, $packet);
-			//varint length prefix + packet buffer
-			$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
-			$packetBuffers[] = $buffer;
+		$encodeScope = PulseZones::$playerNetworkSendEncode->start();
+		try{
+			foreach($packets as $packet){
+				$buffer = $packet->getEncoded();
+				//varint length prefix + packet buffer
+				$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
+				$packetBuffers[] = $buffer;
+			}
+		}finally{
+			PulseZones::$playerNetworkSendEncode->stop($encodeScope);
 		}
 
 		foreach($targetsByCompressor as $compressorId => $compressorTargets){
@@ -78,18 +92,14 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			$threshold = $compressor->getCompressionThreshold();
 			if(count($compressorTargets) > 1 && $threshold !== null && $totalLength >= $threshold){
 				//do not prepare shared batch unless we're sure it will be compressed
-				$stream = new ByteBufferWriter();
-				PacketBatch::encodeRaw($stream, $packetBuffers);
-				$batchBuffer = $stream->getData();
-
-				$batch = $this->server->prepareBatch($batchBuffer, $compressor, pulse: PulseZones::$playerNetworkSendCompressBroadcast);
+				$batch = $this->server->prepareBatch(NetworkSession::encodeBatch($packetBuffers), $compressor, pulse: PulseZones::$playerNetworkSendCompressBroadcast);
 				foreach($compressorTargets as $target){
 					$target->queueCompressed($batch);
 				}
 			}else{
 				foreach($compressorTargets as $target){
-					foreach($packetBuffers as $packetBuffer){
-						$target->addToSendBuffer($packetBuffer);
+					foreach($packets as $packet){
+						$target->addToSendBuffer($packet);
 					}
 				}
 			}

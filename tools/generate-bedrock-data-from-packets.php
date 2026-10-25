@@ -33,6 +33,8 @@ use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\network\mcpe\protocol\CreativeContentPacket;
 use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
+use pocketmine\network\mcpe\protocol\PacketHandlerDefaultImplTrait;
+use pocketmine\network\mcpe\protocol\PacketHandlerInterface;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
@@ -64,7 +66,6 @@ use quark\inventory\json\CreativeGroupData;
 use quark\network\mcpe\convert\BlockStateDictionary;
 use quark\network\mcpe\convert\BlockTranslator;
 use quark\network\mcpe\convert\ItemTranslator;
-use quark\network\mcpe\handler\PacketHandler;
 use quark\network\PacketHandlingException;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Filesystem;
@@ -108,7 +109,8 @@ use const STDERR;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
-class ParserPacketHandler extends PacketHandler{
+class ParserPacketHandler implements PacketHandlerInterface{
+	use PacketHandlerDefaultImplTrait;
 
 	public ?ItemTypeDictionary $itemTypeDictionary = null;
 	private BlockTranslator $blockTranslator;

@@ -26,7 +26,6 @@ namespace quark\network\mcpe\bedwire;
 use Bedwire\BackpressureException;
 use Bedwire\Exception as BedwireException;
 use Bedwire\Server as BedwireServer;
-use pocketmine\network\mcpe\protocol\PacketPool;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\AdvancedNetworkInterface;
@@ -259,7 +258,6 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		$session = new NetworkSession(
 			$this->server,
 			$this->network->getSessionManager(),
-			PacketPool::getInstance(),
 			new BedwirePacketSender($sessionId, $this),
 			$this->packetBroadcaster,
 			$this->entityEventBroadcaster,

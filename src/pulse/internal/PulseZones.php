@@ -23,8 +23,7 @@ declare(strict_types=1);
 
 namespace quark\pulse\internal;
 
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
-use pocketmine\network\mcpe\protocol\ServerboundPacket;
+use Bedwire\Protocol;
 use quark\block\tile\Tile;
 use quark\entity\Entity;
 use quark\event\Event;
@@ -49,6 +48,7 @@ final class PulseZones{
 	public static PulseZone $garbageCollector;
 	public static PulseZone $titleTick;
 	public static PulseZone $playerNetworkSend;
+	public static PulseZone $playerNetworkSendEncode;
 	public static PulseZone $playerNetworkSendCompress;
 	public static PulseZone $playerNetworkSendCompressBroadcast;
 	public static PulseZone $playerNetworkSendCompressSessionBuffer;
@@ -88,7 +88,7 @@ final class PulseZones{
 	public static PulseZone $broadcastPackets;
 	/** @var array<string, PulseZone> */
 	private static array $dynamic = [];
-	/** @var array<string, array<string, PulseZone>> */
+	/** @var array<string, array<int, PulseZone>> */
 	private static array $packets = [];
 	/** @var array<string, array<string, PulseZone>> */
 	private static array $tasks = [];
@@ -102,6 +102,7 @@ final class PulseZones{
 		self::$garbageCollector = Pulse::zone("server.gc");
 		self::$titleTick = Pulse::zone("server.console_title");
 		self::$playerNetworkSend = Pulse::zone("network.send");
+		self::$playerNetworkSendEncode = Pulse::zone("network.encode");
 		self::$playerNetworkSendCompress = Pulse::zone("network.compress");
 		self::$playerNetworkSendCompressBroadcast = Pulse::zone("network.compress.broadcast");
 		self::$playerNetworkSendCompressSessionBuffer = Pulse::zone("network.compress.session");
@@ -168,17 +169,16 @@ final class PulseZones{
 		return self::$dynamic[$event::class] = self::dynamic("event." . $event::class);
 	}
 
-	public static function getReceiveDataPacketZone(ServerboundPacket $packet) : PulseZone{ return self::packet($packet, "receive"); }
-	public static function getDecodeDataPacketZone(ServerboundPacket $packet) : PulseZone{ return self::packet($packet, "decode"); }
-	public static function getHandleDataPacketZone(ServerboundPacket $packet) : PulseZone{ return self::packet($packet, "handle"); }
-	public static function getSendDataPacketZone(ClientboundPacket $packet) : PulseZone{ return self::packet($packet, "send"); }
-	public static function getEncodeDataPacketZone(ClientboundPacket $packet) : PulseZone{ return self::packet($packet, "encode"); }
+	public static function getReceiveDataPacketZone(int $packetId) : PulseZone{ return self::packet($packetId, "receive"); }
+	public static function getDecodeDataPacketZone(int $packetId) : PulseZone{ return self::packet($packetId, "decode"); }
+	public static function getHandleDataPacketZone(int $packetId) : PulseZone{ return self::packet($packetId, "handle"); }
+	public static function getSendDataPacketZone(int $packetId) : PulseZone{ return self::packet($packetId, "send"); }
 
-	private static function packet(ClientboundPacket|ServerboundPacket $packet, string $phase) : PulseZone{
-		$zone = self::$packets[$phase][$packet::class] ?? null;
+	private static function packet(int $packetId, string $phase) : PulseZone{
+		$zone = self::$packets[$phase][$packetId] ?? null;
 		if($zone !== null){ return $zone; }
 		if(count(self::$packets[$phase] ?? []) >= 4096){ return self::dynamic("pulse.zone_limit"); }
-		return self::$packets[$phase][$packet::class] = self::dynamic("network.$phase." . $packet->getName());
+		return self::$packets[$phase][$packetId] = self::dynamic("network.$phase." . (Protocol::name($packetId) ?? "unknown_$packetId"));
 	}
 
 	public static function getAsyncTaskRunZone(AsyncTask $task) : PulseZone{ return self::task($task, "run"); }

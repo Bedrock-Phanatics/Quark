@@ -23,20 +23,25 @@ declare(strict_types=1);
 
 namespace quark\event\server;
 
-use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\Packet;
 
+/**
+ * Called when a session receives a packet it is about to handle.
+ * Replacing the packet's fields with Packet::setFields() changes what the server handles, and cancelling the event
+ * drops the packet.
+ */
 class DataPacketReceiveEvent extends ServerEvent implements Cancellable{
 	use CancellableTrait;
 
 	public function __construct(
 		private NetworkSession $origin,
-		private ServerboundPacket $packet
+		private Packet $packet
 	){}
 
-	public function getPacket() : ServerboundPacket{
+	public function getPacket() : Packet{
 		return $this->packet;
 	}
 

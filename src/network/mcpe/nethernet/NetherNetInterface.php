@@ -33,7 +33,6 @@ use pocketmine\nethernet\protocol\DisconnectReason;
 use pocketmine\nethernet\protocol\ErrorCode;
 use pocketmine\nethernet\protocol\Reliability;
 use pocketmine\nethernet\signaling\http\HttpSignaling;
-use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
@@ -318,7 +317,6 @@ final class NetherNetInterface implements AdvancedNetworkInterface{
 		$session = new NetworkSession(
 			$this->server,
 			$this->network->getSessionManager(),
-			PacketPool::getInstance(),
 			new NetherNetPacketSender($sessionId, $this),
 			$this->packetBroadcaster,
 			$this->entityEventBroadcaster,

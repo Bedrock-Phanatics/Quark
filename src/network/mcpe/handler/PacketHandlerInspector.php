@@ -23,14 +23,19 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\DataPacket;
-use pocketmine\network\mcpe\protocol\Packet;
-use pocketmine\network\mcpe\protocol\PacketHandlerInterface;
+use Bedwire\Protocol;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
+use quark\network\mcpe\protocol\Packets;
 use quark\utils\AssumptionFailedError;
-use function assert;
+use function array_flip;
+use function array_keys;
+use function array_map;
+use function constant;
 use function implode;
 use function is_a;
+use function is_int;
 use function sort;
+use function str_starts_with;
 use const SORT_STRING;
 
 /**
@@ -40,64 +45,63 @@ use const SORT_STRING;
  */
 final class PacketHandlerInspector{
 
-	/**
-	 * @var PacketHandlerAction[][]
-	 * @phpstan-var array<class-string<PacketHandler>, array<class-string<Packet>, PacketHandlerAction>>
-	 */
+	/** @phpstan-var array<class-string<PacketHandler>, array{array<int, PacketHandlerAction>, array<int, array{string, bool}>}> */
 	private static array $cache = [];
 
 	/**
-	 * @return PacketHandlerAction[]
-	 * @phpstan-return array<class-string<Packet>, PacketHandlerAction>
+	 * Returns what to do with each packet ID, and for each handled one, the method handling it and whether that method
+	 * takes decoded fields rather than a BedrockProtocol packet object.
+	 *
+	 * @phpstan-return array{array<int, PacketHandlerAction>, array<int, array{string, bool}>}
 	 */
-	public static function getHandlerActions(PacketHandler $handler) : array{
+	public static function inspect(PacketHandler $handler) : array{
 		if(isset(self::$cache[$handler::class])){
 			return self::$cache[$handler::class];
 		}
 
-		$whitelist = [];
-		$interface = new \ReflectionClass(PacketHandlerInterface::class);
-		$handlerReflect = new \ReflectionClass($handler);
-
-		foreach($interface->getMethods(\ReflectionMethod::IS_PUBLIC) as $handlerMethod){
-			try{
-				$implementation = $handlerReflect->getMethod($handlerMethod->getName());
-			}catch(\ReflectionException $e){
-				throw new AssumptionFailedError("PacketHandler implements PacketHandlerInterface, this should be impossible");
-			}
-
-			$packetArg = $implementation->getParameters()[0] ?? throw new AssumptionFailedError("PacketHandlerInterface method should always have a packet as the first argument");
-			$packetArgType = $packetArg->getType();
-			if(!$packetArgType instanceof \ReflectionNamedType){
+		$ids = array_flip(Packets::HANDLERS);
+		$actions = [];
+		$methods = [];
+		$reflect = new \ReflectionClass($handler);
+		foreach($reflect->getMethods(\ReflectionMethod::IS_PUBLIC) as $method){
+			$name = $method->getName();
+			if(!str_starts_with($name, "handle") || $method->isStatic()){
 				continue;
 			}
-			$packetClass = $packetArgType->getName();
-			assert(is_a($packetClass, DataPacket::class, true));
-
-			$implementor = $implementation->getDeclaringClass()->getName();
-			$whitelist[$packetClass] = $implementor !== PacketHandler::class ? PacketHandlerAction::HANDLED : PacketHandlerAction::DISCARD_WITH_DEBUG;
+			$type = ($method->getParameters()[0] ?? null)?->getType();
+			if(!$type instanceof \ReflectionNamedType){
+				throw new AssumptionFailedError($handler::class . "::$name() must take the packet as its first parameter");
+			}
+			$class = $type->getName();
+			if($class === "array"){
+				$id = $ids[$name] ?? throw new AssumptionFailedError($handler::class . "::$name() does not handle a packet clients send");
+				$methods[$id] = [$name, true];
+			}elseif(is_a($class, ServerboundPacket::class, true)){
+				//TODO: remove once every handler takes decoded fields
+				$id = constant($class . "::NETWORK_ID");
+				if(!is_int($id)){
+					throw new AssumptionFailedError("$class has no packet ID");
+				}
+				$methods[$id] = [$name, false];
+			}else{
+				throw new AssumptionFailedError($handler::class . "::$name() must take an array of packet fields");
+			}
+			$actions[$id] = PacketHandlerAction::HANDLED;
 		}
 
-		foreach($handlerReflect->getAttributes(SilentDiscard::class) as $attribute){
-			$info = $attribute->newInstance();
-			$packetClass = $info->packetClass;
-			if(isset($whitelist[$packetClass]) && $whitelist[$packetClass] !== PacketHandlerAction::DISCARD_WITH_DEBUG){
-				$shortName = (new \ReflectionClass($packetClass))->getShortName();
-				\GlobalLogger::get()->warning("#[SilentDiscard($shortName)] has no effect on " . $handler::class . ", as the handler for $shortName is implemented");
+		foreach($reflect->getAttributes(SilentDiscard::class) as $attribute){
+			$id = $attribute->newInstance()->packetId;
+			if(isset($actions[$id])){
+				\GlobalLogger::get()->warning("#[SilentDiscard(" . Protocol::name($id) . ")] has no effect on " . $handler::class . ", as the handler for it is implemented");
 				continue;
 			}
-			$whitelist[$packetClass] = PacketHandlerAction::DISCARD_SILENT;
+			$actions[$id] = PacketHandlerAction::DISCARD_SILENT;
 		}
 
-		$allowedPackets = [];
-		foreach($whitelist as $packetClass => $action){
-			if($action === PacketHandlerAction::HANDLED){
-				$allowedPackets[] = (new \ReflectionClass($packetClass))->getShortName();
-			}
-		}
-		sort($allowedPackets, SORT_STRING);
-		\GlobalLogger::get()->debug("Packets handled by " . $handler::class . ": " . implode(', ', $allowedPackets));
+		$handled = array_map(fn(int $id) => Protocol::name($id) ?? "unknown_$id", array_keys($methods));
+		sort($handled, SORT_STRING);
+		\GlobalLogger::get()->debug("Packets handled by " . $handler::class . ": " . implode(', ', $handled));
 
-		return self::$cache[$handler::class] = $whitelist;
+		return self::$cache[$handler::class] = [$actions, $methods];
 	}
 }
