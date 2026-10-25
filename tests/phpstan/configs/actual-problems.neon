@@ -727,7 +727,7 @@ parameters:
 			path: ../../../src/item/Item.php
 
 		-
-			message: '#^Parameter \#1 \$buffer of method pocketmine\\nbt\\BaseNbtSerializer\:\:read\(\) expects string, mixed given\.$#'
+			message: '#^Parameter \#1 \$data of static method Bedwire\\Nbt\:\:read\(\) expects string, mixed given\.$#'
 			identifier: argument.type
 			count: 1
 			path: ../../../src/item/Item.php

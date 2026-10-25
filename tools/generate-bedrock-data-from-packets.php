@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\tools\generate_bedrock_data_from_packets;
 
+use Bedwire\Nbt;
 use pmmp\encoding\ByteBufferReader;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\TreeRoot;
@@ -130,7 +130,7 @@ class ParserPacketHandler extends PacketHandler{
 		foreach(Utils::stringifyKeys($blockStateData->getStates()) as $name => $value){
 			$statePropertiesTag->setTag($name, $value);
 		}
-		return base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($statePropertiesTag)));
+		return base64_encode(Nbt::write(new TreeRoot($statePropertiesTag), Nbt::BEDROCK));
 	}
 
 	/**
@@ -189,7 +189,7 @@ class ParserPacketHandler extends PacketHandler{
 			$extraData = $itemStringId === ItemTypeNames::SHIELD ? ItemStackExtraDataShield::read($decoder) : ItemStackExtraData::read($decoder);
 			$nbt = $extraData->getNbt();
 			if($nbt !== null && count($nbt) > 0){
-				$data->nbt = base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($nbt)));
+				$data->nbt = base64_encode(Nbt::write(new TreeRoot($nbt), Nbt::BEDROCK));
 			}
 
 			if(count($extraData->getCanPlaceOn()) > 0){
@@ -274,7 +274,7 @@ class ParserPacketHandler extends PacketHandler{
 
 			$componentNBT = $entry->getComponentNbt()->getRoot();
 			if(!$componentNBT->equals($emptyNBT)){
-				$table[$entry->getStringId()]["component_nbt"] = base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($componentNBT)));
+				$table[$entry->getStringId()]["component_nbt"] = base64_encode(Nbt::write(new TreeRoot($componentNBT), Nbt::BEDROCK));
 			}
 		}
 		ksort($table, SORT_STRING);

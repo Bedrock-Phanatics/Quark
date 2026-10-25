@@ -13,7 +13,7 @@
    "require": {
       "php": "^8.4",
       "php-64bit": "*",
-      "ext-bedwire": "^0.3.0",
+      "ext-bedwire": "^0.3.2",
       "ext-chunkutils2": "^0.3.1",
       "ext-crypto": "^0.3.1",
       "ext-ctype": "*",
@@ -46,7 +46,7 @@
       "axolotl-pm/bedrock-block-upgrade-schema": "~5.4.1+bedrock-1.26.50",
       "axolotl-pm/bedrock-data": "~6.9.0+bedrock-1.26.50",
       "axolotl-pm/bedrock-item-upgrade-schema": "~1.19.0+bedrock-1.26.50",
-      "axolotl-pm/bedrock-protocol": "dev-master#e3b9aa5afcbf8921e82706a57e88f40003220de7",
+      "axolotl-pm/bedrock-protocol": "dev-master#c2fe23cb24512bdc18a904bc07c444cfee46a4de",
       "axolotl-pm/nethernet": "^0.3.1",
       "axolotl-pm/xoroshiro128pp": "^0.1.0",
       "internal/toml": "^1.1.3",

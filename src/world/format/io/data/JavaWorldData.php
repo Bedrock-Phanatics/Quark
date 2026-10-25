@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\data;
 
-use pocketmine\nbt\BigEndianNbtSerializer;
+use Bedwire\Nbt;
+use Bedwire\NbtException;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
@@ -84,8 +85,7 @@ class JavaWorldData extends BaseNbtWorldData{
 			->setString(self::TAG_LEVEL_NAME, $name)
 			->setTag(self::TAG_GAME_RULES, new CompoundTag());
 
-		$nbt = new BigEndianNbtSerializer();
-		$buffer = zlib_encode($nbt->write(new TreeRoot(CompoundTag::create()->setTag(self::TAG_ROOT_DATA, $worldData))), ZLIB_ENCODING_GZIP);
+		$buffer = zlib_encode(Nbt::write(new TreeRoot(CompoundTag::create()->setTag(self::TAG_ROOT_DATA, $worldData)), Nbt::JAVA), ZLIB_ENCODING_GZIP);
 		file_put_contents(Path::join($path, "level.dat"), $buffer);
 	}
 
@@ -95,14 +95,13 @@ class JavaWorldData extends BaseNbtWorldData{
 		}catch(\RuntimeException $e){
 			throw new CorruptedWorldException($e->getMessage(), 0, $e);
 		}
-		$nbt = new BigEndianNbtSerializer();
 		$decompressed = @zlib_decode($rawLevelData);
 		if($decompressed === false){
 			throw new CorruptedWorldException("Failed to decompress level.dat contents");
 		}
 		try{
-			$worldData = $nbt->read($decompressed)->mustGetCompoundTag();
-		}catch(NbtDataException $e){
+			$worldData = Nbt::read($decompressed, Nbt::JAVA)->mustGetCompoundTag();
+		}catch(NbtException|NbtDataException $e){
 			throw new CorruptedWorldException($e->getMessage(), 0, $e);
 		}
 
@@ -129,8 +128,7 @@ class JavaWorldData extends BaseNbtWorldData{
 	public function save() : void{
 		$this->compoundTag->setLong(VersionInfo::TAG_WORLD_DATA_VERSION, VersionInfo::WORLD_DATA_VERSION);
 
-		$nbt = new BigEndianNbtSerializer();
-		$buffer = Utils::assumeNotFalse(zlib_encode($nbt->write(new TreeRoot(CompoundTag::create()->setTag(self::TAG_ROOT_DATA, $this->compoundTag))), ZLIB_ENCODING_GZIP));
+		$buffer = Utils::assumeNotFalse(zlib_encode(Nbt::write(new TreeRoot(CompoundTag::create()->setTag(self::TAG_ROOT_DATA, $this->compoundTag)), Nbt::JAVA), ZLIB_ENCODING_GZIP));
 		Filesystem::safeFilePutContents($this->dataPath, $buffer);
 	}
 

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
+use Bedwire\Nbt as NativeNbt;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
@@ -255,7 +255,7 @@ class TypeConverter{
 	 * NBT but different server-side NBT.
 	 */
 	protected function hashNBT(Tag $tag) : string{
-		$encoded = (new LittleEndianNbtSerializer())->write(new TreeRoot($tag));
+		$encoded = NativeNbt::write(new TreeRoot($tag), NativeNbt::BEDROCK);
 		return hash('sha256', $encoded, binary: true);
 	}
 

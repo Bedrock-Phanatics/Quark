@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "287a42f08473c1e66898dd7e0810960d",
+    "content-hash": "53a3049e282ddc11d9ad46f872448d08",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -149,15 +149,16 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol.git",
-                "reference": "e3b9aa5afcbf8921e82706a57e88f40003220de7"
+                "reference": "c2fe23cb24512bdc18a904bc07c444cfee46a4de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/e3b9aa5afcbf8921e82706a57e88f40003220de7",
-                "reference": "e3b9aa5afcbf8921e82706a57e88f40003220de7",
+                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/c2fe23cb24512bdc18a904bc07c444cfee46a4de",
+                "reference": "c2fe23cb24512bdc18a904bc07c444cfee46a4de",
                 "shasum": ""
             },
             "require": {
+                "ext-bedwire": "^0.3.2",
                 "ext-encoding": "~1.0.0",
                 "ext-json": "*",
                 "php": "^8.1",
@@ -197,7 +198,7 @@
             "support": {
                 "source": "https://github.com/Bedrock-Phanatics/BedrockProtocol/tree/master"
             },
-            "time": "2026-10-25T15:58:52+00:00"
+            "time": "2026-10-25T18:15:25+00:00"
         },
         {
             "name": "axolotl-pm/nethernet",
@@ -2934,7 +2935,7 @@
     "platform": {
         "php": "^8.4",
         "php-64bit": "*",
-        "ext-bedwire": "^0.3.0",
+        "ext-bedwire": "^0.3.2",
         "ext-chunkutils2": "^0.3.1",
         "ext-crypto": "^0.3.1",
         "ext-ctype": "*",

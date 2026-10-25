@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
+use Bedwire\Nbt;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
@@ -47,14 +47,13 @@ final class ItemTypeDictionaryFromDataHelper{
 		}
 
 		$emptyNBT = new CacheableNbt(new CompoundTag());
-		$nbtSerializer = new LittleEndianNbtSerializer();
 
 		$params = [];
 		foreach(Utils::promoteKeys($table) as $name => $entry){
 			if(!is_array($entry) || !is_string($name) || !isset($entry["component_based"], $entry["runtime_id"], $entry["version"]) || !is_bool($entry["component_based"]) || !is_int($entry["runtime_id"]) || !is_int($entry["version"]) || !(is_string($componentNbt = $entry["component_nbt"] ?? null) || $componentNbt === null)){
 				throw new AssumptionFailedError("Invalid item list format");
 			}
-			$params[] = new ItemTypeEntry($name, $entry["runtime_id"], $entry["component_based"], $entry["version"], $componentNbt === null ? $emptyNBT : new CacheableNbt($nbtSerializer->read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($componentNbt, true)))->mustGetCompoundTag()));
+			$params[] = new ItemTypeEntry($name, $entry["runtime_id"], $entry["component_based"], $entry["version"], $componentNbt === null ? $emptyNBT : new CacheableNbt(Nbt::read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($componentNbt, true)), Nbt::BEDROCK)->mustGetCompoundTag()));
 		}
 		return new ItemTypeDictionary($params);
 	}

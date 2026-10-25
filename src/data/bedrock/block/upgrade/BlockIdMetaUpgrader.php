@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\upgrade;
 
+use Bedwire\Nbt;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\BlockStateDeserializeException;
 
@@ -86,7 +86,6 @@ final class BlockIdMetaUpgrader{
 		$mappingTable = [];
 
 		$legacyStateMapReader = new ByteBufferReader($data);
-		$nbtReader = new LittleEndianNbtSerializer();
 
 		$idCount = VarInt::readUnsignedInt($legacyStateMapReader);
 		for($idIndex = 0; $idIndex < $idCount; $idIndex++){
@@ -96,10 +95,9 @@ final class BlockIdMetaUpgrader{
 			for($metaIndex = 0; $metaIndex < $metaCount; $metaIndex++){
 				$meta = VarInt::readUnsignedInt($legacyStateMapReader);
 
-				$offset = $legacyStateMapReader->getOffset();
-				$state = $nbtReader->read($legacyStateMapReader->getData(), $offset)->mustGetCompoundTag();
+				[$state, $offset] = Nbt::readAt($legacyStateMapReader->getData(), Nbt::BEDROCK, $legacyStateMapReader->getOffset());
 				$legacyStateMapReader->setOffset($offset);
-				$mappingTable[$id][$meta] = $blockStateUpgrader->upgrade(BlockStateData::fromNbt($state));
+				$mappingTable[$id][$meta] = $blockStateUpgrader->upgrade(BlockStateData::fromNbt($state->mustGetCompoundTag()));
 			}
 		}
 		if($legacyStateMapReader->getUnreadLength() > 0){

@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace quark\player;
 
+use Bedwire\Nbt;
+use Bedwire\NbtException;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
-use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
@@ -81,16 +82,15 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 		}
 
 		try{
-			return (new BigEndianNbtSerializer())->read($decompressed)->mustGetCompoundTag();
-		}catch(NbtDataException $e){ //corrupt data
+			return Nbt::read($decompressed, Nbt::JAVA)->mustGetCompoundTag();
+		}catch(NbtException|NbtDataException $e){ //corrupt data
 			$this->handleCorruptedPlayerData($name);
 			throw new PlayerDataLoadException("Failed to decode NBT data for \"$name\": " . $e->getMessage(), 0, $e);
 		}
 	}
 
 	public function saveData(string $name, CompoundTag $data) : void{
-		$nbt = new BigEndianNbtSerializer();
-		$contents = Utils::assumeNotFalse(zlib_encode($nbt->write(new TreeRoot($data)), ZLIB_ENCODING_GZIP), "zlib_encode() failed unexpectedly");
+		$contents = Utils::assumeNotFalse(zlib_encode(Nbt::write(new TreeRoot($data), Nbt::JAVA), ZLIB_ENCODING_GZIP), "zlib_encode() failed unexpectedly");
 		try{
 			Filesystem::safeFilePutContents($this->getPlayerDataPath($name), $contents);
 		}catch(\RuntimeException $e){

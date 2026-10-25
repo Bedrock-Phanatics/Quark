@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
+use Bedwire\Nbt;
 use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AvailableActorIdentifiersPacket;
 use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
 use pocketmine\network\mcpe\protocol\JigsawStructureDataPacket;
-use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\types\biome\BiomeDefinitionEntry;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
@@ -54,7 +54,7 @@ class StaticPacketCache{
 	 * @phpstan-return CacheableNbt<CompoundTag>
 	 */
 	private static function loadCompoundFromFile(string $filePath) : CacheableNbt{
-		return new CacheableNbt((new NetworkNbtSerializer())->read(Filesystem::fileGetContents($filePath))->mustGetCompoundTag());
+		return new CacheableNbt(Nbt::read(Filesystem::fileGetContents($filePath), Nbt::NETWORK)->mustGetCompoundTag());
 	}
 
 	/**

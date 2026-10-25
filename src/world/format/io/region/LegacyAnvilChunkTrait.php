@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\region;
 
-use pocketmine\nbt\BigEndianNbtSerializer;
+use Bedwire\Nbt;
+use Bedwire\NbtException;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\ByteArrayTag;
 use pocketmine\nbt\tag\CompoundTag;
@@ -59,10 +60,9 @@ trait LegacyAnvilChunkTrait{
 		if($decompressed === false){
 			throw new CorruptedChunkException("Failed to decompress chunk NBT");
 		}
-		$nbt = new BigEndianNbtSerializer();
 		try{
-			$chunk = $nbt->read($decompressed)->mustGetCompoundTag();
-		}catch(NbtDataException $e){
+			$chunk = Nbt::read($decompressed, Nbt::JAVA)->mustGetCompoundTag();
+		}catch(NbtException|NbtDataException $e){
 			throw new CorruptedChunkException($e->getMessage(), 0, $e);
 		}
 		$chunk = $chunk->getTag("Level");

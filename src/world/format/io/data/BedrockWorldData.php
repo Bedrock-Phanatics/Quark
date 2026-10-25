@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\data;
 
+use Bedwire\Nbt;
+use Bedwire\NbtException;
 use pmmp\encoding\LE;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -46,7 +47,6 @@ use function array_map;
 use function file_put_contents;
 use function sprintf;
 use function strlen;
-use function substr;
 use function time;
 
 class BedrockWorldData extends BaseNbtWorldData{
@@ -128,8 +128,7 @@ class BedrockWorldData extends BaseNbtWorldData{
 			->setString(self::TAG_GENERATOR_NAME, GeneratorManager::getInstance()->getGeneratorName($options->getGeneratorClass()))
 			->setString(self::TAG_GENERATOR_OPTIONS, $options->getGeneratorOptions());
 
-		$nbt = new LittleEndianNbtSerializer();
-		$buffer = $nbt->write(new TreeRoot($worldData));
+		$buffer = Nbt::write(new TreeRoot($worldData), Nbt::BEDROCK);
 		file_put_contents(Path::join($path, "level.dat"), LE::packSignedInt(self::CURRENT_STORAGE_VERSION) . LE::packSignedInt(strlen($buffer)) . $buffer);
 	}
 
@@ -142,10 +141,9 @@ class BedrockWorldData extends BaseNbtWorldData{
 		if(strlen($rawLevelData) <= 8){
 			throw new CorruptedWorldException("Truncated level.dat");
 		}
-		$nbt = new LittleEndianNbtSerializer();
 		try{
-			$worldData = $nbt->read(substr($rawLevelData, 8))->mustGetCompoundTag();
-		}catch(NbtDataException $e){
+			$worldData = Nbt::read($rawLevelData, Nbt::BEDROCK, 8)->mustGetCompoundTag();
+		}catch(NbtException|NbtDataException $e){
 			throw new CorruptedWorldException($e->getMessage(), 0, $e);
 		}
 
@@ -206,8 +204,7 @@ class BedrockWorldData extends BaseNbtWorldData{
 		$this->compoundTag->setTag(self::TAG_LAST_OPENED_WITH_VERSION, new ListTag(array_map(fn(int $v) => new IntTag($v), self::CURRENT_CLIENT_VERSION_TARGET)));
 		$this->compoundTag->setLong(VersionInfo::TAG_WORLD_DATA_VERSION, VersionInfo::WORLD_DATA_VERSION);
 
-		$nbt = new LittleEndianNbtSerializer();
-		$buffer = $nbt->write(new TreeRoot($this->compoundTag));
+		$buffer = Nbt::write(new TreeRoot($this->compoundTag), Nbt::BEDROCK);
 		Filesystem::safeFilePutContents($this->dataPath, LE::packSignedInt(self::CURRENT_STORAGE_VERSION) . LE::packSignedInt(strlen($buffer)) . $buffer);
 	}
 

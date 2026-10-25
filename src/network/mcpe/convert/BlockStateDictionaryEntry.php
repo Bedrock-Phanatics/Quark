@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
-use pocketmine\nbt\LittleEndianNbtSerializer;
+use Bedwire\Nbt;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
@@ -76,7 +76,7 @@ final class BlockStateDictionaryEntry{
 		if($rawProperties === ""){
 			return [];
 		}
-		return (new LittleEndianNbtSerializer())->read($rawProperties)->mustGetCompoundTag()->getValue();
+		return Nbt::read($rawProperties, Nbt::BEDROCK)->mustGetCompoundTag()->getValue();
 	}
 
 	/**
@@ -93,6 +93,6 @@ final class BlockStateDictionaryEntry{
 		foreach(Utils::stringifyKeys($properties) as $k => $v){
 			$tag->setTag($k, $v);
 		}
-		return (new LittleEndianNbtSerializer())->write(new TreeRoot($tag));
+		return Nbt::write(new TreeRoot($tag), Nbt::BEDROCK);
 	}
 }

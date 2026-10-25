@@ -26,8 +26,8 @@ declare(strict_types=1);
  */
 namespace quark\item;
 
+use Bedwire\Nbt as NativeNbt;
 use pocketmine\math\Vector3;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
@@ -696,7 +696,7 @@ class Item implements \JsonSerializable{
 	}
 
 	final public function __toString() : string{
-		return "Item " . $this->name . " (" . $this->getTypeId() . ":" . $this->computeStateData() . ")x" . $this->count . ($this->hasNamedTag() ? " tags:0x" . base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($this->getNamedTag()))) : "");
+		return "Item " . $this->name . " (" . $this->getTypeId() . ":" . $this->computeStateData() . ")x" . $this->count . ($this->hasNamedTag() ? " tags:0x" . base64_encode(NativeNbt::write(new TreeRoot($this->getNamedTag()), NativeNbt::BEDROCK)) : "");
 	}
 
 	/**
@@ -730,7 +730,7 @@ class Item implements \JsonSerializable{
 			(int) $data["id"],
 			(int) ($data["damage"] ?? 0),
 			(int) ($data["count"] ?? 1),
-			$nbt !== "" ? (new LittleEndianNbtSerializer())->read($nbt)->mustGetCompoundTag() : null
+			$nbt !== "" ? NativeNbt::read($nbt, NativeNbt::BEDROCK)->mustGetCompoundTag() : null
 		);
 
 		try{

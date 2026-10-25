@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\serializer;
 
+use Bedwire\Nbt;
 use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\world\format\PalettedBlockArray;
 use quark\block\tile\Spawnable;
@@ -130,7 +130,6 @@ final class ChunkSerializer{
 				VarInt::writeSignedInt($stream, count($palette)); //yes, this is intentionally zigzag
 			}
 			if($persistentBlockStates){
-				$nbtSerializer = new NetworkNbtSerializer();
 				foreach($palette as $p){
 					//TODO: introduce a binary cache for this
 					$state = $blockStateDictionary->generateDataFromStateId($blockTranslator->internalIdToNetworkId($p));
@@ -138,7 +137,7 @@ final class ChunkSerializer{
 						$state = $blockTranslator->getFallbackStateData();
 					}
 
-					$stream->writeByteArray($nbtSerializer->write(new TreeRoot($state->toNbt())));
+					$stream->writeByteArray(Nbt::write(new TreeRoot($state->toNbt()), Nbt::NETWORK));
 				}
 			}else{
 				//we would use writeSignedIntArray() here, but the gains of writing in batch are negated by the cost of

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\crafting;
 
+use Bedwire\Nbt;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\TreeRoot;
 use quark\item\Item;
 use quark\utils\DestructorCallbackTrait;
@@ -117,9 +117,7 @@ class CraftingManager{
 	private static function hashOutput(Item $output) : string{
 		$write = new ByteBufferWriter();
 		VarInt::writeSignedInt($write, $output->getStateId());
-		//TODO: the NBT serializer allocates its own ByteBufferWriter, we should change the API in the future to
-		//allow passing our own to avoid this extra allocation
-		$write->writeByteArray((new LittleEndianNbtSerializer())->write(new TreeRoot($output->getNamedTag())));
+		$write->writeByteArray(Nbt::write(new TreeRoot($output->getNamedTag()), Nbt::BEDROCK));
 
 		return $write->getData();
 	}

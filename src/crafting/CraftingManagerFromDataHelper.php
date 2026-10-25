@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\crafting;
 
+use Bedwire\Nbt;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use quark\crafting\json\ItemStackData;
 use quark\crafting\json\PotionContainerChangeRecipeData;
 use quark\crafting\json\PotionTypeRecipeData;
@@ -113,8 +113,7 @@ final class CraftingManagerFromDataHelper{
 			}
 			$blockStatesTag = $blockStatesRaw === null ?
 				[] :
-				(new LittleEndianNbtSerializer())
-					->read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($blockStatesRaw, true)))
+				Nbt::read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($blockStatesRaw, true)), Nbt::BEDROCK)
 					->mustGetCompoundTag()
 					->getValue();
 			$blockStateData = BlockStateData::current($blockName, $blockStatesTag);
@@ -122,8 +121,7 @@ final class CraftingManagerFromDataHelper{
 			$blockStateData = null;
 		}
 
-		$nbt = $nbtRaw === null ? null : (new LittleEndianNbtSerializer())
-			->read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($nbtRaw, true)))
+		$nbt = $nbtRaw === null ? null : Nbt::read(ErrorToExceptionHandler::trapAndRemoveFalse(fn() => base64_decode($nbtRaw, true)), Nbt::BEDROCK)
 			->mustGetCompoundTag();
 
 		$itemStackData = new SavedItemStackData(

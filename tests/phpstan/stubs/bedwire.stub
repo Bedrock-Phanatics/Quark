@@ -10,6 +10,38 @@ final class PacketException extends Exception{}
 
 final class NbtException extends Exception{}
 
+final class Nbt{
+	public const JAVA = 0;
+	public const BEDROCK = 1;
+	public const NETWORK = 2;
+
+	private function __construct(){}
+
+	public static function transcode(string $data, int $from, int $to, int $maxDepth = 0) : string{}
+
+	public static function length(string $data, int $format, int $offset = 0, int $maxDepth = 0) : int{}
+
+	public static function read(string $data, int $format, int $offset = 0, int $maxDepth = 0) : \pocketmine\nbt\TreeRoot{}
+
+	/** @return array{\pocketmine\nbt\TreeRoot, int} */
+	public static function readAt(string $data, int $format, int $offset = 0, int $maxDepth = 0) : array{}
+
+	public static function readHeadless(string $data, int $format, int $type, int $offset = 0, int $maxDepth = 0) : \pocketmine\nbt\tag\Tag{}
+
+	/** @return array{\pocketmine\nbt\tag\Tag, int} */
+	public static function readHeadlessAt(string $data, int $format, int $type, int $offset = 0, int $maxDepth = 0) : array{}
+
+	/** @return list<\pocketmine\nbt\TreeRoot> */
+	public static function readMultiple(string $data, int $format, int $maxDepth = 0) : array{}
+
+	public static function write(\pocketmine\nbt\TreeRoot $root, int $format) : string{}
+
+	public static function writeHeadless(\pocketmine\nbt\tag\Tag $tag, int $format) : string{}
+
+	/** @param array<\pocketmine\nbt\TreeRoot> $roots */
+	public static function writeMultiple(array $roots, int $format) : string{}
+}
+
 final class Server{
 	public const EVENT_CONNECT = 1;
 	public const EVENT_DISCONNECT = 2;

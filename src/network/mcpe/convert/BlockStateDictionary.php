@@ -23,9 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
+use Bedwire\Nbt;
+use Bedwire\NbtException;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\BlockTypeNames;
 use quark\utils\Utils;
@@ -156,12 +157,12 @@ final class BlockStateDictionary{
 	 * @return BlockStateData[]
 	 * @phpstan-return list<BlockStateData>
 	 *
-	 * @throws NbtDataException
+	 * @throws NbtException|NbtDataException
 	 */
 	public static function loadPaletteFromString(string $blockPaletteContents) : array{
 		return array_map(
 			fn(TreeRoot $root) => BlockStateData::fromNbt($root->mustGetCompoundTag()),
-			(new NetworkNbtSerializer())->readMultiple($blockPaletteContents)
+			Nbt::readMultiple($blockPaletteContents, Nbt::NETWORK)
 		);
 	}
 

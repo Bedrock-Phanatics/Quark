@@ -23,9 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\leveldb;
 
+use Bedwire\Nbt as NativeNbt;
+use Bedwire\NbtException;
 use pmmp\encoding\LE;
 
-use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
@@ -87,7 +88,6 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 	private const CAVES_CLIFFS_EXPERIMENTAL_SUBCHUNK_KEY_OFFSET = 4;
 
 	protected \LevelDB $db;
-	private LittleEndianNbtSerializer $nbtSerializer;
 
 	private static function checkForLevelDBExtension() : void{
 		if(!extension_loaded('leveldb')){
@@ -113,7 +113,6 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 		self::checkForLevelDBExtension();
 		parent::__construct($path, $logger);
 
-		$this->nbtSerializer = new LittleEndianNbtSerializer();
 		try{
 			$this->db = self::createDB($path);
 		}catch(\LevelDBException $e){
@@ -160,7 +159,6 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 		}catch(\InvalidArgumentException $e){
 			throw new CorruptedChunkException("Failed to deserialize paletted storage: " . $e->getMessage(), 0, $e);
 		}
-		$nbt = $this->nbtSerializer;
 		$palette = [];
 
 		if($bitsPerBlock === 0){
@@ -192,13 +190,14 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 		}
 
 		$blockDecodeErrors = [];
+		$buffer = $stream->getBuffer();
 
 		for($i = 0; $i < $paletteSize; ++$i){
 			try{
-				$offset = $stream->getOffset();
-				$blockStateNbt = $nbt->read($stream->getBuffer(), $offset)->mustGetCompoundTag();
+				[$root, $offset] = NativeNbt::readAt($buffer, NativeNbt::BEDROCK, $stream->getOffset());
 				$stream->setOffset($offset);
-			}catch(NbtDataException $e){
+				$blockStateNbt = $root->mustGetCompoundTag();
+			}catch(NbtException|NbtDataException $e){
 				//NBT borked, unrecoverable
 				throw new CorruptedChunkException("Invalid blockstate NBT at offset $i in paletted storage: " . $e->getMessage(), 0, $e);
 			}
@@ -250,7 +249,7 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 			$tags[] = new TreeRoot($this->blockStateSerializer->serialize($p)->toNbt());
 		}
 
-		$stream->put($this->nbtSerializer->writeMultiple($tags));
+		$stream->put(NativeNbt::writeMultiple($tags, NativeNbt::BEDROCK));
 	}
 
 	/**
@@ -716,13 +715,11 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 				throw new CorruptedChunkException("don't know how to decode chunk format version $chunkVersion");
 		}
 
-		$nbt = $this->nbtSerializer;
-
 		$entities = [];
 		if(($entityData = $this->db->get($index . ChunkDataKey::ENTITIES)) !== false && $entityData !== ""){
 			try{
-				$entities = array_map(fn(TreeRoot $root) => $root->mustGetCompoundTag(), $nbt->readMultiple($entityData));
-			}catch(NbtDataException $e){
+				$entities = array_map(fn(TreeRoot $root) => $root->mustGetCompoundTag(), NativeNbt::readMultiple($entityData, NativeNbt::BEDROCK));
+			}catch(NbtException|NbtDataException $e){
 				throw new CorruptedChunkException($e->getMessage(), 0, $e);
 			}
 		}
@@ -730,8 +727,8 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 		$tiles = [];
 		if(($tileData = $this->db->get($index . ChunkDataKey::BLOCK_ENTITIES)) !== false && $tileData !== ""){
 			try{
-				$tiles = array_map(fn(TreeRoot $root) => $root->mustGetCompoundTag(), $nbt->readMultiple($tileData));
-			}catch(NbtDataException $e){
+				$tiles = array_map(fn(TreeRoot $root) => $root->mustGetCompoundTag(), NativeNbt::readMultiple($tileData, NativeNbt::BEDROCK));
+			}catch(NbtException|NbtDataException $e){
 				throw new CorruptedChunkException($e->getMessage(), 0, $e);
 			}
 		}
@@ -810,8 +807,7 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 	 */
 	private function writeTags(array $targets, string $index, \LevelDBWriteBatch $write) : void{
 		if(count($targets) > 0){
-			$nbt = $this->nbtSerializer;
-			$write->put($index, $nbt->writeMultiple(array_map(fn(CompoundTag $tag) => new TreeRoot($tag), $targets)));
+			$write->put($index, NativeNbt::writeMultiple(array_map(fn(CompoundTag $tag) => new TreeRoot($tag), $targets), NativeNbt::BEDROCK));
 		}else{
 			$write->delete($index);
 		}

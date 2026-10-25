@@ -23,13 +23,12 @@ declare(strict_types=1);
 
 namespace quark\tools\blockstate_upgrade_schema_utils;
 
-use pocketmine\nbt\LittleEndianNbtSerializer;
+use Bedwire\Nbt;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use quark\data\bedrock\block\BlockStateData;
 use quark\data\bedrock\block\upgrade\BlockStateUpgrader;
 use quark\data\bedrock\block\upgrade\BlockStateUpgradeSchema;
@@ -94,7 +93,7 @@ function encodeOrderedProperties(array $properties) : string{
 }
 
 function encodeProperty(Tag $tag) : string{
-	return (new LittleEndianNbtSerializer())->write(new TreeRoot($tag));
+	return Nbt::write(new TreeRoot($tag), Nbt::BEDROCK);
 }
 
 /**
@@ -128,7 +127,7 @@ function buildUpgradeTableFromData(array $oldNewStateList, bool $reverse) : arra
  */
 function loadUpgradeTableFromFile(string $file, bool $reverse) : array{
 	$contents = Filesystem::fileGetContents($file);
-	$data = (new NetworkNbtSerializer())->readMultiple($contents);
+	$data = Nbt::readMultiple($contents, Nbt::NETWORK);
 
 	return buildUpgradeTableFromData($data, $reverse);
 }
