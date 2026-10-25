@@ -1,0 +1,677 @@
+{
+    "quark\\entity\\animation\\ArmSwingAnimation": [
+        "1b07040000",
+        "1b07040000"
+    ],
+    "quark\\entity\\animation\\ArrowShakeAnimation": [
+        "1b07270600",
+        "1b07270600"
+    ],
+    "quark\\entity\\animation\\ConsumingItemAnimation": [
+        "1b07398080f01700",
+        "1b07398080f01700"
+    ],
+    "quark\\entity\\animation\\CriticalHitAnimation": [
+        "2c040700005c4200",
+        "2c040700005c4200"
+    ],
+    "quark\\entity\\animation\\DeathAnimation": [
+        "1b07030000",
+        "1b07030000"
+    ],
+    "quark\\entity\\animation\\FireworkParticlesAnimation": [
+        "1b07190000",
+        "1b07190000"
+    ],
+    "quark\\entity\\animation\\HurtAnimation": [
+        "1b07020000",
+        "1b07020000"
+    ],
+    "quark\\entity\\animation\\ItemEntityStackSizeChangeAnimation": [
+        "1b07450600",
+        "1b07450600"
+    ],
+    "quark\\entity\\animation\\MagicHitAnimation": [
+        "2c05070000704100",
+        "2c05070000704100"
+    ],
+    "quark\\entity\\animation\\RespawnAnimation": [
+        "1b07120000",
+        "1b07120000"
+    ],
+    "quark\\entity\\animation\\SquidInkCloudAnimation": [
+        "1b070f0000",
+        "1b070f0000"
+    ],
+    "quark\\entity\\animation\\TotemUseAnimation": [
+        "1b07410000",
+        "1b07410000"
+    ],
+    "quark\\world\\particle\\AngryVillagerParticle": [
+        "19d080020000c03f00008042000010c000",
+        "19d080020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\BlockBreakParticle": [
+        "19a21f0000c03f00008042000010c0a8a702",
+        "19a21f0000c03f00008042000010c0a8a702"
+    ],
+    "quark\\world\\particle\\BlockForceFieldParticle": [
+        "198880020000c03f00008042000010c000",
+        "198880020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\BlockPunchParticle": [
+        "19bc1f0000c03f00008042000010c0a8a78230",
+        "19bc1f0000c03f00008042000010c0a8a78230"
+    ],
+    "quark\\world\\particle\\BubbleParticle": [
+        "198280020000c03f00008042000010c000",
+        "198280020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\CriticalParticle": [
+        "198680020000c03f00008042000010c004",
+        "198680020000c03f00008042000010c004"
+    ],
+    "quark\\world\\particle\\DragonEggTeleportParticle": [
+        "19b41f0000c03f00008042000010c0868c18",
+        "19b41f0000c03f00008042000010c0868c18"
+    ],
+    "quark\\world\\particle\\DustParticle": [
+        "19c280020000c03f00008042000010c0c3afaf0f",
+        "19c280020000c03f00008042000010c0c3afaf0f"
+    ],
+    "quark\\world\\particle\\EnchantParticle": [
+        "19c480020000c03f00008042000010c0c3afaf0f",
+        "19c480020000c03f00008042000010c0c3afaf0f"
+    ],
+    "quark\\world\\particle\\EnchantmentTableParticle": [
+        "19d480020000c03f00008042000010c000",
+        "19d480020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\EndermanTeleportParticle": [
+        "19ba1f0000c03f00008042000010c000",
+        "19ba1f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\EntityFlameParticle": [
+        "19a680020000c03f00008042000010c000",
+        "19a680020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\ExplodeParticle": [
+        "198c80020000c03f00008042000010c000",
+        "198c80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\FlameParticle": [
+        "199080020000c03f00008042000010c000",
+        "199080020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\FloatingTextParticle": [
+        "0dd00fe807176d696e6563726166743a66616c6c696e675f626c6f636b0000c03f00008042000010c00000000000000000000000000000000000000000000000000000000000070007078080082603030ad7233c3503030000000036030300000000040404050a74657374020202828a0251000001000000",
+        "0ed00f",
+        "0dd00fe807176d696e6563726166743a66616c6c696e675f626c6f636b0000c03f00008042000010c00000000000000000000000000000000000000000000000000000000000070007078080082603030ad7233c3503030000000036030300000000040404050a74657374020202828a0251000001000000"
+    ],
+    "quark\\world\\particle\\HappyVillagerParticle": [
+        "19d280020000c03f00008042000010c000",
+        "19d280020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\HeartParticle": [
+        "19a880020000c03f00008042000010c000",
+        "19a880020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\HugeExplodeParticle": [
+        "19a080020000c03f00008042000010c000",
+        "19a080020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\HugeExplodeSeedParticle": [
+        "19a280020000c03f00008042000010c000",
+        "19a280020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\InkParticle": [
+        "19ca80020000c03f00008042000010c000",
+        "19ca80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\InstantEnchantParticle": [
+        "19c880020000c03f00008042000010c0c3afaf0f",
+        "19c880020000c03f00008042000010c0c3afaf0f"
+    ],
+    "quark\\world\\particle\\ItemBreakParticle": [
+        "199c80020000c03f00008042000010c08080f017",
+        "199c80020000c03f00008042000010c08080f017"
+    ],
+    "quark\\world\\particle\\LavaDripParticle": [
+        "19ba80020000c03f00008042000010c000",
+        "19ba80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\LavaParticle": [
+        "199480020000c03f00008042000010c000",
+        "199480020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\MobSpawnParticle": [
+        "19a81f0000c03f00008042000010c000",
+        "19a81f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\PortalParticle": [
+        "19ae80020000c03f00008042000010c000",
+        "19ae80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\PotionSplashParticle": [
+        "19a41f0000c03f00008042000010c0c3afaf0f",
+        "19a41f0000c03f00008042000010c0c3afaf0f"
+    ],
+    "quark\\world\\particle\\RainSplashParticle": [
+        "19ce80020000c03f00008042000010c000",
+        "19ce80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\RedstoneParticle": [
+        "199880020000c03f00008042000010c002",
+        "199880020000c03f00008042000010c002"
+    ],
+    "quark\\world\\particle\\SmokeParticle": [
+        "198a80020000c03f00008042000010c000",
+        "198a80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\SnowballPoofParticle": [
+        "199e80020000c03f00008042000010c000",
+        "199e80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\SonicExplosionParticle": [
+        "19aa81020000c03f00008042000010c000",
+        "19aa81020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\SplashParticle": [
+        "19b280020000c03f00008042000010c000",
+        "19b280020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\SporeParticle": [
+        "19ac80020000c03f00008042000010c000",
+        "19ac80020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\TerrainParticle": [
+        "19aa80020000c03f00008042000010c0a8a702",
+        "19aa80020000c03f00008042000010c0a8a702"
+    ],
+    "quark\\world\\particle\\WaterDripParticle": [
+        "19b880020000c03f00008042000010c000",
+        "19b880020000c03f00008042000010c000"
+    ],
+    "quark\\world\\particle\\WaterParticle": [
+        "19b680020000c03f00008042000010c000",
+        "19b680020000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\AmethystBlockChimeSound": [
+        "7b146368696d652e616d6574687973745f626c6f636b0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b146368696d652e616d6574687973745f626c6f636b0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\AnvilBreakSound": [
+        "19f80f0000c03f00008042000010c000",
+        "19f80f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\AnvilFallSound": [
+        "19fc0f0000c03f00008042000010c000",
+        "19fc0f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\AnvilUseSound": [
+        "19fa0f0000c03f00008042000010c000",
+        "19fa0f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\ArmorEquipChainSound": [
+        "7b1161726d6f722e65717569705f636861696e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1161726d6f722e65717569705f636861696e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipCopperSound": [
+        "7b1261726d6f722e65717569705f636f707065720000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1261726d6f722e65717569705f636f707065720000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipDiamondSound": [
+        "7b1361726d6f722e65717569705f6469616d6f6e640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1361726d6f722e65717569705f6469616d6f6e640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipGenericSound": [
+        "7b1361726d6f722e65717569705f67656e657269630000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1361726d6f722e65717569705f67656e657269630000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipGoldSound": [
+        "7b1061726d6f722e65717569705f676f6c640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1061726d6f722e65717569705f676f6c640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipIronSound": [
+        "7b1061726d6f722e65717569705f69726f6e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1061726d6f722e65717569705f69726f6e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipLeatherSound": [
+        "7b1361726d6f722e65717569705f6c6561746865720000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1361726d6f722e65717569705f6c6561746865720000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArmorEquipNetheriteSound": [
+        "7b1561726d6f722e65717569705f6e65746865726974650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1561726d6f722e65717569705f6e65746865726974650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ArrowHitSound": [
+        "7b07626f772e6869740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b07626f772e6869740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BarrelCloseSound": [
+        "7b12626c6f636b2e62617272656c2e636c6f73650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b12626c6f636b2e62617272656c2e636c6f73650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BarrelOpenSound": [
+        "7b11626c6f636b2e62617272656c2e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b11626c6f636b2e62617272656c2e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BellRingSound": [
+        "7b0e626c6f636b2e62656c6c2e6869740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0e626c6f636b2e62656c6c2e6869740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BlastFurnaceSound": [
+        "7b1f626c6f636b2e626c6173746675726e6163652e666972655f637261636b6c650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1f626c6f636b2e626c6173746675726e6163652e666972655f637261636b6c650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BlazeShootSound": [
+        "19e20f0000c03f00008042000010c000",
+        "19e20f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\BlockBreakSound": [
+        "7b05627265616b0000c03f00008042000010c0a8a702013a0000ffffffffffffffff00",
+        "7b05627265616b0000c03f00008042000010c0a8a702013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BlockPlaceSound": [
+        "7b05706c6163650000c03f00008042000010c0a8a702013a0000ffffffffffffffff00",
+        "7b05706c6163650000c03f00008042000010c0a8a702013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BlockPunchSound": [
+        "7b036869740000c03f00008042000010c0a8a702013a0000ffffffffffffffff00",
+        "7b036869740000c03f00008042000010c0a8a702013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BottleEmptySound": [
+        "7b0c626f74746c652e656d7074790000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0c626f74746c652e656d7074790000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BowShootSound": [
+        "7b03626f770000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b03626f770000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BucketEmptyLavaSound": [
+        "7b116275636b65742e656d7074792e6c6176610000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b116275636b65742e656d7074792e6c6176610000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BucketEmptyWaterSound": [
+        "7b126275636b65742e656d7074792e77617465720000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b126275636b65742e656d7074792e77617465720000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BucketFillLavaSound": [
+        "7b106275636b65742e66696c6c2e6c6176610000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b106275636b65742e66696c6c2e6c6176610000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BucketFillWaterSound": [
+        "7b116275636b65742e66696c6c2e77617465720000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b116275636b65742e66696c6c2e77617465720000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\BurpSound": [
+        "7b04627572700000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b04627572700000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\CampfireSound": [
+        "7b16626c6f636b2e63616d70666972652e637261636b6c650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b16626c6f636b2e63616d70666972652e637261636b6c650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\CauldronAddDyeSound": [
+        "19e8360000c03f00008042000010c000",
+        "19e8360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronCleanItemSound": [
+        "19de360000c03f00008042000010c000",
+        "19de360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronDyeItemSound": [
+        "19dc360000c03f00008042000010c000",
+        "19dc360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronEmptyLavaSound": [
+        "19f2360000c03f00008042000010c000",
+        "19f2360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronEmptyPotionSound": [
+        "19e2360000c03f00008042000010c000",
+        "19e2360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronEmptyPowderSnowSound": [
+        "19f6360000c03f00008042000010c000",
+        "19f6360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronEmptyWaterSound": [
+        "19e6360000c03f00008042000010c000",
+        "19e6360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronFillLavaSound": [
+        "19f0360000c03f00008042000010c000",
+        "19f0360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronFillPotionSound": [
+        "19e0360000c03f00008042000010c000",
+        "19e0360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronFillPowderSnowSound": [
+        "19f4360000c03f00008042000010c000",
+        "19f4360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CauldronFillWaterSound": [
+        "19e4360000c03f00008042000010c000",
+        "19e4360000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\ChestCloseSound": [
+        "7b0c63686573742e636c6f7365640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0c63686573742e636c6f7365640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ChestOpenSound": [
+        "7b0a63686573742e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0a63686573742e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ChiseledBookshelfInsertSound": [
+        "7b10696e736572745f656e6368616e7465640000c03f00008042000010c0941f013a0000ffffffffffffffff00",
+        "7b10696e736572745f656e6368616e7465640000c03f00008042000010c0941f013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ChiseledBookshelfPickupSound": [
+        "7b107069636b75705f656e6368616e7465640000c03f00008042000010c0941f013a0000ffffffffffffffff00",
+        "7b107069636b75705f656e6368616e7465640000c03f00008042000010c0941f013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ChorusFlowerDieSound": [
+        "7b0b63686f72757364656174680000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0b63686f72757364656174680000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ChorusFlowerGrowSound": [
+        "7b0a63686f72757367726f770000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0a63686f72757367726f770000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ClickSound": [
+        "19d00f0000c03f00008042000010c000",
+        "19d00f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\CopperWaxApplySound": [
+        "7b0d636f707065722e7761782e6f6e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0d636f707065722e7761782e6f6e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\CopperWaxRemoveSound": [
+        "7b0e636f707065722e7761782e6f66660000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0e636f707065722e7761782e6f66660000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\DoorBumpSound": [
+        "19e40f0000c03f00008042000010c000",
+        "19e40f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\DoorCrashSound": [
+        "19e80f0000c03f00008042000010c000",
+        "19e80f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\DoorSound": [
+        "19d60f0000c03f00008042000010c000",
+        "19d60f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\DripleafTiltDownSound": [
+        "7b1674696c745f646f776e2e6269675f647269706c6561660000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1674696c745f646f776e2e6269675f647269706c6561660000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\DripleafTiltUpSound": [
+        "7b1474696c745f75702e6269675f647269706c6561660000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1474696c745f75702e6269675f647269706c6561660000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\DyeUseSound": [
+        "19d2100000c03f00008042000010c000",
+        "19d2100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\EnderChestCloseSound": [
+        "7b11656e64657263686573742e636c6f7365640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b11656e64657263686573742e636c6f7365640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\EnderChestOpenSound": [
+        "7b0f656e64657263686573742e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0f656e64657263686573742e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\EndermanTeleportSound": [
+        "19f40f0000c03f00008042000010c000",
+        "19f40f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\EntityAttackNoDamageSound": [
+        "7b0f61747461636b2e6e6f64616d6167650000c03f00008042000010c001106d696e6563726166743a706c617965720000ffffffffffffffff00",
+        "7b0f61747461636b2e6e6f64616d6167650000c03f00008042000010c001106d696e6563726166743a706c617965720000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\EntityAttackSound": [
+        "7b0d61747461636b2e7374726f6e670000c03f00008042000010c001106d696e6563726166743a706c617965720000ffffffffffffffff00",
+        "7b0d61747461636b2e7374726f6e670000c03f00008042000010c001106d696e6563726166743a706c617965720000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\EntityLandSound": [
+        "7b046c616e640000c03f00008042000010c0a8a702106d696e6563726166743a7a6f6d6269650000070000000000000000",
+        "7b046c616e640000c03f00008042000010c0a8a702106d696e6563726166743a7a6f6d6269650000070000000000000000"
+    ],
+    "quark\\world\\sound\\EntityLongFallSound": [
+        "7b0866616c6c2e6269670000c03f00008042000010c001106d696e6563726166743a7a6f6d6269650000070000000000000000",
+        "7b0866616c6c2e6269670000c03f00008042000010c001106d696e6563726166743a7a6f6d6269650000070000000000000000"
+    ],
+    "quark\\world\\sound\\EntityShortFallSound": [
+        "7b0a66616c6c2e736d616c6c0000c03f00008042000010c001106d696e6563726166743a7a6f6d6269650000ffffffffffffffff00",
+        "7b0a66616c6c2e736d616c6c0000c03f00008042000010c001106d696e6563726166743a7a6f6d6269650000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ExplodeSound": [
+        "7b076578706c6f64650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b076578706c6f64650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FireExtinguishSound": [
+        "7b0f657874696e67756973682e666972650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0f657874696e67756973682e666972650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FireworkCrackleSound": [
+        "7b077477696e6b6c650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b077477696e6b6c650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FireworkExplosionSound": [
+        "7b05626c6173740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b05626c6173740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FireworkLargeExplosionSound": [
+        "7b0b6c617267652e626c6173740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0b6c617267652e626c6173740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FireworkLaunchSound": [
+        "7b066c61756e63680000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b066c61756e63680000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FizzSound": [
+        "19d80f0000c03f00008042000010c000",
+        "19d80f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\FlintSteelSound": [
+        "7b0669676e6974650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0669676e6974650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\FurnaceSound": [
+        "7b11626c6f636b2e6675726e6163652e6c69740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b11626c6f636b2e6675726e6163652e6c69740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\GeyserContinuousEruptionBurstSound": [
+        "7b216765797365725f636f6e74696e756f75735f6572757074696f6e5f6163746976650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b216765797365725f636f6e74696e756f75735f6572757074696f6e5f6163746976650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\GeyserContinuousEruptionStartSound": [
+        "7b206765797365725f636f6e74696e756f75735f6572757074696f6e5f73746172740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b206765797365725f636f6e74696e756f75735f6572757074696f6e5f73746172740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\GeyserEruptionBurstSound": [
+        "7b166765797365725f6572757074696f6e5f6163746976650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b166765797365725f6572757074696f6e5f6163746976650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\GeyserEruptionStartSound": [
+        "7b156765797365725f6572757074696f6e5f73746172740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b156765797365725f6572757074696f6e5f73746172740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\GhastShootSound": [
+        "19e00f0000c03f00008042000010c000",
+        "19e00f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\GhastSound": [
+        "19de0f0000c03f00008042000010c000",
+        "19de0f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\GlowBerriesPickSound": [
+        "7b177069636b5f626572726965732e636176655f76696e65730000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b177069636b5f626572726965732e636176655f76696e65730000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\GoatHornSound": [
+        "7b0a686f726e5f63616c6c300000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0a686f726e5f63616c6c300000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\IceBombHitSound": [
+        "7b0b696365626f6d622e6869740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0b696365626f6d622e6869740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\IgniteSound": [
+        "19da0f0000c03f00008042000010c000",
+        "19da0f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\InkSacUseSound": [
+        "19d4100000c03f00008042000010c000",
+        "19d4100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\ItemBreakSound": [
+        "7b05627265616b0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b05627265616b0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ItemFrameAddItemSound": [
+        "19a0100000c03f00008042000010c000",
+        "19a0100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\ItemFrameRemoveItemSound": [
+        "19a6100000c03f00008042000010c000",
+        "19a6100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\ItemFrameRotateItemSound": [
+        "19a8100000c03f00008042000010c000",
+        "19a8100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\ItemUseOnBlockSound": [
+        "7b0b6974656d2e7573652e6f6e0000c03f00008042000010c0a8a702013a0000ffffffffffffffff00",
+        "7b0b6974656d2e7573652e6f6e0000c03f00008042000010c0a8a702013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\LaunchSound": [
+        "19d40f0000c03f00008042000010c000",
+        "19d40f0000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\LecternPlaceBookSound": [
+        "7b0d6974656d2e626f6f6b2e7075740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0d6974656d2e626f6f6b2e7075740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\NoteSound": [
+        "7b046e6f74650000c03f00008042000010c006013a0000ffffffffffffffff00",
+        "7b046e6f74650000c03f00008042000010c006013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\PaintingPlaceSound": [
+        "19a4100000c03f00008042000010c000",
+        "19a4100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\PistonInSound": [
+        "7b09706973746f6e2e696e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b09706973746f6e2e696e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\PistonOutSound": [
+        "7b0a706973746f6e2e6f75740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0a706973746f6e2e6f75740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\PopSound": [
+        "198c100000c03f00008042000010c000",
+        "198c100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\PotionFinishBrewingSound": [
+        "7b0d706f74696f6e2e6272657765640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0d706f74696f6e2e6272657765640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\PotionSplashSound": [
+        "7b05676c6173730000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b05676c6173730000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\PressurePlateActivateSound": [
+        "7b1770726573737572655f706c6174652e636c69636b5f6f6e0000c03f00008042000010c0a8a702013a0000ffffffffffffffff00",
+        "7b1770726573737572655f706c6174652e636c69636b5f6f6e0000c03f00008042000010c0a8a702013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\PressurePlateDeactivateSound": [
+        "7b1870726573737572655f706c6174652e636c69636b5f6f66660000c03f00008042000010c0a8a702013a0000ffffffffffffffff00",
+        "7b1870726573737572655f706c6174652e636c69636b5f6f66660000c03f00008042000010c0a8a702013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\RecordSound": [
+        "56097265636f72642e3133188008230000803f0000803f000101000000000000000000",
+        "e002028001050000000000000000",
+        "56097265636f72642e3133188008230000803f0000803f000101000000000000000000",
+        "e002028001050000000000000000"
+    ],
+    "quark\\world\\sound\\RecordStopSound": [
+        "dc02000000000000000000000000000000",
+        "dc02000000000000000000000000000000"
+    ],
+    "quark\\world\\sound\\RedstonePowerOffSound": [
+        "7b09706f7765722e6f66660000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b09706f7765722e6f66660000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\RedstonePowerOnSound": [
+        "7b08706f7765722e6f6e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b08706f7765722e6f6e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\RespawnAnchorChargeSound": [
+        "7b157265737061776e5f616e63686f722e6368617267650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b157265737061776e5f616e63686f722e6368617267650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\RespawnAnchorDepleteSound": [
+        "7b167265737061776e5f616e63686f722e6465706c6574650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b167265737061776e5f616e63686f722e6465706c6574650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\RespawnAnchorSetSpawnSound": [
+        "7b187265737061776e5f616e63686f722e7365745f737061776e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b187265737061776e5f616e63686f722e7365745f737061776e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ScrapeSound": [
+        "7b067363726170650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b067363726170650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ShulkerBoxCloseSound": [
+        "7b117368756c6b6572626f782e636c6f7365640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b117368756c6b6572626f782e636c6f7365640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ShulkerBoxOpenSound": [
+        "7b0f7368756c6b6572626f782e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b0f7368756c6b6572626f782e6f70656e0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\SmokerSound": [
+        "7b12626c6f636b2e736d6f6b65722e736d6f6b650000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b12626c6f636b2e736d6f6b65722e736d6f6b650000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\SweetBerriesPickSound": [
+        "7b1b626c6f636b2e73776565745f62657272795f627573682e7069636b0000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b1b626c6f636b2e73776565745f62657272795f627573682e7069636b0000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\ThrowSound": [
+        "7b057468726f770000c03f00008042000010c001106d696e6563726166743a706c617965720000ffffffffffffffff00",
+        "7b057468726f770000c03f00008042000010c001106d696e6563726166743a706c617965720000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\TotemUseSound": [
+        "19b8100000c03f00008042000010c000",
+        "19b8100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\TridentHitBlockSound": [
+        "7b176974656d2e74726964656e742e6869745f67726f756e640000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b176974656d2e74726964656e742e6869745f67726f756e640000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\TridentHitEntitySound": [
+        "7b106974656d2e74726964656e742e6869740000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b106974656d2e74726964656e742e6869740000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\TridentThrowSound": [
+        "7b126974656d2e74726964656e742e7468726f770000c03f00008042000010c001013a0000ffffffffffffffff00",
+        "7b126974656d2e74726964656e742e7468726f770000c03f00008042000010c001013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\WaterSplashSound": [
+        "7b0673706c6173680000c03f00008042000010c0feffff07013a0000ffffffffffffffff00",
+        "7b0673706c6173680000c03f00008042000010c0feffff07013a0000ffffffffffffffff00"
+    ],
+    "quark\\world\\sound\\XpCollectSound": [
+        "19b6100000c03f00008042000010c000",
+        "19b6100000c03f00008042000010c000"
+    ],
+    "quark\\world\\sound\\XpLevelUpSound": [
+        "7b076c6576656c75700000c03f00008042000010c000013a0000ffffffffffffffff00",
+        "7b076c6576656c75700000c03f00008042000010c000013a0000ffffffffffffffff00"
+    ]
+}
