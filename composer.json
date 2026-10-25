@@ -46,7 +46,7 @@
       "axolotl-pm/bedrock-block-upgrade-schema": "~5.4.1+bedrock-1.26.50",
       "axolotl-pm/bedrock-data": "~6.9.0+bedrock-1.26.50",
       "axolotl-pm/bedrock-item-upgrade-schema": "~1.19.0+bedrock-1.26.50",
-      "axolotl-pm/bedrock-protocol": "dev-master#f66ccd3d43ab45900354f157820ba351861c94ec",
+      "axolotl-pm/bedrock-protocol": "dev-master#e3b9aa5afcbf8921e82706a57e88f40003220de7",
       "axolotl-pm/nethernet": "^0.3.1",
       "axolotl-pm/xoroshiro128pp": "^0.1.0",
       "internal/toml": "^1.1.3",
