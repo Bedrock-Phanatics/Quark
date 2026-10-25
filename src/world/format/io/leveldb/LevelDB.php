@@ -87,7 +87,21 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 
 	private const CAVES_CLIFFS_EXPERIMENTAL_SUBCHUNK_KEY_OFFSET = 4;
 
+	private const PALETTE_CACHE_SIZE = 16384;
+
 	protected \LevelDB $db;
+
+	/**
+	 * Block states already decoded from raw palette NBT. Only successful decodes are kept, since they cannot change
+	 * while the server runs.
+	 * @phpstan-var array<string, int>
+	 */
+	private array $paletteStateIds = [];
+	/**
+	 * Palette NBT per state ID, bounded by the block state registry.
+	 * @phpstan-var array<int, string>
+	 */
+	private array $paletteEncodings = [];
 
 	private static function checkForLevelDBExtension() : void{
 		if(!extension_loaded('leveldb')){
@@ -193,10 +207,17 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 		$buffer = $stream->getBuffer();
 
 		for($i = 0; $i < $paletteSize; ++$i){
+			$offset = $stream->getOffset();
 			try{
-				[$root, $offset] = NativeNbt::readAt($buffer, NativeNbt::BEDROCK, $stream->getOffset());
-				$stream->setOffset($offset);
-				$blockStateNbt = $root->mustGetCompoundTag();
+				$length = NativeNbt::length($buffer, NativeNbt::BEDROCK, $offset);
+				$rawState = substr($buffer, $offset, $length);
+				$stream->setOffset($offset + $length);
+				$stateId = $this->paletteStateIds[$rawState] ?? null;
+				if($stateId !== null){
+					$palette[] = $stateId;
+					continue;
+				}
+				$blockStateNbt = NativeNbt::read($rawState, NativeNbt::BEDROCK)->mustGetCompoundTag();
 			}catch(NbtException|NbtDataException $e){
 				//NBT borked, unrecoverable
 				throw new CorruptedChunkException("Invalid blockstate NBT at offset $i in paletted storage: " . $e->getMessage(), 0, $e);
@@ -213,7 +234,12 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 				continue;
 			}
 			try{
-				$palette[] = $this->blockStateDeserializer->deserialize($blockStateData);
+				$stateId = $this->blockStateDeserializer->deserialize($blockStateData);
+				if(count($this->paletteStateIds) >= self::PALETTE_CACHE_SIZE){
+					$this->paletteStateIds = [];
+				}
+				$this->paletteStateIds[$rawState] = $stateId;
+				$palette[] = $stateId;
 			}catch(UnsupportedBlockStateException $e){
 				$blockDecodeErrors[$e->getMessage()][] = $i;
 				$palette[] = $this->blockStateDeserializer->deserialize(GlobalBlockStateHandlers::getUnknownBlockStateData());
@@ -244,12 +270,9 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 		if($blocks->getBitsPerBlock() !== 0){
 			$stream->putLInt(count($palette));
 		}
-		$tags = [];
 		foreach($palette as $p){
-			$tags[] = new TreeRoot($this->blockStateSerializer->serialize($p)->toNbt());
+			$stream->put($this->paletteEncodings[$p] ??= NativeNbt::write(new TreeRoot($this->blockStateSerializer->serialize($p)->toNbt()), NativeNbt::BEDROCK));
 		}
-
-		$stream->put(NativeNbt::writeMultiple($tags, NativeNbt::BEDROCK));
 	}
 
 	/**
