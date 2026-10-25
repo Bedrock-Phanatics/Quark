@@ -52,7 +52,7 @@ final class BedwireTransport implements Transport{
 
 	public const NAME = "bedwire";
 
-	private const MIN_VERSION = "0.3.0";
+	private const MIN_VERSION = "0.3.3";
 	private const MAX_VERSION = "0.4.0";
 
 	/** Clients look for LAN games on this port. */

@@ -13,7 +13,7 @@
    "require": {
       "php": "^8.4",
       "php-64bit": "*",
-      "ext-bedwire": "^0.3.2",
+      "ext-bedwire": "^0.3.3",
       "ext-chunkutils2": "^0.3.1",
       "ext-crypto": "^0.3.1",
       "ext-ctype": "*",
@@ -111,6 +111,7 @@
          "@php build/codegen/block-serializer-consts.php vendor/axolotl-pm/bedrock-data/canonical_block_states.nbt",
          "@php build/codegen/item-type-names.php vendor/axolotl-pm/bedrock-data/required_item_list.json",
          "@php build/codegen/known-translation-apis.php",
+         "@php build/codegen/protocol-packets.php",
          "@php build/codegen/quark-yml-property-consts.php",
          "@php build/codegen/registry-interface.php src generated"
       ]

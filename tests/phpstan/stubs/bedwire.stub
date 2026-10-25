@@ -10,6 +10,51 @@ final class PacketException extends Exception{}
 
 final class NbtException extends Exception{}
 
+final class Protocol{
+	public const CLIENTBOUND = 1;
+	public const SERVERBOUND = 2;
+	public const BIDIRECTIONAL = 3;
+	public const VERSION = 2193;
+	public const MINECRAFT_VERSION = "1.26.51";
+
+	private function __construct(){}
+
+	public static function id(string $name) : int{}
+
+	public static function name(int $id) : ?string{}
+
+	public static function direction(int|string $packet) : int{}
+
+	/** @return array{int, int, int} */
+	public static function header(string $bytes) : array{}
+
+	public static function packetId(string $bytes) : int{}
+
+	/** @return array<string, mixed>|null */
+	public static function decode(string $bytes, int $maxValues = 0) : ?array{}
+
+	/**
+	 * @param list<string> $packets
+	 * @return list<array<string, mixed>|null>
+	 */
+	public static function decodeMany(array $packets, int $maxValues = 0) : array{}
+
+	/** @param array<string, mixed> $fields */
+	public static function encode(int|string $packet, array $fields, int $senderSubClient = 0, int $targetSubClient = 0) : string{}
+
+	/**
+	 * @param list<array{int|string, array<string, mixed>}|array{int|string, array<string, mixed>, int}|array{int|string, array<string, mixed>, int, int}> $packets
+	 * @return list<string>
+	 */
+	public static function encodeMany(array $packets) : array{}
+
+	/** @param list<string|array{int|string, array<string, mixed>}|array{int|string, array<string, mixed>, int}|array{int|string, array<string, mixed>, int, int}> $packets */
+	public static function encodeBatch(array $packets) : string{}
+
+	/** @return array<string, mixed> */
+	public static function schema() : array{}
+}
+
 final class Nbt{
 	public const JAVA = 0;
 	public const BEDROCK = 1;
@@ -80,7 +125,7 @@ final class Server{
 	/** @param list<string> $packets */
 	public function sendBatch(int $session, array $packets) : bool{}
 
-	/** @param list<array{string|int, array<string, mixed>}> $packets */
+	/** @param list<array{int|string, array<string, mixed>}|array{int|string, array<string, mixed>, int}|array{int|string, array<string, mixed>, int, int}> $packets */
 	public function sendPackets(int $session, array $packets) : bool{}
 
 	public function sendRawBatch(int $session, string $batch, int $offset = 0) : bool{}

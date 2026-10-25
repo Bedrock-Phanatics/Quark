@@ -51,6 +51,8 @@ parameters:
 		- quark\DEBUG
 		- quark\IS_DEVELOPMENT_BUILD
 		- pocketmine\network\mcpe\protocol\ProtocolInfo::CURRENT_PROTOCOL
+		- Bedwire\Protocol::VERSION
+		- Bedwire\Protocol::MINECRAFT_VERSION
 	stubFiles:
 		- tests/phpstan/stubs/chunkutils2.stub
 		- tests/phpstan/stubs/JsonMapper.stub
