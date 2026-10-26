@@ -34,48 +34,25 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
-use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
-use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
-use pocketmine\network\mcpe\protocol\DisconnectPacket;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
-use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
-use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
-use pocketmine\network\mcpe\protocol\OpenSignPacket;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
-use pocketmine\network\mcpe\protocol\PlayerListPacket;
-use pocketmine\network\mcpe\protocol\PlayerStartItemCooldownPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketAssembler;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
-use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
-use pocketmine\network\mcpe\protocol\SetDifficultyPacket;
-use pocketmine\network\mcpe\protocol\SetPlayerGameTypePacket;
 use pocketmine\network\mcpe\protocol\SetSpawnPositionPacket;
-use pocketmine\network\mcpe\protocol\SetTimePacket;
 use pocketmine\network\mcpe\protocol\SetTitlePacket;
-use pocketmine\network\mcpe\protocol\TextPacket;
-use pocketmine\network\mcpe\protocol\ToastRequestPacket;
-use pocketmine\network\mcpe\protocol\TransferPacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
-use pocketmine\network\mcpe\protocol\types\command\CommandData;
-use pocketmine\network\mcpe\protocol\types\command\CommandHardEnum;
-use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
-use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
-use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
-use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
+use pocketmine\utils\Limits;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
 use quark\event\player\PlayerIdentityVerifyEvent;
@@ -107,9 +84,11 @@ use quark\network\mcpe\handler\PreSpawnPacketHandler;
 use quark\network\mcpe\handler\ResourcePacksPacketHandler;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\handler\SpawnResponsePacketHandler;
+use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\LegacyPacketAdapter;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\TextPackets;
 use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
 use quark\network\TransportIdentityException;
@@ -1201,7 +1180,7 @@ class NetworkSession{
 		}else{
 			$translated = $message;
 		}
-		$this->sendDataPacket(DisconnectPacket::create(0, $translated, ""));
+		$this->sendDataPacket(Packets::disconnect(["reason" => 0, "messages" => ["messages" => ["message" => $translated, "filtered_message" => ""]]]));
 	}
 
 	/**
@@ -1233,7 +1212,7 @@ class NetworkSession{
 	public function disconnectIncompatibleProtocol(int $protocolVersion) : void{
 		$this->tryDisconnect(
 			function() use ($protocolVersion) : void{
-				$this->sendDataPacket(PlayStatusPacket::create($protocolVersion < ProtocolInfo::CURRENT_PROTOCOL ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER), true);
+				$this->sendDataPacket(Packets::playStatus(["status" => $protocolVersion < Protocol::VERSION ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER]), true);
 			},
 			KnownTranslationFactory::quark_disconnect_incompatibleProtocol((string) $protocolVersion)
 		);
@@ -1245,7 +1224,7 @@ class NetworkSession{
 	public function transfer(string $ip, int $port, Translatable|string|null $reason = null) : void{
 		$reason ??= KnownTranslationFactory::quark_disconnect_transfer();
 		$this->tryDisconnect(function() use ($ip, $port, $reason) : void{
-			$this->sendDataPacket(TransferPacket::create($ip, $port, false, null), true);
+			$this->sendDataPacket(Packets::transfer(["server_address" => $ip, "server_port" => $port, "reload_world" => false, "gatherings_configuration" => null]), true);
 			if($this->player !== null){
 				$this->player->onPostDisconnect($reason, null);
 			}
@@ -1389,7 +1368,7 @@ class NetworkSession{
 				if(!$this->connected){
 					return;
 				}
-				$this->sendDataPacket(ServerToClientHandshakePacket::create($handshakeJwt), true); //make sure this gets sent before encryption is enabled
+				$this->sendDataPacket(Packets::serverToClientHandshake(["handshake_web_token" => $handshakeJwt]), true); //make sure this gets sent before encryption is enabled
 
 				$this->cipher = EncryptionContext::fakeGCM($encryptionKey);
 
@@ -1404,7 +1383,7 @@ class NetworkSession{
 	private function onServerLoginSuccess() : void{
 		$this->loggedIn = true;
 
-		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::LOGIN_SUCCESS));
+		$this->sendDataPacket(Packets::playStatus(["status" => PlayStatusPacket::LOGIN_SUCCESS]));
 
 		$this->logger->debug("Initiating resource packs phase");
 
@@ -1433,7 +1412,7 @@ class NetworkSession{
 
 	public function notifyTerrainReady() : void{
 		$this->logger->debug("Sending spawn notification, waiting for spawn response");
-		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
+		$this->sendDataPacket(Packets::playStatus(["status" => PlayStatusPacket::PLAYER_SPAWN]));
 		$this->setHandler(new SpawnResponsePacketHandler($this->onClientSpawnResponse(...)));
 	}
 
@@ -1466,17 +1445,17 @@ class NetworkSession{
 			$yaw = $yaw ?? $location->getYaw();
 			$pitch = $pitch ?? $location->getPitch();
 
-			$this->sendDataPacket(MovePlayerPacket::simple(
-				$this->player->getId(),
-				$this->player->getOffsetPosition($pos),
-				$pitch,
-				$yaw,
-				$yaw, //TODO: head yaw
-				$mode,
-				$this->player->onGround,
-				0, //TODO: riding entity ID
-				0 //TODO: tick
-			));
+			$this->sendDataPacket(Packets::movePlayer([
+				"player_runtime_id" => $this->player->getId(),
+				"position" => Fields::vec3($this->player->getOffsetPosition($pos)),
+				"rotation" => Fields::vec2($pitch, $yaw),
+				"y_head_rotation" => $yaw, //TODO: head yaw
+				"position_mode" => $mode,
+				"on_ground" => $this->player->onGround,
+				"riding_runtime_id" => 0, //TODO: riding entity ID
+				"teleport_data" => $mode === MovePlayerPacket::MODE_TELEPORT ? ["teleportation_cause" => 0, "source_actor_type" => 0] : null,
+				"tick" => 0, //TODO: tick
+			]));
 
 			if($this->handler instanceof InGamePacketHandler){
 				$this->handler->forceMoveSync = true;
@@ -1485,25 +1464,39 @@ class NetworkSession{
 	}
 
 	public function syncViewAreaRadius(int $distance) : void{
-		$this->sendDataPacket(ChunkRadiusUpdatedPacket::create($distance));
+		$this->sendDataPacket(Packets::chunkRadiusUpdated(["chunk_radius" => $distance]));
 	}
 
 	public function syncViewAreaCenterPoint(Vector3 $newPos, int $viewDistance) : void{
-		$this->sendDataPacket(NetworkChunkPublisherUpdatePacket::create(BlockPosition::fromVector3($newPos), $viewDistance * 16, [])); //blocks, not chunks >.>
+		$this->sendDataPacket(Packets::networkChunkPublisherUpdate([
+			"new_position_for_view" => Fields::blockPosition($newPos),
+			"new_radius_for_view" => $viewDistance * 16, //blocks, not chunks >.>
+			"server_built_chunks_list" => [],
+		]));
 	}
 
 	public function syncPlayerSpawnPoint(Position $newSpawn) : void{
-		$newSpawnBlockPosition = BlockPosition::fromVector3($newSpawn);
+		$newSpawnBlockPosition = Fields::blockPosition($newSpawn);
 		//TODO: respawn causing block position (bed, respawn anchor)
-		$this->sendDataPacket(SetSpawnPositionPacket::playerSpawn($newSpawnBlockPosition, DimensionIds::OVERWORLD, $newSpawnBlockPosition));
+		$this->sendDataPacket(Packets::setSpawnPosition([
+			"spawn_position_type" => SetSpawnPositionPacket::TYPE_PLAYER_SPAWN,
+			"block_position" => $newSpawnBlockPosition,
+			"dimension_type" => DimensionIds::OVERWORLD,
+			"spawn_block_pos" => $newSpawnBlockPosition,
+		]));
 	}
 
 	public function syncWorldSpawnPoint(Position $newSpawn) : void{
-		$this->sendDataPacket(SetSpawnPositionPacket::worldSpawn(BlockPosition::fromVector3($newSpawn), DimensionIds::OVERWORLD));
+		$this->sendDataPacket(Packets::setSpawnPosition([
+			"spawn_position_type" => SetSpawnPositionPacket::TYPE_WORLD_SPAWN,
+			"block_position" => Fields::blockPosition($newSpawn),
+			"dimension_type" => DimensionIds::OVERWORLD,
+			"spawn_block_pos" => ["x" => Limits::INT32_MIN, "y" => Limits::INT32_MIN, "z" => Limits::INT32_MIN],
+		]));
 	}
 
 	public function syncGameMode(GameMode $mode, bool $isRollback = false) : void{
-		$this->sendDataPacket(SetPlayerGameTypePacket::create($this->typeConverter->coreGameModeToProtocol($mode)));
+		$this->sendDataPacket(Packets::setPlayerGameType(["player_game_type" => $this->typeConverter->coreGameModeToProtocol($mode)->value]));
 		if($this->player !== null){
 			$this->syncAbilities($this->player);
 			$this->syncAdventureSettings(); //TODO: we might be able to do this with the abilities packet alone
@@ -1551,12 +1544,12 @@ class NetworkSession{
 			], null, null, null);
 		}
 
-		$this->sendDataPacket(UpdateAbilitiesPacket::create(new AbilitiesData(
+		$this->sendDataPacket(Packets::updateAbilities(["data" => Fields::abilities(new AbilitiesData(
 			$isOp ? CommandPermissions::OPERATOR : CommandPermissions::NORMAL,
 			$isOp ? PlayerPermissions::OPERATOR : PlayerPermissions::MEMBER,
 			$for->getId(),
 			$layers
-		)));
+		))]));
 	}
 
 	public function syncAdventureSettings() : void{
@@ -1564,55 +1557,81 @@ class NetworkSession{
 			throw new \LogicException("Cannot sync adventure settings for a player that is not yet created");
 		}
 		//everything except auto jump is handled via UpdateAbilitiesPacket
-		$this->sendDataPacket(UpdateAdventureSettingsPacket::create(
-			noAttackingMobs: false,
-			noAttackingPlayers: false,
-			worldImmutable: false,
-			showNameTags: true,
-			autoJump: $this->player->hasAutoJump()
-		));
+		$this->sendDataPacket(Packets::updateAdventureSettings(["adventure_settings" => [
+			"no_pv_m" => false,
+			"no_mv_p" => false,
+			"immutable_world" => false,
+			"show_name_tags" => true,
+			"auto_jump" => $this->player->hasAutoJump(),
+		]]));
 	}
 
 	public function syncAvailableCommands() : void{
-		$commandData = [];
+		//every command has one free-form overload, plus an enum of its aliases if it has any
+		$enumValues = [];
+		$enumValueIndexes = [];
+		$enums = [];
+		$commands = [];
 		foreach($this->server->getCommandMap()->getCommands() as $command){
-			if(isset($commandData[$command->getLabel()]) || $command->getLabel() === "help" || !$command->testPermissionSilent($this->player)){
+			if(isset($commands[$command->getLabel()]) || $command->getLabel() === "help" || !$command->testPermissionSilent($this->player)){
 				continue;
 			}
 
 			$lname = strtolower($command->getLabel());
 			$aliases = $command->getAliases();
-			$aliasObj = null;
+			$aliasEnum = -1;
 			if(count($aliases) > 0){
 				if(!in_array($lname, $aliases, true)){
 					//work around a client bug which makes the original name not show when aliases are used
 					$aliases[] = $lname;
 				}
-				$aliasObj = new CommandHardEnum(ucfirst($command->getLabel()) . "Aliases", $aliases);
+				$valueIndexes = [];
+				foreach($aliases as $alias){
+					if(!isset($enumValueIndexes[$alias])){
+						$enumValueIndexes[$alias] = count($enumValues);
+						$enumValues[] = $alias;
+					}
+					$valueIndexes[] = $enumValueIndexes[$alias];
+				}
+				$aliasEnum = count($enums);
+				$enums[] = ["name" => ucfirst($command->getLabel()) . "Aliases", "values" => $valueIndexes];
 			}
 
 			$description = $command->getDescription();
-			$data = new CommandData(
-				$lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
-				$description instanceof Translatable ? $this->player->getLanguage()->translate($description) : $description,
-				0,
-				CommandPermissions::NORMAL,
-				$aliasObj,
-				[
-					new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])
-				],
-				chainedSubCommandData: []
-			);
-
-			$commandData[$command->getLabel()] = $data;
+			$commands[$command->getLabel()] = [
+				"name" => $lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
+				"description" => $description instanceof Translatable ? $this->player->getLanguage()->translate($description) : $description,
+				"flags" => 0,
+				"permission_level" => CommandPermissions::NORMAL->value,
+				"alias_enum" => $aliasEnum,
+				"command_data_chained_subcommand_indexes" => [],
+				"overloads" => [[
+					"is_chaining" => false,
+					"parameter_data" => [[
+						"name" => "args",
+						"parse_symbol" => AvailableCommandsPacket::ARG_FLAG_VALID | AvailableCommandsPacket::ARG_TYPE_RAWTEXT,
+						"is_optional" => true,
+						"options" => 0,
+					]],
+				]],
+			];
 		}
 
-		$this->sendDataPacket(AvailableCommandsPacketAssembler::assemble(array_values($commandData), [], []));
+		$this->sendDataPacket(Packets::availableCommands([
+			"enum_values" => $enumValues,
+			"chained_subcommand_values" => [],
+			"post_fixes" => [],
+			"enum_data" => $enums,
+			"chained_subcommand_data" => [],
+			"commands" => array_values($commands),
+			"soft_enums" => [],
+			"constraints" => [],
+		]));
 	}
 
 	/**
 	 * @return string[][]
-	 * @phpstan-return array{string, string[]}
+	 * @phpstan-return array{string, list<string>}
 	 */
 	public function prepareClientTranslatableMessage(Translatable $message) : array{
 		//we can't send nested translations to the client, so make sure they are always pre-translated by the server
@@ -1620,18 +1639,18 @@ class NetworkSession{
 		$parameters = array_map(fn(string|Translatable $p) => $p instanceof Translatable ? $language->translate($p) : $p, $message->getParameters());
 		$untranslatedParameterCount = 0;
 		$translated = $language->translateString($message->getText(), $parameters, "quark.", $untranslatedParameterCount);
-		return [$translated, array_slice($parameters, 0, $untranslatedParameterCount)];
+		return [$translated, array_values(array_slice($parameters, 0, $untranslatedParameterCount))];
 	}
 
 	public function onChatMessage(Translatable|string $message) : void{
 		if($message instanceof Translatable){
 			if(!$this->server->isLanguageForced()){
-				$this->sendDataPacket(TextPacket::translation(...$this->prepareClientTranslatableMessage($message)));
+				$this->sendDataPacket(TextPackets::translation(...$this->prepareClientTranslatableMessage($message)));
 			}else{
-				$this->sendDataPacket(TextPacket::raw($this->player->getLanguage()->translate($message)));
+				$this->sendDataPacket(TextPackets::raw($this->player->getLanguage()->translate($message)));
 			}
 		}else{
-			$this->sendDataPacket(TextPacket::raw($message));
+			$this->sendDataPacket(TextPackets::raw($message));
 		}
 	}
 
@@ -1644,23 +1663,23 @@ class NetworkSession{
 				$message = $this->player->getLanguage()->translate($message);
 			}
 		}
-		$this->sendDataPacket(TextPacket::jukeboxPopup($message, $parameters));
+		$this->sendDataPacket(TextPackets::jukeboxPopup($message, $parameters));
 	}
 
 	public function onPopup(string $message) : void{
-		$this->sendDataPacket(TextPacket::popup($message));
+		$this->sendDataPacket(TextPackets::popup($message));
 	}
 
 	public function onTip(string $message) : void{
-		$this->sendDataPacket(TextPacket::tip($message));
+		$this->sendDataPacket(TextPackets::tip($message));
 	}
 
 	public function onFormSent(int $id, Form $form) : bool{
-		return $this->sendDataPacket(ModalFormRequestPacket::create($id, json_encode($form, JSON_THROW_ON_ERROR)));
+		return $this->sendDataPacket(Packets::modalFormRequest(["form_id" => $id, "form_ui_json" => json_encode($form, JSON_THROW_ON_ERROR)]));
 	}
 
 	public function onCloseAllForms() : void{
-		$this->sendDataPacket(ClientboundCloseFormPacket::create());
+		$this->sendDataPacket(Packets::clientBoundCloseForm([]));
 	}
 
 	/**
@@ -1726,11 +1745,11 @@ class NetworkSession{
 	}
 
 	public function syncWorldTime(int $worldTime) : void{
-		$this->sendDataPacket(SetTimePacket::create($worldTime));
+		$this->sendDataPacket(Packets::setTime(["time" => $worldTime]));
 	}
 
 	public function syncWorldDifficulty(int $worldDifficulty) : void{
-		$this->sendDataPacket(SetDifficultyPacket::create($worldDifficulty));
+		$this->sendDataPacket(Packets::setDifficulty(["difficulty" => $worldDifficulty]));
 	}
 
 	public function getInvManager() : ?InventoryManager{
@@ -1741,58 +1760,73 @@ class NetworkSession{
 	 * @param Player[] $players
 	 */
 	public function syncPlayerList(array $players) : void{
-		$this->sendDataPacket(PlayerListPacket::create(array_map(function(Player $player) : PlayerListEntry{
-			return PlayerListEntry::createAdditionEntry($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($player->getSkin()), $player->getXuid());
-		}, $players)));
+		$entries = [];
+		foreach($players as $player){
+			$entries[] = Fields::playerListAddition($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($player->getSkin()), $player->getXuid());
+		}
+		$this->sendDataPacket(Packets::playerList(["entries" => $entries]));
 	}
 
 	public function onPlayerAdded(Player $p) : void{
-		$this->sendDataPacket(PlayerListPacket::create([PlayerListEntry::createAdditionEntry($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($p->getSkin()), $p->getXuid())]));
+		$this->sendDataPacket(Packets::playerList(["entries" => [Fields::playerListAddition($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($p->getSkin()), $p->getXuid())]]));
 	}
 
 	public function onPlayerRemoved(Player $p) : void{
 		if($p !== $this->player){
-			$this->sendDataPacket(PlayerListPacket::create([PlayerListEntry::createRemovalEntry($p->getUniqueId())]));
+			$this->sendDataPacket(Packets::playerList(["entries" => [Fields::playerListRemoval($p->getUniqueId())]]));
 		}
 	}
 
+	private static function title(int $type, string $text = "", int $fadeIn = 0, int $stay = 0, int $fadeOut = 0) : Packet{
+		return Packets::setTitle([
+			"title_type" => $type,
+			"title_text" => $text,
+			"fade_in_time" => $fadeIn,
+			"stay_time" => $stay,
+			"fade_out_time" => $fadeOut,
+			"xuid" => "",
+			"platform_online_id" => "",
+			"filtered_title_message" => "",
+		]);
+	}
+
 	public function onTitle(string $title) : void{
-		$this->sendDataPacket(SetTitlePacket::title($title));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_TITLE, $title));
 	}
 
 	public function onSubTitle(string $subtitle) : void{
-		$this->sendDataPacket(SetTitlePacket::subtitle($subtitle));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_SUBTITLE, $subtitle));
 	}
 
 	public function onActionBar(string $actionBar) : void{
-		$this->sendDataPacket(SetTitlePacket::actionBarMessage($actionBar));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE, $actionBar));
 	}
 
 	public function onClearTitle() : void{
-		$this->sendDataPacket(SetTitlePacket::clearTitle());
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_CLEAR_TITLE));
 	}
 
 	public function onResetTitleOptions() : void{
-		$this->sendDataPacket(SetTitlePacket::resetTitleOptions());
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_RESET_TITLE));
 	}
 
 	public function onTitleDuration(int $fadeIn, int $stay, int $fadeOut) : void{
-		$this->sendDataPacket(SetTitlePacket::setAnimationTimes($fadeIn, $stay, $fadeOut));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ANIMATION_TIMES, "", $fadeIn, $stay, $fadeOut));
 	}
 
 	public function onToastNotification(string $title, string $body) : void{
-		$this->sendDataPacket(ToastRequestPacket::create($title, $body));
+		$this->sendDataPacket(Packets::toastRequest(["title" => $title, "content" => $body]));
 	}
 
 	public function onOpenSignEditor(Vector3 $signPosition, bool $frontSide) : void{
-		$this->sendDataPacket(OpenSignPacket::create(BlockPosition::fromVector3($signPosition), $frontSide));
+		$this->sendDataPacket(Packets::openSign(["pos" => Fields::blockPosition($signPosition), "is_front_side" => $frontSide]));
 	}
 
 	public function onItemCooldownChanged(Item $item, int $ticks) : void{
-		$this->sendDataPacket(PlayerStartItemCooldownPacket::create(
-			GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
-			$ticks
-		));
+		$this->sendDataPacket(Packets::clientStartItemCooldown([
+			"item_category" => GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
+			"duration_ticks" => $ticks,
+		]));
 	}
 
 	public function tick() : void{
