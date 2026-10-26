@@ -24,16 +24,18 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
-use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
-use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
-use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseContainerInfo;
-use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseSlotInfo;
 use quark\inventory\Inventory;
 use quark\item\Durable;
 use quark\network\mcpe\InventoryManager;
+use quark\network\mcpe\protocol\Packets;
 use quark\utils\AssumptionFailedError;
 
+/**
+ * @phpstan-import-type ItemStackResponseInfo from Packets
+ */
 final class ItemStackResponseBuilder{
+	public const RESULT_OK = 0;
+	public const RESULT_ERROR = 1;
 
 	/**
 	 * @var int[][]
@@ -67,7 +69,17 @@ final class ItemStackResponseBuilder{
 		return [$inventory, $slot];
 	}
 
-	public function build() : ItemStackResponse{
+	/**
+	 * @phpstan-return ItemStackResponseInfo
+	 */
+	public static function error(int $requestId) : array{
+		return ["result" => self::RESULT_ERROR, "client_request_id" => $requestId, "containers" => null];
+	}
+
+	/**
+	 * @phpstan-return ItemStackResponseInfo
+	 */
+	public function build() : array{
 		$responseInfosByContainer = [];
 		foreach($this->changedSlots as $containerInterfaceId => $slotIds){
 			if($containerInterfaceId === ContainerUIIds::CREATED_OUTPUT){
@@ -87,23 +99,22 @@ final class ItemStackResponseBuilder{
 				}
 				$item = $inventory->getItem($slot);
 
-				$responseInfosByContainer[$containerInterfaceId][] = new ItemStackResponseSlotInfo(
-					$slotId,
-					$slotId,
-					$item->getCount(),
-					$itemStackInfo->getStackId(),
-					$item->getCustomName(),
-					$item->getCustomName(),
-					$item instanceof Durable ? $item->getDamage() : 0,
-				);
+				$responseInfosByContainer[$containerInterfaceId][] = [
+					"requested_slot" => $slotId,
+					"slot" => $slotId,
+					"amount" => $item->getCount(),
+					"item_stack_net_id" => $itemStackInfo->getStackId(),
+					"custom_name" => ["unredacted" => $item->getCustomName(), "redacted" => $item->getCustomName()],
+					"durability_correction" => $item instanceof Durable ? $item->getDamage() : 0,
+				];
 			}
 		}
 
 		$responseContainerInfos = [];
 		foreach($responseInfosByContainer as $containerInterfaceId => $responseInfos){
-			$responseContainerInfos[] = new ItemStackResponseContainerInfo(new FullContainerName($containerInterfaceId), $responseInfos);
+			$responseContainerInfos[] = ["full_container_name" => ["container_name" => $containerInterfaceId, "dynamic_id" => null], "slots" => $responseInfos];
 		}
 
-		return new ItemStackResponse(ItemStackResponse::RESULT_OK, $this->requestId, $responseContainerInfos);
+		return ["result" => self::RESULT_OK, "client_request_id" => $this->requestId, "containers" => $responseContainerInfos];
 	}
 }

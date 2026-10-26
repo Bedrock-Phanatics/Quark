@@ -71,6 +71,7 @@ use function max;
 use function spl_object_id;
 
 /**
+ * @phpstan-import-type InventoryAction from Packets
  * @phpstan-type ContainerOpenClosure \Closure(int $id, Inventory $inventory) : (list<Packet>|null)
  */
 class InventoryManager{
@@ -247,33 +248,34 @@ class InventoryManager{
 	}
 
 	/**
-	 * @param NetworkInventoryAction[] $networkInventoryActions
+	 * @phpstan-param list<InventoryAction> $networkInventoryActions
 	 * @throws PacketHandlingException
 	 */
 	public function addRawPredictedSlotChanges(array $networkInventoryActions) : void{
 		foreach($networkInventoryActions as $action){
-			if($action->sourceType !== NetworkInventoryAction::SOURCE_CONTAINER){
+			if($action["source"]["source_type"] !== NetworkInventoryAction::SOURCE_CONTAINER){
 				continue;
 			}
-			if($action->windowId === null){
+			$windowId = $action["source"]["container_id"];
+			if($windowId === null){
 				throw new PacketHandlingException("Window ID should always be set for SOURCE_CONTAINER");
 			}
 
 			//legacy transactions should not modify or predict anything other than these inventories, since these are
 			//the only ones accessible when not in-game (ItemStackRequest is used for everything else)
-			if(match($action->windowId){
+			if(match($windowId){
 				ContainerIds::INVENTORY, ContainerIds::OFFHAND, ContainerIds::ARMOR => false,
 				default => true
 			}){
-				throw new PacketHandlingException("Legacy transactions cannot predict changes to inventory with ID " . $action->windowId);
+				throw new PacketHandlingException("Legacy transactions cannot predict changes to inventory with ID " . $windowId);
 			}
-			$info = $this->locateWindowAndSlot($action->windowId, $action->inventorySlot);
+			$info = $this->locateWindowAndSlot($windowId, $action["slot"]);
 			if($info === null){
 				continue;
 			}
 
 			[$inventory, $slot] = $info;
-			$this->addPredictedSlotChangeInternal($inventory, $slot, $action->newItem->getItemStack());
+			$this->addPredictedSlotChangeInternal($inventory, $slot, Fields::toItemStack($action["to_item"]));
 		}
 	}
 

@@ -78,6 +78,7 @@ use quark\network\mcpe\handler\PacketHandlerInspector;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketRateLimiter;
+use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\raklib\RakLibInterface;
 use quark\network\Network;
 use quark\network\PacketHandlingException;
@@ -716,19 +717,22 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testItemStackHandlerStillLimitsAlreadyDecodedRequests() : void{
 		$handler = (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
-		$packet = ItemStackRequestPacket::create(array_fill(0, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, new ItemStackRequest(0, [], [], 0)));
-		$this->expectException(PacketHandlingException::class);
-		$handler->handleItemStackRequest($packet);
+		$request = ["client_request_id" => 0, "actions" => [], "strings_to_filter" => [], "strings_to_filter_origin" => 0];
+		try{ $handler->handleItemStackRequest(["requests" => array_fill(0, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, $request)]); self::fail("Handler accepted oversized request list"); }catch(PacketHandlingException $e){
+			self::assertSame([InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS], [$e->observed, $e->limit]);
+		}
 	}
 
 	public function testInventoryHandlerStillLimitsAlreadyDecodedPackets() : void{
 		$handler = (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
+		$item = Fields::itemStack(ItemStack::null());
+		$action = ["source" => ["source_type" => 0, "container_id" => 0, "bit_flags" => null], "slot" => 0, "from_item" => $item, "to_item" => $item];
 		foreach([
-			InventoryTransactionPacket::create(0, null, NormalTransactionData::new(array_fill(0, 51, new NetworkInventoryAction()))),
-			InventoryTransactionPacket::create(0, array_fill(0, 11, new InventoryTransactionChangedSlotsHack(0, [])), NormalTransactionData::new([]))
-		] as $packet){
+			[["legacy_request_id" => 0, "legacy_set_item_slots" => null, "transaction" => ["normal_transaction_data" => array_fill(0, 51, $action)]], "Too many actions in inventory transaction", 51, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS],
+			[["legacy_request_id" => 0, "legacy_set_item_slots" => array_fill(0, 11, ["container_enum" => 0, "slots" => ""]), "transaction" => ["normal_transaction_data" => []]], "Too many slot sync requests in inventory transaction", 11, InGamePacketHandler::MAX_INVENTORY_SLOT_SYNC_REQUESTS],
+		] as [$packet, $message, $observed, $limit]){
 			try{ $handler->handleInventoryTransaction($packet); self::fail("Handler accepted oversized inventory list"); }catch(PacketHandlingException $e){
-				self::assertSame($packet->requestChangedSlots === null ? "Too many actions in inventory transaction" : "Too many slot sync requests in inventory transaction", $e->getMessage());
+				self::assertSame([$message, $observed, $limit], [$e->getMessage(), $e->observed, $e->limit]);
 			}
 		}
 	}

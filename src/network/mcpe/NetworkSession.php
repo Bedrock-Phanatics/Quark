@@ -780,7 +780,7 @@ class NetworkSession{
 					$this->unhandledPacketDebug($packetId, $buffer, "Handler rejected");
 				}
 			}catch(PacketHandlingException $e){
-				$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packetId);
+				$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packetId, $e->observed, $e->limit);
 				throw $e;
 			}finally{
 				$handlerZone->stop($handlerZoneScope);
