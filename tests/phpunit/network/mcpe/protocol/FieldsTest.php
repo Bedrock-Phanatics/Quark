@@ -30,11 +30,14 @@ use pocketmine\color\Color;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
+use pocketmine\network\mcpe\protocol\PlayerEnchantOptionsPacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
+use pocketmine\network\mcpe\protocol\types\Enchant;
+use pocketmine\network\mcpe\protocol\types\EnchantOption;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
@@ -163,6 +166,22 @@ final class FieldsTest extends TestCase{
 			Fields::playerListAddition($uuid, -9, "Steve", $skin, "1234"),
 			Fields::playerListRemoval($uuid),
 		]])->getEncoded();
+		self::assertSame(bin2hex($expected), bin2hex($actual));
+	}
+
+	public function testEnchantOptionsMatchBedrockProtocol() : void{
+		$expected = self::legacy(PlayerEnchantOptionsPacket::create([
+			new EnchantOption(30, 0, [new Enchant(9, 3), new Enchant(17, 1)], [], [], "fire", 77),
+		]));
+		$actual = Packets::playerEnchantOptions(["options" => [[
+			"cost" => 30,
+			"enchants" => ["slot" => 0, "item_enchants" => [[
+				["enchant_type" => 9, "enchant_level" => 3],
+				["enchant_type" => 17, "enchant_level" => 1],
+			], [], []]],
+			"enchant_name" => "fire",
+			"enchant_net_id" => 77,
+		]]])->getEncoded();
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}
 
