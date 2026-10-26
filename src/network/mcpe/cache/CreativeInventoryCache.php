@@ -24,14 +24,15 @@ declare(strict_types=1);
 namespace quark\network\mcpe\cache;
 
 use pocketmine\network\mcpe\protocol\CreativeContentPacket;
-use pocketmine\network\mcpe\protocol\types\inventory\CreativeGroupEntry;
-use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeInventory;
 use quark\lang\Translatable;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\Packets;
 use quark\utils\SingletonTrait;
 use function is_string;
 use function spl_object_id;
@@ -95,17 +96,17 @@ final class CreativeInventoryCache{
 		//creative inventory may have holes if items were unregistered - ensure network IDs used are always consistent
 		$items = [];
 		foreach($inventory->getAllEntries() as $k => $entry){
-			$items[] = new CreativeItemEntry(
-				$k,
-				$typeConverter->coreItemStackToNet($entry->getItem()),
-				$itemGroupIndexes[$k]
-			);
+			$items[] = [
+				"creative_net_id" => $k,
+				"item_instance" => Fields::itemInstance($typeConverter->coreItemStackToNet($entry->getItem())),
+				"group_index" => $itemGroupIndexes[$k],
+			];
 		}
 
 		return new CreativeInventoryCacheEntry($categories, $groups, $items);
 	}
 
-	public function buildPacket(CreativeInventory $inventory, NetworkSession $session) : CreativeContentPacket{
+	public function buildPacket(CreativeInventory $inventory, NetworkSession $session) : Packet{
 		$player = $session->getPlayer() ?? throw new \LogicException("Cannot prepare creative data for a session without a player");
 		$language = $player->getLanguage();
 		$forceLanguage = $player->getServer()->isLanguageForced();
@@ -132,7 +133,7 @@ final class CreativeInventoryCache{
 				CreativeCategory::ITEMS => CreativeContentPacket::CATEGORY_ITEMS
 			};
 			if($group === null){
-				$groupEntries[] = new CreativeGroupEntry($categoryId, "", ItemStack::null());
+				$groupEntries[] = ["creative_category" => $categoryId, "name" => "", "group_icon_item" => Fields::itemInstance(ItemStack::null())];
 			}else{
 				$groupIcon = $group->getIcon();
 				//TODO: HACK! In 1.21.60, Workaround glitchy behaviour when an item is used as an icon for a group it
@@ -140,14 +141,14 @@ final class CreativeInventoryCache{
 				//will actually expand the group work correctly.
 				$groupIcon->getNamedTag()->setInt("___GroupBugWorkaround___", $index);
 				$groupName = $group->getName();
-				$groupEntries[] = new CreativeGroupEntry(
-					$categoryId,
-					$translate($groupName),
-					$typeConverter->coreItemStackToNet($groupIcon)
-				);
+				$groupEntries[] = [
+					"creative_category" => $categoryId,
+					"name" => $translate($groupName),
+					"group_icon_item" => Fields::itemInstance($typeConverter->coreItemStackToNet($groupIcon)),
+				];
 			}
 		}
 
-		return CreativeContentPacket::create($groupEntries, $cachedEntry->items);
+		return Packets::creativeContent(["groups" => $groupEntries, "entries" => $cachedEntry->items]);
 	}
 }

@@ -26,41 +26,41 @@ namespace quark\network\mcpe\cache;
 use Bedwire\Nbt;
 use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\AvailableActorIdentifiersPacket;
-use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
-use pocketmine\network\mcpe\protocol\JigsawStructureDataPacket;
-use pocketmine\network\mcpe\protocol\types\biome\BiomeDefinitionEntry;
-use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
-use pocketmine\network\mcpe\protocol\types\CacheableNbt;
-use pocketmine\network\mcpe\protocol\types\SerializableVoxelCells;
-use pocketmine\network\mcpe\protocol\types\SerializableVoxelShape;
-use pocketmine\network\mcpe\protocol\VoxelShapesPacket;
+use pocketmine\nbt\TreeRoot;
+use pocketmine\utils\Binary;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\data\SavedDataLoadingException;
 use quark\network\mcpe\cache\model\VoxelShapesData;
+use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\Packets;
 use quark\utils\Filesystem;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
 use quark\world\biome\model\BiomeDefinitionEntryData;
+use function array_map;
 use function count;
 use function get_debug_type;
 use function is_array;
 use function json_decode;
+use function pack;
 
+/**
+ * Packets that are the same for every player, encoded once.
+ *
+ * @phpstan-import-type ServerBlockProperty from Packets
+ */
 class StaticPacketCache{
 	use SingletonTrait;
 
-	/**
-	 * @phpstan-return CacheableNbt<CompoundTag>
-	 */
-	private static function loadCompoundFromFile(string $filePath) : CacheableNbt{
-		return new CacheableNbt(Nbt::read(Filesystem::fileGetContents($filePath), Nbt::NETWORK)->mustGetCompoundTag());
+	private static function loadCompoundFromFile(string $filePath) : CompoundTag{
+		return Nbt::read(Filesystem::fileGetContents($filePath), Nbt::NETWORK)->mustGetCompoundTag();
 	}
 
-	/**
-	 * @return list<BiomeDefinitionEntry>
-	 */
-	private static function loadBiomeDefinitionModel(string $filePath) : array{
+	private static function encodeCompound(CompoundTag $tag) : string{
+		return Nbt::write(new TreeRoot($tag), Nbt::NETWORK);
+	}
+
+	private static function buildBiomeDefinitions(string $filePath) : Packet{
 		$biomeEntries = json_decode(Filesystem::fileGetContents($filePath), associative: true);
 		if(!is_array($biomeEntries)){
 			throw new SavedDataLoadingException("$filePath root should be an array, got " . get_debug_type($biomeEntries));
@@ -71,7 +71,18 @@ class StaticPacketCache{
 		$jsonMapper->bStrictObjectTypeChecking = true;
 		$jsonMapper->bEnforceMapType = false;
 
-		$entries = [];
+		//biome names and tags are sent once in a string table, and referred to by index
+		$stringIndexes = [];
+		$strings = [];
+		$addString = function(string $string) use (&$stringIndexes, &$strings) : int{
+			if(!isset($stringIndexes[$string])){
+				$stringIndexes[$string] = count($strings);
+				$strings[] = $string;
+			}
+			return $stringIndexes[$string];
+		};
+
+		$definitions = [];
 		foreach(Utils::promoteKeys($biomeEntries) as $biomeName => $entry){
 			if(!is_array($entry)){
 				throw new SavedDataLoadingException("$filePath should be an array of objects, got " . get_debug_type($entry));
@@ -79,34 +90,31 @@ class StaticPacketCache{
 
 			try{
 				$biomeDefinition = $jsonMapper->map($entry, new BiomeDefinitionEntryData());
-
-				$mapWaterColour = $biomeDefinition->mapWaterColour;
-				$entries[] = new BiomeDefinitionEntry(
-					(string) $biomeName,
-					$biomeDefinition->id,
-					$biomeDefinition->temperature,
-					$biomeDefinition->downfall,
-					$biomeDefinition->foliageSnow,
-					$biomeDefinition->depth,
-					$biomeDefinition->scale,
-					new Color(
-						$mapWaterColour->r,
-						$mapWaterColour->g,
-						$mapWaterColour->b,
-						$mapWaterColour->a
-					),
-					$biomeDefinition->rain,
-					count($biomeDefinition->tags) > 0 ? $biomeDefinition->tags : null,
-				);
 			}catch(\JsonMapper_Exception $e){
 				throw new \RuntimeException($e->getMessage(), 0, $e);
 			}
+			$colour = $biomeDefinition->mapWaterColour;
+			$definitions[] = [
+				"key" => $addString((string) $biomeName),
+				"value" => [
+					"id" => $biomeDefinition->id,
+					"temperature" => $biomeDefinition->temperature,
+					"downfall" => $biomeDefinition->downfall,
+					"foliage_snow" => $biomeDefinition->foliageSnow,
+					"depth" => $biomeDefinition->depth,
+					"scale" => $biomeDefinition->scale,
+					"map_water_color_argb" => Binary::signInt((new Color($colour->r, $colour->g, $colour->b, $colour->a))->toARGB()),
+					"rain" => $biomeDefinition->rain,
+					"tags" => count($biomeDefinition->tags) > 0 ? array_map($addString, $biomeDefinition->tags) : null,
+					"chunk_gen_data" => null,
+				],
+			];
 		}
 
-		return $entries;
+		return self::encoded(Packets::biomeDefinitionList(["map_of_biome_names_to_data" => $definitions, "string_list" => $strings]));
 	}
 
-	private static function loadVoxelShapesModel(string $filePath) : VoxelShapesData{
+	private static function buildVoxelShapes(string $filePath) : Packet{
 		$voxelShapes = json_decode(Filesystem::fileGetContents($filePath), associative: true);
 		if(!is_array($voxelShapes)){
 			throw new SavedDataLoadingException("$filePath root should be an array, got " . get_debug_type($voxelShapes));
@@ -118,34 +126,32 @@ class StaticPacketCache{
 		$jsonMapper->bEnforceMapType = false;
 
 		try{
-			return $jsonMapper->map($voxelShapes, new VoxelShapesData());
+			$data = $jsonMapper->map($voxelShapes, new VoxelShapesData());
 		}catch(\JsonMapper_Exception $e){
 			throw new \RuntimeException($e->getMessage(), 0, $e);
 		}
-	}
 
-	private static function buildVoxelShapesPacket(VoxelShapesData $data) : VoxelShapesPacket{
 		$shapes = [];
 		foreach($data->shapes as $shape){
 			$cells = $shape->cells;
-			$shapes[] = new SerializableVoxelShape(
-				new SerializableVoxelCells($cells->xSize, $cells->ySize, $cells->zSize, $cells->storage),
-				$shape->x,
-				$shape->y,
-				$shape->z
-			);
+			$shapes[] = [
+				"cells" => ["x_size" => $cells->xSize, "y_size" => $cells->ySize, "z_size" => $cells->zSize, "storage" => pack("C*", ...$cells->storage)],
+				"x_coordinates" => $shape->x,
+				"y_coordinates" => $shape->y,
+				"z_coordinates" => $shape->z,
+			];
+		}
+		$nameMap = [];
+		foreach(Utils::stringifyKeys($data->nameMap) as $name => $id){
+			$nameMap[] = ["key" => $name, "value" => $id];
 		}
 
-		return VoxelShapesPacket::create($shapes, $data->nameMap, 0);
+		return self::encoded(Packets::voxelShapes(["shapes" => $shapes, "name_map" => $nameMap, "custom_shape_count" => 0]));
 	}
 
-	/** @phpstan-return list<BlockPaletteEntry> */
+	/** @phpstan-return list<ServerBlockProperty> */
 	private static function loadDataDrivenBlockPalette(string $filePath) : array{
-		$nbt = self::loadCompoundFromFile($filePath)->getRoot();
-		if(!$nbt instanceof CompoundTag){
-			throw new SavedDataLoadingException("$filePath should contain a CompoundTag, got " . get_debug_type($nbt));
-		}
-		$paletteNBT = $nbt->getListTag("blockPalette");
+		$paletteNBT = self::loadCompoundFromFile($filePath)->getListTag("blockPalette");
 		if($paletteNBT === null){
 			throw new SavedDataLoadingException("$filePath should contain a blockPalette ListTag");
 		}
@@ -159,50 +165,59 @@ class StaticPacketCache{
 			if($states === null){
 				throw new SavedDataLoadingException("$filePath blockPalette entry $name should contain a states CompoundTag");
 			}
-			$palette[] = new BlockPaletteEntry($name, new CacheableNbt($states));
+			$palette[] = ["block_name" => $name, "block_definition" => self::encodeCompound($states)];
 		}
 		return $palette;
 	}
 
+	/**
+	 * Encodes the packet now, so every session sends the same bytes without encoding them again.
+	 */
+	private static function encoded(Packet $packet) : Packet{
+		$packet->getEncoded();
+		return $packet;
+	}
+
 	private static function make() : self{
 		return new self(
-			BiomeDefinitionListPacket::fromDefinitions(self::loadBiomeDefinitionModel(BedrockDataFiles::BIOME_DEFINITIONS_JSON)),
-			AvailableActorIdentifiersPacket::create(self::loadCompoundFromFile(BedrockDataFiles::ENTITY_IDENTIFIERS_NBT)),
-			JigsawStructureDataPacket::create(self::loadCompoundFromFile(BedrockDataFiles::JIGSAW_STRUCTURES_DATA_NBT)),
-			self::buildVoxelShapesPacket(self::loadVoxelShapesModel(BedrockDataFiles::VOXEL_SHAPES_JSON)),
+			self::buildBiomeDefinitions(BedrockDataFiles::BIOME_DEFINITIONS_JSON),
+			self::encoded(Packets::availableActorIdentifiers(["identifier_list" => self::encodeCompound(self::loadCompoundFromFile(BedrockDataFiles::ENTITY_IDENTIFIERS_NBT))])),
+			self::encoded(Packets::jigsawStructureData(["jigsaw_structure_data_tag" => self::encodeCompound(self::loadCompoundFromFile(BedrockDataFiles::JIGSAW_STRUCTURES_DATA_NBT))])),
+			self::buildVoxelShapes(BedrockDataFiles::VOXEL_SHAPES_JSON),
 			self::loadDataDrivenBlockPalette(BedrockDataFiles::DATA_DRIVEN_BLOCKS_NBT)
 		);
 	}
 
-	/** @phpstan-param list<BlockPaletteEntry> $blockPaletteEntries */
+	/** @phpstan-param list<ServerBlockProperty> $blockPaletteEntries */
 	public function __construct(
-		private BiomeDefinitionListPacket $biomeDefs,
-		private AvailableActorIdentifiersPacket $availableActorIdentifiers,
-		private JigsawStructureDataPacket $jigsawStructureData,
-		private VoxelShapesPacket $voxelShapes,
+		private Packet $biomeDefs,
+		private Packet $availableActorIdentifiers,
+		private Packet $jigsawStructureData,
+		private Packet $voxelShapes,
 		private array $blockPaletteEntries
 	){
 	}
 
-	public function getBiomeDefs() : BiomeDefinitionListPacket{
+	public function getBiomeDefs() : Packet{
 		return $this->biomeDefs;
 	}
 
-	public function getAvailableActorIdentifiers() : AvailableActorIdentifiersPacket{
+	public function getAvailableActorIdentifiers() : Packet{
 		return $this->availableActorIdentifiers;
 	}
 
-	public function getJigsawStructureData() : JigsawStructureDataPacket{
+	public function getJigsawStructureData() : Packet{
 		return $this->jigsawStructureData;
 	}
 
-	public function getVoxelShapes() : VoxelShapesPacket{
+	public function getVoxelShapes() : Packet{
 		return $this->voxelShapes;
 	}
 
 	/**
-	 * @return BlockPaletteEntry[]
-	 * @phpstan-return list<BlockPaletteEntry>
+	 * The data-driven blocks StartGame lists, as its block_properties field takes them.
+	 *
+	 * @phpstan-return list<ServerBlockProperty>
 	 */
 	public function getBlockPaletteEntries() : array{
 		return $this->blockPaletteEntries;

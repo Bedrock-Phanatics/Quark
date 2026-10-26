@@ -23,20 +23,23 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeGroup;
+use quark\network\mcpe\protocol\Packets;
 
+/**
+ * @phpstan-import-type CreativeItemEntryPayload from Packets
+ */
 final class CreativeInventoryCacheEntry{
 
 	/**
 	 * @param CreativeCategory[]     $categories
 	 * @param CreativeGroup[]|null[] $groups
-	 * @param CreativeItemEntry[]    $items
+	 * @param array[]                $items
 	 *
-	 * @phpstan-param list<CreativeCategory>   $categories
-	 * @phpstan-param list<CreativeGroup|null> $groups
-	 * @phpstan-param list<CreativeItemEntry>  $items
+	 * @phpstan-param list<CreativeCategory>          $categories
+	 * @phpstan-param list<CreativeGroup|null>        $groups
+	 * @phpstan-param list<CreativeItemEntryPayload>  $items
 	 */
 	public function __construct(
 		public readonly array $categories,

@@ -30,6 +30,10 @@ use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use pocketmine\network\mcpe\protocol\types\recipe\MolangItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
+use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
 use pocketmine\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
 use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPiece;
 use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPieceType;
@@ -56,6 +60,7 @@ use function strlen;
  * @phpstan-import-type AbilityData from Packets
  * @phpstan-import-type PlayerListAddEntry from Packets
  * @phpstan-import-type PlayerListRemoveEntry from Packets
+ * @phpstan-import-type RecipeIngredientRecipeIngredient from Packets
  */
 final class Fields{
 	//ability bits for the speeds a layer sets, private in AbilitiesLayer
@@ -186,6 +191,24 @@ final class Fields{
 	 */
 	public static function toItemStack(array $item) : ItemStack{
 		return new ItemStack($item["id"], $item["aux_value"], $item["stack_size"], $item["block_runtime_id"], $item["user_data_buffer"]);
+	}
+
+	/**
+	 * A recipe ingredient as crafting data lists it.
+	 *
+	 * @phpstan-return RecipeIngredientRecipeIngredient
+	 */
+	public static function recipeIngredient(RecipeIngredient $ingredient) : array{
+		$descriptor = $ingredient->getDescriptor();
+		return [
+			"descriptor" => match(true){
+				$descriptor === null => ["empty" => ["aux" => 0x7fff]],
+				$descriptor instanceof StringIdMetaItemDescriptor => ["item" => ["name" => $descriptor->getId(), "aux" => $descriptor->getMeta()]],
+				$descriptor instanceof TagItemDescriptor => ["item_tag" => ["tag" => $descriptor->getTag(), "aux" => $descriptor->getMeta()]],
+				$descriptor instanceof MolangItemDescriptor => ["molang" => ["expression" => $descriptor->getMolangExpression(), "version" => $descriptor->getMolangVersion()]],
+			},
+			"count" => $ingredient->getCount(),
+		];
 	}
 
 	/**
