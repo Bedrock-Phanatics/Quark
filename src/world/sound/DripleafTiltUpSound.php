@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class DripleafTiltUpSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::TILT_UP_BIG_DRIPLEAF, $pos, false)];
+		return [LevelPackets::sound(LevelSoundEvent::TILT_UP_BIG_DRIPLEAF, $pos, false)];
 	}
 }

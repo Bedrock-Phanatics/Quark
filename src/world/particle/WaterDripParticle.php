@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class WaterDripParticle implements Particle{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::standardParticle(ParticleIds::DRIP_WATER, 0, $pos)];
+		return [LevelPackets::particle(ParticleIds::DRIP_WATER, 0, $pos)];
 	}
 }

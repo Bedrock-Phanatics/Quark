@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class SweetBerriesPickSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::BLOCK_SWEET_BERRY_BUSH_PICK, $pos, false)];
+		return [LevelPackets::sound(LevelSoundEvent::BLOCK_SWEET_BERRY_BUSH_PICK, $pos, false)];
 	}
 }

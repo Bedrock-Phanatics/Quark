@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\block\Block;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\LevelPackets;
 
 final class PressurePlateDeactivateSound implements Sound{
 
@@ -36,7 +36,7 @@ final class PressurePlateDeactivateSound implements Sound{
 	){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(
+		return [LevelPackets::sound(
 			LevelSoundEvent::PRESSURE_PLATE_CLICK_OFF,
 			$pos,
 			false,

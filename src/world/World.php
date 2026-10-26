@@ -77,6 +77,7 @@ use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\protocol\Packet;
 use quark\player\Player;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
@@ -264,8 +265,8 @@ class World implements ChunkManager{
 	private array $playerChunkListeners = [];
 
 	/**
-	 * @var ClientboundPacket[][]
-	 * @phpstan-var array<ChunkPosHash, list<ClientboundPacket>>
+	 * @var Packet[][]|ClientboundPacket[][]
+	 * @phpstan-var array<ChunkPosHash, list<Packet|ClientboundPacket>>
 	 */
 	private array $packetBuffersByChunk = [];
 
@@ -827,11 +828,11 @@ class World implements ChunkManager{
 	/**
 	 * Broadcasts a packet to every player who has the target position within their view distance.
 	 */
-	public function broadcastPacketToViewers(Vector3 $pos, ClientboundPacket $packet) : void{
+	public function broadcastPacketToViewers(Vector3 $pos, Packet|ClientboundPacket $packet) : void{
 		$this->broadcastPacketToPlayersUsingChunk($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE, $packet);
 	}
 
-	private function broadcastPacketToPlayersUsingChunk(int $chunkX, int $chunkZ, ClientboundPacket $packet) : void{
+	private function broadcastPacketToPlayersUsingChunk(int $chunkX, int $chunkZ, Packet|ClientboundPacket $packet) : void{
 		if(!isset($this->packetBuffersByChunk[$index = World::chunkHash($chunkX, $chunkZ)])){
 			$this->packetBuffersByChunk[$index] = [$packet];
 		}else{

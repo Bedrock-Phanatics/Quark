@@ -24,13 +24,13 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 final class GeyserContinuousEruptionStartSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(
+		return [LevelPackets::sound(
 			LevelSoundEvent::GEYSER_CONTINUOUS_ERUPTION_START,
 			$pos,
 			false,

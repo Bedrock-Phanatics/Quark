@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\Packets;
 
 final class ConsumingItemAnimation implements Animation{
 
@@ -40,7 +40,7 @@ final class ConsumingItemAnimation implements Animation{
 		[$netId, $netData] = TypeConverter::getInstance()->getItemTranslator()->toNetworkId($this->item);
 		return [
 			//TODO: need to check the data values
-			ActorEventPacket::create($this->entity->getId(), ActorEvent::EATING_ITEM, ($netId << 16) | $netData, null)
+			Packets::actorEvent(["target_runtime_id" => $this->entity->getId(), "event_id" => ActorEvent::EATING_ITEM, "data" => ($netId << 16) | $netData, "fire_at_position" => null])
 		];
 	}
 }

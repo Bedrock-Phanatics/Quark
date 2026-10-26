@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 final class BlastFurnaceSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::BLOCK_BLASTFURNACE_FIRE_CRACKLE, $pos, false)];
+		return [LevelPackets::sound(LevelSoundEvent::BLOCK_BLASTFURNACE_FIRE_CRACKLE, $pos, false)];
 	}
 }

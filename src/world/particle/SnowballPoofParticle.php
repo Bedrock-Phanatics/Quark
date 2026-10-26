@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class SnowballPoofParticle implements Particle{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::standardParticle(ParticleIds::SNOWBALL_POOF, 0, $pos)];
+		return [LevelPackets::particle(ParticleIds::SNOWBALL_POOF, 0, $pos)];
 	}
 }

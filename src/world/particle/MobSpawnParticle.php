@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class MobSpawnParticle implements Particle{
 	public function __construct(
@@ -36,6 +36,6 @@ class MobSpawnParticle implements Particle{
 	}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::create(LevelEvent::PARTICLE_SPAWN, ($this->width & 0xff) | (($this->height & 0xff) << 8), $pos)];
+		return [LevelPackets::event(LevelEvent::PARTICLE_SPAWN, ($this->width & 0xff) | (($this->height & 0xff) << 8), $pos)];
 	}
 }

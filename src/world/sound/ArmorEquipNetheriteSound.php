@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class ArmorEquipNetheriteSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::ARMOR_EQUIP_NETHERITE, $pos, false)];
+		return [LevelPackets::sound(LevelSoundEvent::ARMOR_EQUIP_NETHERITE, $pos, false)];
 	}
 }

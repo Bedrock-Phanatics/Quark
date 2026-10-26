@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\block\Block;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\LevelPackets;
 
 /**
  * This particle appears when a player is attacking a block face in survival mode attempting to break it.
@@ -39,6 +39,6 @@ class BlockPunchParticle implements Particle{
 	){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::create(LevelEvent::PARTICLE_PUNCH_BLOCK, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->block->getStateId()) | ($this->face << 24), $pos)];
+		return [LevelPackets::event(LevelEvent::PARTICLE_PUNCH_BLOCK, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->block->getStateId()) | ($this->face << 24), $pos)];
 	}
 }

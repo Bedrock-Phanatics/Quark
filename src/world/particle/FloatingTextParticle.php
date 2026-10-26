@@ -24,20 +24,15 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\AddActorPacket;
-use pocketmine\network\mcpe\protocol\RemoveActorPacket;
-use pocketmine\network\mcpe\protocol\types\entity\ByteMetadataProperty;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\network\mcpe\protocol\types\entity\FloatMetadataProperty;
-use pocketmine\network\mcpe\protocol\types\entity\IntMetadataProperty;
-use pocketmine\network\mcpe\protocol\types\entity\LongMetadataProperty;
-use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
-use pocketmine\network\mcpe\protocol\types\entity\StringMetadataProperty;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\EntityMetadata;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packets;
 
 class FloatingTextParticle implements Particle{
 	//TODO: HACK!
@@ -80,7 +75,7 @@ class FloatingTextParticle implements Particle{
 		if($this->entityId === null){
 			$this->entityId = Entity::nextRuntimeId();
 		}else{
-			$p[] = RemoveActorPacket::create($this->entityId);
+			$p[] = Packets::removeActor(["target_actor_id" => $this->entityId]);
 		}
 
 		if(!$this->invisible){
@@ -89,30 +84,28 @@ class FloatingTextParticle implements Particle{
 			$actorFlags = (
 				1 << EntityMetadataFlags::NO_AI
 			);
-			$actorMetadata = [
-				EntityMetadataProperties::FLAGS => new LongMetadataProperty($actorFlags),
-				EntityMetadataProperties::SCALE => new FloatMetadataProperty(0.01), //zero causes problems on debug builds
-				EntityMetadataProperties::BOUNDING_BOX_WIDTH => new FloatMetadataProperty(0.0),
-				EntityMetadataProperties::BOUNDING_BOX_HEIGHT => new FloatMetadataProperty(0.0),
-				EntityMetadataProperties::NAMETAG => new StringMetadataProperty($name),
-				EntityMetadataProperties::VARIANT => new IntMetadataProperty(TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId(VanillaBlocks::AIR()->getStateId())),
-				EntityMetadataProperties::ALWAYS_SHOW_NAMETAG => new ByteMetadataProperty(1),
-			];
-			$p[] = AddActorPacket::create(
-				$this->entityId, //TODO: actor unique ID
-				$this->entityId,
-				EntityIds::FALLING_BLOCK,
-				$pos, //TODO: check offset (0.49?)
-				null,
-				0,
-				0,
-				0,
-				0,
-				[],
-				$actorMetadata,
-				new PropertySyncData([], []),
-				[]
-			);
+			$actorMetadata = new EntityMetadata();
+			$actorMetadata->setLong(EntityMetadataProperties::FLAGS, $actorFlags);
+			$actorMetadata->setFloat(EntityMetadataProperties::SCALE, 0.01); //zero causes problems on debug builds
+			$actorMetadata->setFloat(EntityMetadataProperties::BOUNDING_BOX_WIDTH, 0.0);
+			$actorMetadata->setFloat(EntityMetadataProperties::BOUNDING_BOX_HEIGHT, 0.0);
+			$actorMetadata->setString(EntityMetadataProperties::NAMETAG, $name);
+			$actorMetadata->setInt(EntityMetadataProperties::VARIANT, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId(VanillaBlocks::AIR()->getStateId()));
+			$actorMetadata->setByte(EntityMetadataProperties::ALWAYS_SHOW_NAMETAG, 1);
+			$p[] = Packets::addActor([
+				"target_actor_id" => $this->entityId, //TODO: actor unique ID
+				"target_runtime_id" => $this->entityId,
+				"actor_type" => EntityIds::FALLING_BLOCK,
+				"position" => Fields::vec3($pos), //TODO: check offset (0.49?)
+				"velocity" => ["x" => 0.0, "y" => 0.0, "z" => 0.0],
+				"rotation" => ["x" => 0.0, "y" => 0.0],
+				"y_head_rotation" => 0.0,
+				"y_body_rotation" => 0.0,
+				"attributes_list" => [],
+				"actor_data" => $actorMetadata->getAll(),
+				"synched_properties" => ["int_entries_list" => [], "float_entries_list" => []],
+				"actor_links" => [],
+			]);
 		}
 
 		return $p;

@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\block\Block;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\LevelPackets;
 
 final class ItemUseOnBlockSound implements Sound{
 
@@ -38,7 +38,7 @@ final class ItemUseOnBlockSound implements Sound{
 	public function getBlock() : Block{ return $this->block; }
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(
+		return [LevelPackets::sound(
 			LevelSoundEvent::ITEM_USE_ON,
 			$pos,
 			false,

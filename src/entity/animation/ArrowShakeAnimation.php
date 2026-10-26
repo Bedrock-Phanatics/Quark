@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use pocketmine\network\mcpe\protocol\ActorEventPacket;
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\projectile\Arrow;
+use quark\network\mcpe\protocol\Packets;
 
 class ArrowShakeAnimation implements Animation{
 
@@ -36,7 +36,7 @@ class ArrowShakeAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			ActorEventPacket::create($this->arrow->getId(), ActorEvent::ARROW_SHAKE, $this->durationInTicks, null)
+			Packets::actorEvent(["target_runtime_id" => $this->arrow->getId(), "event_id" => ActorEvent::ARROW_SHAKE, "data" => $this->durationInTicks, "fire_at_position" => null])
 		];
 	}
 }

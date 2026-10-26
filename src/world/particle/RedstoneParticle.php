@@ -24,13 +24,13 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class RedstoneParticle implements Particle{
 	public function __construct(private int $lifetime = 1){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::standardParticle(ParticleIds::REDSTONE, $this->lifetime, $pos)];
+		return [LevelPackets::particle(ParticleIds::REDSTONE, $this->lifetime, $pos)];
 	}
 }

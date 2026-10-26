@@ -24,16 +24,26 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\ClientboundUpdateSoundDataPacket;
-use pocketmine\network\mcpe\protocol\types\sound\SoundDataEvent;
+use quark\network\mcpe\protocol\Packets;
 
 class RecordStopSound implements Sound{
 	public function __construct(private int $serverSoundHandleId = 0){
 	}
 
 	public function encode(Vector3 $pos) : array{
+		//the protocol repeats the event once for each kind of event
+		$stop = ["stop" => []];
 		return [
-			ClientboundUpdateSoundDataPacket::create($this->serverSoundHandleId, SoundDataEvent::stop())
+			Packets::clientboundUpdateSoundData([
+				"server_sound_handle" => $this->serverSoundHandleId,
+				"stop" => $stop,
+				"set_volume" => $stop,
+				"set_pitch" => $stop,
+				"fade" => $stop,
+				"seek_to" => $stop,
+				"pause" => $stop,
+				"resume" => $stop,
+			])
 		];
 	}
 }

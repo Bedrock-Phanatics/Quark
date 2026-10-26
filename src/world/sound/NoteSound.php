@@ -24,9 +24,9 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\data\bedrock\NoteInstrumentIdMap;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class NoteSound implements Sound{
 	public function __construct(
@@ -40,6 +40,6 @@ class NoteSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
 		$instrumentId = NoteInstrumentIdMap::getInstance()->toId($this->instrument);
-		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::NOTE, $pos, false, ($instrumentId << 8) | $this->note)];
+		return [LevelPackets::sound(LevelSoundEvent::NOTE, $pos, false, ($instrumentId << 8) | $this->note)];
 	}
 }

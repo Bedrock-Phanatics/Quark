@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class HugeExplodeSeedParticle implements Particle{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::standardParticle(ParticleIds::HUGE_EXPLODE_SEED, 0, $pos)];
+		return [LevelPackets::particle(ParticleIds::HUGE_EXPLODE_SEED, 0, $pos)];
 	}
 }

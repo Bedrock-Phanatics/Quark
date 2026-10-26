@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 use function abs;
 
 class DragonEggTeleportParticle implements Particle{
@@ -55,6 +55,6 @@ class DragonEggTeleportParticle implements Particle{
 			(abs($this->yDiff) << 8) |
 			abs($this->zDiff);
 
-		return [LevelEventPacket::create(LevelEvent::PARTICLE_DRAGON_EGG_TELEPORT, $data, $pos)];
+		return [LevelPackets::event(LevelEvent::PARTICLE_DRAGON_EGG_TELEPORT, $data, $pos)];
 	}
 }

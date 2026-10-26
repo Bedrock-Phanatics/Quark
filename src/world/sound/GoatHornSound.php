@@ -24,15 +24,15 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\item\GoatHornType;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class GoatHornSound implements Sound{
 	public function __construct(private GoatHornType $goatHornType){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(match($this->goatHornType){
+		return [LevelPackets::sound(match($this->goatHornType){
 			GoatHornType::PONDER => LevelSoundEvent::HORN_CALL0,
 			GoatHornType::SING => LevelSoundEvent::HORN_CALL1,
 			GoatHornType::SEEK => LevelSoundEvent::HORN_CALL2,

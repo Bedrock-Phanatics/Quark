@@ -25,13 +25,14 @@ namespace quark\world\particle;
 
 use pocketmine\color\Color;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use pocketmine\utils\Binary;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class DustParticle implements Particle{
 	public function __construct(private Color $color){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::standardParticle(ParticleIds::DUST, $this->color->toARGB(), $pos)];
+		return [LevelPackets::particle(ParticleIds::DUST, Binary::signInt($this->color->toARGB()), $pos)];
 	}
 }

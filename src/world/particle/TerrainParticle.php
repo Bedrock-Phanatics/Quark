@@ -24,15 +24,15 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
 use quark\block\Block;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class TerrainParticle implements Particle{
 	public function __construct(private Block $b){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::standardParticle(ParticleIds::TERRAIN, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->b->getStateId()), $pos)];
+		return [LevelPackets::particle(ParticleIds::TERRAIN, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->b->getStateId()), $pos)];
 	}
 }

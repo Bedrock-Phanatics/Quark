@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use quark\network\mcpe\protocol\Packet;
 
 interface Sound{
 
 	/**
-	 * @return ClientboundPacket[]
+	 * @return Packet[]
 	 */
 	public function encode(Vector3 $pos) : array;
 }

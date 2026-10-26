@@ -24,15 +24,15 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\block\Block;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class BlockBreakSound implements Sound{
 	public function __construct(private Block $block){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::BREAK, $pos, false, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->block->getStateId()))];
+		return [LevelPackets::sound(LevelSoundEvent::BREAK, $pos, false, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->block->getStateId()))];
 	}
 }

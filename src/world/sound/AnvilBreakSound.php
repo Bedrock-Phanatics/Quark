@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\network\mcpe\protocol\LevelPackets;
 
 class AnvilBreakSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelEventPacket::create(LevelEvent::SOUND_ANVIL_BREAK, 0, $pos)];
+		return [LevelPackets::event(LevelEvent::SOUND_ANVIL_BREAK, 0, $pos)];
 	}
 }
