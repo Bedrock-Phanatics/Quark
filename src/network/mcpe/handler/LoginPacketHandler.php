@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationInfo;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
 use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientData;
@@ -32,6 +31,7 @@ use pocketmine\network\mcpe\protocol\types\login\legacy\LegacyAuthIdentityData;
 use pocketmine\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
 use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtHeader;
+use pocketmine\utils\Binary;
 use quark\entity\InvalidSkinException;
 use quark\event\player\PlayerPreLoginEvent;
 use quark\lang\KnownTranslationFactory;
@@ -42,6 +42,7 @@ use quark\network\mcpe\auth\ProcessSelfSignedLoginTask;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\Packets;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
 use quark\player\PlayerInfo;
@@ -74,6 +75,8 @@ use const JSON_THROW_ON_ERROR;
 
 /**
  * Handles the initial login phase of the session. This handler is used as the initial state.
+ *
+ * @phpstan-import-type LoginFields from Packets
  */
 class LoginPacketHandler extends PacketHandler{
 	/**
@@ -95,9 +98,13 @@ class LoginPacketHandler extends PacketHandler{
 		return Uuid::fromBytes($hash);
 	}
 
-	public function handleLogin(LoginPacket $packet) : bool{
-		$authInfo = $this->parseAuthInfo($packet->authInfoJson);
-		$clientData = $this->parseClientData($packet->clientDataJwt);
+	/**
+	 * @phpstan-param LoginFields $packet
+	 */
+	public function handleLogin(array $packet) : bool{
+		[$authInfoJson, $clientDataJwt] = self::parseConnectionRequest($packet["connection_request"]);
+		$authInfo = $this->parseAuthInfo($authInfoJson);
+		$clientData = $this->parseClientData($clientDataJwt);
 
 		$proxyLogin = $this->parseProxyLogin($authInfo);
 		if($proxyLogin !== null){
@@ -105,12 +112,12 @@ class LoginPacketHandler extends PacketHandler{
 			if($playerAddress !== null){
 				$this->session->setProxiedAddress(...$playerAddress);
 			}
-			$authRequired = $this->processLoginCommon($packet, $identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $clientData);
+			$authRequired = $this->processLoginCommon($identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $clientData);
 			if($authRequired === null){
 				//plugin cancelled
 				return true;
 			}
-			$this->processProxyLogin($chainJwt, $proxyKeyDer, $packet->clientDataJwt, $identity->XUID !== "", $authRequired);
+			$this->processProxyLogin($chainJwt, $proxyKeyDer, $clientDataJwt, $identity->XUID !== "", $authRequired);
 
 		}elseif($authInfo->AuthenticationType === AuthenticationType::FULL->value){
 			try{
@@ -125,7 +132,7 @@ class LoginPacketHandler extends PacketHandler{
 			$username = $claims->xname;
 			$xuid = $claims->xid;
 
-			$authRequired = $this->processLoginCommon($packet, $username, $legacyUuid, $xuid, $clientData);
+			$authRequired = $this->processLoginCommon($username, $legacyUuid, $xuid, $clientData);
 			if($authRequired === null){
 				//plugin cancelled
 				return true;
@@ -138,7 +145,7 @@ class LoginPacketHandler extends PacketHandler{
 				($this->authCallback)(true, $authRequired, null, $clientKey);
 				return true;
 			}
-			$this->processOpenIdLogin($authInfo->Token, $header->kid, $packet->clientDataJwt, $authRequired);
+			$this->processOpenIdLogin($authInfo->Token, $header->kid, $clientDataJwt, $authRequired);
 
 		}elseif($authInfo->AuthenticationType === AuthenticationType::SELF_SIGNED->value){
 			try{
@@ -164,12 +171,12 @@ class LoginPacketHandler extends PacketHandler{
 				$username = $clientData->ThirdPartyName;
 			}
 
-			$authRequired = $this->processLoginCommon($packet, $username, $legacyUuid, $xuid, $clientData);
+			$authRequired = $this->processLoginCommon($username, $legacyUuid, $xuid, $clientData);
 			if($authRequired === null){
 				//plugin cancelled
 				return true;
 			}
-			$this->processSelfSignedLogin($authInfo->Token, $selfSignedKey, $packet->clientDataJwt, $authRequired);
+			$this->processSelfSignedLogin($authInfo->Token, $selfSignedKey, $clientDataJwt, $authRequired);
 		}else{
 			throw new PacketHandlingException("Unsupported authentication type: $authInfo->AuthenticationType");
 		}
@@ -177,7 +184,7 @@ class LoginPacketHandler extends PacketHandler{
 		return true;
 	}
 
-	private function processLoginCommon(LoginPacket $packet, string $username, UuidInterface $legacyUuid, string $xuid, ClientData $clientData) : ?bool{
+	private function processLoginCommon(string $username, UuidInterface $legacyUuid, string $xuid, ClientData $clientData) : ?bool{
 		if(!Player::isValidUserName($username)){
 			$this->session->disconnectWithError(KnownTranslationFactory::disconnectionScreen_invalidName());
 
@@ -247,6 +254,31 @@ class LoginPacketHandler extends PacketHandler{
 		}
 
 		return $ev->isAuthRequired();
+	}
+
+	/**
+	 * Splits a connection request into its authentication info JSON and client data JWT.
+	 *
+	 * @phpstan-return array{string, string}
+	 * @throws PacketHandlingException
+	 */
+	public static function parseConnectionRequest(string $request) : array{
+		$parts = [];
+		$offset = 0;
+		$length = strlen($request);
+		for($i = 0; $i < 2; ++$i){
+			if($length - $offset < 4){
+				throw new PacketHandlingException("Truncated connection request");
+			}
+			$partLength = Binary::readLInt(substr($request, $offset, 4));
+			$offset += 4;
+			if($partLength < 0 || $partLength > $length - $offset){
+				throw new PacketHandlingException("Connection request part length $partLength exceeds remaining " . ($length - $offset) . " bytes");
+			}
+			$parts[] = substr($request, $offset, $partLength);
+			$offset += $partLength;
+		}
+		return [$parts[0], $parts[1]];
 	}
 
 	/**

@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
+use quark\network\PacketHandlingException;
 
 class LoginPacketHandlerTest extends TestCase{
 
@@ -46,5 +47,25 @@ class LoginPacketHandlerTest extends TestCase{
 	public function testRejectsMalformedAddresses(mixed $address) : void{
 		$this->expectException(\InvalidArgumentException::class);
 		LoginPacketHandler::parsePlayerAddress($address);
+	}
+
+	public function testParsesConnectionRequests() : void{
+		self::assertSame(["{}", "a.b.c"], LoginPacketHandler::parseConnectionRequest("\x02\x00\x00\x00{}\x05\x00\x00\x00a.b.c"));
+		self::assertSame(["", ""], LoginPacketHandler::parseConnectionRequest("\x00\x00\x00\x00\x00\x00\x00\x00"));
+	}
+
+	/**
+	 * @return string[][]
+	 */
+	public static function invalidConnectionRequestProvider() : array{
+		return [[""], ["\x02\x00\x00"], ["\x02\x00\x00\x00{}"], ["\x03\x00\x00\x00{}\x00\x00\x00\x00"], ["\x00\x00\x00\x00\xff\xff\xff\xff"], ["\x00\x00\x00\x00\xff\xff\xff\x7f"]];
+	}
+
+	/**
+	 * @dataProvider invalidConnectionRequestProvider
+	 */
+	public function testRejectsMalformedConnectionRequests(string $request) : void{
+		$this->expectException(PacketHandlingException::class);
+		LoginPacketHandler::parseConnectionRequest($request);
 	}
 }
