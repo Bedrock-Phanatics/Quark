@@ -23,11 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use Bedwire\Nbt;
 use pocketmine\math\Facing;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
-use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\Packets;
 use quark\utils\AssumptionFailedError;
 
 final class Bell extends Spawnable{
@@ -77,7 +80,7 @@ final class Bell extends Spawnable{
 	 * simpler as a BlockEventPacket. It's simpler to implement bells with this hack than to follow Mojang's complicated
 	 * mess.
 	 */
-	public function createFakeUpdatePacket(int $bellHitFace) : BlockActorDataPacket{
+	public function createFakeUpdatePacket(int $bellHitFace) : Packet{
 		$nbt = $this->getSpawnCompound();
 		$nbt->setByte(self::TAG_RINGING, 1);
 		$nbt->setInt(self::TAG_DIRECTION, match($bellHitFace){
@@ -88,6 +91,6 @@ final class Bell extends Spawnable{
 			default => throw new AssumptionFailedError("Unreachable")
 		});
 		$nbt->setInt(self::TAG_TICKS, 0);
-		return BlockActorDataPacket::create(BlockPosition::fromVector3($this->position), new CacheableNbt($nbt));
+		return Packets::blockActorData(["block_position" => Fields::blockPosition($this->position), "actor_data_tags" => Nbt::write(new TreeRoot($nbt), Nbt::NETWORK)]);
 	}
 }

@@ -167,13 +167,13 @@ final class ChunkSerializer{
 	}
 
 	public static function serializeTiles(Chunk $chunk) : string{
-		$stream = new ByteBufferWriter();
+		$encoded = "";
 		foreach($chunk->getTiles() as $tile){
 			if($tile instanceof Spawnable){
-				$stream->writeByteArray($tile->getSerializedSpawnCompound()->getEncodedNbt());
+				$encoded .= $tile->getSerializedSpawnCompound();
 			}
 		}
 
-		return $stream->getData();
+		return $encoded;
 	}
 }

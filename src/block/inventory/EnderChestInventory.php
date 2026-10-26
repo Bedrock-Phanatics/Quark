@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\inventory;
 
-use pocketmine\network\mcpe\protocol\BlockEventPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\tile\EnderChest;
 use quark\inventory\DelegateInventory;
 use quark\inventory\Inventory;
 use quark\inventory\PlayerEnderInventory;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packets;
 use quark\player\Player;
 use quark\world\Position;
 use quark\world\sound\EnderChestCloseSound;
@@ -75,7 +75,7 @@ class EnderChestInventory extends DelegateInventory implements BlockInventory{
 		$holder = $this->getHolder();
 
 		//event ID is always 1 for a chest
-		$holder->getWorld()->broadcastPacketToViewers($holder, BlockEventPacket::create(BlockPosition::fromVector3($holder), 1, $isOpen ? 1 : 0));
+		$holder->getWorld()->broadcastPacketToViewers($holder, Packets::blockEvent(["block_position" => Fields::blockPosition($holder), "event_type" => 1, "event_value" => $isOpen ? 1 : 0]));
 	}
 
 	public function onClose(Player $who) : void{

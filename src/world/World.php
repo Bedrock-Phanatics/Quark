@@ -31,9 +31,6 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
 use pocketmine\utils\Limits;
 use pocketmine\world\format\LightArray;
@@ -77,7 +74,9 @@ use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\Packets;
 use quark\player\Player;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
@@ -265,8 +264,8 @@ class World implements ChunkManager{
 	private array $playerChunkListeners = [];
 
 	/**
-	 * @var Packet[][]|ClientboundPacket[][]
-	 * @phpstan-var array<ChunkPosHash, list<Packet|ClientboundPacket>>
+	 * @var Packet[][]
+	 * @phpstan-var array<ChunkPosHash, list<Packet>>
 	 */
 	private array $packetBuffersByChunk = [];
 
@@ -828,11 +827,11 @@ class World implements ChunkManager{
 	/**
 	 * Broadcasts a packet to every player who has the target position within their view distance.
 	 */
-	public function broadcastPacketToViewers(Vector3 $pos, Packet|ClientboundPacket $packet) : void{
+	public function broadcastPacketToViewers(Vector3 $pos, Packet $packet) : void{
 		$this->broadcastPacketToPlayersUsingChunk($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE, $packet);
 	}
 
-	private function broadcastPacketToPlayersUsingChunk(int $chunkX, int $chunkZ, Packet|ClientboundPacket $packet) : void{
+	private function broadcastPacketToPlayersUsingChunk(int $chunkX, int $chunkZ, Packet $packet) : void{
 		if(!isset($this->packetBuffersByChunk[$index = World::chunkHash($chunkX, $chunkZ)])){
 			$this->packetBuffersByChunk[$index] = [$packet];
 		}else{
@@ -1121,8 +1120,8 @@ class World implements ChunkManager{
 	/**
 	 * @param Vector3[] $blocks
 	 *
-	 * @return ClientboundPacket[]
-	 * @phpstan-return list<ClientboundPacket>
+	 * @return Packet[]
+	 * @phpstan-return list<Packet>
 	 */
 	public function createBlockUpdatePackets(array $blocks) : array{
 		$packets = [];
@@ -1135,7 +1134,7 @@ class World implements ChunkManager{
 			}
 
 			$fullBlock = $this->getBlockAt($b->x, $b->y, $b->z);
-			$blockPosition = BlockPosition::fromVector3($b);
+			$blockPosition = Fields::blockPosition($b);
 
 			$tile = $this->getTileAt($b->x, $b->y, $b->z);
 			if($tile instanceof Spawnable){
@@ -1147,23 +1146,23 @@ class World implements ChunkManager{
 						array_merge($originalStateData->getStates(), $fakeStateProperties),
 						$originalStateData->getVersion()
 					);
-					$packets[] = UpdateBlockPacket::create(
-						$blockPosition,
-						$blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
-						UpdateBlockPacket::FLAG_NETWORK,
-						UpdateBlockPacket::DATA_LAYER_NORMAL
-					);
+					$packets[] = Packets::updateBlock([
+						"block_position" => $blockPosition,
+						"block_runtime_id" => $blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
+						"flags" => UpdateBlockPacket::FLAG_NETWORK,
+						"layer" => UpdateBlockPacket::DATA_LAYER_NORMAL,
+					]);
 				}
 			}
-			$packets[] = UpdateBlockPacket::create(
-				$blockPosition,
-				$blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
-				UpdateBlockPacket::FLAG_NETWORK,
-				UpdateBlockPacket::DATA_LAYER_NORMAL
-			);
+			$packets[] = Packets::updateBlock([
+				"block_position" => $blockPosition,
+				"block_runtime_id" => $blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
+				"flags" => UpdateBlockPacket::FLAG_NETWORK,
+				"layer" => UpdateBlockPacket::DATA_LAYER_NORMAL,
+			]);
 
 			if($tile instanceof Spawnable){
-				$packets[] = BlockActorDataPacket::create($blockPosition, $tile->getSerializedSpawnCompound());
+				$packets[] = Packets::blockActorData(["block_position" => $blockPosition, "actor_data_tags" => $tile->getSerializedSpawnCompound()]);
 			}
 		}
 

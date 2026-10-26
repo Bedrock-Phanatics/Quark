@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\inventory;
 
-use pocketmine\network\mcpe\protocol\BlockEventPacket;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\BlockTypeIds;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packets;
 use quark\world\Position;
 use quark\world\sound\ShulkerBoxCloseSound;
 use quark\world\sound\ShulkerBoxOpenSound;
@@ -62,6 +62,6 @@ class ShulkerBoxInventory extends SimpleInventory implements BlockInventory{
 		$holder = $this->getHolder();
 
 		//event ID is always 1 for a chest
-		$holder->getWorld()->broadcastPacketToViewers($holder, BlockEventPacket::create(BlockPosition::fromVector3($holder), 1, $isOpen ? 1 : 0));
+		$holder->getWorld()->broadcastPacketToViewers($holder, Packets::blockEvent(["block_position" => Fields::blockPosition($holder), "event_type" => 1, "event_value" => $isOpen ? 1 : 0]));
 	}
 }

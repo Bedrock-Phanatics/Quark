@@ -25,12 +25,12 @@ namespace quark\player;
 
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\block\Block;
 use quark\entity\animation\ArmSwingAnimation;
 use quark\entity\effect\VanillaEffects;
 use quark\item\enchantment\VanillaEnchantments;
+use quark\network\mcpe\protocol\LevelPackets;
 use quark\world\particle\BlockPunchParticle;
 use quark\world\sound\BlockPunchSound;
 use function abs;
@@ -55,7 +55,7 @@ final class SurvivalBlockBreakHandler{
 		if($this->breakSpeed > 0){
 			$this->player->getWorld()->broadcastPacketToViewers(
 				$this->blockPos,
-				LevelEventPacket::create(LevelEvent::BLOCK_START_BREAK, (int) (65535 * $this->breakSpeed), $this->blockPos)
+				LevelPackets::event(LevelEvent::BLOCK_START_BREAK, (int) (65535 * $this->breakSpeed), $this->blockPos)
 			);
 		}
 	}
@@ -104,7 +104,7 @@ final class SurvivalBlockBreakHandler{
 			$this->breakSpeed = $newBreakSpeed;
 			$this->player->getWorld()->broadcastPacketToViewers(
 				$this->blockPos,
-				LevelEventPacket::create(LevelEvent::BLOCK_BREAK_SPEED, (int) (65535 * $this->breakSpeed), $this->blockPos)
+				LevelPackets::event(LevelEvent::BLOCK_BREAK_SPEED, (int) (65535 * $this->breakSpeed), $this->blockPos)
 			);
 		}
 
@@ -144,7 +144,7 @@ final class SurvivalBlockBreakHandler{
 		if($this->player->getWorld()->isInLoadedTerrain($this->blockPos)){
 			$this->player->getWorld()->broadcastPacketToViewers(
 				$this->blockPos,
-				LevelEventPacket::create(LevelEvent::BLOCK_STOP_BREAK, 0, $this->blockPos)
+				LevelPackets::event(LevelEvent::BLOCK_STOP_BREAK, 0, $this->blockPos)
 			);
 		}
 	}
