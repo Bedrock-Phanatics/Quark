@@ -26,7 +26,6 @@ namespace quark\entity\object;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\utils\Binary;
 use quark\data\bedrock\EffectIdMap;
@@ -39,6 +38,7 @@ use quark\entity\EntitySizeInfo;
 use quark\entity\Living;
 use quark\entity\Location;
 use quark\event\entity\AreaEffectCloudApplyEvent;
+use quark\network\mcpe\protocol\EntityMetadata;
 use quark\world\particle\PotionSplashParticle;
 use function count;
 use function max;
@@ -400,7 +400,7 @@ class AreaEffectCloud extends Entity{
 		return $hasUpdate;
 	}
 
-	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
+	protected function syncNetworkData(EntityMetadata $properties) : void{
 		parent::syncNetworkData($properties);
 
 		//visual properties

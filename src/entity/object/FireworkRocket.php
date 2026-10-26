@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
+use Bedwire\Nbt;
 use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
-use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\entity\animation\FireworkParticlesAnimation;
 use quark\entity\Entity;
@@ -41,6 +41,7 @@ use quark\event\entity\EntityDamageByEntityEvent;
 use quark\event\entity\EntityDamageEvent;
 use quark\item\FireworkRocket as FireworkItem;
 use quark\item\FireworkRocketExplosion;
+use quark\network\mcpe\protocol\EntityMetadata;
 use quark\utils\Utils;
 use quark\world\sound\FireworkCrackleSound;
 use quark\world\sound\FireworkLaunchSound;
@@ -187,7 +188,7 @@ class FireworkRocket extends Entity implements Explosive, NeverSavedWithChunkEnt
 		return false;
 	}
 
-	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
+	protected function syncNetworkData(EntityMetadata $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$explosions = new ListTag();
@@ -199,6 +200,6 @@ class FireworkRocket extends Entity implements Explosive, NeverSavedWithChunkEnt
 				->setTag(FireworkItem::TAG_EXPLOSIONS, $explosions)
 			);
 
-		$properties->setCompoundTag(EntityMetadataProperties::FIREWORK_ITEM, new CacheableNbt($fireworksData));
+		$properties->setCompoundTag(EntityMetadataProperties::FIREWORK_ITEM, Nbt::write(new TreeRoot($fireworksData), Nbt::NETWORK));
 	}
 }

@@ -27,7 +27,6 @@ use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\AddPaintingPacket;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
@@ -36,6 +35,8 @@ use quark\entity\Location;
 use quark\event\entity\EntityDamageByEntityEvent;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packets;
 use quark\player\Player;
 use quark\world\particle\BlockBreakParticle;
 use quark\world\World;
@@ -153,17 +154,17 @@ class Painting extends Entity{
 	}
 
 	protected function sendSpawnPacket(Player $player) : void{
-		$player->getNetworkSession()->sendDataPacket(AddPaintingPacket::create(
-			$this->getId(), //TODO: entity unique ID
-			$this->getId(),
-			new Vector3(
+		$player->getNetworkSession()->sendDataPacket(Packets::addPainting([
+			"target_actor_id" => $this->getId(), //TODO: entity unique ID
+			"target_runtime_id" => $this->getId(),
+			"position" => Fields::vec3(new Vector3(
 				($this->boundingBox->minX + $this->boundingBox->maxX) / 2,
 				($this->boundingBox->minY + $this->boundingBox->maxY) / 2,
 				($this->boundingBox->minZ + $this->boundingBox->maxZ) / 2
-			),
-			self::FACING_TO_DATA[$this->facing],
-			$this->motive->getName()
-		));
+			)),
+			"direction" => self::FACING_TO_DATA[$this->facing],
+			"motif" => $this->motive->getName(),
+		]));
 	}
 
 	public function getPickedItem() : ?Item{

@@ -26,7 +26,6 @@ namespace quark\entity\projectile;
 use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\BlockTypeTags;
@@ -42,6 +41,7 @@ use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
 use quark\item\PotionType;
+use quark\network\mcpe\protocol\EntityMetadata;
 use quark\world\particle\PotionSplashParticle;
 use quark\world\sound\PotionSplashSound;
 use function count;
@@ -185,7 +185,7 @@ class SplashPotion extends Throwable{
 		return $this->potionType->getEffects();
 	}
 
-	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
+	protected function syncNetworkData(EntityMetadata $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$properties->setShort(EntityMetadataProperties::POTION_AUX_VALUE, PotionTypeIdMap::getInstance()->toId($this->potionType));

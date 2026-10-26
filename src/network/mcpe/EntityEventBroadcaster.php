@@ -23,15 +23,17 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use pocketmine\network\mcpe\protocol\types\entity\MetadataProperty;
 use quark\entity\Attribute;
 use quark\entity\effect\EffectInstance;
 use quark\entity\Entity;
 use quark\entity\Human;
 use quark\entity\Living;
+use quark\network\mcpe\protocol\Packets;
 
 /**
  * This class allows broadcasting entity events to many viewers on the server network.
+ *
+ * @phpstan-import-type DataItemEntry from Packets
  */
 interface EntityEventBroadcaster{
 
@@ -42,10 +44,10 @@ interface EntityEventBroadcaster{
 	public function syncAttributes(array $recipients, Living $entity, array $attributes) : void;
 
 	/**
-	 * @param NetworkSession[]   $recipients
-	 * @param MetadataProperty[] $properties
+	 * @param NetworkSession[] $recipients
+	 * @param array[]          $properties
 	 *
-	 * @phpstan-param array<int, MetadataProperty> $properties
+	 * @phpstan-param list<DataItemEntry> $properties
 	 */
 	public function syncActorData(array $recipients, Entity $entity, array $properties) : void;
 
