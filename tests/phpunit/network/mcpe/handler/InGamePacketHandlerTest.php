@@ -24,11 +24,9 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\network\mcpe\protocol\types\inventory\InventoryTransactionChangedSlotsHack;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use quark\network\mcpe\protocol\Packets;
 use quark\network\PacketHandlingException;
-use function str_repeat;
 
 /**
  * @phpstan-import-type PlayerAuthInputFields from Packets
@@ -106,19 +104,6 @@ final class InGamePacketHandlerTest extends TestCase{
 			self::fail("Oversized input flag list accepted");
 		}catch(PacketHandlingException $e){
 			self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS + 1, PlayerAuthInputFlags::NUMBER_OF_FLAGS], [$e->observed, $e->limit]);
-		}
-	}
-
-	public function testRejectsChangedSlotFloods() : void{
-		try{
-			self::handler()->handleInventoryTransaction([
-				"legacy_request_id" => 0,
-				"legacy_set_item_slots" => [["container_enum" => 0, "slots" => str_repeat("\x00", InventoryTransactionChangedSlotsHack::MAX_CHANGED_SLOTS + 1)]],
-				"transaction" => ["normal_transaction_data" => []],
-			]);
-			self::fail("Oversized changed slot list accepted");
-		}catch(PacketHandlingException $e){
-			self::assertSame([InventoryTransactionChangedSlotsHack::MAX_CHANGED_SLOTS + 1, InventoryTransactionChangedSlotsHack::MAX_CHANGED_SLOTS], [$e->observed, $e->limit]);
 		}
 	}
 }

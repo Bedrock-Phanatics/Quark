@@ -24,16 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use Bedwire\Protocol;
-use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use quark\network\mcpe\protocol\Packets;
 use quark\utils\AssumptionFailedError;
 use function array_flip;
 use function array_keys;
 use function array_map;
-use function constant;
 use function implode;
-use function is_a;
-use function is_int;
 use function sort;
 use function str_starts_with;
 use const SORT_STRING;
@@ -45,14 +41,13 @@ use const SORT_STRING;
  */
 final class PacketHandlerInspector{
 
-	/** @phpstan-var array<class-string<PacketHandler>, array{array<int, PacketHandlerAction>, array<int, array{string, bool}>}> */
+	/** @phpstan-var array<class-string<PacketHandler>, array{array<int, PacketHandlerAction>, array<int, string>}> */
 	private static array $cache = [];
 
 	/**
-	 * Returns what to do with each packet ID, and for each handled one, the method handling it and whether that method
-	 * takes decoded fields rather than a BedrockProtocol packet object.
+	 * Returns what to do with each packet ID, and for each handled one, the name of the method handling it.
 	 *
-	 * @phpstan-return array{array<int, PacketHandlerAction>, array<int, array{string, bool}>}
+	 * @phpstan-return array{array<int, PacketHandlerAction>, array<int, string>}
 	 */
 	public static function inspect(PacketHandler $handler) : array{
 		if(isset(self::$cache[$handler::class])){
@@ -72,20 +67,11 @@ final class PacketHandlerInspector{
 			if(!$type instanceof \ReflectionNamedType){
 				throw new AssumptionFailedError($handler::class . "::$name() must take the packet as its first parameter");
 			}
-			$class = $type->getName();
-			if($class === "array"){
-				$id = $ids[$name] ?? throw new AssumptionFailedError($handler::class . "::$name() does not handle a packet clients send");
-				$methods[$id] = [$name, true];
-			}elseif(is_a($class, ServerboundPacket::class, true)){
-				//TODO: remove once every handler takes decoded fields
-				$id = constant($class . "::NETWORK_ID");
-				if(!is_int($id)){
-					throw new AssumptionFailedError("$class has no packet ID");
-				}
-				$methods[$id] = [$name, false];
-			}else{
+			if($type->getName() !== "array"){
 				throw new AssumptionFailedError($handler::class . "::$name() must take an array of packet fields");
 			}
+			$id = $ids[$name] ?? throw new AssumptionFailedError($handler::class . "::$name() does not handle a packet clients send");
+			$methods[$id] = $name;
 			$actions[$id] = PacketHandlerAction::HANDLED;
 		}
 

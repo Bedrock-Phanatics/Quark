@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use quark\event\server\DataPacketSendEvent;
-use quark\network\mcpe\protocol\LegacyPacketAdapter;
+use quark\network\mcpe\protocol\Packets;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use function array_values;
@@ -39,7 +39,12 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 	){}
 
 	public function broadcastPackets(array $recipients, array $packets) : void{
-		$packets = LegacyPacketAdapter::fromLegacyList(array_values($packets));
+		$packets = array_values($packets);
+		foreach($packets as $packet){
+			if(!isset(Packets::CLIENTBOUND[$packet->getId()])){
+				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
+			}
+		}
 		//TODO: this shouldn't really be called here, since the broadcaster might be replaced by an alternative
 		//implementation that doesn't fire events
 		if(DataPacketSendEvent::hasHandlers()){

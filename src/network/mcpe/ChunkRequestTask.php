@@ -23,10 +23,8 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use pmmp\encoding\ByteBufferWriter;
-use pocketmine\network\mcpe\protocol\LevelChunkPacket;
-use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
-use pocketmine\network\mcpe\protocol\types\ChunkPosition;
+use Bedwire\PacketId;
+use Bedwire\Protocol;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\compression\CompressBatchPromise;
@@ -74,15 +72,22 @@ class ChunkRequestTask extends AsyncTask{
 		$converter = TypeConverter::getInstance();
 		$payload = ChunkSerializer::serializeFullChunk($chunk, $dimensionId, $converter->getBlockTranslator(), $this->tiles);
 
-		$stream = new ByteBufferWriter();
-		PacketBatch::encodePackets($stream, [LevelChunkPacket::create(new ChunkPosition($this->chunkX, $this->chunkZ), $dimensionId, $subCount, null, false, [], $payload)]);
+		$batch = Protocol::encodeBatch([[PacketId::LEVEL_CHUNK, [
+			"chunk_position" => ["x" => $this->chunkX, "z" => $this->chunkZ],
+			"dimension_id" => $dimensionId,
+			"sub_chunks_count" => $subCount,
+			"client_request_sub_chunk_limit" => null,
+			"cache_enabled" => false,
+			"cache_metadata" => [],
+			"serialized_chunk_data" => $payload,
+		]]]);
 
 		$compressor = $this->compressor->deserialize();
 		//a compressor without a threshold leaves compression to the transport, as prepareBatch() does
 		if($compressor->getCompressionThreshold() === null){
-			$this->setResult(chr(CompressionAlgorithm::NONE->value) . $stream->getData());
+			$this->setResult(chr(CompressionAlgorithm::NONE->value) . $batch);
 		}else{
-			$this->setResult(chr($compressor->getNetworkType()->value) . $compressor->compress($stream->getData()));
+			$this->setResult(chr($compressor->getNetworkType()->value) . $compressor->compress($batch));
 		}
 	}
 

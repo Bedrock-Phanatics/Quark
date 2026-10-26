@@ -36,7 +36,6 @@ use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\network\mcpe\protocol\types\GameMode as ProtocolGameMode;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
-use pocketmine\network\mcpe\protocol\types\inventory\InventoryTransactionChangedSlotsHack;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
 use pocketmine\network\mcpe\protocol\types\inventory\ReleaseItemTransactionData;
@@ -136,7 +135,6 @@ use const JSON_THROW_ON_ERROR;
 class InGamePacketHandler extends PacketHandler{
 	public const MAX_ITEM_STACK_REQUESTS = 80;
 	public const MAX_INVENTORY_TRANSACTION_ACTIONS = 50;
-	public const MAX_INVENTORY_SLOT_SYNC_REQUESTS = 10;
 
 	private const MAX_FORM_RESPONSE_SIZE = 10 * 1024; //10 KiB should be more than enough
 	private const MAX_FORM_RESPONSE_DEPTH = 2; //modal/simple will be 1, custom forms 2 - they will never contain anything other than string|int|float|bool|null
@@ -145,6 +143,8 @@ class InGamePacketHandler extends PacketHandler{
 	//allowing input beyond 256 chars. Use a slightly higher bounded soft limit to
 	//prevent rejected edits while still mitigating book-bomb attacks
 	private const PAGE_LENGTH_SOFT_LIMIT_CHARS = 512;
+
+	private const MAX_ITEM_STACK_REQUEST_ACTIONS = 60;
 
 	protected float $lastRightClickTime = 0.0;
 	/** @phpstan-var ItemUseInventoryTransaction|null */
@@ -218,9 +218,57 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	/**
+	 * Checks every part of the packet before any of it is applied, so a rejected packet leaves no partial effects.
+	 * Collection sizes the protocol schema already caps are enforced by the decoder.
+	 *
+	 * @phpstan-param PlayerAuthInputFields $packet
+	 * @phpstan-return array<int, true>
+	 * @throws PacketHandlingException
+	 */
+	private static function validateAuthInput(array $packet) : array{
+		$inputFlags = self::readInputFlags($packet["input_data"]);
+		if(($packet["vehicle_rotation"] === null) !== ($packet["client_predicted_vehicle"] === null)){
+			throw new PacketHandlingException("Vehicle rotation and actor unique ID must both be present or both be absent");
+		}
+		if($packet["item_stack_request"] !== null){
+			self::checkItemStackRequest($packet["item_stack_request"]);
+		}
+		$blockActions = $packet["player_block_actions"];
+		if($blockActions !== null){
+			foreach($blockActions as $blockAction){
+				if(!PlayerBlockAction::isValidActionType($blockAction["player_action_type"])){
+					throw new PacketHandlingException("Invalid player block action type " . $blockAction["player_action_type"]);
+				}
+			}
+		}
+		return $inputFlags;
+	}
+
+	/**
+	 * @phpstan-param ItemStackRequestPacketData $request
+	 * @throws PacketHandlingException
+	 */
+	private static function checkItemStackRequest(array $request) : void{
+		if(count($request["actions"]) > self::MAX_ITEM_STACK_REQUEST_ACTIONS){
+			//recipe book auto crafting can affect all slots of the inventory when consuming inputs or producing outputs
+			//this means there could be as many as 50 CraftingConsumeInput actions or Place (taking the result) actions
+			//in a single request (there are certain ways items can be arranged which will result in the same stack
+			//being taken from multiple times, but this is behaviour with a calculable limit)
+			//this means there SHOULD be AT MOST 53 actions in a single request, but 60 is a nice round number.
+			//n64Stacks = ?
+			//n1Stacks = 45 - n64Stacks
+			//nItemsRequiredFor1Craft = 9
+			//nResults = floor((n1Stacks + (n64Stacks * 64)) / nItemsRequiredFor1Craft)
+			//nTakeActionsTotal = floor(64 / nResults) + max(1, 64 % nResults) + ((nResults * nItemsRequiredFor1Craft) - (n64Stacks * 64))
+			throw PacketHandlingException::limit("Too many actions in ItemStackRequest", count($request["actions"]), self::MAX_ITEM_STACK_REQUEST_ACTIONS);
+		}
+	}
+
+	/**
 	 * @phpstan-param PlayerAuthInputFields $packet
 	 */
 	public function handlePlayerAuthInput(array $packet) : bool{
+		$inputFlags = self::validateAuthInput($packet);
 		$rawPos = Fields::toVector3($packet["position"]);
 		$rawPitch = $packet["player_rotation"]["x"];
 		$rawYaw = $packet["player_rotation"]["y"];
@@ -230,10 +278,7 @@ class InGamePacketHandler extends PacketHandler{
 				return false;
 			}
 		}
-		$inputFlags = self::readInputFlags($packet["input_data"]);
-		if(($packet["vehicle_rotation"] === null) !== ($packet["client_predicted_vehicle"] === null)){
-			throw new PacketHandlingException("Vehicle rotation and actor unique ID must both be present or both be absent");
-		}
+		$useItemTransaction = $packet["item_use_transaction"];
 
 		if($rawYaw !== $this->lastPlayerAuthInputYaw || $rawPitch !== $this->lastPlayerAuthInputPitch){
 			$this->lastPlayerAuthInputYaw = $rawYaw;
@@ -300,13 +345,8 @@ class InGamePacketHandler extends PacketHandler{
 
 		$packetHandled = true;
 
-		$useItemTransaction = $packet["item_use_transaction"];
 		if($useItemTransaction !== null){
 			$transactionData = $useItemTransaction["item_use_transaction"];
-			if(count($transactionData["actions"]) > 100){
-				throw PacketHandlingException::limit("Too many actions in item use transaction", count($transactionData["actions"]), 100);
-			}
-
 			$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction["legacy_request_id"]);
 			$this->inventoryManager->addRawPredictedSlotChanges($transactionData["actions"]);
 			if(!$this->handleUseItemTransaction($transactionData)){
@@ -325,13 +365,7 @@ class InGamePacketHandler extends PacketHandler{
 		//processed last
 		$blockActions = $packet["player_block_actions"];
 		if($blockActions !== null){
-			if(count($blockActions) > 100){
-				throw PacketHandlingException::limit("Too many block actions in PlayerAuthInputPacket", count($blockActions), 100);
-			}
 			foreach($blockActions as $k => $blockAction){
-				if(!PlayerBlockAction::isValidActionType($blockAction["player_action_type"])){
-					throw new PacketHandlingException("Invalid player block action type " . $blockAction["player_action_type"]);
-				}
 				if(!$this->handlePlayerActionFromData($blockAction["player_action_type"], $blockAction["position"], $blockAction["facing"])){
 					$packetHandled = false;
 					$this->session->getLogger()->debug("Unhandled player block action at offset $k in PlayerAuthInputPacket");
@@ -377,16 +411,6 @@ class InGamePacketHandler extends PacketHandler{
 			throw PacketHandlingException::limit("Too many actions in inventory transaction", count($actions), self::MAX_INVENTORY_TRANSACTION_ACTIONS);
 		}
 		$requestChangedSlots = $packet["legacy_set_item_slots"];
-		if($requestChangedSlots !== null){
-			if(count($requestChangedSlots) > self::MAX_INVENTORY_SLOT_SYNC_REQUESTS){
-				throw PacketHandlingException::limit("Too many slot sync requests in inventory transaction", count($requestChangedSlots), self::MAX_INVENTORY_SLOT_SYNC_REQUESTS);
-			}
-			foreach($requestChangedSlots as $containerInfo){
-				if(strlen($containerInfo["slots"]) > InventoryTransactionChangedSlotsHack::MAX_CHANGED_SLOTS){
-					throw PacketHandlingException::limit("Too many changed slots in inventory transaction", strlen($containerInfo["slots"]), InventoryTransactionChangedSlotsHack::MAX_CHANGED_SLOTS);
-				}
-			}
-		}
 
 		$requestId = $packet["legacy_request_id"];
 		$this->inventoryManager->setCurrentItemStackRequestId($requestId);
@@ -674,19 +698,6 @@ class InGamePacketHandler extends PacketHandler{
 	 * @phpstan-param ItemStackRequestPacketData $request
 	 */
 	private function handleSingleItemStackRequest(array $request) : ?ItemStackResponseBuilder{
-		if(count($request["actions"]) > 60){
-			//recipe book auto crafting can affect all slots of the inventory when consuming inputs or producing outputs
-			//this means there could be as many as 50 CraftingConsumeInput actions or Place (taking the result) actions
-			//in a single request (there are certain ways items can be arranged which will result in the same stack
-			//being taken from multiple times, but this is behaviour with a calculable limit)
-			//this means there SHOULD be AT MOST 53 actions in a single request, but 60 is a nice round number.
-			//n64Stacks = ?
-			//n1Stacks = 45 - n64Stacks
-			//nItemsRequiredFor1Craft = 9
-			//nResults = floor((n1Stacks + (n64Stacks * 64)) / nItemsRequiredFor1Craft)
-			//nTakeActionsTotal = floor(64 / nResults) + max(1, 64 % nResults) + ((nResults * nItemsRequiredFor1Craft) - (n64Stacks * 64))
-			throw PacketHandlingException::limit("Too many actions in ItemStackRequest", count($request["actions"]), 60);
-		}
 		$executor = new ItemStackRequestExecutor($this->player, $this->inventoryManager, $request);
 		try{
 			$transaction = $executor->generateInventoryTransaction();
@@ -712,6 +723,9 @@ class InGamePacketHandler extends PacketHandler{
 		$responses = [];
 		if(count($packet["requests"]) > self::MAX_ITEM_STACK_REQUESTS){
 			throw PacketHandlingException::limit("Too many requests in ItemStackRequestPacket", count($packet["requests"]), self::MAX_ITEM_STACK_REQUESTS);
+		}
+		foreach($packet["requests"] as $request){
+			self::checkItemStackRequest($request);
 		}
 		foreach($packet["requests"] as $request){
 			$responses[] = $this->handleSingleItemStackRequest($request)?->build() ?? ItemStackResponseBuilder::error($request["client_request_id"]);
