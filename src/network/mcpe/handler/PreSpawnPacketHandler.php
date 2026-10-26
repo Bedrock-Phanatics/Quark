@@ -25,7 +25,6 @@ namespace quark\network\mcpe\handler;
 
 use Bedwire\PacketId;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\EditorWorldType;
 use pocketmine\network\mcpe\protocol\types\GeneratorType;
@@ -47,6 +46,8 @@ use function sprintf;
 
 /**
  * Handler used for the pre-spawn phase of the session.
+ *
+ * @phpstan-import-type RequestChunkRadiusFields from Packets
  */
 #[SilentDiscard(PacketId::PLAYER_AUTH_INPUT, comment: "Spammed after StartGame even though player has no controls")]
 #[SilentDiscard(PacketId::SERVER_BOUND_LOADING_SCREEN, "Not needed")]
@@ -213,8 +214,11 @@ class PreSpawnPacketHandler extends PacketHandler{
 		}
 	}
 
-	public function handleRequestChunkRadius(RequestChunkRadiusPacket $packet) : bool{
-		$this->player->setViewDistance($packet->radius);
+	/**
+	 * @phpstan-param RequestChunkRadiusFields $packet
+	 */
+	public function handleRequestChunkRadius(array $packet) : bool{
+		$this->player->setViewDistance($packet["chunk_radius"]);
 
 		return true;
 	}

@@ -23,11 +23,14 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use Bedwire\Protocol;
 use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\Packets;
 
+/**
+ * @phpstan-import-type RequestNetworkSettingsFields from Packets
+ */
 final class SessionStartPacketHandler extends PacketHandler{
 
 	/**
@@ -38,8 +41,11 @@ final class SessionStartPacketHandler extends PacketHandler{
 		private \Closure $onSuccess
 	){}
 
-	public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{
-		$protocolVersion = $packet->getProtocolVersion();
+	/**
+	 * @phpstan-param RequestNetworkSettingsFields $packet
+	 */
+	public function handleRequestNetworkSettings(array $packet) : bool{
+		$protocolVersion = $packet["client_network_version"];
 		$this->session->recordProtocolVersion($protocolVersion);
 		if(!$this->isCompatibleProtocol($protocolVersion)){
 			$this->session->disconnectIncompatibleProtocol($protocolVersion);
@@ -48,19 +54,19 @@ final class SessionStartPacketHandler extends PacketHandler{
 		}
 
 		//TODO: we're filling in the defaults to get pre-1.19.30 behaviour back for now, but we should explore the new options in the future
-		$this->session->sendDataPacket(NetworkSettingsPacket::create(
-			NetworkSettingsPacket::COMPRESS_EVERYTHING,
-			$this->session->getCompressor()->getNetworkType(),
-			false,
-			0,
-			0
-		));
+		$this->session->sendDataPacket(Packets::networkSettings([
+			"compression_threshold" => NetworkSettingsPacket::COMPRESS_EVERYTHING,
+			"compression_algorithm" => $this->session->getCompressor()->getNetworkType()->value,
+			"client_throttle_enabled" => false,
+			"client_throttle_threshold" => 0,
+			"client_throttle_scalar" => 0.0,
+		]));
 		($this->onSuccess)();
 
 		return true;
 	}
 
 	protected function isCompatibleProtocol(int $protocolVersion) : bool{
-		return $protocolVersion === ProtocolInfo::CURRENT_PROTOCOL;
+		return $protocolVersion === Protocol::VERSION;
 	}
 }

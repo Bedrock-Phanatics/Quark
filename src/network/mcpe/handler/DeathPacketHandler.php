@@ -23,16 +23,20 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\ContainerClosePacket;
-use pocketmine\network\mcpe\protocol\DeathInfoPacket;
-use pocketmine\network\mcpe\protocol\PlayerActionPacket;
 use pocketmine\network\mcpe\protocol\RespawnPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use quark\lang\Translatable;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\Packets;
 use quark\player\Player;
 
+/**
+ * @phpstan-import-type ContainerCloseFields from Packets
+ * @phpstan-import-type PlayerActionFields from Packets
+ * @phpstan-import-type RespawnFields from Packets
+ */
 class DeathPacketHandler extends PacketHandler{
 	public function __construct(
 		private Player $player,
@@ -42,13 +46,13 @@ class DeathPacketHandler extends PacketHandler{
 	){}
 
 	public function setUp() : void{
-		$this->session->sendDataPacket(RespawnPacket::create(
-			$this->player->getOffsetPosition($this->player->getSpawn()),
-			RespawnPacket::SEARCHING_FOR_SPAWN,
-			$this->player->getId()
-		));
+		$this->session->sendDataPacket(Packets::respawn([
+			"position" => Fields::vec3($this->player->getOffsetPosition($this->player->getSpawn())),
+			"state" => RespawnPacket::SEARCHING_FOR_SPAWN,
+			"player_runtime_id" => $this->player->getId(),
+		]));
 
-		/** @var string[] $parameters */
+		/** @var list<string> $parameters */
 		$parameters = [];
 		if($this->deathMessage instanceof Translatable){
 			$language = $this->player->getLanguage();
@@ -60,11 +64,14 @@ class DeathPacketHandler extends PacketHandler{
 		}else{
 			$message = $this->deathMessage;
 		}
-		$this->session->sendDataPacket(DeathInfoPacket::create($message, $parameters));
+		$this->session->sendDataPacket(Packets::deathInfo(["death_cause_attack_name" => $message, "death_cause_message_list" => $parameters]));
 	}
 
-	public function handlePlayerAction(PlayerActionPacket $packet) : bool{
-		if($packet->action === PlayerAction::RESPAWN){
+	/**
+	 * @phpstan-param PlayerActionFields $packet
+	 */
+	public function handlePlayerAction(array $packet) : bool{
+		if($packet["action"] === PlayerAction::RESPAWN){
 			$this->player->respawn();
 			return true;
 		}
@@ -72,18 +79,24 @@ class DeathPacketHandler extends PacketHandler{
 		return false;
 	}
 
-	public function handleContainerClose(ContainerClosePacket $packet) : bool{
-		$this->inventoryManager->onClientRemoveWindow($packet->windowId);
+	/**
+	 * @phpstan-param ContainerCloseFields $packet
+	 */
+	public function handleContainerClose(array $packet) : bool{
+		$this->inventoryManager->onClientRemoveWindow($packet["container_id"]);
 		return true;
 	}
 
-	public function handleRespawn(RespawnPacket $packet) : bool{
-		if($packet->respawnState === RespawnPacket::CLIENT_READY_TO_SPAWN){
-			$this->session->sendDataPacket(RespawnPacket::create(
-				$this->player->getOffsetPosition($this->player->getSpawn()),
-				RespawnPacket::READY_TO_SPAWN,
-				$this->player->getId()
-			));
+	/**
+	 * @phpstan-param RespawnFields $packet
+	 */
+	public function handleRespawn(array $packet) : bool{
+		if($packet["state"] === RespawnPacket::CLIENT_READY_TO_SPAWN){
+			$this->session->sendDataPacket(Packets::respawn([
+				"position" => Fields::vec3($this->player->getOffsetPosition($this->player->getSpawn())),
+				"state" => RespawnPacket::READY_TO_SPAWN,
+				"player_runtime_id" => $this->player->getId(),
+			]));
 			return true;
 		}
 		return false;

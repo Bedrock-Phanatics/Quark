@@ -893,7 +893,7 @@ final class PulseNetworkTest extends TestCase{
 		$session->expects(self::never())->method("sendDataPacket");
 		$capture = Pulse::start();
 		$handler = new SessionStartPacketHandler($session, static function() : void{ self::fail("Incompatible protocol accepted"); });
-		self::assertTrue($handler->handleRequestNetworkSettings(RequestNetworkSettingsPacket::create(1)));
+		self::assertTrue($handler->handleRequestNetworkSettings(["client_network_version" => 1]));
 		Pulse::stop();
 		self::assertSame(1, $this->network($capture)["sessions"][0][2]);
 	}

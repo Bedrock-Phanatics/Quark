@@ -23,10 +23,12 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\ClientToServerHandshakePacket;
+use quark\network\mcpe\protocol\Packets;
 
 /**
  * Handler responsible for awaiting client response from crypto handshake.
+ *
+ * @phpstan-import-type ClientToServerHandshakeFields from Packets
  */
 class HandshakePacketHandler extends PacketHandler{
 	/**
@@ -34,7 +36,10 @@ class HandshakePacketHandler extends PacketHandler{
 	 */
 	public function __construct(private \Closure $onHandshakeCompleted){}
 
-	public function handleClientToServerHandshake(ClientToServerHandshakePacket $packet) : bool{
+	/**
+	 * @phpstan-param ClientToServerHandshakeFields $packet
+	 */
+	public function handleClientToServerHandshake(array $packet) : bool{
 		($this->onHandshakeCompleted)();
 		return true;
 	}

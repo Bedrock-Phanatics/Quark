@@ -24,8 +24,11 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use Bedwire\PacketId;
-use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
+use quark\network\mcpe\protocol\Packets;
 
+/**
+ * @phpstan-import-type SetLocalPlayerAsInitialisedFields from Packets
+ */
 #[SilentDiscard(PacketId::EMOTE_LIST, comment: "Probably not needed?")]
 #[SilentDiscard(PacketId::INTERACT, comment: "Player interacting with itself somehow")]
 #[SilentDiscard(PacketId::MOB_EQUIPMENT, comment: "Player equipping its held item on spawn, not needed")]
@@ -37,7 +40,10 @@ final class SpawnResponsePacketHandler extends PacketHandler{
 	 */
 	public function __construct(private \Closure $responseCallback){}
 
-	public function handleSetLocalPlayerAsInitialized(SetLocalPlayerAsInitializedPacket $packet) : bool{
+	/**
+	 * @phpstan-param SetLocalPlayerAsInitialisedFields $packet
+	 */
+	public function handleSetLocalPlayerAsInitialised(array $packet) : bool{
 		($this->responseCallback)();
 		return true;
 	}
