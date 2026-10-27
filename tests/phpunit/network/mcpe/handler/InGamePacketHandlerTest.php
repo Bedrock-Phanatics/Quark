@@ -41,6 +41,7 @@ use quark\network\mcpe\protocol\Packets;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
 use quark\world\World;
+use function str_repeat;
 
 /**
  * @phpstan-import-type PlayerAuthInputFields from Packets
@@ -192,6 +193,15 @@ final class InGamePacketHandlerTest extends TestCase{
 	public function testBooksCannotGrowPastTheirPageCap() : void{
 		$this->expectException(\InvalidArgumentException::class);
 		VanillaItems::WRITABLE_BOOK()->addPage(WritableBookBase::MAX_PAGES);
+	}
+
+	public function testRejectsOversizedBlockActorDataBeforeParsing() : void{
+		try{
+			self::handler()->handleBlockActorData(["block_position" => ["x" => 0, "y" => 0, "z" => 0], "actor_data_tags" => str_repeat("\0", 16 * 1024 + 1)]);
+			self::fail("Oversized block actor data accepted");
+		}catch(PacketHandlingException $e){
+			self::assertSame([16 * 1024 + 1, 16 * 1024], [$e->observed, $e->limit]);
+		}
 	}
 
 	public function testLimitsInputFlagCount() : void{

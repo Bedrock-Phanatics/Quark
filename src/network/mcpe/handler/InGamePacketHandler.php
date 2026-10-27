@@ -147,6 +147,10 @@ class InGamePacketHandler extends PacketHandler{
 
 	private const MAX_ITEM_STACK_REQUEST_ACTIONS = 60;
 
+	//sign updates are a few strings in two compounds
+	private const MAX_BLOCK_ACTOR_DATA_SIZE = 16 * 1024;
+	private const MAX_BLOCK_ACTOR_DATA_DEPTH = 8;
+
 	//one auth input carries up to 100 block actions, and each failed one resyncs up to 12 blocks
 	private const MAX_BLOCK_SYNCS_PER_PACKET = 128;
 
@@ -954,6 +958,9 @@ class InGamePacketHandler extends PacketHandler{
 	 * @phpstan-param BlockActorDataFields $packet
 	 */
 	public function handleBlockActorData(array $packet) : bool{
+		if(strlen($packet["actor_data_tags"]) > self::MAX_BLOCK_ACTOR_DATA_SIZE){
+			throw PacketHandlingException::limit("Block actor data too large", strlen($packet["actor_data_tags"]), self::MAX_BLOCK_ACTOR_DATA_SIZE);
+		}
 		$pos = Fields::toBlockVector($packet["block_position"]);
 		if($pos->distanceSquared($this->player->getLocation()) > 10000){
 			return false;
@@ -962,7 +969,7 @@ class InGamePacketHandler extends PacketHandler{
 		$block = $this->player->getLocation()->getWorld()->getBlock($pos);
 		if($block instanceof BaseSign){
 			try{
-				$nbt = Nbt::read($packet["actor_data_tags"], Nbt::NETWORK, 0, 512)->mustGetCompoundTag();
+				$nbt = Nbt::read($packet["actor_data_tags"], Nbt::NETWORK, 0, self::MAX_BLOCK_ACTOR_DATA_DEPTH)->mustGetCompoundTag();
 			}catch(NbtException|NbtDataException $e){
 				throw PacketHandlingException::wrap($e, "Expected TAG_Compound NBT root");
 			}
