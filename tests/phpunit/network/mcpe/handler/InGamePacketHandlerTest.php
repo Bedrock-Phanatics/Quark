@@ -41,6 +41,7 @@ use quark\network\mcpe\protocol\Packets;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
 use quark\world\World;
+use function array_fill;
 use function str_repeat;
 
 /**
@@ -193,6 +194,18 @@ final class InGamePacketHandlerTest extends TestCase{
 	public function testBooksCannotGrowPastTheirPageCap() : void{
 		$this->expectException(\InvalidArgumentException::class);
 		VanillaItems::WRITABLE_BOOK()->addPage(WritableBookBase::MAX_PAGES);
+	}
+
+	public function testLimitsAuthInputTransactionActionsLikeInventoryTransactions() : void{
+		$packet = self::authInput();
+		$packet["item_use_transaction"] = ["legacy_request_id" => 0, "legacy_set_item_slots" => null, "item_use_transaction" => ["actions" => array_fill(0, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS + 1, [])]];
+		try{
+			/** @phpstan-ignore argument.type */
+			self::handler()->handlePlayerAuthInput($packet);
+			self::fail("Oversized transaction accepted");
+		}catch(PacketHandlingException $e){
+			self::assertSame(InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS, $e->limit);
+		}
 	}
 
 	public function testRejectsOversizedBlockActorDataBeforeParsing() : void{

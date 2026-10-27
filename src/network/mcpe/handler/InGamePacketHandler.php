@@ -241,6 +241,9 @@ class InGamePacketHandler extends PacketHandler{
 		if(($packet["vehicle_rotation"] === null) !== ($packet["client_predicted_vehicle"] === null)){
 			throw new PacketHandlingException("Vehicle rotation and actor unique ID must both be present or both be absent");
 		}
+		if($packet["item_use_transaction"] !== null){
+			self::checkTransactionActions($packet["item_use_transaction"]["item_use_transaction"]["actions"]);
+		}
 		if($packet["item_stack_request"] !== null){
 			self::checkItemStackRequest($packet["item_stack_request"]);
 		}
@@ -420,6 +423,16 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	/**
+	 * @phpstan-param list<InventoryAction> $actions
+	 * @throws PacketHandlingException
+	 */
+	private static function checkTransactionActions(array $actions) : void{
+		if(count($actions) > self::MAX_INVENTORY_TRANSACTION_ACTIONS){
+			throw PacketHandlingException::limit("Too many actions in inventory transaction", count($actions), self::MAX_INVENTORY_TRANSACTION_ACTIONS);
+		}
+	}
+
+	/**
 	 * @phpstan-param InventoryTransactionFields $packet
 	 */
 	public function handleInventoryTransaction(array $packet) : bool{
@@ -427,9 +440,7 @@ class InGamePacketHandler extends PacketHandler{
 
 		$transaction = $packet["transaction"];
 		$actions = self::transactionActions($transaction);
-		if(count($actions) > self::MAX_INVENTORY_TRANSACTION_ACTIONS){
-			throw PacketHandlingException::limit("Too many actions in inventory transaction", count($actions), self::MAX_INVENTORY_TRANSACTION_ACTIONS);
-		}
+		self::checkTransactionActions($actions);
 		$requestChangedSlots = $packet["legacy_set_item_slots"];
 
 		$requestId = $packet["legacy_request_id"];
