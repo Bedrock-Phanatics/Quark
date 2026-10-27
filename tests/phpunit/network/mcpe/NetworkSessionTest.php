@@ -23,8 +23,13 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use Bedwire\PacketId;
+use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\VarInt;
 use quark\lang\Language;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
@@ -109,5 +114,39 @@ final class NetworkSessionTest extends TestCase{
 		self::assertFalse($session->isConnected());
 		self::assertLessThanOrEqual(2, $sends);
 		self::assertSame(1, $disposed);
+	}
+
+	public function testEncodeFailureDisconnectsOnlyThatSession() : void{
+		$sent = [];
+		$session = $this->session(static function(NetworkSession $session, string $batch) use (&$sent) : void{
+			$sent[] = $batch;
+		});
+		$rejected = false;
+		$session->sendDataPacketWithReceipt(Packet::fromFields(PacketId::SET_TIME, []))->onCompletion(
+			static fn() => self::fail("Receipt of an unsent packet resolved"),
+			static function() use (&$rejected) : void{ $rejected = true; }
+		);
+
+		$session->sendDataPacket(Packets::setTime(["time" => 1]), true);
+
+		self::assertFalse($session->isConnected());
+		self::assertTrue($rejected);
+		self::assertCount(1, $sent);
+		$reader = new ByteBufferReader($sent[0]);
+		self::assertSame(PacketId::DISCONNECT, Protocol::packetId($reader->readByteArray(VarInt::readUnsignedInt($reader))));
+		self::assertSame(0, $reader->getUnreadLength());
+	}
+
+	public function testEncodeFailureDuringDisconnectStillClosesTheSession() : void{
+		$sends = 0;
+		$session = $this->session(static function() use (&$sends) : void{
+			$sends++;
+		});
+		$session->sendDataPacket(Packet::fromFields(PacketId::SET_TIME, []));
+
+		$session->disconnect("test");
+
+		self::assertFalse($session->isConnected());
+		self::assertSame(0, $sends);
 	}
 }

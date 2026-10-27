@@ -860,6 +860,7 @@ class NetworkSession{
 	 *
 	 * @phpstan-param list<string|array{int, array<string, mixed>}> $packets
 	 * @throws \ValueError naming the first packet whose fields do not fit it
+	 * @throws \TypeError if a field has the wrong type
 	 */
 	public static function encodeBatch(array $packets) : string{
 		$scope = PulseZones::$playerNetworkSendEncode->start();
@@ -893,15 +894,27 @@ class NetworkSession{
 
 				$packets = $this->sendBuffer;
 				$this->sendBuffer = [];
-				$encoded = self::encodeBatch($packets);
+				$ackPromises = $this->sendBufferAckPromises;
+				$this->sendBufferAckPromises = [];
+				try{
+					$encoded = self::encodeBatch($packets);
+				}catch(\ValueError|\TypeError $e){
+					foreach($ackPromises as $resolver){
+						$resolver->reject();
+					}
+					$this->logger->logException($e);
+					$this->disconnectWithError(
+						reason: "Failed to encode packets: " . $e->getMessage(),
+						disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
+					);
+					return;
+				}
 
 				if($this->enableCompression){
 					$batch = $this->server->prepareBatch($encoded, $this->compressor, $syncMode, PulseZones::$playerNetworkSendCompressSessionBuffer);
 				}else{
 					$batch = $encoded;
 				}
-				$ackPromises = $this->sendBufferAckPromises;
-				$this->sendBufferAckPromises = [];
 				//these packets were already potentially buffered for up to 50ms - make sure the transport layer doesn't
 				//delay them any longer
 				$this->queueCompressedNoGamePacketFlush($batch, networkFlush: true, ackPromises: $ackPromises);
