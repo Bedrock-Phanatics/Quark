@@ -571,6 +571,7 @@ class NetworkSession{
 	 */
 	private function handleBatchBuffers(iterable $buffers, ?PulseNetwork $network, ?int $window, ?int $packetLimit) : void{
 		$count = 0;
+		$recording = Pulse::isRecording();
 		try{
 			foreach($buffers as $buffer){
 				if($packetLimit !== null && ++$count >= $packetLimit){
@@ -603,7 +604,7 @@ class NetworkSession{
 					}
 					throw $e;
 				}
-				if(Protocol::name($packetId) === null){
+				if(!isset(Packets::HANDLERS[$packetId]) && Protocol::name($packetId) === null){
 					if($network !== null && $window !== null){
 						$network->count($window, PulseNetwork::PACKETS);
 						$network->count($window, PulseNetwork::DECODE_FAILED);
@@ -613,7 +614,7 @@ class NetworkSession{
 					throw new PacketHandlingException("Unknown packet received");
 				}
 				try{
-					$this->handleDataPacket($packetId, $buffer);
+					$this->handlePacket($packetId, $buffer, $network, $window, $recording);
 				}catch(PacketHandlingException $e){
 					$this->unhandledPacketDebug($packetId, $buffer, "Packet processing error");
 					throw PacketHandlingException::wrap($e, "Error processing " . Protocol::name($packetId));
@@ -669,15 +670,23 @@ class NetworkSession{
 	 */
 	public function handleDataPacket(int $packetId, string $buffer) : void{
 		$network = $this->getPulseNetwork();
-		$window = $network?->window($this->pulseSessionId);
+		$this->handlePacket($packetId, $buffer, $network, $network?->window($this->pulseSessionId), Pulse::isRecording());
+	}
+
+	/**
+	 * @param bool $recording whether Pulse records zones, so their lookups can be skipped when it does not
+	 * @throws PacketHandlingException
+	 * @throws FilterNoisyPacketException
+	 */
+	private function handlePacket(int $packetId, string $buffer, ?PulseNetwork $network, ?int $window, bool $recording) : void{
 		if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
 		if(!isset(Packets::HANDLERS[$packetId])){
 			$this->recordNetworkSecurityEvent("packet.direction", "reject_batch", $packetId);
 			throw new PacketHandlingException("Unexpected non-serverbound packet");
 		}
 
-		$pulse = PulseZones::getReceiveDataPacketZone($packetId);
-		$scope = $pulse->start();
+		$pulse = $recording ? PulseZones::getReceiveDataPacketZone($packetId) : null;
+		$scope = $pulse?->start() ?? 0;
 		$work = $network?->work;
 		$workToken = 0;
 
@@ -711,8 +720,8 @@ class NetworkSession{
 				return;
 			}
 
-			$decodeZone = PulseZones::getDecodeDataPacketZone($packetId);
-			$decodeZoneScope = $decodeZone->start();
+			$decodeZone = $recording ? PulseZones::getDecodeDataPacketZone($packetId) : null;
+			$decodeZoneScope = $decodeZone?->start() ?? 0;
 			try{
 				$work?->stage($workToken, PulseNetworkWork::DECODE);
 				try{
@@ -724,7 +733,7 @@ class NetworkSession{
 					throw PacketHandlingException::wrap($e);
 				}
 			}finally{
-				$decodeZone->stop($decodeZoneScope);
+				$decodeZone?->stop($decodeZoneScope);
 			}
 
 			if(DataPacketReceiveEvent::hasHandlers()){
@@ -741,8 +750,8 @@ class NetworkSession{
 					$packet = Packet::decoded($packetId, $encoded, Protocol::decode($encoded) ?? throw new AssumptionFailedError("Known packet IDs always decode"));
 				}
 			}
-			$handlerZone = PulseZones::getHandleDataPacketZone($packetId);
-			$handlerZoneScope = $handlerZone->start();
+			$handlerZone = $recording ? PulseZones::getHandleDataPacketZone($packetId) : null;
+			$handlerZoneScope = $handlerZone?->start() ?? 0;
 			try{
 				$work?->stage($workToken, PulseNetworkWork::HANDLE);
 				$method = $this->handlerMethods[$packetId] ?? null;
@@ -755,11 +764,11 @@ class NetworkSession{
 				$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packetId, $e->observed, $e->limit);
 				throw $e;
 			}finally{
-				$handlerZone->stop($handlerZoneScope);
+				$handlerZone?->stop($handlerZoneScope);
 			}
 		}finally{
 			$work?->leave($workToken);
-			$pulse->stop($scope);
+			$pulse?->stop($scope);
 		}
 	}
 
