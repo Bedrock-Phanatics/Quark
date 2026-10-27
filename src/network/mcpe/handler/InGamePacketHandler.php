@@ -74,6 +74,7 @@ use quark\utils\TextFormat;
 use quark\utils\Utils;
 use quark\world\format\Chunk;
 use function array_push;
+use function array_values;
 use function count;
 use function fmod;
 use function get_debug_type;
@@ -146,6 +147,9 @@ class InGamePacketHandler extends PacketHandler{
 
 	private const MAX_ITEM_STACK_REQUEST_ACTIONS = 60;
 
+	//one auth input carries up to 100 block actions, and each failed one resyncs up to 12 blocks
+	private const MAX_BLOCK_SYNCS_PER_PACKET = 128;
+
 	protected float $lastRightClickTime = 0.0;
 	/** @phpstan-var ItemUseInventoryTransaction|null */
 	protected ?array $lastRightClickData = null;
@@ -160,6 +164,9 @@ class InGamePacketHandler extends PacketHandler{
 	protected ?array $lastBlockAttacked = null;
 
 	public bool $forceMoveSync = false;
+
+	/** @phpstan-var array<string, Vector3>|null blocks to resync once the auth input being handled is done */
+	private ?array $pendingBlockSyncs = null;
 
 	protected ?string $lastRequestedFullSkinId = null;
 
@@ -345,32 +352,41 @@ class InGamePacketHandler extends PacketHandler{
 
 		$packetHandled = true;
 
-		if($useItemTransaction !== null){
-			$transactionData = $useItemTransaction["item_use_transaction"];
-			$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction["legacy_request_id"]);
-			$this->inventoryManager->addRawPredictedSlotChanges($transactionData["actions"]);
-			if(!$this->handleUseItemTransaction($transactionData)){
-				$packetHandled = false;
-				$this->session->getLogger()->debug("Unhandled transaction in PlayerAuthInputPacket (type " . $transactionData["action_type"] . ")");
-			}else{
-				$this->inventoryManager->syncMismatchedPredictedSlotChanges();
-			}
-			$this->inventoryManager->setCurrentItemStackRequestId(null);
-		}
-
-		$itemStackRequest = $packet["item_stack_request"];
-		$itemStackResponseBuilder = $itemStackRequest !== null ? $this->handleSingleItemStackRequest($itemStackRequest) : null;
-
-		//itemstack request or transaction may set predictions for the outcome of these actions, so these need to be
-		//processed last
-		$blockActions = $packet["player_block_actions"];
-		if($blockActions !== null){
-			foreach($blockActions as $k => $blockAction){
-				if(!$this->handlePlayerActionFromData($blockAction["player_action_type"], $blockAction["position"], $blockAction["facing"])){
+		$this->pendingBlockSyncs = [];
+		try{
+			if($useItemTransaction !== null){
+				$transactionData = $useItemTransaction["item_use_transaction"];
+				$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction["legacy_request_id"]);
+				$this->inventoryManager->addRawPredictedSlotChanges($transactionData["actions"]);
+				if(!$this->handleUseItemTransaction($transactionData)){
 					$packetHandled = false;
-					$this->session->getLogger()->debug("Unhandled player block action at offset $k in PlayerAuthInputPacket");
+					$this->session->getLogger()->debug("Unhandled transaction in PlayerAuthInputPacket (type " . $transactionData["action_type"] . ")");
+				}else{
+					$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+				}
+				$this->inventoryManager->setCurrentItemStackRequestId(null);
+			}
+
+			$itemStackRequest = $packet["item_stack_request"];
+			$itemStackResponseBuilder = $itemStackRequest !== null ? $this->handleSingleItemStackRequest($itemStackRequest) : null;
+
+			//itemstack request or transaction may set predictions for the outcome of these actions, so these need to be
+			//processed last
+			$blockActions = $packet["player_block_actions"];
+			if($blockActions !== null){
+				foreach($blockActions as $k => $blockAction){
+					if(!$this->handlePlayerActionFromData($blockAction["player_action_type"], $blockAction["position"], $blockAction["facing"])){
+						$packetHandled = false;
+						$this->session->getLogger()->debug("Unhandled player block action at offset $k in PlayerAuthInputPacket");
+					}
 				}
 			}
+			$blockSyncs = $this->pendingBlockSyncs;
+		}finally{
+			$this->pendingBlockSyncs = null;
+		}
+		if(count($blockSyncs) > 0){
+			$this->sendBlockUpdates(array_values($blockSyncs));
 		}
 
 		if($itemStackRequest !== null){
@@ -649,9 +665,25 @@ class InGamePacketHandler extends PacketHandler{
 			}else{
 				$blocks[] = $blockPos;
 			}
-			foreach($this->player->getWorld()->createBlockUpdatePackets($blocks) as $packet){
-				$this->session->sendDataPacket($packet);
+			if($this->pendingBlockSyncs === null){
+				$this->sendBlockUpdates($blocks);
+				return;
 			}
+			foreach($blocks as $block){
+				if(count($this->pendingBlockSyncs) >= self::MAX_BLOCK_SYNCS_PER_PACKET){
+					break;
+				}
+				$this->pendingBlockSyncs["$block->x:$block->y:$block->z"] ??= $block;
+			}
+		}
+	}
+
+	/**
+	 * @param Vector3[] $blocks
+	 */
+	private function sendBlockUpdates(array $blocks) : void{
+		foreach($this->player->getWorld()->createBlockUpdatePackets($blocks) as $packet){
+			$this->session->sendDataPacket($packet);
 		}
 	}
 

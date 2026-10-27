@@ -24,9 +24,18 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
+use quark\entity\Entity;
+use quark\entity\Location;
+use quark\network\mcpe\InventoryManager;
+use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Packets;
 use quark\network\PacketHandlingException;
+use quark\player\Player;
+use quark\world\World;
 
 /**
  * @phpstan-import-type PlayerAuthInputFields from Packets
@@ -91,6 +100,45 @@ final class InGamePacketHandlerTest extends TestCase{
 		$this->expectException(PacketHandlingException::class);
 		$this->expectExceptionMessage($message);
 		self::handler()->handlePlayerAuthInput($packet);
+	}
+
+	/**
+	 * @phpstan-param \Closure(int) : array{int, int, int} $position
+	 * @return list<Vector3>
+	 */
+	private function syncedBlocksAfterFailedBreaks(\Closure $position) : array{
+		$synced = [];
+		$world = $this->createMock(World::class);
+		$world->expects(self::once())->method("createBlockUpdatePackets")->willReturnCallback(function(array $blocks) use (&$synced) : array{
+			$synced = $blocks;
+			return [];
+		});
+		$player = $this->createMock(Player::class);
+		$player->method("getLocation")->willReturn(new Location(0, 0, 0, null, 0, 0));
+		$player->method("getWorld")->willReturn($world);
+		$player->method("breakBlock")->willReturn(false);
+		//keeps the destructor from closing a player that was never set up
+		(new \ReflectionProperty(Entity::class, "closed"))->setValue($player, true);
+		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		$handler = new InGamePacketHandler($player, $this->createMock(NetworkSession::class), $this->createMock(InventoryManager::class));
+
+		$packet = self::authInput();
+		$packet["player_block_actions"] = [];
+		for($i = 0; $i < 100; ++$i){
+			[$x, $y, $z] = $position($i);
+			$packet["player_block_actions"][] = ["player_action_type" => PlayerAction::PREDICT_DESTROY_BLOCK, "position" => ["x" => $x, "y" => $y, "z" => $z], "facing" => Facing::UP];
+		}
+		$handler->handlePlayerAuthInput($packet);
+		/** @var list<Vector3> $synced */
+		return $synced;
+	}
+
+	public function testCoalescesBlockSyncsOfOneAuthInput() : void{
+		self::assertCount(12, $this->syncedBlocksAfterFailedBreaks(static fn(int $i) : array => [1, 2, 3]));
+	}
+
+	public function testLimitsBlockSyncsOfOneAuthInput() : void{
+		self::assertCount(128, $this->syncedBlocksAfterFailedBreaks(static fn(int $i) : array => [$i * 3 - 150, 2, 3]));
 	}
 
 	public function testLimitsInputFlagCount() : void{
