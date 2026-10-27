@@ -1069,11 +1069,16 @@ class InGamePacketHandler extends PacketHandler{
 		$modifiedPages = [];
 		$cancel = false;
 		$operation = $packet["operation"];
+		//clients make at most 50 pages, so anything further would only fill the book with empty pages
+		$maxPageNumber = max(49, count($oldBook->getPages()));
 		if(isset($operation["replace_page"])){
 			$pageNumber = $operation["replace_page"]["page_index"];
 			$text = self::checkBookText($operation["replace_page"]["page_text"], "page text", self::PAGE_LENGTH_SOFT_LIMIT_CHARS, WritableBookPage::PAGE_LENGTH_HARD_LIMIT_BYTES, $cancel);
 			if($pageNumber < 0){
 				throw new PacketHandlingException("Page number cannot be negative");
+			}
+			if($pageNumber > $maxPageNumber){
+				throw PacketHandlingException::limit("Book page number too large", $pageNumber, $maxPageNumber);
 			}
 			$newBook->setPageText($pageNumber, $text);
 			$modifiedPages[] = $pageNumber;
@@ -1102,6 +1107,9 @@ class InGamePacketHandler extends PacketHandler{
 			$secondaryPageNumber = $operation["swap_pages"]["swap_with_index"];
 			if($pageNumber < 0 || $secondaryPageNumber < 0){
 				throw new PacketHandlingException("Page numbers cannot be negative");
+			}
+			if(max($pageNumber, $secondaryPageNumber) > $maxPageNumber){
+				throw PacketHandlingException::limit("Book page number too large", max($pageNumber, $secondaryPageNumber), $maxPageNumber);
 			}
 			if(!$newBook->pageExists($pageNumber) || !$newBook->pageExists($secondaryPageNumber)){
 				//the client will create pages on its own without telling us until it tries to switch them

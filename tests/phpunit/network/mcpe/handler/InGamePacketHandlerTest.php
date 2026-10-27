@@ -23,13 +23,18 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
+use pocketmine\utils\Limits;
 use quark\entity\Entity;
 use quark\entity\Location;
+use quark\inventory\PlayerInventory;
+use quark\item\VanillaItems;
+use quark\item\WritableBookBase;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Packets;
@@ -103,6 +108,21 @@ final class InGamePacketHandlerTest extends TestCase{
 	}
 
 	/**
+	 * @return Player&MockObject
+	 */
+	private function player() : Player{
+		$player = $this->createMock(Player::class);
+		//keeps the destructor from closing a player that was never set up
+		(new \ReflectionProperty(Entity::class, "closed"))->setValue($player, true);
+		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		return $player;
+	}
+
+	private function handlerFor(Player $player) : InGamePacketHandler{
+		return new InGamePacketHandler($player, $this->createMock(NetworkSession::class), $this->createMock(InventoryManager::class));
+	}
+
+	/**
 	 * @phpstan-param \Closure(int) : array{int, int, int} $position
 	 * @return list<Vector3>
 	 */
@@ -113,14 +133,11 @@ final class InGamePacketHandlerTest extends TestCase{
 			$synced = $blocks;
 			return [];
 		});
-		$player = $this->createMock(Player::class);
+		$player = $this->player();
 		$player->method("getLocation")->willReturn(new Location(0, 0, 0, null, 0, 0));
 		$player->method("getWorld")->willReturn($world);
 		$player->method("breakBlock")->willReturn(false);
-		//keeps the destructor from closing a player that was never set up
-		(new \ReflectionProperty(Entity::class, "closed"))->setValue($player, true);
-		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
-		$handler = new InGamePacketHandler($player, $this->createMock(NetworkSession::class), $this->createMock(InventoryManager::class));
+		$handler = $this->handlerFor($player);
 
 		$packet = self::authInput();
 		$packet["player_block_actions"] = [];
@@ -139,6 +156,42 @@ final class InGamePacketHandlerTest extends TestCase{
 
 	public function testLimitsBlockSyncsOfOneAuthInput() : void{
 		self::assertCount(128, $this->syncedBlocksAfterFailedBreaks(static fn(int $i) : array => [$i * 3 - 150, 2, 3]));
+	}
+
+	/**
+	 * @return \Generator<string, array{array<string, mixed>}>
+	 */
+	public static function farBookPageProvider() : \Generator{
+		yield "replace" => [["replace_page" => ["page_index" => Limits::INT32_MAX, "page_text" => "x"]]];
+		yield "swap" => [["swap_pages" => ["page_index" => 0, "swap_with_index" => Limits::INT32_MAX]]];
+		yield "just past the client's last page" => [["replace_page" => ["page_index" => 50, "page_text" => "x"]]];
+	}
+
+	/**
+	 * @dataProvider farBookPageProvider
+	 * @param array<string, mixed> $operation
+	 */
+	public function testRejectsBookPagesPastTheLastOneBeforeEditing(array $operation) : void{
+		$book = VanillaItems::WRITABLE_BOOK();
+		$inventory = $this->createMock(PlayerInventory::class);
+		$inventory->method("slotExists")->willReturn(true);
+		$inventory->method("getItem")->willReturn($book);
+		$player = $this->player();
+		$player->method("getInventory")->willReturn($inventory);
+
+		try{
+			/** @phpstan-ignore argument.type */
+			$this->handlerFor($player)->handleBookEdit(["book_slot" => 0, "operation" => $operation]);
+			self::fail("Far page accepted");
+		}catch(PacketHandlingException $e){
+			self::assertSame(49, $e->limit);
+		}
+		self::assertSame([], $book->getPages());
+	}
+
+	public function testBooksCannotGrowPastTheirPageCap() : void{
+		$this->expectException(\InvalidArgumentException::class);
+		VanillaItems::WRITABLE_BOOK()->addPage(WritableBookBase::MAX_PAGES);
 	}
 
 	public function testLimitsInputFlagCount() : void{

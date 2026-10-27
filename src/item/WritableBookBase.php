@@ -37,6 +37,9 @@ abstract class WritableBookBase extends Item{
 	public const TAG_PAGE_TEXT = "text"; //TAG_String
 	public const TAG_PAGE_PHOTONAME = "photoname"; //TAG_String - TODO
 
+	/** Pages addPage() and setPageText() can grow a book to. Plugins may still set more with setPages(). */
+	public const MAX_PAGES = 1024;
+
 	/**
 	 * @var WritableBookPage[]
 	 * @phpstan-var list<WritableBookPage>
@@ -82,9 +85,10 @@ abstract class WritableBookBase extends Item{
 	 * Creates a new page for every page between the given ID and existing pages that doesn't yet exist.
 	 *
 	 * @return $this
+	 * @throws \InvalidArgumentException if the page ID is negative or not below MAX_PAGES
 	 */
 	public function addPage(int $pageId) : self{
-		if($pageId < 0){
+		if($pageId < 0 || $pageId >= self::MAX_PAGES){
 			throw new \InvalidArgumentException("Page number \"$pageId\" is out of range");
 		}
 
