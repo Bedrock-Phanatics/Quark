@@ -112,6 +112,7 @@
          "@php build/codegen/item-type-names.php vendor/axolotl-pm/bedrock-data/required_item_list.json",
          "@php build/codegen/known-translation-apis.php",
          "@php build/codegen/protocol-packets.php",
+         "@php build/codegen/protocol-classes.php",
          "@php build/codegen/quark-yml-property-consts.php",
          "@php build/codegen/registry-interface.php src generated"
       ]
