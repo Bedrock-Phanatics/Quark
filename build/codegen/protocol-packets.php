@@ -26,6 +26,7 @@ namespace quark\build\generate_protocol_packets;
 use Bedwire\Protocol;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
+use function array_keys;
 use function array_pop;
 use function array_push;
 use function count;
@@ -38,6 +39,7 @@ use function is_array;
 use function is_dir;
 use function is_int;
 use function is_string;
+use function json_decode;
 use function json_encode;
 use function lcfirst;
 use function mkdir;
@@ -80,8 +82,9 @@ final class Generator{
 
 	/**
 	 * @param array<mixed> $schema
+	 * @param array<mixed> $directions packets the schema marks bidirectional that clients only send or only receive
 	 */
-	public function __construct(private array $schema){
+	public function __construct(private array $schema, private array $directions){
 		$references = [];
 		foreach(Utils::promoteKeys(table($schema["types"] ?? null, "types")) as $name => $type){
 			$name = (string) $name;
@@ -177,6 +180,13 @@ final class Generator{
 			});
 		}
 
+		$narrowed = [];
+		foreach(["serverbound" => Protocol::SERVERBOUND, "clientbound" => Protocol::CLIENTBOUND] as $key => $direction){
+			foreach(table($this->directions[$key] ?? null, "$key packets") as $packetName){
+				$narrowed[str($packetName, "a packet name")] = $direction;
+			}
+		}
+
 		$factories = "";
 		$handlers = "";
 		$clientbound = "";
@@ -201,12 +211,23 @@ FACTORY;
 			if(!is_int($direction)){
 				throw new \RuntimeException("Expected the direction of $name to be an int");
 			}
+			if(isset($narrowed[$name])){
+				if($direction !== Protocol::BIDIRECTIONAL){
+					throw new \RuntimeException("$name is listed in packet-directions.json, but the schema already sends it one way");
+				}
+				$direction = $narrowed[$name];
+				unset($narrowed[$name]);
+			}
 			if(($direction & Protocol::SERVERBOUND) !== 0){
 				$handlers .= "\t\tPacketId::$constant => \"handle$pascal\",\n";
 			}
 			if(($direction & Protocol::CLIENTBOUND) !== 0){
 				$clientbound .= "\t\tPacketId::$constant => true,\n";
 			}
+		}
+
+		if(count($narrowed) > 0){
+			throw new \RuntimeException("packet-directions.json lists unknown packets: " . implode(", ", array_keys($narrowed)));
 		}
 
 		$protocol = $this->schema["protocol"] ?? null;
@@ -259,6 +280,7 @@ $output = dirname(__DIR__, 2) . "/generated/network/mcpe/protocol/Packets.php";
 if(!@mkdir(dirname($output), recursive: true) && !is_dir(dirname($output))){
 	throw new \RuntimeException("Couldn't create directory: " . dirname($output));
 }
-file_put_contents($output, (new Generator(Protocol::schema()))->generate());
+$directions = json_decode(Filesystem::fileGetContents(__DIR__ . "/packet-directions.json"), true, flags: JSON_THROW_ON_ERROR);
+file_put_contents($output, (new Generator(Protocol::schema(), table($directions, "packet directions")))->generate());
 
 echo "Done generating Packets.\n";
