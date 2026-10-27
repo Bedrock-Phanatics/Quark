@@ -31,10 +31,12 @@ use pmmp\encoding\VarInt;
 use quark\lang\Language;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\ObjectSet;
+use function strlen;
 
 final class NetworkSessionTest extends TestCase{
 
@@ -65,6 +67,8 @@ final class NetworkSessionTest extends TestCase{
 		$this->set($session, "compressedQueue", new \SplQueue());
 		$this->set($session, "disposeHooks", new ObjectSet());
 		$this->set($session, "loggedIn", true);
+		$this->set($session, "packetBatchLimiter", new PacketRateLimiter("Packet Batches", 2, 100));
+		$this->set($session, "gamePacketLimiter", new PacketRateLimiter("Game Packets", 10000, 1));
 		$this->set($session, "sender", new class($session, $onSend) implements NativeBatchPacketSender{
 			/** @phpstan-param \Closure(NetworkSession, string) : void $onSend */
 			public function __construct(private NetworkSession $session, private \Closure $onSend){}
@@ -114,6 +118,33 @@ final class NetworkSessionTest extends TestCase{
 		self::assertFalse($session->isConnected());
 		self::assertLessThanOrEqual(2, $sends);
 		self::assertSame(1, $disposed);
+	}
+
+	private static function chunkRadius(int $radius) : string{
+		return Protocol::encode(PacketId::REQUEST_CHUNK_RADIUS, ["chunk_radius" => $radius, "max_chunk_radius" => 32]);
+	}
+
+	public function testNativelySplitPacketsSkipBatchLimits() : void{
+		$session = $this->session(static function() : void{});
+		$packets = [];
+		for($i = 0; $i < 400; ++$i){
+			$packets[] = self::chunkRadius($i);
+		}
+		$session->handleDecodedPackets($packets);
+		for($i = 0; $i < 250; ++$i){
+			$session->handleDecodedPackets([self::chunkRadius($i)]);
+		}
+		self::assertTrue($session->isConnected());
+	}
+
+	public function testBatchesStillHaveAPacketLimit() : void{
+		$batch = "";
+		for($i = 0; $i < 400; ++$i){
+			$packet = self::chunkRadius($i);
+			$batch .= VarInt::packUnsignedInt(strlen($packet)) . $packet;
+		}
+		$this->expectException(PacketHandlingException::class);
+		$this->session(static function() : void{})->handleEncoded($batch);
 	}
 
 	public function testEncodeFailureDisconnectsOnlyThatSession() : void{

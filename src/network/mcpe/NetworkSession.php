@@ -542,7 +542,7 @@ class NetworkSession{
 			if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECOMPRESSED_BYTES, strlen($decompressed)); }
 
 			$work?->stage($workToken, PulseNetworkWork::BATCH_DECODE);
-			$this->handleBatchBuffers(self::splitBatch($decompressed), $network, $window);
+			$this->handleBatchBuffers(self::splitBatch($decompressed), $network, $window, self::INCOMING_PACKET_BATCH_HARD_LIMIT);
 		}finally{
 			$work?->leave($workToken);
 			PulseZones::$playerNetworkReceive->stop($playerNetworkReceiveScope);
@@ -569,14 +569,14 @@ class NetworkSession{
 	 * @param iterable<string> $buffers
 	 * @throws PacketHandlingException
 	 */
-	private function handleBatchBuffers(iterable $buffers, ?PulseNetwork $network, ?int $window) : void{
+	private function handleBatchBuffers(iterable $buffers, ?PulseNetwork $network, ?int $window, ?int $packetLimit) : void{
 		$count = 0;
 		try{
 			foreach($buffers as $buffer){
-				if(++$count >= self::INCOMING_PACKET_BATCH_HARD_LIMIT){
+				if($packetLimit !== null && ++$count >= $packetLimit){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
-					$this->recordRawPacketSecurityEvent($buffer, "batch.packet_limit", $count, self::INCOMING_PACKET_BATCH_HARD_LIMIT);
-					throw new PacketHandlingException("Reached hard limit of " . self::INCOMING_PACKET_BATCH_HARD_LIMIT . " per batch packet");
+					$this->recordRawPacketSecurityEvent($buffer, "batch.packet_limit", $count, $packetLimit);
+					throw new PacketHandlingException("Reached hard limit of $packetLimit per batch packet");
 				}
 
 				if($this->checkRepeatedPacketFilter($buffer)){
@@ -635,6 +635,7 @@ class NetworkSession{
 
 	/**
 	 * Handles packets a native transport already decrypted, decompressed and split, in the order received.
+	 * The transport caps packets per frame and per second itself and may merge frames, so batch limits do not apply.
 	 *
 	 * @param string[] $buffers
 	 * @phpstan-param list<string> $buffers
@@ -652,13 +653,7 @@ class NetworkSession{
 		}
 		$playerNetworkReceiveScope = PulseZones::$playerNetworkReceive->start();
 		try{
-			try{
-				$this->packetBatchLimiter->decrement();
-			}catch(PacketRateLimitException $e){
-				$this->recordNetworkSecurityEvent("rate.batch", "reject_batch", observed: $e->requested, limit: $e->available);
-				throw $e;
-			}
-			$this->handleBatchBuffers($buffers, $network, $window);
+			$this->handleBatchBuffers($buffers, $network, $window, null);
 		}finally{
 			PulseZones::$playerNetworkReceive->stop($playerNetworkReceiveScope);
 		}
