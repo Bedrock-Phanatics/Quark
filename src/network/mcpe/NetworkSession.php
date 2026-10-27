@@ -129,21 +129,21 @@ use function ucfirst;
 use const JSON_THROW_ON_ERROR;
 
 class NetworkSession{
-	private const INCOMING_PACKET_BATCH_PER_TICK = 2; //usually max 1 per tick, but transactions arrive separately
-	private const INCOMING_PACKET_BATCH_BUFFER_TICKS = 100; //enough to account for a 5-second lag spike
+	private const int INCOMING_PACKET_BATCH_PER_TICK = 2; //usually max 1 per tick, but transactions arrive separately
+	private const int INCOMING_PACKET_BATCH_BUFFER_TICKS = 100; //enough to account for a 5-second lag spike
 
-	private const INCOMING_GAME_PACKETS_PER_TICK = 2;
-	private const INCOMING_GAME_PACKETS_BUFFER_TICKS = 100;
+	private const int INCOMING_GAME_PACKETS_PER_TICK = 2;
+	private const int INCOMING_GAME_PACKETS_BUFFER_TICKS = 100;
 
-	private const INCOMING_PACKET_BATCH_HARD_LIMIT = 300;
+	private const int INCOMING_PACKET_BATCH_HARD_LIMIT = 300;
 
 	/**
 	 * Array entries one received packet may decode into. Vanilla packets stay far below this, and it keeps a packet
 	 * full of tiny list elements from expanding into hundreds of megabytes of arrays.
 	 */
-	private const MAX_DECODED_VALUES = 65536;
+	private const int MAX_DECODED_VALUES = 65536;
 
-	private const PRE_LOGIN_PACKETS = [
+	private const array PRE_LOGIN_PACKETS = [
 		PacketId::NETWORK_SETTINGS => true,
 		PacketId::PLAY_STATUS => true,
 		PacketId::SERVER_TO_CLIENT_HANDSHAKE => true,
@@ -447,7 +447,7 @@ class NetworkSession{
 			if($this->handler !== null){
 				[$this->handlerActions, $methods] = PacketHandlerInspector::inspect($this->handler);
 				foreach($methods as $id => $method){
-					$this->handlerMethods[$id] = (new \ReflectionMethod($this->handler, $method))->getClosure($this->handler);
+					$this->handlerMethods[$id] = new \ReflectionMethod($this->handler, $method)->getClosure($this->handler);
 				}
 				$this->handler->setUp();
 			}else{
@@ -636,7 +636,6 @@ class NetworkSession{
 
 	/**
 	 * Handles packets a native transport already decrypted, decompressed and split, in the order received.
-	 * The transport caps packets per frame and per second itself and may merge frames, so batch limits do not apply.
 	 *
 	 * @param string[] $buffers
 	 * @phpstan-param list<string> $buffers
@@ -674,7 +673,6 @@ class NetworkSession{
 	}
 
 	/**
-	 * @param bool $recording whether Pulse records zones, so their lookups can be skipped when it does not
 	 * @throws PacketHandlingException
 	 * @throws FilterNoisyPacketException
 	 */
@@ -845,7 +843,7 @@ class NetworkSession{
 	/**
 	 * @internal
 	 * @param Packet[] $packets
-	 * @throws \InvalidArgumentException if the client does not accept one of the packets, or not yet
+	 * @throws \InvalidArgumentException
 	 */
 	public function checkSendable(array $packets) : void{
 		foreach($packets as $packet){
@@ -862,7 +860,7 @@ class NetworkSession{
 	/**
 	 * @internal Queues packets the broadcaster already fired events for.
 	 * @param Packet[] $packets
-	 * @throws \InvalidArgumentException if the client does not accept one of the packets, or not yet
+	 * @throws \InvalidArgumentException
 	 */
 	public function addToSendBuffer(array $packets) : void{
 		$this->checkSendable($packets);
@@ -876,7 +874,7 @@ class NetworkSession{
 	 *
 	 * @phpstan-param list<string|array{int, array<string, mixed>}> $packets
 	 * @throws \ValueError naming the first packet whose fields do not fit it
-	 * @throws \TypeError if a field has the wrong type
+	 * @throws \TypeError
 	 */
 	public static function encodeBatch(array $packets) : string{
 		$scope = PulseZones::$playerNetworkSendEncode->start();
@@ -1075,7 +1073,7 @@ class NetworkSession{
 	 */
 	private function tryDisconnect(\Closure $func, Translatable|string $reason) : void{
 		if($this->connected && !$this->disconnectGuard){
-			//kept for the whole teardown, so a send failure during the final flush cannot start another disconnect
+			//held through teardown so a failing final flush cannot disconnect again
 			$this->disconnectGuard = true;
 			try{
 				$func();

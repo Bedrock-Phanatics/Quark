@@ -61,7 +61,7 @@ use function trim;
  */
 final class BedwireInterface implements AdvancedNetworkInterface{
 
-	private const EVENTS_PER_POLL = 4096;
+	private const int EVENTS_PER_POLL = 4096;
 
 	private ?BedwireServer $bedwire = null;
 
@@ -71,7 +71,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	/** @phpstan-var array<int, int> session IDs by spl_object_id() of their NetworkSession */
 	private array $sessionIds = [];
 
-	/** @phpstan-var array<int, true> closed sessions whose native disconnect waits for room in the command queue */
+	/** @phpstan-var array<int, true> */
 	private array $pendingDisconnects = [];
 
 	/** @phpstan-var array<string, int> expiry times of blocked addresses */
@@ -335,7 +335,6 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		try{
 			$this->sendRawBatch($this->bedwire, $sessionId, $batch, $offset);
 		}catch(BackpressureException){
-			//the network thread is that far behind, so close first and let the disconnect screen be dropped
 			$session = $this->sessions[$sessionId];
 			$this->close($sessionId);
 			$session->disconnectWithError("Network send queue is full");
@@ -345,10 +344,8 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	}
 
 	/**
-	 * Sends a batch body, halving it until each part fits the packet count and size one native batch takes.
-	 *
 	 * @throws BackpressureException
-	 * @throws \ValueError if a single packet is too large to send
+	 * @throws \ValueError
 	 */
 	private function sendRawBatch(BedwireServer $bedwire, int $sessionId, string $batch, int $offset) : void{
 		try{

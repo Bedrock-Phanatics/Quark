@@ -66,7 +66,7 @@ final class PacketEventTest extends TestCase{
 	}
 
 	private function set(object $object, string $property, mixed $value) : void{
-		(new \ReflectionProperty(NetworkSession::class, $property))->setValue($object, $value);
+		new \ReflectionProperty(NetworkSession::class, $property)->setValue($object, $value);
 	}
 
 	/**
@@ -74,7 +74,7 @@ final class PacketEventTest extends TestCase{
 	 */
 	private function sendBuffer(NetworkSession $session) : array{
 		/** @phpstan-var list<string|array{int, array<string, mixed>}> $buffer */
-		$buffer = (new \ReflectionProperty(NetworkSession::class, "sendBuffer"))->getValue($session);
+		$buffer = new \ReflectionProperty(NetworkSession::class, "sendBuffer")->getValue($session);
 		return $buffer;
 	}
 
@@ -82,7 +82,7 @@ final class PacketEventTest extends TestCase{
 	 * @phpstan-param \Closure(array<string, mixed>) : bool $chunkRadius
 	 */
 	private function session(?\Closure $chunkRadius = null, bool $loggedIn = true) : NetworkSession{
-		$session = (new \ReflectionClass(NetworkSession::class))->newInstanceWithoutConstructor();
+		$session = new \ReflectionClass(NetworkSession::class)->newInstanceWithoutConstructor();
 		$this->set($session, "logger", new \PrefixedLogger($this->createMock(\Logger::class), "test"));
 		$this->set($session, "packetBatchLimiter", new PacketRateLimiter("batch", 10000, 1));
 		$this->set($session, "gamePacketLimiter", new PacketRateLimiter("packet", 10000, 1));
@@ -105,7 +105,7 @@ final class PacketEventTest extends TestCase{
 		[$actions, $methods] = PacketHandlerInspector::inspect($handler);
 		$closures = [];
 		foreach($methods as $id => $method){
-			$closures[$id] = (new \ReflectionMethod($handler, $method))->getClosure($handler);
+			$closures[$id] = new \ReflectionMethod($handler, $method)->getClosure($handler);
 		}
 		$this->set($session, "handler", $handler);
 		$this->set($session, "handlerActions", $actions);
@@ -120,7 +120,7 @@ final class PacketEventTest extends TestCase{
 		$handler = $session->getHandler();
 		self::assertNotNull($handler);
 		/** @phpstan-var list<array<string, mixed>> $received */
-		$received = (new \ReflectionProperty($handler, "received"))->getValue($handler);
+		$received = new \ReflectionProperty($handler, "received")->getValue($handler);
 		return $received;
 	}
 
@@ -220,7 +220,7 @@ final class PacketEventTest extends TestCase{
 			$this->set($recipient, "compressor", $compressor);
 			$recipients[] = $recipient;
 		}
-		$broadcaster = (new \ReflectionClass(StandardPacketBroadcaster::class))->newInstanceWithoutConstructor();
+		$broadcaster = new \ReflectionClass(StandardPacketBroadcaster::class)->newInstanceWithoutConstructor();
 		try{
 			$broadcaster->broadcastPackets($recipients, [Packets::setTime(["time" => 7])]);
 			self::fail("Packet broadcast before login");
@@ -236,7 +236,7 @@ final class PacketEventTest extends TestCase{
 			$this->session()->sendDataPacket($packet);
 			self::fail("Serverbound packet sent");
 		}catch(\InvalidArgumentException){}
-		$broadcaster = (new \ReflectionClass(StandardPacketBroadcaster::class))->newInstanceWithoutConstructor();
+		$broadcaster = new \ReflectionClass(StandardPacketBroadcaster::class)->newInstanceWithoutConstructor();
 		$this->expectException(\InvalidArgumentException::class);
 		$broadcaster->broadcastPackets([$this->session()], [$packet]);
 	}

@@ -184,9 +184,6 @@ class LoginPacketHandler extends PacketHandler{
 	}
 
 	/**
-	 * Returns whether the identity parsed here is the one the transport verified, so a parser difference between
-	 * the two can never swap a verified player for another.
-	 *
 	 * @phpstan-param array{string, string, string}|null $verified
 	 */
 	public static function matchesTransportLogin(?array $verified, string $username, UuidInterface $uuid, string $xuid) : bool{
@@ -501,7 +498,7 @@ class LoginPacketHandler extends PacketHandler{
 			static $count = 0;
 			if($count++ < 10){
 				$this->session->getLogger()->warning(
-					"$context: Unexpected JSON property for " . (new \ReflectionClass($object))->getShortName() . ": " . Utils::printable(substr($name, 0, 80))
+					"$context: Unexpected JSON property for " . new \ReflectionClass($object)->getShortName() . ": " . Utils::printable(substr($name, 0, 80))
 				);
 			}else{
 				throw new PacketHandlingException("$context: Too many unexpected JSON properties");

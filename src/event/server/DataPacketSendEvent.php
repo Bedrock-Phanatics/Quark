@@ -62,7 +62,7 @@ class DataPacketSendEvent extends ServerEvent implements Cancellable{
 
 	/**
 	 * @param Packet[] $packets
-	 * @throws \InvalidArgumentException if a target does not accept one of the packets, or not yet
+	 * @throws \InvalidArgumentException
 	 */
 	public function setPackets(array $packets) : void{
 		Utils::validateArrayValueType($packets, function(Packet $packet) : void{

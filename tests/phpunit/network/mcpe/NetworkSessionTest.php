@@ -50,14 +50,14 @@ final class NetworkSessionTest extends TestCase{
 	}
 
 	private function set(NetworkSession $session, string $property, mixed $value) : void{
-		(new \ReflectionProperty(NetworkSession::class, $property))->setValue($session, $value);
+		new \ReflectionProperty(NetworkSession::class, $property)->setValue($session, $value);
 	}
 
 	/**
 	 * @phpstan-param \Closure(NetworkSession, string) : void $onSend
 	 */
 	private function session(\Closure $onSend) : NetworkSession{
-		$session = (new \ReflectionClass(NetworkSession::class))->newInstanceWithoutConstructor();
+		$session = new \ReflectionClass(NetworkSession::class)->newInstanceWithoutConstructor();
 		$language = $this->createMock(Language::class);
 		$language->method("translate")->willReturn("");
 		$server = $this->createMock(Server::class);
@@ -108,7 +108,7 @@ final class NetworkSessionTest extends TestCase{
 		});
 		$disposed = 0;
 		/** @phpstan-var ObjectSet<\Closure() : void> $hooks */
-		$hooks = (new \ReflectionProperty(NetworkSession::class, "disposeHooks"))->getValue($session);
+		$hooks = new \ReflectionProperty(NetworkSession::class, "disposeHooks")->getValue($session);
 		$hooks->add(static function() use (&$disposed) : void{
 			$disposed++;
 		});

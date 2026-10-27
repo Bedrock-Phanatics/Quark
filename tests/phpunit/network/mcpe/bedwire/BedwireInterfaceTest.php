@@ -30,7 +30,7 @@ use quark\network\mcpe\NetworkSession;
 use function str_repeat;
 
 final class BedwireInterfaceTest extends TestCase{
-	private const SESSION = 1;
+	private const int SESSION = 1;
 
 	private BedwireServer $server;
 
@@ -43,9 +43,9 @@ final class BedwireInterfaceTest extends TestCase{
 	}
 
 	private function interface(NetworkSession $session) : BedwireInterface{
-		$interface = (new \ReflectionClass(BedwireInterface::class))->newInstanceWithoutConstructor();
-		(new \ReflectionProperty(BedwireInterface::class, "bedwire"))->setValue($interface, $this->server);
-		(new \ReflectionProperty(BedwireInterface::class, "sessions"))->setValue($interface, [self::SESSION => $session]);
+		$interface = new \ReflectionClass(BedwireInterface::class)->newInstanceWithoutConstructor();
+		new \ReflectionProperty(BedwireInterface::class, "bedwire")->setValue($interface, $this->server);
+		new \ReflectionProperty(BedwireInterface::class, "sessions")->setValue($interface, [self::SESSION => $session]);
 		return $interface;
 	}
 

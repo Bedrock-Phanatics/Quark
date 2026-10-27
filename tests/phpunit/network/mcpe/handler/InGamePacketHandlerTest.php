@@ -43,6 +43,7 @@ use quark\player\Player;
 use quark\world\World;
 use function array_fill;
 use function str_repeat;
+use const NAN;
 
 /**
  * @phpstan-import-type PlayerAuthInputFields from Packets
@@ -50,7 +51,7 @@ use function str_repeat;
 final class InGamePacketHandlerTest extends TestCase{
 
 	private static function handler() : InGamePacketHandler{
-		return (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
+		return new \ReflectionClass(InGamePacketHandler::class)->newInstanceWithoutConstructor();
 	}
 
 	/**
@@ -114,9 +115,8 @@ final class InGamePacketHandlerTest extends TestCase{
 	 */
 	private function player() : Player{
 		$player = $this->createMock(Player::class);
-		//keeps the destructor from closing a player that was never set up
-		(new \ReflectionProperty(Entity::class, "closed"))->setValue($player, true);
-		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		new \ReflectionProperty(Entity::class, "closed")->setValue($player, true);
+		new \ReflectionProperty(Player::class, "logger")->setValue($player, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
 		return $player;
 	}
 
@@ -194,6 +194,26 @@ final class InGamePacketHandlerTest extends TestCase{
 	public function testBooksCannotGrowPastTheirPageCap() : void{
 		$this->expectException(\InvalidArgumentException::class);
 		VanillaItems::WRITABLE_BOOK()->addPage(WritableBookBase::MAX_PAGES);
+	}
+
+	public function testRepeatedInputFlagsAreAppliedOnce() : void{
+		$player = $this->player();
+		$player->method("getLocation")->willReturn(new Location(0, 0, 0, null, 0, 0));
+		$player->expects(self::exactly(3))->method("toggleSneak")->willReturn(true);
+		$handler = $this->handlerFor($player);
+		foreach([[PlayerAuthInputFlags::START_SNEAKING], [PlayerAuthInputFlags::START_SNEAKING], [], [], [PlayerAuthInputFlags::START_SNEAKING]] as $flags){
+			$packet = self::authInput();
+			$packet["input_data"] = $flags;
+			self::assertTrue($handler->handlePlayerAuthInput($packet));
+		}
+	}
+
+	public function testRejectsNonFiniteMovement() : void{
+		$player = $this->player();
+		$player->expects(self::never())->method("handleMovement");
+		$packet = self::authInput();
+		$packet["position"]["y"] = NAN;
+		self::assertFalse($this->handlerFor($player)->handlePlayerAuthInput($packet));
 	}
 
 	public function testLimitsAuthInputTransactionActionsLikeInventoryTransactions() : void{

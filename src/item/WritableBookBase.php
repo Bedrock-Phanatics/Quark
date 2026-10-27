@@ -33,12 +33,11 @@ use function count;
 use function mb_scrub;
 
 abstract class WritableBookBase extends Item{
-	public const TAG_PAGES = "pages"; //TAG_List<TAG_Compound>
-	public const TAG_PAGE_TEXT = "text"; //TAG_String
-	public const TAG_PAGE_PHOTONAME = "photoname"; //TAG_String - TODO
+	public const string TAG_PAGES = "pages"; //TAG_List<TAG_Compound>
+	public const string TAG_PAGE_TEXT = "text"; //TAG_String
+	public const string TAG_PAGE_PHOTONAME = "photoname"; //TAG_String - TODO
 
-	/** Pages addPage() and setPageText() can grow a book to. Plugins may still set more with setPages(). */
-	public const MAX_PAGES = 1024;
+	public const int MAX_PAGES = 1024;
 
 	/**
 	 * @var WritableBookPage[]
@@ -85,7 +84,7 @@ abstract class WritableBookBase extends Item{
 	 * Creates a new page for every page between the given ID and existing pages that doesn't yet exist.
 	 *
 	 * @return $this
-	 * @throws \InvalidArgumentException if the page ID is negative or not below MAX_PAGES
+	 * @throws \InvalidArgumentException
 	 */
 	public function addPage(int $pageId) : self{
 		if($pageId < 0 || $pageId >= self::MAX_PAGES){

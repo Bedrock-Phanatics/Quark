@@ -28,8 +28,8 @@ namespace quark\network;
  * than expected, unknown packet, etc.
  */
 class PacketHandlingException extends \RuntimeException{
-	public ?int $observed = null;
-	public ?int $limit = null;
+	public protected(set) ?int $observed = null;
+	public protected(set) ?int $limit = null;
 
 	/**
 	 * For a collection larger than the server accepts, so security events can report both sizes.

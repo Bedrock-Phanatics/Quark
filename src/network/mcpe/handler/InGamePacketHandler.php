@@ -80,8 +80,7 @@ use function fmod;
 use function get_debug_type;
 use function implode;
 use function in_array;
-use function is_infinite;
-use function is_nan;
+use function is_finite;
 use function json_decode;
 use function ksort;
 use function max;
@@ -134,25 +133,23 @@ use const JSON_THROW_ON_ERROR;
 #[SilentDiscard(PacketId::SPAWN_EXPERIENCE_ORB, comment: "XP drops should be server-calculated")]
 #[SilentDiscard(PacketId::SERVER_BOUND_DIAGNOSTICS, comment: "Not needed, noisy debug")]
 class InGamePacketHandler extends PacketHandler{
-	public const MAX_ITEM_STACK_REQUESTS = 80;
-	public const MAX_INVENTORY_TRANSACTION_ACTIONS = 50;
+	public const int MAX_ITEM_STACK_REQUESTS = 80;
+	public const int MAX_INVENTORY_TRANSACTION_ACTIONS = 50;
 
-	private const MAX_FORM_RESPONSE_SIZE = 10 * 1024; //10 KiB should be more than enough
-	private const MAX_FORM_RESPONSE_DEPTH = 2; //modal/simple will be 1, custom forms 2 - they will never contain anything other than string|int|float|bool|null
+	private const int MAX_FORM_RESPONSE_SIZE = 10 * 1024; //10 KiB should be more than enough
+	private const int MAX_FORM_RESPONSE_DEPTH = 2; //modal/simple will be 1, custom forms 2 - they will never contain anything other than string|int|float|bool|null
 
 	//TODO: The client-side per-page character limit is inconsistent for non-ASCII text,
 	//allowing input beyond 256 chars. Use a slightly higher bounded soft limit to
 	//prevent rejected edits while still mitigating book-bomb attacks
-	private const PAGE_LENGTH_SOFT_LIMIT_CHARS = 512;
+	private const int PAGE_LENGTH_SOFT_LIMIT_CHARS = 512;
 
-	private const MAX_ITEM_STACK_REQUEST_ACTIONS = 60;
+	private const int MAX_ITEM_STACK_REQUEST_ACTIONS = 60;
 
-	//sign updates are a few strings in two compounds
-	private const MAX_BLOCK_ACTOR_DATA_SIZE = 16 * 1024;
-	private const MAX_BLOCK_ACTOR_DATA_DEPTH = 8;
+	private const int MAX_BLOCK_ACTOR_DATA_SIZE = 16 * 1024;
+	private const int MAX_BLOCK_ACTOR_DATA_DEPTH = 8;
 
-	//one auth input carries up to 100 block actions, and each failed one resyncs up to 12 blocks
-	private const MAX_BLOCK_SYNCS_PER_PACKET = 128;
+	private const int MAX_BLOCK_SYNCS_PER_PACKET = 128;
 
 	protected float $lastRightClickTime = 0.0;
 	/** @phpstan-var ItemUseInventoryTransaction|null */
@@ -163,13 +160,15 @@ class InGamePacketHandler extends PacketHandler{
 	protected ?float $lastPlayerAuthInputPitch = null;
 	/** @phpstan-var array<int, true>|null */
 	protected ?array $lastPlayerAuthInputFlags = null;
+	/** @phpstan-var list<int>|null */
+	protected ?array $lastPlayerAuthInputRawFlags = null;
 
 	/** @phpstan-var BlockPosition|null */
 	protected ?array $lastBlockAttacked = null;
 
 	public bool $forceMoveSync = false;
 
-	/** @phpstan-var array<string, Vector3>|null blocks to resync once the auth input being handled is done */
+	/** @phpstan-var array<string, Vector3>|null */
 	private ?array $pendingBlockSyncs = null;
 
 	protected ?string $lastRequestedFullSkinId = null;
@@ -236,8 +235,9 @@ class InGamePacketHandler extends PacketHandler{
 	 * @phpstan-return array<int, true>
 	 * @throws PacketHandlingException
 	 */
-	private static function validateAuthInput(array $packet) : array{
-		$inputFlags = self::readInputFlags($packet["input_data"]);
+	private function validateAuthInput(array $packet) : array{
+		$rawFlags = $packet["input_data"];
+		$inputFlags = ($rawFlags === $this->lastPlayerAuthInputRawFlags ? $this->lastPlayerAuthInputFlags : null) ?? self::readInputFlags($rawFlags);
 		if(($packet["vehicle_rotation"] === null) !== ($packet["client_predicted_vehicle"] === null)){
 			throw new PacketHandlingException("Vehicle rotation and actor unique ID must both be present or both be absent");
 		}
@@ -282,15 +282,13 @@ class InGamePacketHandler extends PacketHandler{
 	 * @phpstan-param PlayerAuthInputFields $packet
 	 */
 	public function handlePlayerAuthInput(array $packet) : bool{
-		$inputFlags = self::validateAuthInput($packet);
+		$inputFlags = $this->validateAuthInput($packet);
 		$rawPos = Fields::toVector3($packet["position"]);
 		$rawPitch = $packet["player_rotation"]["x"];
 		$rawYaw = $packet["player_rotation"]["y"];
-		foreach([$rawPos->x, $rawPos->y, $rawPos->z, $rawYaw, $packet["player_head_rotation"], $rawPitch] as $float){
-			if(is_infinite($float) || is_nan($float)){
-				$this->session->getLogger()->debug("Invalid movement received, contains NAN/INF components");
-				return false;
-			}
+		if(!is_finite($rawPos->x) || !is_finite($rawPos->y) || !is_finite($rawPos->z) || !is_finite($rawYaw) || !is_finite($packet["player_head_rotation"]) || !is_finite($rawPitch)){
+			$this->session->getLogger()->debug("Invalid movement received, contains NAN/INF components");
+			return false;
 		}
 		$useItemTransaction = $packet["item_use_transaction"];
 
@@ -325,6 +323,7 @@ class InGamePacketHandler extends PacketHandler{
 
 		if($inputFlags !== $this->lastPlayerAuthInputFlags){
 			$this->lastPlayerAuthInputFlags = $inputFlags;
+			$this->lastPlayerAuthInputRawFlags = $packet["input_data"];
 
 			$sneakPressed = isset($inputFlags[PlayerAuthInputFlags::SNEAKING]);
 
@@ -1087,7 +1086,6 @@ class InGamePacketHandler extends PacketHandler{
 		$modifiedPages = [];
 		$cancel = false;
 		$operation = $packet["operation"];
-		//clients make at most 50 pages, so anything further would only fill the book with empty pages
 		$maxPageNumber = max(49, count($oldBook->getPages()));
 		if(isset($operation["replace_page"])){
 			$pageNumber = $operation["replace_page"]["page_index"];
