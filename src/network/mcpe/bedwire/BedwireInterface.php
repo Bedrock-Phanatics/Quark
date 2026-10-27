@@ -26,6 +26,9 @@ namespace quark\network\mcpe\bedwire;
 use Bedwire\BackpressureException;
 use Bedwire\Exception as BedwireException;
 use Bedwire\Server as BedwireServer;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\DataDecodeException;
+use pmmp\encoding\VarInt;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\AdvancedNetworkInterface;
@@ -44,6 +47,7 @@ use quark\utils\TextFormat;
 use quark\utils\Utils;
 use function count;
 use function implode;
+use function intdiv;
 use function mb_strcut;
 use function spl_object_id;
 use function strrpos;
@@ -317,10 +321,42 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			return;
 		}
 		try{
-			$this->bedwire->sendRawBatch($sessionId, $batch, $offset);
+			$this->sendRawBatch($this->bedwire, $sessionId, $batch, $offset);
 		}catch(BackpressureException){
 			//the network thread is that far behind, so this player cannot be kept in sync anyway
 			$this->sessions[$sessionId]->disconnectWithError("Network send queue is full");
+		}catch(\ValueError $e){
+			$this->sessions[$sessionId]->disconnectWithError("Failed to send packet: " . $e->getMessage());
+		}
+	}
+
+	/**
+	 * Sends a batch body, halving it until each part fits the packet count and size one native batch takes.
+	 *
+	 * @throws BackpressureException
+	 * @throws \ValueError if a single packet is too large to send
+	 */
+	private function sendRawBatch(BedwireServer $bedwire, int $sessionId, string $batch, int $offset) : void{
+		try{
+			$bedwire->sendRawBatch($sessionId, $batch, $offset);
+		}catch(\ValueError $e){
+			$ends = [];
+			$reader = new ByteBufferReader($batch);
+			$reader->setOffset($offset);
+			try{
+				while($reader->getUnreadLength() > 0){
+					$reader->readByteArray(VarInt::readUnsignedInt($reader));
+					$ends[] = $reader->getOffset();
+				}
+			}catch(DataDecodeException){
+				throw $e;
+			}
+			if(count($ends) < 2){
+				throw $e;
+			}
+			$middle = $ends[intdiv(count($ends), 2) - 1];
+			$this->sendRawBatch($bedwire, $sessionId, substr($batch, $offset, $middle - $offset), 0);
+			$this->sendRawBatch($bedwire, $sessionId, $batch, $middle);
 		}
 	}
 
