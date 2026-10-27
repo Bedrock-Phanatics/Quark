@@ -788,34 +788,24 @@ class NetworkSession{
 		if(!$this->connected){
 			return false;
 		}
-		$packetId = $packet->getId();
-		if(!isset(Packets::CLIENTBOUND[$packetId])){
-			throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
-		}
-		//Basic safety restriction. TODO: improve this
-		if(!$this->loggedIn && !isset(self::PRE_LOGIN_PACKETS[$packetId])){
-			throw new \InvalidArgumentException("Attempted to send " . $packet->getName() . " to " . $this->getDisplayName() . " too early");
-		}
+		$packets = [$packet];
+		$this->checkSendable($packets);
 
-		$pulse = PulseZones::getSendDataPacketZone($packetId);
+		$pulse = PulseZones::getSendDataPacketZone($packet->getId());
 		$scope = $pulse->start();
 		try{
 			if(DataPacketSendEvent::hasHandlers()){
-				$ev = new DataPacketSendEvent([$this], [$packet]);
+				$ev = new DataPacketSendEvent([$this], $packets);
 				$ev->call();
 				if($ev->isCancelled()){
 					return false;
 				}
 				$packets = $ev->getPackets();
-			}else{
-				$packets = [$packet];
 			}
 
+			$this->addToSendBuffer($packets);
 			if($ackReceiptResolver !== null){
 				$this->sendBufferAckPromises[] = $ackReceiptResolver;
-			}
-			foreach($packets as $evPacket){
-				$this->sendBuffer[] = $evPacket->toBatchEntry();
 			}
 			if($immediate){
 				$this->flushGamePacketQueue();
@@ -849,10 +839,32 @@ class NetworkSession{
 	}
 
 	/**
-	 * @internal Queues a packet the broadcaster already checked and fired events for.
+	 * @internal
+	 * @param Packet[] $packets
+	 * @throws \InvalidArgumentException if the client does not accept one of the packets, or not yet
 	 */
-	public function addToSendBuffer(Packet $packet) : void{
-		$this->sendBuffer[] = $packet->toBatchEntry();
+	public function checkSendable(array $packets) : void{
+		foreach($packets as $packet){
+			$packetId = $packet->getId();
+			if(!isset(Packets::CLIENTBOUND[$packetId])){
+				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
+			}
+			if(!$this->loggedIn && !isset(self::PRE_LOGIN_PACKETS[$packetId])){
+				throw new \InvalidArgumentException("Attempted to send " . $packet->getName() . " to " . $this->getDisplayName() . " too early");
+			}
+		}
+	}
+
+	/**
+	 * @internal Queues packets the broadcaster already fired events for.
+	 * @param Packet[] $packets
+	 * @throws \InvalidArgumentException if the client does not accept one of the packets, or not yet
+	 */
+	public function addToSendBuffer(array $packets) : void{
+		$this->checkSendable($packets);
+		foreach($packets as $packet){
+			$this->sendBuffer[] = $packet->toBatchEntry();
+		}
 	}
 
 	/**

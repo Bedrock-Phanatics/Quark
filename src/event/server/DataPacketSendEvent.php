@@ -62,6 +62,7 @@ class DataPacketSendEvent extends ServerEvent implements Cancellable{
 
 	/**
 	 * @param Packet[] $packets
+	 * @throws \InvalidArgumentException if a target does not accept one of the packets, or not yet
 	 */
 	public function setPackets(array $packets) : void{
 		Utils::validateArrayValueType($packets, function(Packet $packet) : void{
@@ -69,6 +70,9 @@ class DataPacketSendEvent extends ServerEvent implements Cancellable{
 				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
 			}
 		});
+		foreach($this->targets as $target){
+			$target->checkSendable($packets);
+		}
 		$this->packets = $packets;
 	}
 }

@@ -31,6 +31,7 @@ use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
 use quark\event\server\DataPacketReceiveEvent;
 use quark\event\server\DataPacketSendEvent;
+use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\handler\PacketHandler;
 use quark\network\mcpe\handler\PacketHandlerInspector;
 use quark\network\mcpe\protocol\Packet;
@@ -80,12 +81,14 @@ final class PacketEventTest extends TestCase{
 	/**
 	 * @phpstan-param \Closure(array<string, mixed>) : bool $chunkRadius
 	 */
-	private function session(?\Closure $chunkRadius = null) : NetworkSession{
+	private function session(?\Closure $chunkRadius = null, bool $loggedIn = true) : NetworkSession{
 		$session = (new \ReflectionClass(NetworkSession::class))->newInstanceWithoutConstructor();
 		$this->set($session, "logger", new \PrefixedLogger($this->createMock(\Logger::class), "test"));
 		$this->set($session, "packetBatchLimiter", new PacketRateLimiter("batch", 10000, 1));
 		$this->set($session, "gamePacketLimiter", new PacketRateLimiter("packet", 10000, 1));
-		$this->set($session, "loggedIn", true);
+		$this->set($session, "loggedIn", $loggedIn);
+		$this->set($session, "ip", "127.0.0.1");
+		$this->set($session, "port", 19132);
 		$handler = new class($chunkRadius ?? static fn(array $packet) : bool => true) extends PacketHandler{
 			/** @var list<array<string, mixed>> */
 			public array $received = [];
@@ -183,6 +186,48 @@ final class PacketEventTest extends TestCase{
 		});
 		$this->expectException(\InvalidArgumentException::class);
 		$this->session()->sendDataPacket(Packets::chunkRadiusUpdated(["chunk_radius" => 2]));
+	}
+
+	public function testSendListenersCannotQueuePacketsBeforeLogin() : void{
+		$this->listen(DataPacketSendEvent::class, static function(DataPacketSendEvent $event) : void{
+			$event->setPackets([Packets::setTime(["time" => 7])]);
+		});
+		$session = $this->session(loggedIn: false);
+		try{
+			$session->sendDataPacket(Packets::playStatus(["status" => 0]));
+			self::fail("Packet queued before login");
+		}catch(\InvalidArgumentException){}
+		self::assertSame([], $this->sendBuffer($session));
+	}
+
+	/**
+	 * @return \Generator<string, array{int}>
+	 */
+	public static function broadcastRecipientsProvider() : \Generator{
+		yield "one recipient" => [1];
+		yield "recipients sharing a compressed batch" => [2];
+	}
+
+	/**
+	 * @dataProvider broadcastRecipientsProvider
+	 */
+	public function testBroadcastsCannotReachSessionsBeforeLogin(int $count) : void{
+		$compressor = $this->createMock(Compressor::class);
+		$compressor->method("getCompressionThreshold")->willReturn(0);
+		$recipients = [];
+		for($i = 0; $i < $count; ++$i){
+			$recipient = $this->session(loggedIn: false);
+			$this->set($recipient, "compressor", $compressor);
+			$recipients[] = $recipient;
+		}
+		$broadcaster = (new \ReflectionClass(StandardPacketBroadcaster::class))->newInstanceWithoutConstructor();
+		try{
+			$broadcaster->broadcastPackets($recipients, [Packets::setTime(["time" => 7])]);
+			self::fail("Packet broadcast before login");
+		}catch(\InvalidArgumentException){}
+		foreach($recipients as $recipient){
+			self::assertSame([], $this->sendBuffer($recipient));
+		}
 	}
 
 	public function testServerboundPacketsCannotBeSentOrBroadcast() : void{

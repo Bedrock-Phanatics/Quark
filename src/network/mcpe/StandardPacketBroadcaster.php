@@ -59,9 +59,7 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 		if(count($recipients) === 1){
 			//nothing to share, so leave encoding to the recipient's next flush
 			foreach($recipients as $recipient){
-				foreach($packets as $packet){
-					$recipient->addToSendBuffer($packet);
-				}
+				$recipient->addToSendBuffer($packets);
 			}
 			return;
 		}
@@ -96,6 +94,9 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 
 			$threshold = $compressor->getCompressionThreshold();
 			if(count($compressorTargets) > 1 && $threshold !== null && $totalLength >= $threshold){
+				foreach($compressorTargets as $target){
+					$target->checkSendable($packets);
+				}
 				//do not prepare shared batch unless we're sure it will be compressed
 				$batch = $this->server->prepareBatch(NetworkSession::encodeBatch($packetBuffers), $compressor, pulse: PulseZones::$playerNetworkSendCompressBroadcast);
 				foreach($compressorTargets as $target){
@@ -103,9 +104,7 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 				}
 			}else{
 				foreach($compressorTargets as $target){
-					foreach($packets as $packet){
-						$target->addToSendBuffer($packet);
-					}
+					$target->addToSendBuffer($packets);
 				}
 			}
 		}
