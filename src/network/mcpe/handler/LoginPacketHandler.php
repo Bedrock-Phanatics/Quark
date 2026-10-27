@@ -137,9 +137,8 @@ class LoginPacketHandler extends PacketHandler{
 				//plugin cancelled
 				return true;
 			}
-			$verified = $this->session->getTransportVerifiedLogin();
 			$clientKey = base64_decode($claims->cpk, strict: true);
-			if($verified !== null && $verified[2] === $xuid && $clientKey !== false){
+			if($clientKey !== false && self::matchesTransportLogin($this->session->getTransportVerifiedLogin(), $username, $legacyUuid, $xuid)){
 				//the transport already checked this token and the client data signature against Microsoft's keys
 				$this->session->setHandler(null);
 				($this->authCallback)(true, $authRequired, null, $clientKey);
@@ -182,6 +181,20 @@ class LoginPacketHandler extends PacketHandler{
 		}
 
 		return true;
+	}
+
+	/**
+	 * Returns whether the identity parsed here is the one the transport verified, so a parser difference between
+	 * the two can never swap a verified player for another.
+	 *
+	 * @phpstan-param array{string, string, string}|null $verified
+	 */
+	public static function matchesTransportLogin(?array $verified, string $username, UuidInterface $uuid, string $xuid) : bool{
+		return $verified !== null &&
+			$verified[0] === $username &&
+			$verified[2] === $xuid &&
+			Uuid::isValid($verified[1]) &&
+			Uuid::fromString($verified[1])->equals($uuid);
 	}
 
 	private function processLoginCommon(string $username, UuidInterface $legacyUuid, string $xuid, ClientData $clientData) : ?bool{
