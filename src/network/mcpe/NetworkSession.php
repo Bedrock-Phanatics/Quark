@@ -1046,34 +1046,37 @@ class NetworkSession{
 	 */
 	private function tryDisconnect(\Closure $func, Translatable|string $reason) : void{
 		if($this->connected && !$this->disconnectGuard){
+			//kept for the whole teardown, so a send failure during the final flush cannot start another disconnect
 			$this->disconnectGuard = true;
-			$func();
-			$this->disconnectGuard = false;
-			$this->flushGamePacketQueue();
-			$this->sender->close("");
-			foreach($this->disposeHooks as $callback){
-				$callback();
-			}
-			$this->disposeHooks->clear();
-			$this->setHandler(null);
-			$this->connected = false;
-			$this->connectionPhase = "closed";
-			$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase);
+			try{
+				$func();
+				$this->flushGamePacketQueue();
+			}finally{
+				$this->sender->close("");
+				foreach($this->disposeHooks as $callback){
+					$callback();
+				}
+				$this->disposeHooks->clear();
+				$this->setHandler(null);
+				$this->connected = false;
+				$this->connectionPhase = "closed";
+				$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase);
 
-			$ackPromisesByReceiptId = $this->ackPromisesByReceiptId;
-			$this->ackPromisesByReceiptId = [];
-			foreach($ackPromisesByReceiptId as $resolvers){
-				foreach($resolvers as $resolver){
+				$ackPromisesByReceiptId = $this->ackPromisesByReceiptId;
+				$this->ackPromisesByReceiptId = [];
+				foreach($ackPromisesByReceiptId as $resolvers){
+					foreach($resolvers as $resolver){
+						$resolver->reject();
+					}
+				}
+				$sendBufferAckPromises = $this->sendBufferAckPromises;
+				$this->sendBufferAckPromises = [];
+				foreach($sendBufferAckPromises as $resolver){
 					$resolver->reject();
 				}
-			}
-			$sendBufferAckPromises = $this->sendBufferAckPromises;
-			$this->sendBufferAckPromises = [];
-			foreach($sendBufferAckPromises as $resolver){
-				$resolver->reject();
-			}
 
-			$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_network_session_close($reason)));
+				$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_network_session_close($reason)));
+			}
 		}
 	}
 

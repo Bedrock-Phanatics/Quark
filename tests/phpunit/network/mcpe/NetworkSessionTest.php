@@ -1,0 +1,113 @@
+<?php
+
+/*
+ *
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
+ *
+ *
+ */
+
+declare(strict_types=1);
+
+namespace quark\network\mcpe;
+
+use PHPUnit\Framework\TestCase;
+use quark\lang\Language;
+use quark\network\mcpe\protocol\Packets;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
+use quark\Server;
+use quark\utils\ObjectSet;
+
+final class NetworkSessionTest extends TestCase{
+
+	protected function setUp() : void{
+		Pulse::reset();
+		PulseZones::init();
+	}
+
+	protected function tearDown() : void{
+		Pulse::reset();
+	}
+
+	private function set(NetworkSession $session, string $property, mixed $value) : void{
+		(new \ReflectionProperty(NetworkSession::class, $property))->setValue($session, $value);
+	}
+
+	/**
+	 * @phpstan-param \Closure(NetworkSession, string) : void $onSend
+	 */
+	private function session(\Closure $onSend) : NetworkSession{
+		$session = (new \ReflectionClass(NetworkSession::class))->newInstanceWithoutConstructor();
+		$language = $this->createMock(Language::class);
+		$language->method("translate")->willReturn("");
+		$server = $this->createMock(Server::class);
+		$server->method("getLanguage")->willReturn($language);
+		$this->set($session, "server", $server);
+		$this->set($session, "logger", new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		$this->set($session, "compressedQueue", new \SplQueue());
+		$this->set($session, "disposeHooks", new ObjectSet());
+		$this->set($session, "loggedIn", true);
+		$this->set($session, "sender", new class($session, $onSend) implements NativeBatchPacketSender{
+			/** @phpstan-param \Closure(NetworkSession, string) : void $onSend */
+			public function __construct(private NetworkSession $session, private \Closure $onSend){}
+
+			public function send(string $payload, bool $immediate, ?int $receiptId) : void{
+				$this->sendBatch($payload, 0);
+			}
+
+			public function sendBatch(string $batch, int $offset) : void{
+				($this->onSend)($this->session, $batch);
+			}
+
+			public function acceptLogin(string $clientPublicKeyDer) : void{}
+
+			public function close(string $reason = "unknown reason") : void{}
+		});
+		return $session;
+	}
+
+	/**
+	 * @return \Generator<string, array{\Closure(NetworkSession) : mixed}>
+	 */
+	public static function flushProvider() : \Generator{
+		yield "flush while connected" => [static fn(NetworkSession $session) => $session->sendDataPacket(Packets::setTime(["time" => 1]), true)];
+		yield "final flush of a disconnect" => [static fn(NetworkSession $session) => $session->disconnect("test")];
+	}
+
+	/**
+	 * @dataProvider flushProvider
+	 * @phpstan-param \Closure(NetworkSession) : mixed $flush
+	 */
+	public function testSendFailureDuringFlushDisconnectsOnce(\Closure $flush) : void{
+		$sends = 0;
+		$session = $this->session(static function(NetworkSession $session) use (&$sends) : void{
+			$sends++;
+			$session->disconnectWithError("Network send queue is full");
+		});
+		$disposed = 0;
+		/** @phpstan-var ObjectSet<\Closure() : void> $hooks */
+		$hooks = (new \ReflectionProperty(NetworkSession::class, "disposeHooks"))->getValue($session);
+		$hooks->add(static function() use (&$disposed) : void{
+			$disposed++;
+		});
+
+		$flush($session);
+
+		self::assertFalse($session->isConnected());
+		self::assertLessThanOrEqual(2, $sends);
+		self::assertSame(1, $disposed);
+	}
+}

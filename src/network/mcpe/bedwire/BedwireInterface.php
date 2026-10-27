@@ -71,6 +71,9 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	/** @phpstan-var array<int, int> session IDs by spl_object_id() of their NetworkSession */
 	private array $sessionIds = [];
 
+	/** @phpstan-var array<int, true> closed sessions whose native disconnect waits for room in the command queue */
+	private array $pendingDisconnects = [];
+
 	/** @phpstan-var array<string, int> expiry times of blocked addresses */
 	private array $blockedAddresses = [];
 
@@ -166,6 +169,14 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		}
 		$this->processEvents();
 		$this->publishStatus();
+		foreach($this->pendingDisconnects as $sessionId => $_){
+			try{
+				$bedwire->disconnect($sessionId);
+			}catch(BackpressureException){
+				break;
+			}
+			unset($this->pendingDisconnects[$sessionId]);
+		}
 
 		$stats = $bedwire->getStatistics();
 		$this->network->getBandwidthTracker()->add($stats["bytes_sent"] - $this->bytesSent, $stats["bytes_received"] - $this->bytesReceived);
@@ -222,6 +233,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 						}
 						break;
 					case BedwireServer::EVENT_DISCONNECT:
+						unset($this->pendingDisconnects[$sessionId]);
 						$session = $this->sessions[$sessionId] ?? null;
 						if($session !== null){
 							unset($this->sessions[$sessionId], $this->sessionIds[spl_object_id($session)]);
@@ -253,7 +265,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		[$ip, $port] = self::splitAddress($address);
 		if(isset($this->blockedAddresses[$ip])){
 			if($this->blockedAddresses[$ip] > time()){
-				$this->bedwire?->disconnect($sessionId);
+				$this->disconnectNative($sessionId);
 				return;
 			}
 			unset($this->blockedAddresses[$ip]);
@@ -323,8 +335,10 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		try{
 			$this->sendRawBatch($this->bedwire, $sessionId, $batch, $offset);
 		}catch(BackpressureException){
-			//the network thread is that far behind, so this player cannot be kept in sync anyway
-			$this->sessions[$sessionId]->disconnectWithError("Network send queue is full");
+			//the network thread is that far behind, so close first and let the disconnect screen be dropped
+			$session = $this->sessions[$sessionId];
+			$this->close($sessionId);
+			$session->disconnectWithError("Network send queue is full");
 		}catch(\ValueError $e){
 			$this->sessions[$sessionId]->disconnectWithError("Failed to send packet: " . $e->getMessage());
 		}
@@ -373,7 +387,15 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	public function close(int $sessionId) : void{
 		if(isset($this->sessions[$sessionId])){
 			unset($this->sessionIds[spl_object_id($this->sessions[$sessionId])], $this->sessions[$sessionId]);
+			$this->disconnectNative($sessionId);
+		}
+	}
+
+	private function disconnectNative(int $sessionId) : void{
+		try{
 			$this->bedwire?->disconnect($sessionId);
+		}catch(BackpressureException){
+			$this->pendingDisconnects[$sessionId] = true;
 		}
 	}
 
