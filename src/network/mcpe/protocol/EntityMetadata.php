@@ -24,8 +24,6 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataTypes;
 use quark\network\mcpe\protocol\types\DataItemBytePayload;
 use quark\network\mcpe\protocol\types\DataItemCompoundTagPayload;
 use quark\network\mcpe\protocol\types\DataItemEntry;
@@ -37,6 +35,8 @@ use quark\network\mcpe\protocol\types\DataItemPosPayload;
 use quark\network\mcpe\protocol\types\DataItemShortPayload;
 use quark\network\mcpe\protocol\types\DataItemStringPayload;
 use quark\network\mcpe\protocol\types\DataItemVec3Payload;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataTypes;
 use function array_fill_keys;
 use function array_keys;
 use function array_values;

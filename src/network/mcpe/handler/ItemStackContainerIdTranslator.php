@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
+use quark\network\mcpe\protocol\types\inventory\ContainerIds;
+use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use quark\network\PacketHandlingException;
 
 final class ItemStackContainerIdTranslator{

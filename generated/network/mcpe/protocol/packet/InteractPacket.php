@@ -33,6 +33,11 @@ use quark\network\mcpe\protocol\Packet;
 final class InteractPacket extends Packet{
 	public const int ID = PacketId::INTERACT;
 
+	public const int ACTION_LEAVE_VEHICLE = 3;
+	public const int ACTION_MOUSEOVER = 4;
+	public const int ACTION_OPEN_NPC = 5;
+	public const int ACTION_OPEN_INVENTORY = 6;
+
 	public function __construct(
 		public int $action,
 		public int $targetRuntimeId,

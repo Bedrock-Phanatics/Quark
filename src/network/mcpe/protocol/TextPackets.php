@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
-use pocketmine\network\mcpe\protocol\TextPacket as BedrockTextPacket;
 use quark\network\mcpe\protocol\packet\TextPacket;
 use quark\network\mcpe\protocol\types\TextBody;
 use quark\network\mcpe\protocol\types\TextMessageAndParams;
@@ -48,15 +47,15 @@ final class TextPackets{
 	}
 
 	public static function raw(string $message) : TextPacket{
-		return self::text(false, new TextMessageOnly(BedrockTextPacket::TYPE_RAW, self::nonEmpty($message)));
+		return self::text(false, new TextMessageOnly(TextPacket::TYPE_RAW, self::nonEmpty($message)));
 	}
 
 	public static function tip(string $message) : TextPacket{
-		return self::text(false, new TextMessageOnly(BedrockTextPacket::TYPE_TIP, self::nonEmpty($message)));
+		return self::text(false, new TextMessageOnly(TextPacket::TYPE_TIP, self::nonEmpty($message)));
 	}
 
 	public static function popup(string $message) : TextPacket{
-		return self::text(false, new TextMessageAndParams(BedrockTextPacket::TYPE_POPUP, self::nonEmpty($message), []));
+		return self::text(false, new TextMessageAndParams(TextPacket::TYPE_POPUP, self::nonEmpty($message), []));
 	}
 
 	/**
@@ -64,7 +63,7 @@ final class TextPackets{
 	 * @phpstan-param list<string> $parameters
 	 */
 	public static function translation(string $key, array $parameters = []) : TextPacket{
-		return self::text(true, new TextMessageAndParams(BedrockTextPacket::TYPE_TRANSLATION, self::nonEmpty($key), $parameters));
+		return self::text(true, new TextMessageAndParams(TextPacket::TYPE_TRANSLATION, self::nonEmpty($key), $parameters));
 	}
 
 	/**
@@ -72,6 +71,6 @@ final class TextPackets{
 	 * @phpstan-param list<string> $parameters
 	 */
 	public static function jukeboxPopup(string $key, array $parameters = []) : TextPacket{
-		return self::text(true, new TextMessageAndParams(BedrockTextPacket::TYPE_JUKEBOX_POPUP, self::nonEmpty($key), $parameters));
+		return self::text(true, new TextMessageAndParams(TextPacket::TYPE_JUKEBOX_POPUP, self::nonEmpty($key), $parameters));
 	}
 }

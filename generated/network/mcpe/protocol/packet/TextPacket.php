@@ -33,6 +33,19 @@ use quark\network\mcpe\protocol\types\TextBody;
 final class TextPacket extends Packet{
 	public const int ID = PacketId::TEXT;
 
+	public const int TYPE_RAW = 0;
+	public const int TYPE_CHAT = 1;
+	public const int TYPE_TRANSLATION = 2;
+	public const int TYPE_POPUP = 3;
+	public const int TYPE_JUKEBOX_POPUP = 4;
+	public const int TYPE_TIP = 5;
+	public const int TYPE_SYSTEM = 6;
+	public const int TYPE_WHISPER = 7;
+	public const int TYPE_ANNOUNCEMENT = 8;
+	public const int TYPE_JSON_WHISPER = 9;
+	public const int TYPE_JSON = 10;
+	public const int TYPE_JSON_ANNOUNCEMENT = 11;
+
 	public function __construct(
 		public bool $localize,
 		public TextBody $body,

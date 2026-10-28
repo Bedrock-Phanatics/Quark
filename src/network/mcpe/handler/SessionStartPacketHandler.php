@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use Bedwire\Protocol;
-use pocketmine\network\mcpe\protocol\NetworkSettingsPacket as BedrockNetworkSettingsPacket;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\packet\NetworkSettingsPacket;
 use quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket;
@@ -50,7 +49,7 @@ final class SessionStartPacketHandler extends PacketHandler{
 
 		//TODO: we're filling in the defaults to get pre-1.19.30 behaviour back for now, but we should explore the new options in the future
 		$this->session->sendDataPacket(new NetworkSettingsPacket(
-			compressionThreshold: BedrockNetworkSettingsPacket::COMPRESS_EVERYTHING,
+			compressionThreshold: NetworkSettingsPacket::COMPRESS_EVERYTHING,
 			compressionAlgorithm: $this->session->getCompressor()->getNetworkType()->value,
 			clientThrottleEnabled: false,
 			clientThrottleThreshold: 0,

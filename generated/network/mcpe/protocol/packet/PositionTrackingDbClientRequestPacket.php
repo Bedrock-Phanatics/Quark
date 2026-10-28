@@ -32,6 +32,8 @@ use quark\network\mcpe\protocol\Packet;
 final class PositionTrackingDbClientRequestPacket extends Packet{
 	public const int ID = PacketId::POSITION_TRACKING_DB_CLIENT_REQUEST;
 
+	public const int ACTION_QUERY = 0;
+
 	public function __construct(
 		public int $action,
 		public int $id,

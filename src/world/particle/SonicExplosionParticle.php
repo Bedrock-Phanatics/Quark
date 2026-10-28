@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\ParticleIds;
 use quark\network\mcpe\protocol\LevelPackets;
+use quark\network\mcpe\protocol\types\ParticleIds;
 
 class SonicExplosionParticle implements Particle{
 

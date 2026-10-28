@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
-use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
 use quark\network\mcpe\protocol\packet\ActorEventPacket;
+use quark\network\mcpe\protocol\types\ActorEvent;
 
 final class HurtAnimation implements Animation{
 

@@ -6,7 +6,7 @@ Quark 6 is based on PocketMine-MP 5.47.0, but it is not a drop-in replacement. T
 
 ### Namespace
 
-Replace imports and fully qualified names for server-core classes under `pocketmine\` with `quark\`. Keep external library namespaces such as `pocketmine\math`, `pocketmine\nbt`, and `pocketmine\network\mcpe\protocol` unchanged.
+Replace imports and fully qualified names for server-core classes under `pocketmine\` with `quark\`. Keep external library namespaces such as `pocketmine\math` and `pocketmine\nbt` unchanged. BedrockProtocol is no longer a dependency: its constants and value objects that Quark uses moved to `quark\network\mcpe\protocol` under the same names, packets are the generated classes in `quark\network\mcpe\protocol\packet`, and packet constants such as `AnimatePacket::ACTION_SWING_ARM` are declared on them.
 
 ```php
 // Before

@@ -32,6 +32,11 @@ use quark\network\mcpe\protocol\Packet;
 final class PacketViolationWarningPacket extends Packet{
 	public const int ID = PacketId::PACKET_VIOLATION_WARNING;
 
+	public const int TYPE_MALFORMED = 0;
+	public const int SEVERITY_WARNING = 0;
+	public const int SEVERITY_FINAL_WARNING = 1;
+	public const int SEVERITY_TERMINATING_CONNECTION = 2;
+
 	public function __construct(
 		public int $violationType,
 		public int $violationSeverity,

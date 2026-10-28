@@ -34,6 +34,8 @@ use quark\network\mcpe\protocol\types\ChunkPosition;
 final class NetworkChunkPublisherUpdatePacket extends Packet{
 	public const int ID = PacketId::NETWORK_CHUNK_PUBLISHER_UPDATE;
 
+	public const int MAX_SAVED_CHUNKS = 9216;
+
 	/**
 	 * @param list<ChunkPosition> $serverBuiltChunksList
 	 */

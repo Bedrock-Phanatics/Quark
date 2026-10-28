@@ -37,6 +37,12 @@ use quark\network\mcpe\protocol\types\LegacySetSlot;
 final class InventoryTransactionPacket extends Packet{
 	public const int ID = PacketId::INVENTORY_TRANSACTION;
 
+	public const int TYPE_NORMAL = 0;
+	public const int TYPE_MISMATCH = 1;
+	public const int TYPE_USE_ITEM = 2;
+	public const int TYPE_USE_ITEM_ON_ENTITY = 3;
+	public const int TYPE_RELEASE_ITEM = 4;
+
 	/**
 	 * @param list<LegacySetSlot>|null $legacySetItemSlots
 	 * @param array{normal_transaction_data: list<InventoryAction>}|array{inventory_mismatch_data: list<InventoryAction>}|array{item_use_inventory_transaction: ItemUseInventoryTransaction}|array{item_use_on_actor_inventory_transaction: ItemUseOnActorInventoryTransaction}|array{item_release_inventory_transaction: ItemReleaseInventoryTransaction} $transaction

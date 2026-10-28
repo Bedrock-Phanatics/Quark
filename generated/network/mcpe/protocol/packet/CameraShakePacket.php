@@ -32,6 +32,11 @@ use quark\network\mcpe\protocol\Packet;
 final class CameraShakePacket extends Packet{
 	public const int ID = PacketId::CAMERA_SHAKE;
 
+	public const int TYPE_POSITIONAL = 0;
+	public const int TYPE_ROTATIONAL = 1;
+	public const int ACTION_ADD = 0;
+	public const int ACTION_STOP = 1;
+
 	public function __construct(
 		public float $intensity,
 		public float $seconds,

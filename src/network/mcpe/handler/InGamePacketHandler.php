@@ -31,19 +31,6 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\InteractPacket as BedrockInteractPacket;
-use pocketmine\network\mcpe\protocol\PacketDecodeException;
-use pocketmine\network\mcpe\protocol\TextPacket as BedrockTextPacket;
-use pocketmine\network\mcpe\protocol\types\GameMode as ProtocolGameMode;
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
-use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
-use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
-use pocketmine\network\mcpe\protocol\types\inventory\ReleaseItemTransactionData;
-use pocketmine\network\mcpe\protocol\types\inventory\UseItemOnEntityTransactionData;
-use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
-use pocketmine\network\mcpe\protocol\types\PlayerAction;
-use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
-use pocketmine\network\mcpe\protocol\types\PlayerBlockAction;
 use pocketmine\utils\Limits;
 use quark\block\BaseSign;
 use quark\block\Lectern;
@@ -87,16 +74,26 @@ use quark\network\mcpe\protocol\packet\PlayerSkinPacket;
 use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
 use quark\network\mcpe\protocol\packet\SetPlayerGameTypePacket;
 use quark\network\mcpe\protocol\packet\TextPacket;
+use quark\network\mcpe\protocol\PacketDecodeException;
 use quark\network\mcpe\protocol\types\BookEditActionAddPage;
 use quark\network\mcpe\protocol\types\BookEditActionFinalize;
 use quark\network\mcpe\protocol\types\BookEditActionReplacePage;
 use quark\network\mcpe\protocol\types\BookEditActionSwapPages;
+use quark\network\mcpe\protocol\types\GameMode as ProtocolGameMode;
+use quark\network\mcpe\protocol\types\inventory\ContainerIds;
+use quark\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
+use quark\network\mcpe\protocol\types\inventory\PredictedResult;
+use quark\network\mcpe\protocol\types\inventory\ReleaseItemTransactionData;
+use quark\network\mcpe\protocol\types\inventory\UseItemOnEntityTransactionData;
+use quark\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use quark\network\mcpe\protocol\types\InventoryAction;
 use quark\network\mcpe\protocol\types\ItemReleaseInventoryTransaction;
 use quark\network\mcpe\protocol\types\ItemStackRequestData;
 use quark\network\mcpe\protocol\types\ItemStackRequestPacketData;
 use quark\network\mcpe\protocol\types\ItemUseInventoryTransaction;
 use quark\network\mcpe\protocol\types\ItemUseOnActorInventoryTransaction;
+use quark\network\mcpe\protocol\types\PlayerAction;
+use quark\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use quark\network\mcpe\protocol\types\TextAuthorAndMessage;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
@@ -184,7 +181,7 @@ class InGamePacketHandler extends PacketHandler{
 
 	public function handleText(TextPacket $packet) : bool{
 		$body = $packet->body;
-		if($body instanceof TextAuthorAndMessage && $body->messageType === BedrockTextPacket::TYPE_CHAT){
+		if($body instanceof TextAuthorAndMessage && $body->messageType === TextPacket::TYPE_CHAT){
 			return $this->player->chat($body->message);
 		}
 
@@ -247,11 +244,23 @@ class InGamePacketHandler extends PacketHandler{
 			self::checkItemStackRequest($packet->itemStackRequest);
 		}
 		foreach($packet->playerBlockActions ?? [] as $blockAction){
-			if(!PlayerBlockAction::isValidActionType($blockAction->playerActionType)){
+			if(!self::isBlockActionType($blockAction->playerActionType)){
 				throw new PacketHandlingException("Invalid player block action type " . $blockAction->playerActionType);
 			}
 		}
 		return $inputFlags;
+	}
+
+	private static function isBlockActionType(int $actionType) : bool{
+		return match($actionType){
+			PlayerAction::STOP_BREAK, //only in 1.26.40+
+			PlayerAction::ABORT_BREAK,
+			PlayerAction::START_BREAK,
+			PlayerAction::CRACK_BREAK,
+			PlayerAction::PREDICT_DESTROY_BLOCK,
+			PlayerAction::CONTINUE_DESTROY_BLOCK => true,
+			default => false
+		};
 	}
 
 	/**
@@ -748,7 +757,7 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	public function handleInteract(InteractPacket $packet) : bool{
-		if($packet->action === BedrockInteractPacket::ACTION_MOUSEOVER){
+		if($packet->action === InteractPacket::ACTION_MOUSEOVER){
 			//TODO HACK: silence useless spam (MCPE 1.8)
 			//due to some messy Mojang hacks, it sends this when changing the held item now, which causes us to think
 			//the inventory was closed when it wasn't.
@@ -760,7 +769,7 @@ class InGamePacketHandler extends PacketHandler{
 		if($target === null){
 			return false;
 		}
-		if($packet->action === BedrockInteractPacket::ACTION_OPEN_INVENTORY && $target === $this->player){
+		if($packet->action === InteractPacket::ACTION_OPEN_INVENTORY && $target === $this->player){
 			$this->inventoryManager->onClientOpenMainInventory();
 			return true;
 		}

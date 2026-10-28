@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class RequestAbilityPacket extends Packet{
 	public const int ID = PacketId::REQUEST_ABILITY;
 
+	public const int ABILITY_FLYING = 9;
+	public const int ABILITY_NOCLIP = 17;
+
 	public function __construct(
 		public int $ability,
 		public int $valueType,

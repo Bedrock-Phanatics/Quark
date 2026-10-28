@@ -32,6 +32,24 @@ use quark\network\mcpe\protocol\Packet;
 final class CompletedUsingItemPacket extends Packet{
 	public const int ID = PacketId::COMPLETED_USING_ITEM;
 
+	public const int ACTION_UNKNOWN = -1;
+	public const int ACTION_EQUIP_ARMOR = 0;
+	public const int ACTION_EAT = 1;
+	public const int ACTION_ATTACK = 2;
+	public const int ACTION_CONSUME = 3;
+	public const int ACTION_THROW = 4;
+	public const int ACTION_SHOOT = 5;
+	public const int ACTION_PLACE = 6;
+	public const int ACTION_FILL_BOTTLE = 7;
+	public const int ACTION_FILL_BUCKET = 8;
+	public const int ACTION_POUR_BUCKET = 9;
+	public const int ACTION_USE_TOOL = 10;
+	public const int ACTION_INTERACT = 11;
+	public const int ACTION_RETRIEVED = 12;
+	public const int ACTION_DYED = 13;
+	public const int ACTION_TRADED = 14;
+	public const int ACTION_BRUSHING_COMPLETED = 15;
+
 	public function __construct(
 		public int $itemId,
 		public int $itemUseMethod,

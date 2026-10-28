@@ -27,6 +27,9 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class SpawnSettings{
+	public const int BIOME_TYPE_DEFAULT = 0;
+	public const int BIOME_TYPE_USER_DEFINED = 1;
+
 	public function __construct(
 		public int $spawnBiomeType,
 		public string $userDefinedBiomeName,

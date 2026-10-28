@@ -33,6 +33,9 @@ use quark\network\mcpe\protocol\types\ScoreboardIdentityPacketInfo;
 final class SetScoreboardIdentityPacket extends Packet{
 	public const int ID = PacketId::SET_SCOREBOARD_IDENTITY;
 
+	public const int TYPE_REGISTER_IDENTITY = 0;
+	public const int TYPE_CLEAR_IDENTITY = 1;
+
 	/**
 	 * @param list<ScoreboardIdentityPacketInfo> $scoreboardIdentityInfo
 	 */

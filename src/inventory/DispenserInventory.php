@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\inventory;
 
-use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
+use quark\network\mcpe\protocol\types\inventory\WindowTypes;
 use quark\world\Position;
 
 final class DispenserInventory extends SimpleInventory implements BlockInventoryWindow{

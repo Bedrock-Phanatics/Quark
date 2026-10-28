@@ -25,8 +25,6 @@ namespace quark\entity\projectile;
 
 use pocketmine\math\RayTraceResult;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\block\Block;
 use quark\entity\animation\ArrowShakeAnimation;
 use quark\entity\Entity;
@@ -38,6 +36,8 @@ use quark\item\VanillaItems;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EntityMetadata;
+use quark\network\mcpe\protocol\types\entity\EntityIds;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\player\Player;
 use quark\world\sound\ArrowHitSound;
 use function ceil;

@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class UpdateSoftEnumPacket extends Packet{
 	public const int ID = PacketId::UPDATE_SOFT_ENUM;
 
+	public const int TYPE_ADD = 0;
+	public const int TYPE_REMOVE = 1;
+	public const int TYPE_SET = 2;
+
 	/**
 	 * @param list<string> $values
 	 */

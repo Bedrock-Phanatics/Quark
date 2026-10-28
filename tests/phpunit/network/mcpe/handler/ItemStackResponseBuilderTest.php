@@ -24,24 +24,19 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
-use pmmp\encoding\ByteBufferWriter;
-use pocketmine\network\mcpe\protocol\ItemStackResponsePacket as BedrockItemStackResponsePacket;
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
-use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
-use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
-use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseContainerInfo;
-use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseSlotInfo;
 use quark\inventory\SimpleInventory;
 use quark\item\VanillaItems;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\ItemStackInfo;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\packet\ItemStackResponsePacket;
+use quark\network\mcpe\protocol\RecordedPackets;
+use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use function bin2hex;
 
 final class ItemStackResponseBuilderTest extends TestCase{
 
-	public function testResponsesMatchBedrockProtocol() : void{
+	public function testResponsesMatchRecordedEncoding() : void{
 		$inventory = new SimpleInventory(9);
 		$inventory->setItem(1, VanillaItems::DIAMOND_SWORD()->setDamage(12)->setCustomName("blade"));
 		$inventory->setItem(4, VanillaItems::APPLE()->setCount(7));
@@ -57,19 +52,8 @@ final class ItemStackResponseBuilderTest extends TestCase{
 		$builder->addSlot(ContainerUIIds::HOTBAR, 20); //unknown slots are left out
 		$builder->addSlot(ContainerUIIds::CREATED_OUTPUT, 50);
 
-		$expected = BedrockItemStackResponsePacket::create([
-			new ItemStackResponse(ItemStackResponse::RESULT_OK, -7, [
-				new ItemStackResponseContainerInfo(new FullContainerName(ContainerUIIds::HOTBAR), [
-					new ItemStackResponseSlotInfo(1, 1, 1, 101, "blade", "blade", 12),
-					new ItemStackResponseSlotInfo(4, 4, 7, 104, "", "", 0),
-				]),
-			]),
-			new ItemStackResponse(ItemStackResponse::RESULT_ERROR, 9, null),
-		]);
-		$writer = new ByteBufferWriter();
-		$expected->encode($writer);
-
+		//slots 1 and 4 of the hotbar with their stack IDs, damage and custom name, then an error for request 9
 		$actual = new ItemStackResponsePacket([$builder->build(), ItemStackResponseBuilder::error(9)]);
-		self::assertSame(bin2hex($writer->getData()), bin2hex(EncodedPacket::of($actual)->getBytes()));
+		self::assertSame(bin2hex(RecordedPackets::get($this, 0)), bin2hex(EncodedPacket::of($actual)->getBytes()));
 	}
 }

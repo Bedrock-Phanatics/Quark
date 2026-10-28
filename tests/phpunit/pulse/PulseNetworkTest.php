@@ -29,40 +29,7 @@ use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\DataPacket;
-use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
-use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
-use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
-use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
-use pocketmine\network\mcpe\protocol\serializer\BitSet;
-use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
-use pocketmine\network\mcpe\protocol\types\BlockPosition;
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
-use pocketmine\network\mcpe\protocol\types\InputMode;
-use pocketmine\network\mcpe\protocol\types\InteractionMode;
-use pocketmine\network\mcpe\protocol\types\inventory\HandSlot;
-use pocketmine\network\mcpe\protocol\types\inventory\InventoryTransactionChangedSlotsHack;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
-use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
-use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
-use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
-use pocketmine\network\mcpe\protocol\types\inventory\ReleaseItemTransactionData;
-use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftRecipeAutoStackRequestAction;
-use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsEntry;
-use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsStackRequestAction;
-use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
-use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\LabTableCombineStackRequestAction;
-use pocketmine\network\mcpe\protocol\types\inventory\TransactionData;
-use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
-use pocketmine\network\mcpe\protocol\types\inventory\UseItemOnEntityTransactionData;
-use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
-use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
-use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
-use pocketmine\network\mcpe\protocol\types\PlayMode;
-use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
@@ -82,7 +49,15 @@ use quark\network\mcpe\handler\PacketHandlerInspector;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketRateLimiter;
+use quark\network\mcpe\protocol\packet\InventoryTransactionPacket;
+use quark\network\mcpe\protocol\packet\ItemStackRequestPacket;
+use quark\network\mcpe\protocol\packet\PlayerAuthInputPacket;
+use quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\RecordedPackets;
+use quark\network\mcpe\protocol\types\CompressionAlgorithm;
+use quark\network\mcpe\protocol\types\ItemStackRequestPacketData;
+use quark\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use quark\network\mcpe\raklib\RakLibInterface;
 use quark\network\Network;
 use quark\network\PacketHandlingException;
@@ -151,7 +126,7 @@ final class PulseNetworkTest extends TestCase{
 		$this->set($session, "packetBatchLimiter", new PacketRateLimiter("batch", 10000, 1));
 		$this->set($session, "gamePacketLimiter", new PacketRateLimiter("packet", 10000, 1));
 		$this->handler($session, new class extends PacketHandler{
-			public function handleRequestNetworkSettings(\quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket $packet) : bool{ return true; }
+			public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ return true; }
 		});
 		return $session;
 	}
@@ -190,16 +165,20 @@ final class PulseNetworkTest extends TestCase{
 		$this->set($session, "handlerActions", $actions);
 	}
 
+	/**
+	 * A request network settings packet for protocol 1000, which BedrockProtocol encoded where the test calls this.
+	 */
 	private function packet() : string{
-		$writer = new ByteBufferWriter();
-		RequestNetworkSettingsPacket::create(1000)->encode($writer);
-		return $writer->getData();
+		return RecordedPackets::next($this);
 	}
 
 	/** @param list<string> $packets */
 	private function batch(array $packets) : string{
 		$writer = new ByteBufferWriter();
-		PacketBatch::encodeRaw($writer, $packets);
+		foreach($packets as $packet){
+			VarInt::writeUnsignedInt($writer, strlen($packet));
+			$writer->writeByteArray($packet);
+		}
 		return $writer->getData();
 	}
 
@@ -268,14 +247,14 @@ final class PulseNetworkTest extends TestCase{
 
 	private function itemStackPrefix(int $count) : string{
 		$writer = new ByteBufferWriter();
-		VarInt::writeUnsignedInt($writer, ItemStackRequestPacket::NETWORK_ID);
+		VarInt::writeUnsignedInt($writer, ItemStackRequestPacket::ID);
 		VarInt::writeUnsignedInt($writer, $count);
 		return $writer->getData();
 	}
 
 	private function authInputPrefix(int $count) : string{
 		$writer = new ByteBufferWriter();
-		VarInt::writeUnsignedInt($writer, PlayerAuthInputPacket::NETWORK_ID);
+		VarInt::writeUnsignedInt($writer, PlayerAuthInputPacket::ID);
 		$writer->writeByteArray(str_repeat("\x00", 32));
 		VarInt::writeUnsignedInt($writer, $count);
 		return $writer->getData();
@@ -283,7 +262,7 @@ final class PulseNetworkTest extends TestCase{
 
 	private function inventoryPrefix(?int $containers = null, int $actions = 0, int $type = InventoryTransactionPacket::TYPE_NORMAL) : string{
 		$writer = new ByteBufferWriter();
-		VarInt::writeUnsignedInt($writer, InventoryTransactionPacket::NETWORK_ID);
+		VarInt::writeUnsignedInt($writer, InventoryTransactionPacket::ID);
 		VarInt::writeSignedInt($writer, 0);
 		$writer->writeByteArray($containers === null ? "\x00" : "\x01");
 		if($containers !== null){ VarInt::writeUnsignedInt($writer, $containers); }
@@ -292,50 +271,30 @@ final class PulseNetworkTest extends TestCase{
 		return $writer->getData();
 	}
 
-	private static function encodeLegacy(DataPacket $packet) : string{
-		$writer = new ByteBufferWriter();
-		$packet->encode($writer);
-		return $writer->getData();
-	}
-
-	private static function emptyAction() : NetworkInventoryAction{
-		$action = new NetworkInventoryAction();
-		$action->sourceType = NetworkInventoryAction::SOURCE_CONTAINER;
-		$action->windowId = 0;
-		$action->inventorySlot = 1;
-		$action->oldItem = $action->newItem = ItemStackWrapper::legacy(ItemStack::null());
-		return $action;
-	}
-
 	public function testInventoryLimitsRejectOversizedCollections() : void{
 		$session = $this->session();
 		$this->inGame($session);
-		$id = InventoryTransactionPacket::NETWORK_ID;
-		$item = ItemStackWrapper::legacy(ItemStack::null());
-		$actions = array_fill(0, 51, self::emptyAction());
-		$handlerLimited = [
-			InventoryTransactionPacket::create(0, null, NormalTransactionData::new($actions)),
-			InventoryTransactionPacket::create(0, null, UseItemTransactionData::new($actions, 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, $item, new Vector3(0, 0, 0), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0)),
-			InventoryTransactionPacket::create(0, null, UseItemOnEntityTransactionData::new($actions, 1, 0, 0, $item, new Vector3(0, 0, 0), new Vector3(0, 0, 0))),
-			InventoryTransactionPacket::create(0, null, ReleaseItemTransactionData::new($actions, 0, 0, $item, new Vector3(0, 0, 0))),
-		];
-		//these exceed the protocol schema itself, so the native decoder rejects them before any handler runs
+		$id = InventoryTransactionPacket::ID;
+		//these exceed the protocol schema itself, so the native decoder rejects them before any handler runs: 101 actions,
+		//11 changed containers and 257 changed slots
 		$decodeLimited = [
-			self::encodeLegacy(InventoryTransactionPacket::create(0, null, NormalTransactionData::new(array_fill(0, 101, self::emptyAction())))),
-			self::encodeLegacy(InventoryTransactionPacket::create(0, array_fill(0, 11, new InventoryTransactionChangedSlotsHack(2, [])), NormalTransactionData::new([]))),
-			self::encodeLegacy(InventoryTransactionPacket::create(0, [new InventoryTransactionChangedSlotsHack(2, array_fill(0, 257, 0))], NormalTransactionData::new([]))),
+			RecordedPackets::next($this),
+			RecordedPackets::next($this),
+			RecordedPackets::next($this),
 			$this->inventoryPrefix(100000),
 			$this->inventoryPrefix(0xffffffff),
 			$this->inventoryPrefix(actions: 100000),
 			$this->inventoryPrefix(actions: 0xffffffff),
 		];
-		try{ $session->handleDataPacket($id, self::encodeLegacy($handlerLimited[0])); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
+		//a normal transaction with 51 actions, one over the handler's limit
+		try{ $session->handleDataPacket($id, RecordedPackets::next($this)); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
 			self::assertSame("Too many actions in inventory transaction", $e->getMessage());
 		}
 		$capture = Pulse::start();
 		Pulse::beginTick();
-		foreach($handlerLimited as $packet){
-			try{ $session->handleDataPacket($id, self::encodeLegacy($packet)); self::fail("Oversized collection accepted"); }catch(PacketHandlingException){}
+		//51 actions in a normal, a use item, a use item on entity and a release item transaction
+		for($i = 0; $i < 4; ++$i){
+			try{ $session->handleDataPacket($id, RecordedPackets::next($this)); self::fail("Oversized collection accepted"); }catch(PacketHandlingException){}
 		}
 		foreach($decodeLimited as $buffer){
 			try{ $session->handleDataPacket($id, $buffer); self::fail("Oversized collection accepted"); }catch(PacketHandlingException){}
@@ -349,7 +308,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_merge(array_fill(0, 4, "packet.handler_validation"), array_fill(0, 8, "packet.malformed")), array_column($data["events"], 4));
 		self::assertSame(array_merge(array_fill(0, 4, 51), [101, 11, 257, 100000, 4294967295, 100000, 4294967295, 100000]), array_column($data["events"], 5));
 		self::assertSame(array_merge(array_fill(0, 4, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS), [100, 10, 256, 10, 1000000, 100, 1000000, 10]), array_column($data["events"], 6));
-		self::assertSame(array_fill(0, 12, InventoryTransactionPacket::NETWORK_ID), array_column($data["events"], 3));
+		self::assertSame(array_fill(0, 12, InventoryTransactionPacket::ID), array_column($data["events"], 3));
 		self::assertSame(array_fill(0, 12, 1), array_column($data["events"], 1));
 		self::assertSame([12, 4, 8], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
 		PulseReport::create([$capture->getCapture()]);
@@ -357,22 +316,21 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testInventoryBoundariesPreservePacketFields() : void{
 		$session = $this->session();
-		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID]);
+		$this->actions($session, [InventoryTransactionPacket::ID]);
 		$handler = new class extends PacketHandler{
-			/** @var list<\quark\network\mcpe\protocol\packet\InventoryTransactionPacket> */
+			/** @var list<InventoryTransactionPacket> */
 			public array $packets = [];
-			public function handleInventoryTransaction(\quark\network\mcpe\protocol\packet\InventoryTransactionPacket $packet) : bool{ $this->packets[] = $packet; return true; }
+			public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{ $this->packets[] = $packet; return true; }
 		};
 		$this->handler($session, $handler);
-		foreach([[0, null], [1, []], [1, [new InventoryTransactionChangedSlotsHack(2, range(0, 255))]], [50, array_fill(0, 10, new InventoryTransactionChangedSlotsHack(2, [0, 1, 255]))]] as [$count, $slots]){
-			$packet = InventoryTransactionPacket::create(-7, $slots, NormalTransactionData::new(array_fill(0, $count, self::emptyAction())));
-			$packet->senderSubId = 2;
-			$packet->recipientSubId = 3;
-			$buffer = self::encodeLegacy($packet);
+		//no actions or slots, one action with no slots, one with 256 slots, and 50 actions over 10 containers, each from
+		//sub-client 2 to sub-client 3
+		for($i = 0; $i < 4; ++$i){
+			$buffer = RecordedPackets::next($this);
 			$session->handleEncoded($this->batch([$buffer]));
 			$fields = $handler->packets[count($handler->packets) - 1];
 			self::assertSame(-7, $fields->legacyRequestId);
-			self::assertSame($buffer, Protocol::encode(InventoryTransactionPacket::NETWORK_ID, $fields, 2, 3));
+			self::assertSame($buffer, Protocol::encode(InventoryTransactionPacket::ID, $fields, 2, 3));
 		}
 		self::assertCount(4, $handler->packets);
 	}
@@ -384,23 +342,10 @@ final class PulseNetworkTest extends TestCase{
 		$session->expects(self::exactly(8))->method("disconnectWithError");
 		$this->session($session);
 		$this->inGame($session);
-		$transaction = UseItemTransactionData::new([], 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
+		//an inventory transaction and an auth input whose item interaction changes 257 slots, then the same with 100000
 		$buffers = [];
-		foreach([257, 100000] as $count){
-			$slots = new InventoryTransactionChangedSlotsHack(2, array_fill(0, $count, 0));
-			foreach([
-				InventoryTransactionPacket::create(-7, [$slots], NormalTransactionData::new([])),
-				PlayerAuthInputPacket::create(
-					new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
-					InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0),
-					new ItemInteractionData(-7, [$slots], $transaction), null, null, null,
-					0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
-				)
-			] as $packet){
-				$writer = new ByteBufferWriter();
-				$packet->encode($writer);
-				$buffers[] = $this->batch([$writer->getData()]);
-			}
+		for($i = 0; $i < 4; ++$i){
+			$buffers[] = $this->batch([RecordedPackets::next($this)]);
 		}
 		$this->rejected($session, $buffers[0]);
 		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
@@ -425,7 +370,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_merge(...array_fill(0, 8, ["packet.malformed", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
 		self::assertSame(array_merge(...array_fill(0, 2, [257, null, 257, null, 100000, null, 100000, null])), array_column($data["events"], 5));
 		self::assertSame(array_merge(...array_fill(0, 8, [256, null])), array_column($data["events"], 6));
-		self::assertSame(array_merge(...array_fill(0, 4, [InventoryTransactionPacket::NETWORK_ID, null, PlayerAuthInputPacket::NETWORK_ID, null])), array_column($data["events"], 3));
+		self::assertSame(array_merge(...array_fill(0, 4, [InventoryTransactionPacket::ID, null, PlayerAuthInputPacket::ID, null])), array_column($data["events"], 3));
 		self::assertSame(array_merge(...array_fill(0, 8, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 1));
 		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 2));
@@ -442,26 +387,18 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getDisplayName")->willReturn("private-name");
 		$session->expects(self::exactly(4))->method("disconnectWithError");
 		$this->session($session);
-		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
+		$this->actions($session, [PlayerAuthInputPacket::ID]);
 		$handler = new class extends PacketHandler{
 			public int $calls = 0;
-			public function handlePlayerAuthInput(\quark\network\mcpe\protocol\packet\PlayerAuthInputPacket $packet) : bool{ ++$this->calls; return true; }
+			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ ++$this->calls; return true; }
 		};
 		$this->handler($session, $handler);
-		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
-		$action = new NetworkInventoryAction();
-		$action->sourceType = NetworkInventoryAction::SOURCE_CONTAINER;
-		$action->windowId = 2;
-		$action->inventorySlot = 7;
-		$action->oldItem = $action->newItem = ItemStackWrapper::legacy(ItemStack::null());
+		$this->actions($session, [PlayerAuthInputPacket::ID]);
+		//auth inputs whose use item transaction carries that many actions, up to the schema's cap of 100 and past it
 		$buffers = [];
-		foreach([0, 1, TransactionData::MAX_ACTIONS, 101, 100000] as $count){
-			$transaction = UseItemTransactionData::new(array_fill(0, $count, $action), 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
-			$packet = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), new ItemInteractionData(-7, null, $transaction), null, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
-			$writer = new ByteBufferWriter();
-			$packet->encode($writer);
-			$buffer = $this->batch([$writer->getData()]);
-			if($count <= TransactionData::MAX_ACTIONS){ $session->handleEncoded($buffer); }else{ $buffers[] = $buffer; }
+		foreach([0, 1, 100, 101, 100000] as $count){
+			$buffer = $this->batch([RecordedPackets::next($this)]);
+			if($count <= 100){ $session->handleEncoded($buffer); }else{ $buffers[] = $buffer; }
 		}
 		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
 		$interface = (new \ReflectionClass(RakLibInterface::class))->newInstanceWithoutConstructor();
@@ -485,7 +422,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(array_merge(...array_fill(0, 4, ["packet.malformed", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
 		self::assertSame(array_merge(...array_fill(0, 2, [101, null, 100000, null])), array_column($data["events"], 5));
 		self::assertSame(array_merge(...array_fill(0, 4, [100, null])), array_column($data["events"], 6));
-		self::assertSame(array_merge(...array_fill(0, 4, [PlayerAuthInputPacket::NETWORK_ID, null])), array_column($data["events"], 3));
+		self::assertSame(array_merge(...array_fill(0, 4, [PlayerAuthInputPacket::ID, null])), array_column($data["events"], 3));
 		self::assertSame(array_merge(...array_fill(0, 4, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 2));
@@ -502,7 +439,7 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getIp")->willReturn("192.0.2.1");
 		$session->method("getDisplayName")->willReturn("private-name");
 		$this->session($session);
-		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID]);
+		$this->actions($session, [InventoryTransactionPacket::ID]);
 		$prefix = $this->inventoryPrefix();
 		$buffers = [$this->inventoryPrefix(type: 5), $this->inventoryPrefix(type: 0xffffffff), $this->inventoryPrefix(1)];
 		for($length = 1; $length < strlen($prefix); ++$length){ $buffers[] = substr($prefix, 0, $length); }
@@ -522,24 +459,19 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame([count($buffers), 0, count($buffers)], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
 	}
 
-	/** @param list<int> $flags */
+	/**
+	 * An auth input from sub-client 2 to 3 at (1, 2, 3) on tick 123, with its recorded empty flag list replaced.
+	 *
+	 * @param list<int> $flags
+	 */
 	private function authInputPacket(array $flags) : string{
-		$packet = PlayerAuthInputPacket::create(
-			new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
-			InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, null, null, null,
-			0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
-		);
-		$packet->senderSubId = 2;
-		$packet->recipientSubId = 3;
-		$writer = new ByteBufferWriter();
-		$packet->encode($writer);
-		$buffer = $writer->getData();
+		$buffer = RecordedPackets::next($this);
 		$stream = new ByteBufferReader($buffer);
 		VarInt::readUnsignedInt($stream);
 		$stream->setOffset($stream->getOffset() + 32);
 		$prefixLength = $stream->getOffset();
 		self::assertSame(0, VarInt::readUnsignedInt($stream));
-		$writer->clear();
+		$writer = new ByteBufferWriter();
 		$writer->writeByteArray(substr($buffer, 0, $prefixLength));
 		VarInt::writeUnsignedInt($writer, count($flags));
 		foreach($flags as $flag){ VarInt::writeSignedInt($writer, $flag); }
@@ -550,7 +482,7 @@ final class PulseNetworkTest extends TestCase{
 	public function testInputFlagLimitsRejectOversizedLists() : void{
 		$session = $this->session();
 		$this->inGame($session);
-		$packet = PlayerAuthInputPacket::NETWORK_ID;
+		$packet = PlayerAuthInputPacket::ID;
 		$oversized = $this->authInputPacket(range(0, PlayerAuthInputFlags::NUMBER_OF_FLAGS));
 		try{ $session->handleDataPacket($packet, $oversized); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
 			self::assertSame("Too many input flags in PlayerAuthInputPacket", $e->getMessage());
@@ -572,7 +504,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame(["packet.handler_validation", "packet.malformed", "packet.malformed", "packet.malformed"], array_column($data["events"], 4));
 		self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS + 1, 1000000, 4294967295, 1000000], array_column($data["events"], 5));
 		self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS, 128, 1000000, 128], array_column($data["events"], 6));
-		self::assertSame(array_fill(0, 4, PlayerAuthInputPacket::NETWORK_ID), array_column($data["events"], 3));
+		self::assertSame(array_fill(0, 4, PlayerAuthInputPacket::ID), array_column($data["events"], 3));
 		self::assertSame(array_fill(0, 4, 1), array_column($data["events"], 1));
 		self::assertSame([4, 1, 3], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
 		PulseReport::create([$capture->getCapture()]);
@@ -580,11 +512,11 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testInputFlagBoundariesPreservePacketFields() : void{
 		$session = $this->session();
-		$this->actions($session, [PlayerAuthInputPacket::NETWORK_ID]);
+		$this->actions($session, [PlayerAuthInputPacket::ID]);
 		$handler = new class extends PacketHandler{
-			/** @var list<\quark\network\mcpe\protocol\packet\PlayerAuthInputPacket> */
+			/** @var list<PlayerAuthInputPacket> */
 			public array $packets = [];
-			public function handlePlayerAuthInput(\quark\network\mcpe\protocol\packet\PlayerAuthInputPacket $packet) : bool{ $this->packets[] = $packet; return true; }
+			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ $this->packets[] = $packet; return true; }
 		};
 		$this->handler($session, $handler);
 		$cases = [[], [0], range(0, PlayerAuthInputFlags::NUMBER_OF_FLAGS - 1)];
@@ -598,7 +530,7 @@ final class PulseNetworkTest extends TestCase{
 			self::assertSame([123, 4.0, 5.0, 6.0], [$packet->clientTick, $packet->playerRotation->x, $packet->playerRotation->y, $packet->playerHeadRotation]);
 			self::assertEquals(new Vector3(1.0, 2.0, 3.0), $packet->position);
 			self::assertSame($cases[$index], $packet->inputData);
-			self::assertSame($buffers[$index], Protocol::encode(PlayerAuthInputPacket::NETWORK_ID, $packet, 2, 3));
+			self::assertSame($buffers[$index], Protocol::encode(PlayerAuthInputPacket::ID, $packet, 2, 3));
 		}
 	}
 
@@ -631,8 +563,9 @@ final class PulseNetworkTest extends TestCase{
 	public function testItemStackRequestLimitsRejectOversizedLists() : void{
 		$session = $this->session();
 		$this->inGame($session);
-		$packet = ItemStackRequestPacket::NETWORK_ID;
-		$tooMany = self::encodeLegacy(ItemStackRequestPacket::create(array_fill(0, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, new ItemStackRequest(0, [new LabTableCombineStackRequestAction()], [], 0))));
+		$packet = ItemStackRequestPacket::ID;
+		//81 requests of one lab table combine action each, one over the handler's limit
+		$tooMany = RecordedPackets::next($this);
 		try{ $session->handleDataPacket($packet, $tooMany); self::fail("Limit requires Pulse"); }catch(PacketHandlingException $e){
 			self::assertSame("Too many requests in ItemStackRequestPacket", $e->getMessage());
 		}
@@ -643,9 +576,9 @@ final class PulseNetworkTest extends TestCase{
 		foreach([101, 100000, 0xffffffff] as $count){
 			try{ $session->handleDataPacket($packet, $this->itemStackPrefix($count)); self::fail("Oversized collection accepted"); }catch(PacketHandlingException){}
 		}
-		$request = new ByteBufferWriter();
-		(new ItemStackRequest(0, [], [], 0))->write($request);
-		$batch = $this->batch([$this->itemStackPrefix(100000) . str_repeat($request->getData(), 100000)]);
+		//an empty request: ID 0, no actions, no filter strings and a 32-bit filter cause, which the encoder refuses to write
+		$request = str_repeat("\x00", 7);
+		$batch = $this->batch([$this->itemStackPrefix(100000) . str_repeat($request, 100000)]);
 		$this->set($session, "enableCompression", true);
 		$this->set($session, "compressor", new ZlibCompressor(7, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE));
 		$this->rejected($session, "\x00" . Utils::assumeNotFalse(zlib_encode($batch, ZLIB_ENCODING_RAW)));
@@ -665,17 +598,10 @@ final class PulseNetworkTest extends TestCase{
 		$session = $this->session();
 		$this->inGame($session);
 		$buffers = [];
+		//one request of that many lab table combine actions, standalone and inside an auth input
 		foreach([61, 100000] as $count){
-			$request = new ItemStackRequest(-7, array_fill(0, $count, new LabTableCombineStackRequestAction()), ["filter"], 0);
-			foreach([
-				ItemStackRequestPacket::create([$request]),
-				PlayerAuthInputPacket::create(
-					new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS),
-					InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), null, $request, null, null,
-					0, 0, new Vector3(0, 0, 0), new Vector2(0, 0)
-				)
-			] as $packet){
-				$buffers[] = [$this->batch([self::encodeLegacy($packet)]), $count];
+			for($i = 0; $i < 2; ++$i){
+				$buffers[] = [$this->batch([RecordedPackets::next($this)]), $count];
 			}
 		}
 		$this->rejected($session, $buffers[0][0]);
@@ -701,7 +627,7 @@ final class PulseNetworkTest extends TestCase{
 		self::assertSame($events, array_column($data["events"], 4));
 		self::assertSame(array_merge(...array_fill(0, 2, [61, 61, 100000, 100000])), array_column($data["events"], 5));
 		self::assertSame(array_merge(...array_fill(0, 2, [60, 60, 100, 100])), array_column($data["events"], 6));
-		self::assertSame(array_merge(...array_fill(0, 4, [ItemStackRequestPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID])), array_column($data["events"], 3));
+		self::assertSame(array_merge(...array_fill(0, 4, [ItemStackRequestPacket::ID, PlayerAuthInputPacket::ID])), array_column($data["events"], 3));
 		self::assertSame(array_fill(0, 8, "reject_batch"), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 2));
@@ -711,11 +637,11 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testItemStackRequestBoundariesAndMalformedPrefixes() : void{
 		$session = $this->session();
-		$this->actions($session, [ItemStackRequestPacket::NETWORK_ID]);
+		$this->actions($session, [ItemStackRequestPacket::ID]);
 		$handler = new class extends PacketHandler{
-			/** @var list<\quark\network\mcpe\protocol\packet\ItemStackRequestPacket> */
+			/** @var list<ItemStackRequestPacket> */
 			public array $packets = [];
-			public function handleItemStackRequest(\quark\network\mcpe\protocol\packet\ItemStackRequestPacket $packet) : bool{
+			public function handleItemStackRequest(ItemStackRequestPacket $packet) : bool{
 				$this->packets[] = $packet;
 				return true;
 			}
@@ -723,21 +649,20 @@ final class PulseNetworkTest extends TestCase{
 		$this->handler($session, $handler);
 		$capture = Pulse::start();
 		$buffers = [];
-		foreach([0, 1, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS] as $count){
-			$packet = ItemStackRequestPacket::create(array_fill(0, $count, new ItemStackRequest(7, [new LabTableCombineStackRequestAction()], ["filter"], 0)));
-			$packet->senderSubId = 2;
-			$packet->recipientSubId = 3;
-			$buffers[] = $buffer = self::encodeLegacy($packet);
+		//none, one and the handler's limit of requests with one lab table combine action and a filter string, from
+		//sub-client 2 to sub-client 3
+		for($i = 0; $i < 3; ++$i){
+			$buffers[] = $buffer = RecordedPackets::next($this);
 			$session->handleEncoded($this->batch([$buffer]));
 		}
 		self::assertCount(3, $handler->packets);
 		foreach($handler->packets as $index => $packet){
 			foreach($packet->requests as $request){ self::assertSame(["filter"], $request->stringsToFilter); }
-			self::assertSame($buffers[$index], Protocol::encode(ItemStackRequestPacket::NETWORK_ID, $packet, 2, 3));
+			self::assertSame($buffers[$index], Protocol::encode(ItemStackRequestPacket::ID, $packet, 2, 3));
 		}
 		$header = substr($this->itemStackPrefix(0), 0, -1);
 		foreach(["", $header, $header . "\x80", $header . str_repeat("\x80", 6), "\x00\x51"] as $buffer){
-			try{ $session->handleDataPacket(ItemStackRequestPacket::NETWORK_ID, $buffer); self::fail("Malformed prefix accepted"); }catch(PacketHandlingException){}
+			try{ $session->handleDataPacket(ItemStackRequestPacket::ID, $buffer); self::fail("Malformed prefix accepted"); }catch(PacketHandlingException){}
 		}
 		Pulse::stop();
 		$data = $this->network($capture);
@@ -756,7 +681,7 @@ final class PulseNetworkTest extends TestCase{
 		$capture = Pulse::start();
 		try{
 			foreach([ItemStackRequestPacket::class => $this->itemStackPrefix(81), PlayerAuthInputPacket::class => $this->authInputPrefix(67), InventoryTransactionPacket::class => $this->inventoryPrefix(actions: 51)] as $class => $buffer){
-				$this->actions($session, [$class::NETWORK_ID]);
+				$this->actions($session, [$class::ID]);
 				$payload = $this->batch([$buffer]);
 				$session->handleEncoded($payload);
 				$this->actions($session, []);
@@ -774,8 +699,8 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testItemStackHandlerStillLimitsAlreadyDecodedRequests() : void{
 		$handler = (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
-		$request = new \quark\network\mcpe\protocol\types\ItemStackRequestPacketData(0, [], [], 0);
-		try{ $handler->handleItemStackRequest(new \quark\network\mcpe\protocol\packet\ItemStackRequestPacket(array_fill(0, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, $request))); self::fail("Handler accepted oversized request list"); }catch(PacketHandlingException $e){
+		$request = new ItemStackRequestPacketData(0, [], [], 0);
+		try{ $handler->handleItemStackRequest(new ItemStackRequestPacket(array_fill(0, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, $request))); self::fail("Handler accepted oversized request list"); }catch(PacketHandlingException $e){
 			self::assertSame([InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, InGamePacketHandler::MAX_ITEM_STACK_REQUESTS], [$e->observed, $e->limit]);
 		}
 	}
@@ -785,7 +710,7 @@ final class PulseNetworkTest extends TestCase{
 		$item = new \quark\network\mcpe\protocol\types\NetworkItemStackDescriptor(0, 0, 0, null, 0, "");
 		$action = new \quark\network\mcpe\protocol\types\InventoryAction(new \quark\network\mcpe\protocol\types\InventorySource(0, 0), 0, $item, $item);
 		foreach([
-			[new \quark\network\mcpe\protocol\packet\InventoryTransactionPacket(0, null, ["normal_transaction_data" => array_fill(0, 51, $action)]), "Too many actions in inventory transaction", 51, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS],
+			[new InventoryTransactionPacket(0, null, ["normal_transaction_data" => array_fill(0, 51, $action)]), "Too many actions in inventory transaction", 51, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS],
 		] as [$packet, $message, $observed, $limit]){
 			try{ $handler->handleInventoryTransaction($packet); self::fail("Handler accepted oversized inventory list"); }catch(PacketHandlingException $e){
 				self::assertSame([$message, $observed, $limit], [$e->getMessage(), $e->observed, $e->limit]);
@@ -816,7 +741,7 @@ final class PulseNetworkTest extends TestCase{
 		$handler = new class($assertStage, $nested, $payload, $watchdog) extends PacketHandler{
 			/** @param \Closure(string) : void $assertStage */
 			public function __construct(private \Closure $assertStage, private NetworkSession $nested, private string $payload, private PulseNetworkWatchdog $watchdog){}
-			public function handleRequestNetworkSettings(\quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket $packet) : bool{
+			public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{
 				($this->assertStage)("handle");
 				$parent = $this->watchdog->record;
 				$this->nested->handleEncoded($this->payload);
@@ -845,14 +770,14 @@ final class PulseNetworkTest extends TestCase{
 			$this->rejected($session, $this->batch(["\xc1\x01"]));
 			self::assertSame("", $watchdog->record);
 			$this->handler($session, new class extends PacketHandler{
-				public function handleRequestNetworkSettings(\quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket $packet) : bool{ throw new \RuntimeException("plugin failure"); }
+				public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ throw new \RuntimeException("plugin failure"); }
 			});
 			try{ $session->handleEncoded($payload); self::fail("Handler failure ignored"); }catch(\RuntimeException $e){ self::assertSame("plugin failure", $e->getMessage()); }
 			self::assertSame("", $watchdog->record);
 			$this->handler($session, new class extends PacketHandler{
-				public function handleRequestNetworkSettings(\quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket $packet) : bool{ throw new \InvalidArgumentException("handler failure"); }
+				public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{ throw new \InvalidArgumentException("handler failure"); }
 			});
-			try{ $session->handleDataPacket(RequestNetworkSettingsPacket::NETWORK_ID, $this->packet()); self::fail("Unrelated handler failure hidden"); }catch(\InvalidArgumentException $e){ self::assertSame("handler failure", $e->getMessage()); }
+			try{ $session->handleDataPacket(RequestNetworkSettingsPacket::ID, $this->packet()); self::fail("Unrelated handler failure hidden"); }catch(\InvalidArgumentException $e){ self::assertSame("handler failure", $e->getMessage()); }
 			self::assertSame("", $watchdog->record);
 		}finally{
 			foreach($listeners as [$list, $listener]){ $list->unregister($listener); }
@@ -953,7 +878,7 @@ final class PulseNetworkTest extends TestCase{
 		$session->expects(self::never())->method("sendDataPacket");
 		$capture = Pulse::start();
 		$handler = new SessionStartPacketHandler($session, static function() : void{ self::fail("Incompatible protocol accepted"); });
-		self::assertTrue($handler->handleRequestNetworkSettings(new \quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket(1)));
+		self::assertTrue($handler->handleRequestNetworkSettings(new RequestNetworkSettingsPacket(1)));
 		Pulse::stop();
 		self::assertSame(1, $this->network($capture)["sessions"][0][2]);
 	}
@@ -970,7 +895,7 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::stop();
 		$data = $this->network($capture);
 		self::assertSame(["rate.packet", "packet.unknown"], array_column($data["events"], 4));
-		self::assertSame([RequestNetworkSettingsPacket::NETWORK_ID, 1023], array_column($data["events"], 3));
+		self::assertSame([RequestNetworkSettingsPacket::ID, 1023], array_column($data["events"], 3));
 		self::assertSame(2, $data["windows"][0][3]);
 		self::assertSame(1, $data["windows"][0][7]);
 	}
@@ -1155,43 +1080,28 @@ final class PulseNetworkTest extends TestCase{
 		$session->method("getIp")->willReturn("192.0.2.1");
 		$session->method("getDisplayName")->willReturn("private-name");
 		$this->session($session);
-		$this->actions($session, [InventoryTransactionPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID, ItemStackRequestPacket::NETWORK_ID]);
+		$this->actions($session, [InventoryTransactionPacket::ID, PlayerAuthInputPacket::ID, ItemStackRequestPacket::ID]);
 		$handler = new class extends PacketHandler{
 			/** @var array<string, int> */
 			public array $calls = [];
-			public function handleInventoryTransaction(\quark\network\mcpe\protocol\packet\InventoryTransactionPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
-			public function handlePlayerAuthInput(\quark\network\mcpe\protocol\packet\PlayerAuthInputPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
-			public function handleItemStackRequest(\quark\network\mcpe\protocol\packet\ItemStackRequestPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
+			public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
+			public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
+			public function handleItemStackRequest(ItemStackRequestPacket $packet) : bool{ $this->calls[__FUNCTION__] = ($this->calls[__FUNCTION__] ?? 0) + 1; return true; }
 		};
 		$this->handler($session, $handler);
 		$buffers = [];
 		$ids = [];
-		foreach([["containers", InventoryTransactionChangedSlotsHack::MAX_CHANGED_CONTAINERS], ["filters", ItemStackRequest::MAX_FILTER_STRINGS], ["ingredients", CraftRecipeAutoStackRequestAction::MAX_INGREDIENTS], ["results", DeprecatedCraftingResultsStackRequestAction::MAX_RESULTS]] as [$kind, $limit]){
+		//changed containers in an inventory transaction, and filter strings, auto craft ingredients and deprecated craft
+		//results in an item stack request, each standalone and inside an auth input, at 1, the schema's cap, one over it
+		//and 100000
+		foreach([["containers", 10], ["filters", 256], ["ingredients", 128], ["results", 256]] as [$kind, $limit]){
+			$standalone = $kind === "containers" ? InventoryTransactionPacket::ID : ItemStackRequestPacket::ID;
 			foreach([1, $limit, $limit + 1, 100000] as $count){
-				$interaction = null;
-				$request = null;
-				if($kind === "containers"){
-					$slots = array_fill(0, $count, new InventoryTransactionChangedSlotsHack(2, [255, 0, 1]));
-					$transaction = UseItemTransactionData::new([], 0, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), new Vector3(1, 2, 3), new Vector3(0, 0, 0), 0, PredictedResult::SUCCESS, 0);
-					$interaction = new ItemInteractionData(-7, $slots, $transaction);
-					$standalone = InventoryTransactionPacket::create(-7, $slots, NormalTransactionData::new([]));
-				}else{
-					$actions = match($kind){
-						"ingredients" => [new CraftRecipeAutoStackRequestAction(7, 2, array_fill(0, $count, new RecipeIngredient(null, 1)))],
-						"results" => [new DeprecatedCraftingResultsStackRequestAction(array_fill(0, $count, new DeprecatedCraftingResultsEntry(null, 1, 4, "")), 2)],
-						default => [new LabTableCombineStackRequestAction()]
-					};
-					$request = new ItemStackRequest(-7, $actions, $kind === "filters" ? array_fill(0, $count, "") : [], 0);
-					$standalone = ItemStackRequestPacket::create([$request]);
-				}
-				$movement = PlayerAuthInputPacket::create(new Vector3(1, 2, 3), 4, 5, 6, 0, 0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, new Vector2(0, 0), 123, new Vector3(0, 0, 0), $interaction, $request, null, null, 0, 0, new Vector3(0, 0, 0), new Vector2(0, 0));
-				foreach([$standalone, $movement] as $packet){
-					$writer = new ByteBufferWriter();
-					$packet->encode($writer);
-					$buffer = $this->batch([$writer->getData()]);
+				foreach([$standalone, PlayerAuthInputPacket::ID] as $id){
+					$buffer = $this->batch([RecordedPackets::next($this)]);
 					if($count <= $limit){ $session->handleEncoded($buffer); }else{
 						$buffers[] = $buffer;
-						$ids[] = $packet->pid(); $ids[] = null;
+						$ids[] = $id; $ids[] = null;
 					}
 				}
 			}

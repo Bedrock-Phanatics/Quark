@@ -23,10 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use pocketmine\network\mcpe\protocol\EmotePacket as BedrockEmotePacket;
-use pocketmine\network\mcpe\protocol\MobEffectPacket as BedrockMobEffectPacket;
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\data\bedrock\EffectIdMap;
 use quark\entity\effect\EffectInstance;
 use quark\entity\Entity;
@@ -45,6 +41,8 @@ use quark\network\mcpe\protocol\packet\TakeItemActorPacket;
 use quark\network\mcpe\protocol\packet\UpdateAttributesPacket;
 use quark\network\mcpe\protocol\types\AttributeData;
 use quark\network\mcpe\protocol\types\DataItemEntry;
+use quark\network\mcpe\protocol\types\inventory\ContainerIds;
+use quark\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\network\mcpe\protocol\types\PropertySyncData;
 use function count;
 use function usort;
@@ -98,7 +96,7 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 		//TODO: we may need yet another effect <=> ID map in the future depending on protocol changes
 		$this->sendDataPacket($recipients, new MobEffectPacket(
 			targetRuntimeId: $entity->getId(),
-			eventId: $replacesOldEffect ? BedrockMobEffectPacket::EVENT_MODIFY : BedrockMobEffectPacket::EVENT_ADD,
+			eventId: $replacesOldEffect ? MobEffectPacket::EVENT_MODIFY : MobEffectPacket::EVENT_ADD,
 			effectId: EffectIdMap::getInstance()->toId($effect->getType()),
 			effectAmplifier: $effect->getAmplifier(),
 			showParticles: $effect->isVisible(),
@@ -111,7 +109,7 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 	public function onEntityEffectRemoved(array $recipients, Living $entity, EffectInstance $effect) : void{
 		$this->sendDataPacket($recipients, new MobEffectPacket(
 			targetRuntimeId: $entity->getId(),
-			eventId: BedrockMobEffectPacket::EVENT_REMOVE,
+			eventId: MobEffectPacket::EVENT_REMOVE,
 			effectId: EffectIdMap::getInstance()->toId($effect->getType()),
 			effectAmplifier: 0,
 			showParticles: false,
@@ -172,7 +170,7 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 			emoteLengthTicks: 0, //seems to be irrelevant for the client, we cannot risk rebroadcasting random values received
 			xuid: "",
 			platformId: "",
-			flags: BedrockEmotePacket::FLAG_SERVER | BedrockEmotePacket::FLAG_MUTE_ANNOUNCEMENT,
+			flags: EmotePacket::FLAG_SERVER | EmotePacket::FLAG_MUTE_ANNOUNCEMENT,
 		));
 	}
 }

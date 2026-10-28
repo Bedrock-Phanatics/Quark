@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class NpcDialoguePacket extends Packet{
 	public const int ID = PacketId::NPC_DIALOGUE;
 
+	public const int ACTION_OPEN = 0;
+	public const int ACTION_CLOSE = 1;
+
 	public function __construct(
 		public int $npcIdRawId,
 		public int $npcDialogueActionType,

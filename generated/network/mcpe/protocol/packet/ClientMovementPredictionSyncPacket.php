@@ -32,6 +32,8 @@ use quark\network\mcpe\protocol\Packet;
 final class ClientMovementPredictionSyncPacket extends Packet{
 	public const int ID = PacketId::CLIENT_MOVEMENT_PREDICTION_SYNC;
 
+	public const int FLAG_LENGTH = 131;
+
 	/**
 	 * @param list<float> $actorBoundingBox
 	 * @param list<float> $movementAttributes

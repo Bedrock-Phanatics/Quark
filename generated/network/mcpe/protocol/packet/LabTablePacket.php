@@ -33,6 +33,10 @@ use quark\network\mcpe\protocol\Packet;
 final class LabTablePacket extends Packet{
 	public const int ID = PacketId::LAB_TABLE;
 
+	public const int TYPE_START_COMBINE = 0;
+	public const int TYPE_START_REACTION = 1;
+	public const int TYPE_RESET = 2;
+
 	public function __construct(
 		public int $type,
 		public Vector3 $position,

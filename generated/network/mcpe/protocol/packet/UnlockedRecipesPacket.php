@@ -32,6 +32,12 @@ use quark\network\mcpe\protocol\Packet;
 final class UnlockedRecipesPacket extends Packet{
 	public const int ID = PacketId::UNLOCKED_RECIPES;
 
+	public const int TYPE_EMPTY = 0;
+	public const int TYPE_INITIALLY_UNLOCKED = 1;
+	public const int TYPE_NEWLY_UNLOCKED = 2;
+	public const int TYPE_REMOVE = 3;
+	public const int TYPE_REMOVE_ALL = 4;
+
 	/**
 	 * @param list<string> $unlockedRecipesList
 	 */

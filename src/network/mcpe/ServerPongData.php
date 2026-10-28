@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use quark\network\mcpe\protocol\ProtocolInfo;
 use quark\player\GameMode;
 use quark\Server;
 use function addcslashes;

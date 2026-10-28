@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\network\mcpe\protocol\LevelPackets;
+use quark\network\mcpe\protocol\types\LevelEvent;
 use function abs;
 
 class DragonEggTeleportParticle implements Particle{

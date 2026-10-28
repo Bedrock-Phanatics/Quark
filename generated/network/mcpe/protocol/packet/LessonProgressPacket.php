@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class LessonProgressPacket extends Packet{
 	public const int ID = PacketId::LESSON_PROGRESS;
 
+	public const int ACTION_START = 0;
+	public const int ACTION_FINISH = 1;
+	public const int ACTION_RESTART = 2;
+
 	public function __construct(
 		public int $lessonAction,
 		public int $score,

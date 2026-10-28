@@ -34,6 +34,10 @@ use quark\network\mcpe\protocol\types\StructureSettings;
 final class StructureTemplateDataRequestPacket extends Packet{
 	public const int ID = PacketId::STRUCTURE_TEMPLATE_DATA_REQUEST;
 
+	public const int TYPE_EXPORT_FROM_SAVE_MODE = 1;
+	public const int TYPE_EXPORT_FROM_LOAD_MODE = 2;
+	public const int TYPE_QUERY_SAVED_STRUCTURE = 3;
+
 	public function __construct(
 		public string $structureName,
 		public Vector3 $structurePosition,

@@ -24,9 +24,9 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\entity\Entity;
 use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
+use quark\network\mcpe\protocol\types\LevelSoundEvent;
 
 /**
  * Played when an entity hits ground after falling a long distance (damage).

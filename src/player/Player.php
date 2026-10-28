@@ -26,12 +26,6 @@ namespace quark\player;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\network\mcpe\protocol\AnimatePacket as BedrockAnimatePacket;
-use pocketmine\network\mcpe\protocol\MovePlayerPacket;
-use pocketmine\network\mcpe\protocol\types\DimensionIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use pocketmine\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use quark\block\BaseSign;
 use quark\block\Bed;
 use quark\block\BlockTypeTags;
@@ -119,7 +113,12 @@ use quark\lang\Translatable;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\packet\AnimatePacket;
+use quark\network\mcpe\protocol\packet\MovePlayerPacket;
 use quark\network\mcpe\protocol\packet\SetActorMotionPacket;
+use quark\network\mcpe\protocol\types\DimensionIds;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use quark\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
@@ -1200,7 +1199,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 			$this->getWorld()->setSleepTicks(0);
 
-			$this->getNetworkSession()->sendDataPacket(new AnimatePacket(action: BedrockAnimatePacket::ACTION_STOP_SLEEP, targetActorRuntimeId: $this->getId(), data: 0.0));
+			$this->getNetworkSession()->sendDataPacket(new AnimatePacket(action: AnimatePacket::ACTION_STOP_SLEEP, targetActorRuntimeId: $this->getId(), data: 0.0));
 		}
 	}
 

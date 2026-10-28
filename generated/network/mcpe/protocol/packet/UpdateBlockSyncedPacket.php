@@ -33,6 +33,10 @@ use quark\network\mcpe\protocol\Packet;
 final class UpdateBlockSyncedPacket extends Packet{
 	public const int ID = PacketId::UPDATE_BLOCK_SYNCED;
 
+	public const int TYPE_NONE = 0;
+	public const int TYPE_CREATE = 1;
+	public const int TYPE_DESTROY = 2;
+
 	public function __construct(
 		public Vector3 $blockPosition,
 		public int $blockRuntimeId,

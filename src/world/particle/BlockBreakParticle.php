@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\block\Block;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\LevelPackets;
+use quark\network\mcpe\protocol\types\LevelEvent;
 
 class BlockBreakParticle implements Particle{
 	//TODO: rename this parameter when we can break BC

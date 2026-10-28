@@ -23,10 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use pocketmine\network\mcpe\protocol\types\recipe\CraftingRecipeBlockName;
-use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipeBlockName;
-use pocketmine\network\mcpe\protocol\types\recipe\RecipeUnlockingContext;
-use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use quark\crafting\CraftingManager;
 use quark\crafting\FurnaceType;
 use quark\crafting\RecipeIngredient;
@@ -40,6 +36,10 @@ use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\packet\CraftingDataPacket;
 use quark\network\mcpe\protocol\types\ContainerMixDataEntry;
 use quark\network\mcpe\protocol\types\PotionMixDataEntry;
+use quark\network\mcpe\protocol\types\recipe\CraftingRecipeBlockName;
+use quark\network\mcpe\protocol\types\recipe\FurnaceRecipeBlockName;
+use quark\network\mcpe\protocol\types\recipe\RecipeUnlockingContext;
+use quark\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use quark\network\mcpe\protocol\types\RecipeUnlockRequirementSerializedData;
 use quark\network\mcpe\protocol\types\ShapedRecipePayload;
 use quark\network\mcpe\protocol\types\ShapelessRecipePayload;

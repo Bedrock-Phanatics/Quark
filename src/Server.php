@@ -28,8 +28,6 @@ declare(strict_types=1);
 namespace quark;
 
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\snooze\SleeperHandler;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\tile\dispenser\DispensableItemManager;
@@ -68,6 +66,8 @@ use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
 use quark\network\mcpe\nethernet\NetherNetTransport;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\ProtocolInfo;
+use quark\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\network\mcpe\raklib\RakLibTransport;
 use quark\network\mcpe\StandardEntityEventBroadcaster;
 use quark\network\mcpe\StandardPacketBroadcaster;

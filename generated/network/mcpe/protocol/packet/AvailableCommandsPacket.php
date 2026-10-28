@@ -37,6 +37,30 @@ use quark\network\mcpe\protocol\types\DynamicEnum;
 final class AvailableCommandsPacket extends Packet{
 	public const int ID = PacketId::AVAILABLE_COMMANDS;
 
+	public const int ARG_FLAG_VALID = 1048576;
+	public const int ARG_TYPE_INT = 1;
+	public const int ARG_TYPE_FLOAT = 3;
+	public const int ARG_TYPE_VALUE = 4;
+	public const int ARG_TYPE_WILDCARD_INT = 5;
+	public const int ARG_TYPE_OPERATOR = 6;
+	public const int ARG_TYPE_COMPARE_OPERATOR = 7;
+	public const int ARG_TYPE_TARGET = 8;
+	public const int ARG_TYPE_WILDCARD_TARGET = 10;
+	public const int ARG_TYPE_FILEPATH = 17;
+	public const int ARG_TYPE_FULL_INTEGER_RANGE = 23;
+	public const int ARG_TYPE_EQUIPMENT_SLOT = 47;
+	public const int ARG_TYPE_STRING = 56;
+	public const int ARG_TYPE_INT_POSITION = 64;
+	public const int ARG_TYPE_POSITION = 65;
+	public const int ARG_TYPE_MESSAGE = 68;
+	public const int ARG_TYPE_RAWTEXT = 70;
+	public const int ARG_TYPE_JSON = 74;
+	public const int ARG_TYPE_BLOCK_STATES = 84;
+	public const int ARG_TYPE_COMMAND = 88;
+	public const int ARG_FLAG_ENUM = 2097152;
+	public const int ARG_FLAG_POSTFIX = 16777216;
+	public const int ARG_FLAG_SOFT_ENUM = 67108864;
+
 	/**
 	 * @param list<string> $enumValues
 	 * @param list<string> $chainedSubcommandValues

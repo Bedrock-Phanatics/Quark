@@ -35,9 +35,6 @@ use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket as BedrockMoveActorAbsolutePacket;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\utils\Limits;
 use quark\block\Block;
 use quark\block\Water;
@@ -59,6 +56,8 @@ use quark\network\mcpe\protocol\packet\AddActorPacket;
 use quark\network\mcpe\protocol\packet\MoveActorAbsolutePacket;
 use quark\network\mcpe\protocol\packet\SetActorMotionPacket;
 use quark\network\mcpe\protocol\types\DataItemEntry;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\network\mcpe\protocol\types\PropertySyncData;
 use quark\network\mcpe\protocol\types\SyncedAttribute;
 use quark\player\Player;
@@ -838,7 +837,7 @@ abstract class Entity{
 			//the teleported player sees themselves at the correct position), and does nothing whatsoever for
 			//non-player entities (movement is still interpolated). Both of these are client bugs.
 			//See https://github.com/Bedrock-Phanatics/Quark/issues/4394
-			header: $this->onGround ? BedrockMoveActorAbsolutePacket::FLAG_GROUND : 0,
+			header: $this->onGround ? MoveActorAbsolutePacket::FLAG_GROUND : 0,
 			position: $this->getOffsetPosition($this->location),
 			rotationX: Fields::rotationByte($this->location->pitch),
 			rotationY: Fields::rotationByte($this->location->yaw),

@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\RespawnPacket as BedrockRespawnPacket;
-use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use quark\lang\Translatable;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
@@ -32,6 +30,7 @@ use quark\network\mcpe\protocol\packet\ContainerClosePacket;
 use quark\network\mcpe\protocol\packet\DeathInfoPacket;
 use quark\network\mcpe\protocol\packet\PlayerActionPacket;
 use quark\network\mcpe\protocol\packet\RespawnPacket;
+use quark\network\mcpe\protocol\types\PlayerAction;
 use quark\player\Player;
 
 class DeathPacketHandler extends PacketHandler{
@@ -43,7 +42,7 @@ class DeathPacketHandler extends PacketHandler{
 	){}
 
 	public function setUp() : void{
-		$this->session->sendDataPacket(new RespawnPacket($this->player->getOffsetPosition($this->player->getSpawn()), BedrockRespawnPacket::SEARCHING_FOR_SPAWN, $this->player->getId()));
+		$this->session->sendDataPacket(new RespawnPacket($this->player->getOffsetPosition($this->player->getSpawn()), RespawnPacket::SEARCHING_FOR_SPAWN, $this->player->getId()));
 
 		/** @var list<string> $parameters */
 		$parameters = [];
@@ -75,8 +74,8 @@ class DeathPacketHandler extends PacketHandler{
 	}
 
 	public function handleRespawn(RespawnPacket $packet) : bool{
-		if($packet->state === BedrockRespawnPacket::CLIENT_READY_TO_SPAWN){
-			$this->session->sendDataPacket(new RespawnPacket($this->player->getOffsetPosition($this->player->getSpawn()), BedrockRespawnPacket::READY_TO_SPAWN, $this->player->getId()));
+		if($packet->state === RespawnPacket::CLIENT_READY_TO_SPAWN){
+			$this->session->sendDataPacket(new RespawnPacket($this->player->getOffsetPosition($this->player->getSpawn()), RespawnPacket::READY_TO_SPAWN, $this->player->getId()));
 			return true;
 		}
 		return false;

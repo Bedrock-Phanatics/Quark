@@ -33,6 +33,14 @@ use quark\network\mcpe\protocol\Packet;
 final class UpdateBlockPacket extends Packet{
 	public const int ID = PacketId::UPDATE_BLOCK;
 
+	public const int FLAG_NONE = 0;
+	public const int FLAG_NEIGHBORS = 1;
+	public const int FLAG_NETWORK = 2;
+	public const int FLAG_NOGRAPHIC = 4;
+	public const int FLAG_PRIORITY = 8;
+	public const int DATA_LAYER_NORMAL = 0;
+	public const int DATA_LAYER_LIQUID = 1;
+
 	public function __construct(
 		public Vector3 $blockPosition,
 		public int $blockRuntimeId,

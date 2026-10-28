@@ -25,15 +25,15 @@ namespace quark\world\particle;
 
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\packet\AddActorPacket;
 use quark\network\mcpe\protocol\packet\RemoveActorPacket;
+use quark\network\mcpe\protocol\types\entity\EntityIds;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\network\mcpe\protocol\types\PropertySyncData;
 
 class FloatingTextParticle implements Particle{

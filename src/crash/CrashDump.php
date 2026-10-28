@@ -25,7 +25,7 @@ namespace quark\crash;
 
 use Composer\InstalledVersions;
 use pocketmine\errorhandler\ErrorTypeToStringMap;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use quark\network\mcpe\protocol\ProtocolInfo;
 use quark\plugin\PluginBase;
 use quark\plugin\PluginManager;
 use quark\Server;

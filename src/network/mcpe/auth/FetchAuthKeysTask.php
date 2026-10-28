@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\auth;
 
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\types\login\openid\api\AuthServiceKey;
-use pocketmine\network\mcpe\protocol\types\login\openid\api\AuthServiceOpenIdConfiguration;
-use pocketmine\network\mcpe\protocol\types\login\openid\api\MinecraftServicesDiscovery;
+use quark\network\mcpe\protocol\ProtocolInfo;
+use quark\network\mcpe\protocol\types\login\openid\api\AuthServiceKey;
+use quark\network\mcpe\protocol\types\login\openid\api\AuthServiceOpenIdConfiguration;
+use quark\network\mcpe\protocol\types\login\openid\api\MinecraftServicesDiscovery;
 use quark\scheduler\AsyncTask;
 use quark\thread\NonThreadSafeValue;
 use quark\utils\Internet;

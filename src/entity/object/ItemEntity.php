@@ -25,7 +25,6 @@ namespace quark\entity\object;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\entity\animation\ItemEntityStackSizeChangeAnimation;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -39,6 +38,7 @@ use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\packet\AddItemActorPacket;
+use quark\network\mcpe\protocol\types\entity\EntityIds;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use function max;

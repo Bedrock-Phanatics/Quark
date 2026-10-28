@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\compression;
 
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
+use quark\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
 use function function_exists;

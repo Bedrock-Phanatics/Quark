@@ -1,0 +1,335 @@
+{
+    "packet/AgentAnimationPacket": {
+        "TYPE_ARM_SWING": 0,
+        "TYPE_SHRUG": 1
+    },
+    "packet/AnimatePacket": {
+        "ACTION_SWING_ARM": 1,
+        "ACTION_STOP_SLEEP": 3,
+        "ACTION_CRITICAL_HIT": 4,
+        "ACTION_MAGICAL_CRITICAL_HIT": 5
+    },
+    "packet/AvailableCommandsPacket": {
+        "ARG_FLAG_VALID": 1048576,
+        "ARG_TYPE_INT": 1,
+        "ARG_TYPE_FLOAT": 3,
+        "ARG_TYPE_VALUE": 4,
+        "ARG_TYPE_WILDCARD_INT": 5,
+        "ARG_TYPE_OPERATOR": 6,
+        "ARG_TYPE_COMPARE_OPERATOR": 7,
+        "ARG_TYPE_TARGET": 8,
+        "ARG_TYPE_WILDCARD_TARGET": 10,
+        "ARG_TYPE_FILEPATH": 17,
+        "ARG_TYPE_FULL_INTEGER_RANGE": 23,
+        "ARG_TYPE_EQUIPMENT_SLOT": 47,
+        "ARG_TYPE_STRING": 56,
+        "ARG_TYPE_INT_POSITION": 64,
+        "ARG_TYPE_POSITION": 65,
+        "ARG_TYPE_MESSAGE": 68,
+        "ARG_TYPE_RAWTEXT": 70,
+        "ARG_TYPE_JSON": 74,
+        "ARG_TYPE_BLOCK_STATES": 84,
+        "ARG_TYPE_COMMAND": 88,
+        "ARG_FLAG_ENUM": 2097152,
+        "ARG_FLAG_POSTFIX": 16777216,
+        "ARG_FLAG_SOFT_ENUM": 67108864
+    },
+    "packet/BookEditPacket": {
+        "TYPE_REPLACE_PAGE": 0,
+        "TYPE_ADD_PAGE": 1,
+        "TYPE_DELETE_PAGE": 2,
+        "TYPE_SWAP_PAGES": 3,
+        "TYPE_SIGN_BOOK": 4
+    },
+    "packet/BossEventPacket": {
+        "TYPE_SHOW": 0,
+        "TYPE_REGISTER_PLAYER": 1,
+        "TYPE_HIDE": 2,
+        "TYPE_UNREGISTER_PLAYER": 3,
+        "TYPE_HEALTH_PERCENT": 4,
+        "TYPE_TITLE": 5,
+        "TYPE_PROPERTIES": 6,
+        "TYPE_TEXTURE": 7,
+        "TYPE_QUERY": 8
+    },
+    "packet/CameraShakePacket": {
+        "TYPE_POSITIONAL": 0,
+        "TYPE_ROTATIONAL": 1,
+        "ACTION_ADD": 0,
+        "ACTION_STOP": 1
+    },
+    "packet/ClientBoundDebugRendererPacket": {
+        "TYPE_CLEAR": "cleardebugmarkers",
+        "TYPE_ADD_CUBE": "adddebugmarkercube"
+    },
+    "packet/ClientMovementPredictionSyncPacket": {
+        "FLAG_LENGTH": 131
+    },
+    "packet/CommandOutputPacket": {
+        "TYPE_LAST": "lastoutput",
+        "TYPE_SILENT": "silent",
+        "TYPE_ALL": "alloutput",
+        "TYPE_DATA_SET": "dataset"
+    },
+    "packet/CompletedUsingItemPacket": {
+        "ACTION_UNKNOWN": -1,
+        "ACTION_EQUIP_ARMOR": 0,
+        "ACTION_EAT": 1,
+        "ACTION_ATTACK": 2,
+        "ACTION_CONSUME": 3,
+        "ACTION_THROW": 4,
+        "ACTION_SHOOT": 5,
+        "ACTION_PLACE": 6,
+        "ACTION_FILL_BOTTLE": 7,
+        "ACTION_FILL_BUCKET": 8,
+        "ACTION_POUR_BUCKET": 9,
+        "ACTION_USE_TOOL": 10,
+        "ACTION_INTERACT": 11,
+        "ACTION_RETRIEVED": 12,
+        "ACTION_DYED": 13,
+        "ACTION_TRADED": 14,
+        "ACTION_BRUSHING_COMPLETED": 15
+    },
+    "packet/ContainerSetDataPacket": {
+        "PROPERTY_FURNACE_SMELT_PROGRESS": 0,
+        "PROPERTY_FURNACE_REMAINING_FUEL_TIME": 1,
+        "PROPERTY_FURNACE_MAX_FUEL_TIME": 2,
+        "PROPERTY_FURNACE_STORED_XP": 3,
+        "PROPERTY_FURNACE_FUEL_AUX": 4,
+        "PROPERTY_BREWING_STAND_BREW_TIME": 0,
+        "PROPERTY_BREWING_STAND_FUEL_AMOUNT": 1,
+        "PROPERTY_BREWING_STAND_FUEL_TOTAL": 2
+    },
+    "packet/CorrectPlayerMovePredictionPacket": {
+        "PREDICTION_TYPE_PLAYER": 0,
+        "PREDICTION_TYPE_VEHICLE": 1
+    },
+    "packet/CreativeContentPacket": {
+        "CATEGORY_CONSTRUCTION": 1,
+        "CATEGORY_NATURE": 2,
+        "CATEGORY_EQUIPMENT": 3,
+        "CATEGORY_ITEMS": 4
+    },
+    "packet/EmotePacket": {
+        "FLAG_SERVER": 1,
+        "FLAG_MUTE_ANNOUNCEMENT": 2
+    },
+    "packet/GameTestRequestPacket": {
+        "ROTATION_0": 0,
+        "ROTATION_90": 1,
+        "ROTATION_180": 2,
+        "ROTATION_270": 3
+    },
+    "packet/InteractPacket": {
+        "ACTION_LEAVE_VEHICLE": 3,
+        "ACTION_MOUSEOVER": 4,
+        "ACTION_OPEN_NPC": 5,
+        "ACTION_OPEN_INVENTORY": 6
+    },
+    "packet/InventoryTransactionPacket": {
+        "TYPE_NORMAL": 0,
+        "TYPE_MISMATCH": 1,
+        "TYPE_USE_ITEM": 2,
+        "TYPE_USE_ITEM_ON_ENTITY": 3,
+        "TYPE_RELEASE_ITEM": 4
+    },
+    "packet/LabTablePacket": {
+        "TYPE_START_COMBINE": 0,
+        "TYPE_START_REACTION": 1,
+        "TYPE_RESET": 2
+    },
+    "packet/LessonProgressPacket": {
+        "ACTION_START": 0,
+        "ACTION_FINISH": 1,
+        "ACTION_RESTART": 2
+    },
+    "packet/MobEffectPacket": {
+        "EVENT_ADD": 1,
+        "EVENT_MODIFY": 2,
+        "EVENT_REMOVE": 3
+    },
+    "packet/ModalFormResponsePacket": {
+        "CANCEL_REASON_CLOSED": 0,
+        "CANCEL_REASON_USER_BUSY": 1
+    },
+    "packet/MoveActorAbsolutePacket": {
+        "FLAG_GROUND": 1,
+        "FLAG_TELEPORT": 2,
+        "FLAG_FORCE_MOVE_LOCAL_ENTITY": 4,
+        "FLAG_FORCE_COMPLETION": 8
+    },
+    "packet/MovePlayerPacket": {
+        "MODE_NORMAL": 0,
+        "MODE_RESET": 1,
+        "MODE_TELEPORT": 2,
+        "MODE_PITCH": 3
+    },
+    "packet/MultiPlayerSettingsPacket": {
+        "ACTION_ENABLE_MULTIPLAYER": 0,
+        "ACTION_DISABLE_MULTIPLAYER": 1,
+        "ACTION_REFRESH_JOIN_CODE": 2
+    },
+    "packet/NetworkChunkPublisherUpdatePacket": {
+        "MAX_SAVED_CHUNKS": 9216
+    },
+    "packet/NetworkSettingsPacket": {
+        "COMPRESS_NOTHING": 0,
+        "COMPRESS_EVERYTHING": 1
+    },
+    "packet/NpcDialoguePacket": {
+        "ACTION_OPEN": 0,
+        "ACTION_CLOSE": 1
+    },
+    "packet/NpcRequestPacket": {
+        "REQUEST_SET_ACTIONS": 0,
+        "REQUEST_EXECUTE_ACTION": 1,
+        "REQUEST_EXECUTE_CLOSING_COMMANDS": 2,
+        "REQUEST_SET_NAME": 3,
+        "REQUEST_SET_SKIN": 4,
+        "REQUEST_SET_INTERACTION_TEXT": 5,
+        "REQUEST_EXECUTE_OPENING_COMMANDS": 6
+    },
+    "packet/PacketViolationWarningPacket": {
+        "TYPE_MALFORMED": 0,
+        "SEVERITY_WARNING": 0,
+        "SEVERITY_FINAL_WARNING": 1,
+        "SEVERITY_TERMINATING_CONNECTION": 2
+    },
+    "packet/PlayStatusPacket": {
+        "LOGIN_SUCCESS": 0,
+        "LOGIN_FAILED_CLIENT": 1,
+        "LOGIN_FAILED_SERVER": 2,
+        "PLAYER_SPAWN": 3,
+        "LOGIN_FAILED_INVALID_TENANT": 4,
+        "LOGIN_FAILED_VANILLA_EDU": 5,
+        "LOGIN_FAILED_EDU_VANILLA": 6,
+        "LOGIN_FAILED_SERVER_FULL": 7,
+        "LOGIN_FAILED_EDITOR_VANILLA": 8,
+        "LOGIN_FAILED_VANILLA_EDITOR": 9
+    },
+    "packet/PlayerListPacket": {
+        "TYPE_REMOVE": 0,
+        "TYPE_ADD": 1
+    },
+    "packet/PositionTrackingDbClientRequestPacket": {
+        "ACTION_QUERY": 0
+    },
+    "packet/PositionTrackingDbServerBroadcastPacket": {
+        "ACTION_UPDATE": 0,
+        "ACTION_DESTROY": 1,
+        "ACTION_NOT_FOUND": 2
+    },
+    "packet/RequestAbilityPacket": {
+        "ABILITY_FLYING": 9,
+        "ABILITY_NOCLIP": 17
+    },
+    "packet/RequestPermissionsPacket": {
+        "FLAG_BUILD": 1,
+        "FLAG_MINE": 2,
+        "FLAG_DOORS_AND_SWITCHES": 4,
+        "FLAG_OPEN_CONTAINERS": 8,
+        "FLAG_ATTACK_PLAYERS": 16,
+        "FLAG_ATTACK_MOBS": 32,
+        "FLAG_OPERATOR": 64,
+        "FLAG_TELEPORT": 128
+    },
+    "packet/RespawnPacket": {
+        "SEARCHING_FOR_SPAWN": 0,
+        "READY_TO_SPAWN": 1,
+        "CLIENT_READY_TO_SPAWN": 2
+    },
+    "packet/SetDisplayObjectivePacket": {
+        "DISPLAY_SLOT_LIST": "list",
+        "DISPLAY_SLOT_SIDEBAR": "sidebar",
+        "DISPLAY_SLOT_BELOW_NAME": "belowname",
+        "SORT_ORDER_ASCENDING": 0,
+        "SORT_ORDER_DESCENDING": 1
+    },
+    "packet/SetScoreboardIdentityPacket": {
+        "TYPE_REGISTER_IDENTITY": 0,
+        "TYPE_CLEAR_IDENTITY": 1
+    },
+    "packet/SetSpawnPositionPacket": {
+        "TYPE_PLAYER_SPAWN": 0,
+        "TYPE_WORLD_SPAWN": 1
+    },
+    "packet/SetTitlePacket": {
+        "TYPE_CLEAR_TITLE": 0,
+        "TYPE_RESET_TITLE": 1,
+        "TYPE_SET_TITLE": 2,
+        "TYPE_SET_SUBTITLE": 3,
+        "TYPE_SET_ACTIONBAR_MESSAGE": 4,
+        "TYPE_SET_ANIMATION_TIMES": 5,
+        "TYPE_SET_TITLE_JSON": 6,
+        "TYPE_SET_SUBTITLE_JSON": 7,
+        "TYPE_SET_ACTIONBAR_MESSAGE_JSON": 8
+    },
+    "packet/ShowCreditsPacket": {
+        "STATUS_START_CREDITS": 0,
+        "STATUS_END_CREDITS": 1
+    },
+    "packet/SimpleEventPacket": {
+        "TYPE_ENABLE_COMMANDS": 1,
+        "TYPE_DISABLE_COMMANDS": 2,
+        "TYPE_UNLOCK_WORLD_TEMPLATE_SETTINGS": 3
+    },
+    "packet/SimulationTypePacket": {
+        "GAME": 0,
+        "EDITOR": 1,
+        "TEST": 2
+    },
+    "packet/StructureTemplateDataRequestPacket": {
+        "TYPE_EXPORT_FROM_SAVE_MODE": 1,
+        "TYPE_EXPORT_FROM_LOAD_MODE": 2,
+        "TYPE_QUERY_SAVED_STRUCTURE": 3
+    },
+    "packet/StructureTemplateDataResponsePacket": {
+        "TYPE_FAILURE": 0,
+        "TYPE_EXPORT": 1,
+        "TYPE_QUERY": 2
+    },
+    "packet/TextPacket": {
+        "TYPE_RAW": 0,
+        "TYPE_CHAT": 1,
+        "TYPE_TRANSLATION": 2,
+        "TYPE_POPUP": 3,
+        "TYPE_JUKEBOX_POPUP": 4,
+        "TYPE_TIP": 5,
+        "TYPE_SYSTEM": 6,
+        "TYPE_WHISPER": 7,
+        "TYPE_ANNOUNCEMENT": 8,
+        "TYPE_JSON_WHISPER": 9,
+        "TYPE_JSON": 10,
+        "TYPE_JSON_ANNOUNCEMENT": 11
+    },
+    "packet/UnlockedRecipesPacket": {
+        "TYPE_EMPTY": 0,
+        "TYPE_INITIALLY_UNLOCKED": 1,
+        "TYPE_NEWLY_UNLOCKED": 2,
+        "TYPE_REMOVE": 3,
+        "TYPE_REMOVE_ALL": 4
+    },
+    "packet/UpdateBlockPacket": {
+        "FLAG_NONE": 0,
+        "FLAG_NEIGHBORS": 1,
+        "FLAG_NETWORK": 2,
+        "FLAG_NOGRAPHIC": 4,
+        "FLAG_PRIORITY": 8,
+        "DATA_LAYER_NORMAL": 0,
+        "DATA_LAYER_LIQUID": 1
+    },
+    "packet/UpdateBlockSyncedPacket": {
+        "TYPE_NONE": 0,
+        "TYPE_CREATE": 1,
+        "TYPE_DESTROY": 2
+    },
+    "packet/UpdateSoftEnumPacket": {
+        "TYPE_ADD": 0,
+        "TYPE_REMOVE": 1,
+        "TYPE_SET": 2
+    },
+    "types/SpawnSettings": {
+        "BIOME_TYPE_DEFAULT": 0,
+        "BIOME_TYPE_USER_DEFINED": 1
+    }
+}

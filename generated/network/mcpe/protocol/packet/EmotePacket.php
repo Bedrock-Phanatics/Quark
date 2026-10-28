@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class EmotePacket extends Packet{
 	public const int ID = PacketId::EMOTE;
 
+	public const int FLAG_SERVER = 1;
+	public const int FLAG_MUTE_ANNOUNCEMENT = 2;
+
 	public function __construct(
 		public int $actorRuntimeId,
 		public string $emoteId,

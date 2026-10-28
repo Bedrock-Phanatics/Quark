@@ -23,9 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\types\ResourcePackClientResponseStatus;
-use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
@@ -35,10 +32,13 @@ use quark\network\mcpe\protocol\packet\ResourcePackClientResponsePacket;
 use quark\network\mcpe\protocol\packet\ResourcePackDataInfoPacket;
 use quark\network\mcpe\protocol\packet\ResourcePacksInfoPacket;
 use quark\network\mcpe\protocol\packet\ResourcePackStackPacket;
+use quark\network\mcpe\protocol\ProtocolInfo;
 use quark\network\mcpe\protocol\types\Downloading;
 use quark\network\mcpe\protocol\types\Experiments;
 use quark\network\mcpe\protocol\types\PackIDVersionData;
 use quark\network\mcpe\protocol\types\PackInfoData;
+use quark\network\mcpe\protocol\types\ResourcePackClientResponseStatus;
+use quark\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\network\mcpe\protocol\types\StackResourcePack;
 use quark\network\PacketHandlingException;
 use quark\resourcepacks\ResourcePack;

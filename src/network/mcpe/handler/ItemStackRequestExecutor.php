@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
-use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use quark\block\inventory\EnchantInventory;
 use quark\crafting\CraftingGrid;
 use quark\crafting\ShapedRecipe;
@@ -50,6 +48,8 @@ use quark\network\mcpe\protocol\types\CreateStackRequestAction;
 use quark\network\mcpe\protocol\types\DestroyStackRequestAction;
 use quark\network\mcpe\protocol\types\DropStackRequestAction;
 use quark\network\mcpe\protocol\types\FullContainerName;
+use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
+use quark\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use quark\network\mcpe\protocol\types\ItemStackRequestData;
 use quark\network\mcpe\protocol\types\ItemStackRequestPacketData;
 use quark\network\mcpe\protocol\types\MineBlockStackRequestAction;

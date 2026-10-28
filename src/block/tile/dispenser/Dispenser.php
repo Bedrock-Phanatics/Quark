@@ -25,7 +25,6 @@ namespace quark\block\tile\dispenser;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\block\tile\Container;
 use quark\block\tile\ContainerTrait;
 use quark\block\tile\Nameable;
@@ -33,6 +32,7 @@ use quark\block\tile\NameableTrait;
 use quark\block\tile\Spawnable;
 use quark\inventory\DispenserInventory;
 use quark\network\mcpe\protocol\LevelPackets;
+use quark\network\mcpe\protocol\types\LevelEvent;
 use quark\player\Player;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;

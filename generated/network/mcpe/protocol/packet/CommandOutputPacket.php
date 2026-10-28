@@ -34,6 +34,11 @@ use quark\network\mcpe\protocol\types\CommandOutputData;
 final class CommandOutputPacket extends Packet{
 	public const int ID = PacketId::COMMAND_OUTPUT;
 
+	public const string TYPE_LAST = 'lastoutput';
+	public const string TYPE_SILENT = 'silent';
+	public const string TYPE_ALL = 'alloutput';
+	public const string TYPE_DATA_SET = 'dataset';
+
 	public function __construct(
 		public CommandOrigin $originData,
 		public CommandOutputData $output,

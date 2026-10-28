@@ -35,6 +35,11 @@ use quark\network\mcpe\protocol\types\MovePlayerTeleportData;
 final class MovePlayerPacket extends Packet{
 	public const int ID = PacketId::MOVE_PLAYER;
 
+	public const int MODE_NORMAL = 0;
+	public const int MODE_RESET = 1;
+	public const int MODE_TELEPORT = 2;
+	public const int MODE_PITCH = 3;
+
 	public function __construct(
 		public int $playerRuntimeId,
 		public Vector3 $position,

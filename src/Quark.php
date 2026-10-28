@@ -25,7 +25,7 @@ namespace quark {
 
 	use Composer\InstalledVersions;
 	use pocketmine\errorhandler\ErrorToExceptionHandler;
-	use pocketmine\network\mcpe\protocol\ProtocolInfo;
+	use quark\network\mcpe\protocol\ProtocolInfo;
 	use quark\thread\ThreadManager;
 	use quark\thread\ThreadSafeClassLoader;
 	use quark\utils\Filesystem;

@@ -50,7 +50,7 @@ parameters:
 		- quark\VersionInfo::BUILD_CHANNEL
 		- quark\DEBUG
 		- quark\IS_DEVELOPMENT_BUILD
-		- pocketmine\network\mcpe\protocol\ProtocolInfo::CURRENT_PROTOCOL
+		- quark\network\mcpe\protocol\ProtocolInfo::CURRENT_PROTOCOL
 		- Bedwire\Protocol::VERSION
 		- Bedwire\Protocol::MINECRAFT_VERSION
 	stubFiles:

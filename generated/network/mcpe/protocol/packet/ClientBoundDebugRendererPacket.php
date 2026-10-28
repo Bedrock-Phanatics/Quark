@@ -33,6 +33,9 @@ use quark\network\mcpe\protocol\types\ClientboundDebugRendererDebugMarkerData;
 final class ClientBoundDebugRendererPacket extends Packet{
 	public const int ID = PacketId::CLIENT_BOUND_DEBUG_RENDERER;
 
+	public const string TYPE_CLEAR = 'cleardebugmarkers';
+	public const string TYPE_ADD_CUBE = 'adddebugmarkercube';
+
 	public function __construct(
 		public string $type,
 		public ?ClientboundDebugRendererDebugMarkerData $debugMarkerData = null,

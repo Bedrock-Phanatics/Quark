@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class NetworkSettingsPacket extends Packet{
 	public const int ID = PacketId::NETWORK_SETTINGS;
 
+	public const int COMPRESS_NOTHING = 0;
+	public const int COMPRESS_EVERYTHING = 1;
+
 	public function __construct(
 		public int $compressionThreshold,
 		public int $compressionAlgorithm,

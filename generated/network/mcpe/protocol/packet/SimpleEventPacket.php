@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class SimpleEventPacket extends Packet{
 	public const int ID = PacketId::SIMPLE_EVENT;
 
+	public const int TYPE_ENABLE_COMMANDS = 1;
+	public const int TYPE_DISABLE_COMMANDS = 2;
+	public const int TYPE_UNLOCK_WORLD_TEMPLATE_SETTINGS = 3;
+
 	public function __construct(
 		public int $type,
 	){}

@@ -36,12 +36,14 @@ use function count;
 use function dirname;
 use function extension_loaded;
 use function file_put_contents;
+use function get_debug_type;
 use function glob;
 use function hash;
 use function implode;
 use function is_array;
 use function is_dir;
 use function is_string;
+use function json_decode;
 use function json_encode;
 use function lcfirst;
 use function mkdir;
@@ -53,6 +55,7 @@ use function strtoupper;
 use function substr;
 use function ucwords;
 use function unlink;
+use function var_export;
 use const JSON_THROW_ON_ERROR;
 
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -135,9 +138,10 @@ final class Generator{
 	private array $imports = [];
 
 	/**
-	 * @param array<mixed> $schema
+	 * @param array<mixed>                                        $schema
+	 * @param array<string, array<string, int|float|string|bool>> $constants constants to declare, by generated file such as packet/TextPacket
 	 */
-	public function __construct(private array $schema){
+	public function __construct(private array $schema, private array $constants){
 		$this->types = [];
 		$references = [];
 		$uses = [];
@@ -360,6 +364,13 @@ final class Generator{
 			$extends = " extends " . $this->import(PACKET_BASE);
 			$body .= "\tpublic const int ID = PacketId::$packetConstant;\n";
 		}
+		$constants = $this->constants[($packetConstant !== null ? "packet/" : "types/") . $short] ?? [];
+		if(count($constants) > 0){
+			$body .= ($body !== "" ? "\n" : "");
+			foreach(Utils::stringifyKeys($constants) as $constant => $value){
+				$body .= "\tpublic const " . get_debug_type($value) . " $constant = " . var_export($value, true) . ";\n";
+			}
+		}
 		if(count($parameters) > 0){
 			$body .= ($body !== "" ? "\n" : "") . (count($docs) > 0 ? "\t/**\n" . implode("\n", $docs) . "\n\t */\n" : "");
 			$body .= "\tpublic function __construct(\n" . implode("\n", $parameters) . "\n\t){}\n";
@@ -475,6 +486,11 @@ $entries	];
 }
 
 CLASS;
+		foreach(Utils::stringifyKeys($this->constants) as $file => $_){
+			if(!isset($files["$file.php"])){
+				throw new \RuntimeException("constants.json names $file, which is not generated");
+			}
+		}
 		return $files;
 	}
 }
@@ -495,7 +511,13 @@ foreach(["packet", "types"] as $directory){
 		unlink($file);
 	}
 }
-foreach(Utils::stringifyKeys((new Generator(Protocol::schema()))->generate()) as $path => $contents){
+$constants = json_decode(Filesystem::fileGetContents(__DIR__ . "/constants.json"), true, flags: JSON_THROW_ON_ERROR);
+if(!is_array($constants)){
+	throw new \RuntimeException("constants.json should map generated files to constants");
+}
+/** @phpstan-var array<string, array<string, int|float|string|bool>> $constants */
+$generator = new Generator(Protocol::schema(), $constants);
+foreach(Utils::stringifyKeys($generator->generate()) as $path => $contents){
 	file_put_contents("$root/$path", $contents);
 }
 

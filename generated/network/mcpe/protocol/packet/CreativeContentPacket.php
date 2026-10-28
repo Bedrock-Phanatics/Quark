@@ -34,6 +34,11 @@ use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
 final class CreativeContentPacket extends Packet{
 	public const int ID = PacketId::CREATIVE_CONTENT;
 
+	public const int CATEGORY_CONSTRUCTION = 1;
+	public const int CATEGORY_NATURE = 2;
+	public const int CATEGORY_EQUIPMENT = 3;
+	public const int CATEGORY_ITEMS = 4;
+
 	/**
 	 * @param list<CreativeGroup> $groups
 	 * @param list<CreativeItemEntryPayload> $entries

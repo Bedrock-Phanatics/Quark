@@ -25,11 +25,11 @@ namespace quark\network\mcpe;
 
 use Bedwire\PacketId;
 use Bedwire\Protocol;
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
-use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\types\CompressionAlgorithm;
+use quark\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\serializer\ChunkSerializer;
 use quark\scheduler\AsyncTask;
 use quark\thread\NonThreadSafeValue;

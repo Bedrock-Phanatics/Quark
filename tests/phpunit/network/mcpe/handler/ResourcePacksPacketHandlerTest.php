@@ -25,22 +25,12 @@ namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use pmmp\encoding\ByteBufferWriter;
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\ResourcePackChunkDataPacket;
-use pocketmine\network\mcpe\protocol\ResourcePackDataInfoPacket;
-use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
-use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
-use pocketmine\network\mcpe\protocol\types\Experiments;
-use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackInfoEntry;
-use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackStackEntry;
-use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\packet\ResourcePackChunkRequestPacket;
 use quark\network\mcpe\protocol\packet\ResourcePackClientResponsePacket;
+use quark\network\mcpe\protocol\RecordedPackets;
 use quark\network\mcpe\protocol\types\Downloading;
 use quark\network\PacketHandlingException;
 use quark\promise\Promise;
@@ -58,12 +48,6 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 	/** @var list<Packet> */
 	private array $sent = [];
 	private bool $completed = false;
-
-	private static function legacy(ClientboundPacket $packet) : string{
-		$writer = new ByteBufferWriter();
-		$packet->encode($writer);
-		return $writer->getData();
-	}
 
 	/**
 	 * @phpstan-return NetworkSession&MockObject
@@ -97,7 +81,7 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 		});
 	}
 
-	public function testDownloadSequenceMatchesBedrockProtocol() : void{
+	public function testDownloadSequenceMatchesRecordedEncoding() : void{
 		$handler = $this->handler($this->session());
 		$handler->setUp();
 		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading" => new Downloading("downloading", [self::PACK_ID . "_1.0.0"])])));
@@ -106,28 +90,9 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["resource_pack_stack_finished" => "resourcepackstackfinished"])));
 		self::assertTrue($this->completed);
 
-		/** @phpstan-var list<array{string, string}> $chemistryPacks */
-		$chemistryPacks = (new \ReflectionClassConstant(ResourcePacksPacketHandler::class, "CHEMISTRY_RESOURCE_PACKS"))->getValue();
-		$stack = [new ResourcePackStackEntry(self::PACK_ID, "1.0.0", "")];
-		foreach($chemistryPacks as [$uuid, $version]){
-			$stack[] = new ResourcePackStackEntry($uuid, $version, "");
-		}
-		$expected = [
-			ResourcePacksInfoPacket::create(
-				resourcePackEntries: [new ResourcePackInfoEntry(Uuid::fromString(self::PACK_ID), "1.0.0", self::PACK_SIZE, "key", "", self::PACK_ID, false)],
-				mustAccept: true,
-				hasAddons: false,
-				hasScripts: false,
-				worldTemplateId: Uuid::fromString(Uuid::NIL),
-				worldTemplateVersion: "",
-				forceDisableVibrantVisuals: true,
-			),
-			ResourcePackDataInfoPacket::create(self::PACK_ID, 256 * 1024, 2, self::PACK_SIZE, str_repeat("\xab", 32), false, ResourcePackType::RESOURCES),
-			ResourcePackChunkDataPacket::create(self::PACK_ID, 1, 256 * 1024, "chunk at 262144"),
-			ResourcePackStackPacket::create($stack, false, ProtocolInfo::MINECRAFT_VERSION_NETWORK, new Experiments([], false), false),
-		];
+		//pack info, the data info and chunk 1 of the 512 KiB pack, then the stack with the chemistry packs
 		self::assertSame(
-			array_map(fn(ClientboundPacket $packet) : string => bin2hex(self::legacy($packet)), $expected),
+			array_map(fn(int $i) : string => bin2hex(RecordedPackets::get($this, $i)), [0, 1, 2, 3]),
 			array_map(fn(Packet $packet) : string => bin2hex(EncodedPacket::of($packet)->getBytes()), $this->sent)
 		);
 	}

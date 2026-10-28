@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "15b532577ddda44a75da532e515f806c",
+    "content-hash": "f1e62ff01b83e057a288fe2078a5b8d7",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -142,63 +142,6 @@
                 "source": "https://github.com/axolotl-pm/BedrockItemUpgradeSchema/tree/1.19.0"
             },
             "time": "2026-09-17T18:43:14+00:00"
-        },
-        {
-            "name": "axolotl-pm/bedrock-protocol",
-            "version": "dev-master",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol.git",
-                "reference": "e2911868aa8bd6a296dd4e68e669c41437a58ce9"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/Bedrock-Phanatics/BedrockProtocol/zipball/e2911868aa8bd6a296dd4e68e669c41437a58ce9",
-                "reference": "e2911868aa8bd6a296dd4e68e669c41437a58ce9",
-                "shasum": ""
-            },
-            "require": {
-                "ext-bedwire": "^0.3.2",
-                "ext-encoding": "~1.0.0",
-                "ext-json": "*",
-                "php": "^8.1",
-                "pocketmine/binaryutils": "^0.2.0",
-                "pocketmine/color": "^0.2.0 || ^0.3.0",
-                "pocketmine/math": "^0.3.0 || ^0.4.0 || ^1.0.0",
-                "pocketmine/nbt": "^1.0.0",
-                "ramsey/uuid": "^4.1"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "2.1.0",
-                "phpstan/phpstan-phpunit": "^2.0.0",
-                "phpstan/phpstan-strict-rules": "^2.0.0",
-                "phpunit/phpunit": "^9.5 || ^10.0 || ^11.0"
-            },
-            "default-branch": true,
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "pocketmine\\network\\mcpe\\protocol\\": "src/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "pocketmine\\network\\mcpe\\protocol\\": "tests/phpunit/"
-                }
-            },
-            "scripts": {
-                "update-create-methods": [
-                    "@php tools/generate-create-static-methods.php"
-                ]
-            },
-            "license": [
-                "LGPL-3.0"
-            ],
-            "description": "An implementation of the Minecraft: Bedrock Edition protocol in PHP",
-            "support": {
-                "source": "https://github.com/Bedrock-Phanatics/BedrockProtocol/tree/master"
-            },
-            "time": "2026-10-25T19:34:23+00:00"
         },
         {
             "name": "axolotl-pm/nethernet",
@@ -2927,9 +2870,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "axolotl-pm/bedrock-protocol": 20
-    },
+    "stability-flags": {},
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {

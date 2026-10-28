@@ -32,6 +32,16 @@ use quark\network\mcpe\protocol\Packet;
 final class BossEventPacket extends Packet{
 	public const int ID = PacketId::BOSS_EVENT;
 
+	public const int TYPE_SHOW = 0;
+	public const int TYPE_REGISTER_PLAYER = 1;
+	public const int TYPE_HIDE = 2;
+	public const int TYPE_UNREGISTER_PLAYER = 3;
+	public const int TYPE_HEALTH_PERCENT = 4;
+	public const int TYPE_TITLE = 5;
+	public const int TYPE_PROPERTIES = 6;
+	public const int TYPE_TEXTURE = 7;
+	public const int TYPE_QUERY = 8;
+
 	public function __construct(
 		public int $targetActorId,
 		public int $eventType,

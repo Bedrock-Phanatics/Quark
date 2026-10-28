@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class SimulationTypePacket extends Packet{
 	public const int ID = PacketId::SIMULATION_TYPE;
 
+	public const int GAME = 0;
+	public const int EDITOR = 1;
+	public const int TEST = 2;
+
 	public function __construct(
 		public int $simType,
 	){}

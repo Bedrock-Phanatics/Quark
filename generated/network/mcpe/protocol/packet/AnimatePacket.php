@@ -32,6 +32,11 @@ use quark\network\mcpe\protocol\Packet;
 final class AnimatePacket extends Packet{
 	public const int ID = PacketId::ANIMATE;
 
+	public const int ACTION_SWING_ARM = 1;
+	public const int ACTION_STOP_SLEEP = 3;
+	public const int ACTION_CRITICAL_HIT = 4;
+	public const int ACTION_MAGICAL_CRITICAL_HIT = 5;
+
 	public function __construct(
 		public int $action,
 		public int $targetActorRuntimeId,

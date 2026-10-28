@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class ModalFormResponsePacket extends Packet{
 	public const int ID = PacketId::MODAL_FORM_RESPONSE;
 
+	public const int CANCEL_REASON_CLOSED = 0;
+	public const int CANCEL_REASON_USER_BUSY = 1;
+
 	public function __construct(
 		public int $formId,
 		public ?string $jsonResponse = null,

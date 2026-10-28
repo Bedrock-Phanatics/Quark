@@ -33,6 +33,9 @@ use quark\network\mcpe\protocol\types\PlayerListEntriesItem;
 final class PlayerListPacket extends Packet{
 	public const int ID = PacketId::PLAYER_LIST;
 
+	public const int TYPE_REMOVE = 0;
+	public const int TYPE_ADD = 1;
+
 	/**
 	 * @param list<PlayerListEntriesItem> $entries
 	 */

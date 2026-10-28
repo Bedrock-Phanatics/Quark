@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use pocketmine\network\mcpe\protocol\CreativeContentPacket as BedrockCreativeContentPacket;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeInventory;
 use quark\lang\Translatable;
@@ -35,6 +33,7 @@ use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\packet\CreativeContentPacket;
 use quark\network\mcpe\protocol\types\CreativeGroup;
 use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
+use quark\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\utils\SingletonTrait;
 use function is_string;
 use function spl_object_id;
@@ -129,10 +128,10 @@ final class CreativeInventoryCache{
 		foreach($cachedEntry->categories as $index => $category){
 			$group = $cachedEntry->groups[$index];
 			$categoryId = match ($category) {
-				CreativeCategory::CONSTRUCTION => BedrockCreativeContentPacket::CATEGORY_CONSTRUCTION,
-				CreativeCategory::NATURE => BedrockCreativeContentPacket::CATEGORY_NATURE,
-				CreativeCategory::EQUIPMENT => BedrockCreativeContentPacket::CATEGORY_EQUIPMENT,
-				CreativeCategory::ITEMS => BedrockCreativeContentPacket::CATEGORY_ITEMS
+				CreativeCategory::CONSTRUCTION => CreativeContentPacket::CATEGORY_CONSTRUCTION,
+				CreativeCategory::NATURE => CreativeContentPacket::CATEGORY_NATURE,
+				CreativeCategory::EQUIPMENT => CreativeContentPacket::CATEGORY_EQUIPMENT,
+				CreativeCategory::ITEMS => CreativeContentPacket::CATEGORY_ITEMS
 			};
 			if($group === null){
 				$groupEntries[] = new CreativeGroup(creativeCategory: $categoryId, name: "", groupIconItem: Fields::itemInstance(ItemStack::null()));

@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class ShowCreditsPacket extends Packet{
 	public const int ID = PacketId::SHOW_CREDITS;
 
+	public const int STATUS_START_CREDITS = 0;
+	public const int STATUS_END_CREDITS = 1;
+
 	public function __construct(
 		public int $playerRuntimeId,
 		public int $creditsState,

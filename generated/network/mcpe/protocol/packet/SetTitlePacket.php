@@ -32,6 +32,16 @@ use quark\network\mcpe\protocol\Packet;
 final class SetTitlePacket extends Packet{
 	public const int ID = PacketId::SET_TITLE;
 
+	public const int TYPE_CLEAR_TITLE = 0;
+	public const int TYPE_RESET_TITLE = 1;
+	public const int TYPE_SET_TITLE = 2;
+	public const int TYPE_SET_SUBTITLE = 3;
+	public const int TYPE_SET_ACTIONBAR_MESSAGE = 4;
+	public const int TYPE_SET_ANIMATION_TIMES = 5;
+	public const int TYPE_SET_TITLE_JSON = 6;
+	public const int TYPE_SET_SUBTITLE_JSON = 7;
+	public const int TYPE_SET_ACTIONBAR_MESSAGE_JSON = 8;
+
 	public function __construct(
 		public int $titleType,
 		public string $titleText,

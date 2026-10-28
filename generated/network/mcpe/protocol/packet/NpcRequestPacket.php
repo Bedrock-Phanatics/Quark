@@ -32,6 +32,14 @@ use quark\network\mcpe\protocol\Packet;
 final class NpcRequestPacket extends Packet{
 	public const int ID = PacketId::NPC_REQUEST;
 
+	public const int REQUEST_SET_ACTIONS = 0;
+	public const int REQUEST_EXECUTE_ACTION = 1;
+	public const int REQUEST_EXECUTE_CLOSING_COMMANDS = 2;
+	public const int REQUEST_SET_NAME = 3;
+	public const int REQUEST_SET_SKIN = 4;
+	public const int REQUEST_SET_INTERACTION_TEXT = 5;
+	public const int REQUEST_EXECUTE_OPENING_COMMANDS = 6;
+
 	public function __construct(
 		public int $npcRuntimeId,
 		public int $requestType,

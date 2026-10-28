@@ -32,6 +32,9 @@ use quark\network\mcpe\protocol\Packet;
 final class AgentAnimationPacket extends Packet{
 	public const int ID = PacketId::AGENT_ANIMATION;
 
+	public const int TYPE_ARM_SWING = 0;
+	public const int TYPE_SHRUG = 1;
+
 	public function __construct(
 		public int $agentAnimation,
 		public int $runtimeId,

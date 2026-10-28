@@ -24,10 +24,8 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol;
 
 use PHPUnit\Framework\TestCase;
-use pmmp\encoding\ByteBufferWriter;
 use pocketmine\color\Color;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\block\Block;
 use quark\block\VanillaBlocks;
 use quark\entity\animation\Animation;
@@ -69,13 +67,8 @@ final class GameplayPacketGoldenTest extends TestCase{
 		"entity/animation" => Animation::class,
 	];
 
-	private static function hex(Packet|ClientboundPacket $packet) : string{
-		if($packet instanceof Packet){
-			return bin2hex(EncodedPacket::of($packet)->getBytes());
-		}
-		$writer = new ByteBufferWriter();
-		$packet->encode($writer);
-		return bin2hex($writer->getData());
+	private static function hex(Packet $packet) : string{
+		return bin2hex(EncodedPacket::of($packet)->getBytes());
 	}
 
 	private function argument(\ReflectionParameter $parameter) : mixed{

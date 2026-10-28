@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\network\mcpe\protocol\LevelPackets;
+use quark\network\mcpe\protocol\types\LevelSoundEvent;
 
 final class IceBombHitSound implements Sound{
 	public function encode(Vector3 $pos) : array{

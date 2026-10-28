@@ -33,6 +33,9 @@ use quark\network\mcpe\protocol\Packet;
 final class SetSpawnPositionPacket extends Packet{
 	public const int ID = PacketId::SET_SPAWN_POSITION;
 
+	public const int TYPE_PLAYER_SPAWN = 0;
+	public const int TYPE_WORLD_SPAWN = 1;
+
 	public function __construct(
 		public int $spawnPositionType,
 		public Vector3 $blockPosition,

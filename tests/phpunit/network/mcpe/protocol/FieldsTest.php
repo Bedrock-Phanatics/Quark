@@ -25,31 +25,7 @@ namespace quark\network\mcpe\protocol;
 
 use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
-use pmmp\encoding\ByteBufferWriter;
 use pocketmine\color\Color;
-use pocketmine\network\mcpe\protocol\ClientboundPacket;
-use pocketmine\network\mcpe\protocol\MobEquipmentPacket as BedrockMobEquipmentPacket;
-use pocketmine\network\mcpe\protocol\PlayerEnchantOptionsPacket as BedrockPlayerEnchantOptionsPacket;
-use pocketmine\network\mcpe\protocol\PlayerListPacket as BedrockPlayerListPacket;
-use pocketmine\network\mcpe\protocol\PlayerSkinPacket as BedrockPlayerSkinPacket;
-use pocketmine\network\mcpe\protocol\TextPacket as BedrockTextPacket;
-use pocketmine\network\mcpe\protocol\types\AbilitiesData;
-use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
-use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
-use pocketmine\network\mcpe\protocol\types\Enchant;
-use pocketmine\network\mcpe\protocol\types\EnchantOption;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
-use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
-use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
-use pocketmine\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
-use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPiece;
-use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPieceType;
-use pocketmine\network\mcpe\protocol\types\skin\SkinAnimation;
-use pocketmine\network\mcpe\protocol\types\skin\SkinArmSizeType;
-use pocketmine\network\mcpe\protocol\types\skin\SkinData;
-use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
-use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket as BedrockUpdateAbilitiesPacket;
 use quark\crafting\CraftingManagerFromDataHelper;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\item\enchantment\EnchantmentInstance;
@@ -62,11 +38,24 @@ use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
 use quark\network\mcpe\protocol\packet\PlayerListPacket;
 use quark\network\mcpe\protocol\packet\PlayerSkinPacket;
 use quark\network\mcpe\protocol\packet\UpdateAbilitiesPacket;
+use quark\network\mcpe\protocol\types\AbilitiesData;
+use quark\network\mcpe\protocol\types\AbilitiesLayer;
+use quark\network\mcpe\protocol\types\command\CommandPermissions;
 use quark\network\mcpe\protocol\types\DescriptorEmpty;
 use quark\network\mcpe\protocol\types\DescriptorItem;
 use quark\network\mcpe\protocol\types\EnchantmentInstance as NetEnchantmentInstance;
+use quark\network\mcpe\protocol\types\inventory\ItemStack;
+use quark\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use quark\network\mcpe\protocol\types\ItemEnchantOption;
 use quark\network\mcpe\protocol\types\ItemEnchants;
+use quark\network\mcpe\protocol\types\PlayerPermissions;
+use quark\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
+use quark\network\mcpe\protocol\types\skin\PersonaSkinPiece;
+use quark\network\mcpe\protocol\types\skin\PersonaSkinPieceType;
+use quark\network\mcpe\protocol\types\skin\SkinAnimation;
+use quark\network\mcpe\protocol\types\skin\SkinArmSizeType;
+use quark\network\mcpe\protocol\types\skin\SkinData;
+use quark\network\mcpe\protocol\types\skin\SkinImage;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use Ramsey\Uuid\Uuid;
@@ -75,15 +64,9 @@ use function str_repeat;
 use function strlen;
 
 /**
- * Checks that values built for Bedwire\Protocol encode exactly like BedrockProtocol's encoders did, and read back.
+ * Checks that values built for Bedwire\Protocol encode exactly like the bytes BedrockProtocol's encoders recorded, and read back.
  */
 final class FieldsTest extends TestCase{
-
-	private static function legacy(ClientboundPacket $packet) : string{
-		$writer = new ByteBufferWriter();
-		$packet->encode($writer);
-		return $writer->getData();
-	}
 
 	private static function bytes(Packet $packet) : string{
 		return EncodedPacket::of($packet)->getBytes();
@@ -95,11 +78,11 @@ final class FieldsTest extends TestCase{
 		self::assertTrue(Fields::toUuid(Fields::uuid($uuid))->equals($uuid));
 	}
 
-	public function testTextMatchesBedrockProtocol() : void{
-		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::raw("hello"))), bin2hex(self::bytes(TextPackets::raw("hello"))));
-		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::tip(" "))), bin2hex(self::bytes(TextPackets::tip(""))));
-		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::translation("key", ["a", "b"]))), bin2hex(self::bytes(TextPackets::translation("key", ["a", "b"]))));
-		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::jukeboxPopup("disc", ["c"]))), bin2hex(self::bytes(TextPackets::jukeboxPopup("disc", ["c"]))));
+	public function testTextMatchesRecordedEncoding() : void{
+		self::assertSame(bin2hex(RecordedPackets::get($this, 0)), bin2hex(self::bytes(TextPackets::raw("hello"))));
+		self::assertSame(bin2hex(RecordedPackets::get($this, 1)), bin2hex(self::bytes(TextPackets::tip(""))));
+		self::assertSame(bin2hex(RecordedPackets::get($this, 2)), bin2hex(self::bytes(TextPackets::translation("key", ["a", "b"]))));
+		self::assertSame(bin2hex(RecordedPackets::get($this, 3)), bin2hex(self::bytes(TextPackets::jukeboxPopup("disc", ["c"]))));
 	}
 
 	public function testVanillaCraftingDataRoundTrips() : void{
@@ -137,8 +120,8 @@ final class FieldsTest extends TestCase{
 	/**
 	 * @dataProvider itemProvider
 	 */
-	public function testItemsMatchBedrockProtocol(ItemStackWrapper $item) : void{
-		$expected = self::legacy(BedrockMobEquipmentPacket::create(5, $item, 1, 2, 0));
+	public function testItemsMatchRecordedEncoding(ItemStackWrapper $item) : void{
+		$expected = RecordedPackets::get($this, 0);
 		$actual = self::bytes(new MobEquipmentPacket(
 			targetRuntimeId: 5,
 			item: Fields::itemStackWrapper($item),
@@ -153,7 +136,7 @@ final class FieldsTest extends TestCase{
 		self::assertEquals($item, Fields::toItemStackWrapper($decoded->item));
 	}
 
-	public function testSkinsMatchBedrockProtocol() : void{
+	public function testSkinsMatchRecordedEncoding() : void{
 		$image = new SkinImage(64, 64, str_repeat("\x7f", 64 * 64 * 4));
 		$skin = new SkinData(
 			"skin id",
@@ -180,7 +163,7 @@ final class FieldsTest extends TestCase{
 			"hash"
 		);
 		$uuid = Uuid::fromString("01234567-89ab-cdef-0123-456789abcdef");
-		$expected = self::legacy(BedrockPlayerSkinPacket::create($uuid, "old", "new", $skin));
+		$expected = RecordedPackets::get($this, 0);
 		$actual = self::bytes(new PlayerSkinPacket(
 			uuid: Fields::uuid($uuid),
 			serializedSkin: Fields::skin($skin),
@@ -194,10 +177,7 @@ final class FieldsTest extends TestCase{
 		self::assertEquals($skin, Fields::toSkinData($decoded->serializedSkin));
 		self::assertTrue(Fields::toUuid($decoded->uuid)->equals($uuid));
 
-		$expected = self::legacy(BedrockPlayerListPacket::create([
-			PlayerListEntry::createAdditionEntry($uuid, -9, "Steve", $skin, "1234"),
-			PlayerListEntry::createRemovalEntry($uuid),
-		]));
+		$expected = RecordedPackets::get($this, 1);
 		$actual = self::bytes(new PlayerListPacket(entries: [
 			Fields::playerListAddition($uuid, -9, "Steve", $skin, "1234"),
 			Fields::playerListRemoval($uuid),
@@ -205,10 +185,8 @@ final class FieldsTest extends TestCase{
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}
 
-	public function testEnchantOptionsMatchBedrockProtocol() : void{
-		$expected = self::legacy(BedrockPlayerEnchantOptionsPacket::create([
-			new EnchantOption(30, 0, [new Enchant(9, 3), new Enchant(17, 1)], [], [], "fire", 77),
-		]));
+	public function testEnchantOptionsMatchRecordedEncoding() : void{
+		$expected = RecordedPackets::get($this, 0);
 		$actual = self::bytes(new PlayerEnchantOptionsPacket(options: [new ItemEnchantOption(
 			cost: 30,
 			enchants: new ItemEnchants(slot: 0, itemEnchants: [[
@@ -221,7 +199,7 @@ final class FieldsTest extends TestCase{
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}
 
-	public function testAbilitiesMatchBedrockProtocol() : void{
+	public function testAbilitiesMatchRecordedEncoding() : void{
 		$data = new AbilitiesData(CommandPermissions::OPERATOR, PlayerPermissions::OPERATOR, -42, [
 			new AbilitiesLayer(AbilitiesLayer::LAYER_BASE, [
 				AbilitiesLayer::ABILITY_ALLOW_FLIGHT => true,
@@ -230,7 +208,7 @@ final class FieldsTest extends TestCase{
 			], 0.05, 1.0, 0.1),
 			new AbilitiesLayer(AbilitiesLayer::LAYER_SPECTATOR, [AbilitiesLayer::ABILITY_FLYING => true], null, null, null),
 		]);
-		$expected = self::legacy(BedrockUpdateAbilitiesPacket::create($data));
+		$expected = RecordedPackets::get($this, 0);
 		$actual = self::bytes(new UpdateAbilitiesPacket(data: Fields::abilities($data)));
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}

@@ -34,17 +34,6 @@ use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\AvailableCommandsPacket as BedrockAvailableCommandsPacket;
-use pocketmine\network\mcpe\protocol\MovePlayerPacket as BedrockMovePlayerPacket;
-use pocketmine\network\mcpe\protocol\PlayStatusPacket as BedrockPlayStatusPacket;
-use pocketmine\network\mcpe\protocol\SetSpawnPositionPacket as BedrockSetSpawnPositionPacket;
-use pocketmine\network\mcpe\protocol\SetTitlePacket as BedrockSetTitlePacket;
-use pocketmine\network\mcpe\protocol\types\AbilitiesData;
-use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
-use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
-use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
-use pocketmine\network\mcpe\protocol\types\DimensionIds;
-use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\utils\Limits;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
@@ -104,12 +93,18 @@ use quark\network\mcpe\protocol\packet\UpdateAdventureSettingsPacket;
 use quark\network\mcpe\protocol\Packets;
 use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\network\mcpe\protocol\TextPackets;
+use quark\network\mcpe\protocol\types\AbilitiesData;
+use quark\network\mcpe\protocol\types\AbilitiesLayer;
 use quark\network\mcpe\protocol\types\Command;
+use quark\network\mcpe\protocol\types\command\CommandPermissions;
 use quark\network\mcpe\protocol\types\CommandEnum;
 use quark\network\mcpe\protocol\types\CommandOverload;
 use quark\network\mcpe\protocol\types\CommandParameter;
+use quark\network\mcpe\protocol\types\CompressionAlgorithm;
+use quark\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\protocol\types\DisconnectMessagesData;
 use quark\network\mcpe\protocol\types\MovePlayerTeleportData;
+use quark\network\mcpe\protocol\types\PlayerPermissions;
 use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
 use quark\network\TransportIdentityException;
@@ -1203,7 +1198,7 @@ class NetworkSession{
 	public function disconnectIncompatibleProtocol(int $protocolVersion) : void{
 		$this->tryDisconnect(
 			function() use ($protocolVersion) : void{
-				$this->sendDataPacket(new PlayStatusPacket(status: $protocolVersion < Protocol::VERSION ? BedrockPlayStatusPacket::LOGIN_FAILED_CLIENT : BedrockPlayStatusPacket::LOGIN_FAILED_SERVER), true);
+				$this->sendDataPacket(new PlayStatusPacket(status: $protocolVersion < Protocol::VERSION ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER), true);
 			},
 			KnownTranslationFactory::quark_disconnect_incompatibleProtocol((string) $protocolVersion)
 		);
@@ -1374,7 +1369,7 @@ class NetworkSession{
 	private function onServerLoginSuccess() : void{
 		$this->loggedIn = true;
 
-		$this->sendDataPacket(new PlayStatusPacket(status: BedrockPlayStatusPacket::LOGIN_SUCCESS));
+		$this->sendDataPacket(new PlayStatusPacket(status: PlayStatusPacket::LOGIN_SUCCESS));
 
 		$this->logger->debug("Initiating resource packs phase");
 
@@ -1403,7 +1398,7 @@ class NetworkSession{
 
 	public function notifyTerrainReady() : void{
 		$this->logger->debug("Sending spawn notification, waiting for spawn response");
-		$this->sendDataPacket(new PlayStatusPacket(status: BedrockPlayStatusPacket::PLAYER_SPAWN));
+		$this->sendDataPacket(new PlayStatusPacket(status: PlayStatusPacket::PLAYER_SPAWN));
 		$this->setHandler(new SpawnResponsePacketHandler($this->onClientSpawnResponse(...)));
 	}
 
@@ -1430,7 +1425,7 @@ class NetworkSession{
 		$this->setHandler(new InGamePacketHandler($this->player, $this, $this->invManager));
 	}
 
-	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = BedrockMovePlayerPacket::MODE_NORMAL) : void{
+	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL) : void{
 		if($this->player !== null){
 			$location = $this->player->getLocation();
 			$yaw = $yaw ?? $location->getYaw();
@@ -1444,7 +1439,7 @@ class NetworkSession{
 				positionMode: $mode,
 				onGround: $this->player->onGround,
 				ridingRuntimeId: 0, //TODO: riding entity ID
-				teleportData: $mode === BedrockMovePlayerPacket::MODE_TELEPORT ? new MovePlayerTeleportData(teleportationCause: 0, sourceActorType: 0) : null,
+				teleportData: $mode === MovePlayerPacket::MODE_TELEPORT ? new MovePlayerTeleportData(teleportationCause: 0, sourceActorType: 0) : null,
 				tick: 0, //TODO: tick
 			));
 
@@ -1470,7 +1465,7 @@ class NetworkSession{
 		$newSpawnBlockPosition = $newSpawn->floor();
 		//TODO: respawn causing block position (bed, respawn anchor)
 		$this->sendDataPacket(new SetSpawnPositionPacket(
-			spawnPositionType: BedrockSetSpawnPositionPacket::TYPE_PLAYER_SPAWN,
+			spawnPositionType: SetSpawnPositionPacket::TYPE_PLAYER_SPAWN,
 			blockPosition: $newSpawnBlockPosition,
 			dimensionType: DimensionIds::OVERWORLD,
 			spawnBlockPos: $newSpawnBlockPosition,
@@ -1479,7 +1474,7 @@ class NetworkSession{
 
 	public function syncWorldSpawnPoint(Position $newSpawn) : void{
 		$this->sendDataPacket(new SetSpawnPositionPacket(
-			spawnPositionType: BedrockSetSpawnPositionPacket::TYPE_WORLD_SPAWN,
+			spawnPositionType: SetSpawnPositionPacket::TYPE_WORLD_SPAWN,
 			blockPosition: $newSpawn->floor(),
 			dimensionType: DimensionIds::OVERWORLD,
 			spawnBlockPos: new Vector3(Limits::INT32_MIN, Limits::INT32_MIN, Limits::INT32_MIN),
@@ -1600,7 +1595,7 @@ class NetworkSession{
 					isChaining: false,
 					parameterData: [new CommandParameter(
 						name: "args",
-						parseSymbol: BedrockAvailableCommandsPacket::ARG_FLAG_VALID | BedrockAvailableCommandsPacket::ARG_TYPE_RAWTEXT,
+						parseSymbol: AvailableCommandsPacket::ARG_FLAG_VALID | AvailableCommandsPacket::ARG_TYPE_RAWTEXT,
 						isOptional: true,
 						options: 0,
 					)],
@@ -1782,27 +1777,27 @@ class NetworkSession{
 	}
 
 	public function onTitle(string $title) : void{
-		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_TITLE, $title));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_TITLE, $title));
 	}
 
 	public function onSubTitle(string $subtitle) : void{
-		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_SUBTITLE, $subtitle));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_SUBTITLE, $subtitle));
 	}
 
 	public function onActionBar(string $actionBar) : void{
-		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE, $actionBar));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE, $actionBar));
 	}
 
 	public function onClearTitle() : void{
-		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_CLEAR_TITLE));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_CLEAR_TITLE));
 	}
 
 	public function onResetTitleOptions() : void{
-		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_RESET_TITLE));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_RESET_TITLE));
 	}
 
 	public function onTitleDuration(int $fadeIn, int $stay, int $fadeOut) : void{
-		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_ANIMATION_TIMES, "", $fadeIn, $stay, $fadeOut));
+		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ANIMATION_TIMES, "", $fadeIn, $stay, $fadeOut));
 	}
 
 	public function onToastNotification(string $title, string $body) : void{

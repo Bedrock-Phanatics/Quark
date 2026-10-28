@@ -33,6 +33,11 @@ use quark\network\mcpe\protocol\Packet;
 final class MoveActorAbsolutePacket extends Packet{
 	public const int ID = PacketId::MOVE_ACTOR_ABSOLUTE;
 
+	public const int FLAG_GROUND = 1;
+	public const int FLAG_TELEPORT = 2;
+	public const int FLAG_FORCE_MOVE_LOCAL_ENTITY = 4;
+	public const int FLAG_FORCE_COMPLETION = 8;
+
 	public function __construct(
 		public int $actorRuntimeId,
 		public int $header,

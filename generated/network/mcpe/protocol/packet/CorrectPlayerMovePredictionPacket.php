@@ -34,6 +34,9 @@ use quark\network\mcpe\protocol\Packet;
 final class CorrectPlayerMovePredictionPacket extends Packet{
 	public const int ID = PacketId::CORRECT_PLAYER_MOVE_PREDICTION;
 
+	public const int PREDICTION_TYPE_PLAYER = 0;
+	public const int PREDICTION_TYPE_VEHICLE = 1;
+
 	public function __construct(
 		public int $predictionType,
 		public Vector3 $pos,

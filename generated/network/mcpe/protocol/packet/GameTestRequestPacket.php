@@ -33,6 +33,11 @@ use quark\network\mcpe\protocol\Packet;
 final class GameTestRequestPacket extends Packet{
 	public const int ID = PacketId::GAME_TEST_REQUEST;
 
+	public const int ROTATION_0 = 0;
+	public const int ROTATION_90 = 1;
+	public const int ROTATION_180 = 2;
+	public const int ROTATION_270 = 3;
+
 	public function __construct(
 		public int $maxTestsPerBatch,
 		public int $repeatCount,

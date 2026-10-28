@@ -24,37 +24,37 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol;
 
 use pocketmine\color\Color;
-use pocketmine\network\mcpe\protocol\types\AbilitiesData;
-use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
-use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
-use pocketmine\network\mcpe\protocol\types\recipe\MolangItemDescriptor;
-use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
-use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
-use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
-use pocketmine\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
-use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPiece;
-use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPieceType;
-use pocketmine\network\mcpe\protocol\types\skin\SkinAnimation;
-use pocketmine\network\mcpe\protocol\types\skin\SkinArmSizeType;
-use pocketmine\network\mcpe\protocol\types\skin\SkinData;
-use pocketmine\network\mcpe\protocol\types\skin\SkinImage as ProtocolSkinImage;
 use pocketmine\utils\Binary;
+use quark\network\mcpe\protocol\types\AbilitiesData;
+use quark\network\mcpe\protocol\types\AbilitiesLayer;
 use quark\network\mcpe\protocol\types\AbilityData;
 use quark\network\mcpe\protocol\types\AnimatedImageData;
 use quark\network\mcpe\protocol\types\DescriptorEmpty;
 use quark\network\mcpe\protocol\types\DescriptorItem;
 use quark\network\mcpe\protocol\types\DescriptorItemTag;
 use quark\network\mcpe\protocol\types\DescriptorMolang;
+use quark\network\mcpe\protocol\types\inventory\ItemStack;
+use quark\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use quark\network\mcpe\protocol\types\NetworkItemInstanceDescriptor as NetItemInstance;
 use quark\network\mcpe\protocol\types\NetworkItemStackDescriptor as NetItemStack;
 use quark\network\mcpe\protocol\types\PersonaPiece;
 use quark\network\mcpe\protocol\types\PlayerListAddEntry;
 use quark\network\mcpe\protocol\types\PlayerListRemoveEntry;
+use quark\network\mcpe\protocol\types\recipe\MolangItemDescriptor;
+use quark\network\mcpe\protocol\types\recipe\RecipeIngredient;
+use quark\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
+use quark\network\mcpe\protocol\types\recipe\TagItemDescriptor;
 use quark\network\mcpe\protocol\types\RecipeIngredientRecipeIngredient as NetRecipeIngredient;
 use quark\network\mcpe\protocol\types\SerializedAbilitiesDataSerializedLayer;
 use quark\network\mcpe\protocol\types\SerializedSkinRef as NetSkinRef;
 use quark\network\mcpe\protocol\types\SerializedSkinRefPieceTintColorsEntry;
+use quark\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
+use quark\network\mcpe\protocol\types\skin\PersonaSkinPiece;
+use quark\network\mcpe\protocol\types\skin\PersonaSkinPieceType;
+use quark\network\mcpe\protocol\types\skin\SkinAnimation;
+use quark\network\mcpe\protocol\types\skin\SkinArmSizeType;
+use quark\network\mcpe\protocol\types\skin\SkinData;
+use quark\network\mcpe\protocol\types\skin\SkinImage as ProtocolSkinImage;
 use quark\network\mcpe\protocol\types\SkinImage as NetSkinImage;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
@@ -64,10 +64,6 @@ use function strlen;
  * Converts the protocol value objects gameplay works with to and from the generated packet field classes.
  */
 final class Fields{
-	//ability bits for the speeds a layer sets, private in AbilitiesLayer
-	private const ABILITY_FLY_SPEED = 13;
-	private const ABILITY_WALK_SPEED = 14;
-
 	private function __construct(){
 		//NOOP
 	}
@@ -263,13 +259,13 @@ final class Fields{
 				$values |= $value ? 1 << $ability : 0;
 			}
 			if($layer->getFlySpeed() !== null){
-				$set |= 1 << self::ABILITY_FLY_SPEED;
+				$set |= 1 << AbilitiesLayer::ABILITY_FLY_SPEED;
 			}
 			if($layer->getVerticalFlySpeed() !== null){
 				$set |= 1 << AbilitiesLayer::ABILITY_VERTICAL_FLY_SPEED;
 			}
 			if($layer->getWalkSpeed() !== null){
-				$set |= 1 << self::ABILITY_WALK_SPEED;
+				$set |= 1 << AbilitiesLayer::ABILITY_WALK_SPEED;
 			}
 			$layers[] = new SerializedAbilitiesDataSerializedLayer(
 				$layer->getLayerId(),

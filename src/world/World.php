@@ -31,7 +31,6 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\UpdateBlockPacket as BedrockUpdateBlockPacket;
 use pocketmine\utils\Limits;
 use pocketmine\world\format\LightArray;
 use quark\block\Air;
@@ -1149,16 +1148,16 @@ class World implements ChunkManager{
 					$packets[] = new UpdateBlockPacket(
 						blockPosition: $blockPosition,
 						blockRuntimeId: $blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
-						flags: BedrockUpdateBlockPacket::FLAG_NETWORK,
-						layer: BedrockUpdateBlockPacket::DATA_LAYER_NORMAL,
+						flags: UpdateBlockPacket::FLAG_NETWORK,
+						layer: UpdateBlockPacket::DATA_LAYER_NORMAL,
 					);
 				}
 			}
 			$packets[] = new UpdateBlockPacket(
 				blockPosition: $blockPosition,
 				blockRuntimeId: $blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
-				flags: BedrockUpdateBlockPacket::FLAG_NETWORK,
-				layer: BedrockUpdateBlockPacket::DATA_LAYER_NORMAL,
+				flags: UpdateBlockPacket::FLAG_NETWORK,
+				layer: UpdateBlockPacket::DATA_LAYER_NORMAL,
 			);
 
 			if($tile instanceof Spawnable){

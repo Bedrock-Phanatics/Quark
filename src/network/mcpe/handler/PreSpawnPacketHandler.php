@@ -25,13 +25,6 @@ namespace quark\network\mcpe\handler;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\types\DimensionIds;
-use pocketmine\network\mcpe\protocol\types\EditorWorldType;
-use pocketmine\network\mcpe\protocol\types\GeneratorType;
-use pocketmine\network\mcpe\protocol\types\MultiplayerGameVisibility;
-use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
-use pocketmine\network\mcpe\protocol\types\SpawnSettings as BedrockSpawnSettings;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\InventoryManager;
@@ -40,13 +33,19 @@ use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
 use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
 use quark\network\mcpe\protocol\packet\StartGamePacket;
+use quark\network\mcpe\protocol\ProtocolInfo;
+use quark\network\mcpe\protocol\types\DimensionIds;
+use quark\network\mcpe\protocol\types\EditorWorldType;
 use quark\network\mcpe\protocol\types\EducationSharedResourceURI;
 use quark\network\mcpe\protocol\types\EventsServerTelemetryData;
 use quark\network\mcpe\protocol\types\Experiments;
 use quark\network\mcpe\protocol\types\GameRule;
+use quark\network\mcpe\protocol\types\GeneratorType;
 use quark\network\mcpe\protocol\types\ItemData;
 use quark\network\mcpe\protocol\types\LevelSettings;
+use quark\network\mcpe\protocol\types\MultiplayerGameVisibility;
 use quark\network\mcpe\protocol\types\PlayerMovementSettings;
+use quark\network\mcpe\protocol\types\PlayerPermissions;
 use quark\network\mcpe\protocol\types\SpawnSettings;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
@@ -95,7 +94,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 				rotation: new Vector2($location->pitch, $location->yaw),
 				settings: new LevelSettings(
 					seed: -1,
-					spawnSettings: new SpawnSettings(spawnBiomeType: BedrockSpawnSettings::BIOME_TYPE_DEFAULT, userDefinedBiomeName: "", dimension: DimensionIds::OVERWORLD), //TODO: implement this properly
+					spawnSettings: new SpawnSettings(spawnBiomeType: SpawnSettings::BIOME_TYPE_DEFAULT, userDefinedBiomeName: "", dimension: DimensionIds::OVERWORLD), //TODO: implement this properly
 					generatorType: GeneratorType::OVERWORLD,
 					gameType: $typeConverter->coreGameModeToProtocol($this->server->getGamemode())->value,
 					isHardcore: false,

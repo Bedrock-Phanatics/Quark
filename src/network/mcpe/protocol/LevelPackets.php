@@ -19,15 +19,14 @@
  *
  */
 
-
 declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\network\mcpe\protocol\packet\LevelEventPacket;
 use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
+use quark\network\mcpe\protocol\types\LevelEvent;
 
 /**
  * The world sound and event packets most sounds and particles are made of.

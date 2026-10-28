@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class MultiPlayerSettingsPacket extends Packet{
 	public const int ID = PacketId::MULTI_PLAYER_SETTINGS;
 
+	public const int ACTION_ENABLE_MULTIPLAYER = 0;
+	public const int ACTION_DISABLE_MULTIPLAYER = 1;
+	public const int ACTION_REFRESH_JOIN_CODE = 2;
+
 	public function __construct(
 		public int $packetType,
 	){}

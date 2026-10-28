@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use quark\inventory\Inventory;
 use quark\item\Durable;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\protocol\types\FullContainerName;
+use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use quark\network\mcpe\protocol\types\ItemStackResponseContainerInfo;
 use quark\network\mcpe\protocol\types\ItemStackResponseInfo;
 use quark\network\mcpe\protocol\types\ItemStackResponseSlotInfo;

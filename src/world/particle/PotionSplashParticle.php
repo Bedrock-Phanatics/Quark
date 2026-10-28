@@ -25,9 +25,9 @@ namespace quark\world\particle;
 
 use pocketmine\color\Color;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use pocketmine\utils\Binary;
 use quark\network\mcpe\protocol\LevelPackets;
+use quark\network\mcpe\protocol\types\LevelEvent;
 
 class PotionSplashParticle implements Particle{
 	public function __construct(private Color $color){}

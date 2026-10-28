@@ -33,6 +33,10 @@ use quark\network\mcpe\protocol\Packet;
 final class RespawnPacket extends Packet{
 	public const int ID = PacketId::RESPAWN;
 
+	public const int SEARCHING_FOR_SPAWN = 0;
+	public const int READY_TO_SPAWN = 1;
+	public const int CLIENT_READY_TO_SPAWN = 2;
+
 	public function __construct(
 		public Vector3 $position,
 		public int $state,

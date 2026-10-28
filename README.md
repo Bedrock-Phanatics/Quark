@@ -104,7 +104,7 @@ composer update-codegen
 | Repository | Purpose |
 |---|---|
 | [Quark](https://github.com/Bedrock-Phanatics/Quark) | Server source and releases |
-| [BedrockProtocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | Bedrock protocol implementation |
+| [ext-bedwire](https://github.com/Bedrock-Phanatics/ext-bedwire) | Native Bedrock protocol, transport and NBT |
 | [PHP-Binaries](https://github.com/Bedrock-Phanatics/PHP-Binaries) | Supported PHP runtimes |
 
 ### Upstream PMMP resources

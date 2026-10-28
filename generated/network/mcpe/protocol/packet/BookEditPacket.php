@@ -36,6 +36,12 @@ use quark\network\mcpe\protocol\types\BookEditActionSwapPages;
 final class BookEditPacket extends Packet{
 	public const int ID = PacketId::BOOK_EDIT;
 
+	public const int TYPE_REPLACE_PAGE = 0;
+	public const int TYPE_ADD_PAGE = 1;
+	public const int TYPE_DELETE_PAGE = 2;
+	public const int TYPE_SWAP_PAGES = 3;
+	public const int TYPE_SIGN_BOOK = 4;
+
 	/**
 	 * @param array{replace_page: BookEditActionReplacePage}|array{add_page: BookEditActionAddPage}|array{delete_page: int}|array{swap_pages: BookEditActionSwapPages}|array{finalize: BookEditActionFinalize} $operation
 	 */

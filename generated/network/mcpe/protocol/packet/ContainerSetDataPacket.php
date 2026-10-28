@@ -32,6 +32,15 @@ use quark\network\mcpe\protocol\Packet;
 final class ContainerSetDataPacket extends Packet{
 	public const int ID = PacketId::CONTAINER_SET_DATA;
 
+	public const int PROPERTY_FURNACE_SMELT_PROGRESS = 0;
+	public const int PROPERTY_FURNACE_REMAINING_FUEL_TIME = 1;
+	public const int PROPERTY_FURNACE_MAX_FUEL_TIME = 2;
+	public const int PROPERTY_FURNACE_STORED_XP = 3;
+	public const int PROPERTY_FURNACE_FUEL_AUX = 4;
+	public const int PROPERTY_BREWING_STAND_BREW_TIME = 0;
+	public const int PROPERTY_BREWING_STAND_FUEL_AMOUNT = 1;
+	public const int PROPERTY_BREWING_STAND_FUEL_TOTAL = 2;
+
 	public function __construct(
 		public int $containerId,
 		public int $id,

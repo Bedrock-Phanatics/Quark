@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class StructureTemplateDataResponsePacket extends Packet{
 	public const int ID = PacketId::STRUCTURE_TEMPLATE_DATA_RESPONSE;
 
+	public const int TYPE_FAILURE = 0;
+	public const int TYPE_EXPORT = 1;
+	public const int TYPE_QUERY = 2;
+
 	public function __construct(
 		public string $structureName,
 		public string $structuresNbt,

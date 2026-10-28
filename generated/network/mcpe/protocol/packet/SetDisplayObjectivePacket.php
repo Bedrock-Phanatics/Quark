@@ -32,6 +32,12 @@ use quark\network\mcpe\protocol\Packet;
 final class SetDisplayObjectivePacket extends Packet{
 	public const int ID = PacketId::SET_DISPLAY_OBJECTIVE;
 
+	public const string DISPLAY_SLOT_LIST = 'list';
+	public const string DISPLAY_SLOT_SIDEBAR = 'sidebar';
+	public const string DISPLAY_SLOT_BELOW_NAME = 'belowname';
+	public const int SORT_ORDER_ASCENDING = 0;
+	public const int SORT_ORDER_DESCENDING = 1;
+
 	public function __construct(
 		public string $displaySlotName,
 		public string $objectiveName,

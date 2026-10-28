@@ -25,7 +25,6 @@ namespace quark\block\tile;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\inventory\BrewingStandInventory;
 use quark\crafting\BrewingRecipe;
 use quark\event\block\BrewingFuelUseEvent;
@@ -34,6 +33,7 @@ use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\network\mcpe\protocol\packet\ContainerSetDataPacket;
 use quark\player\Player;
 use quark\world\sound\PotionFinishBrewingSound;
 use quark\world\World;

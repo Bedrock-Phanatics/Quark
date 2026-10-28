@@ -22,7 +22,6 @@ Take a look at the table below if you can't find the class or function you're lo
 
 | Source URL                                                      | Namespace, class or function                                                                                                             |
 |:----------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------|
-| [axolotl-pm/bedrock-protocol](https://github.com/Bedrock-Phanatics/BedrockProtocol) | `pocketmine\network\mcpe\protocol`                                                                                                       |
 | [pocketmine/binaryutils](https://github.com/pmmp/BinaryUtils)         | `pocketmine\utils\BinaryDataException`</br>`pocketmine\utils\BinaryStream`</br>`pocketmine\utils\Binary`                                 |
 | [pocketmine/color](https://github.com/pmmp/Color)                     | `pocketmine\color`                                                                                                                       |
 | [pocketmine/errorhandler](https://github.com/pmmp/ErrorHandler)       | `pocketmine\errorhandler`                                                                                                                |

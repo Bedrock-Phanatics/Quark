@@ -32,6 +32,15 @@ use quark\network\mcpe\protocol\Packet;
 final class RequestPermissionsPacket extends Packet{
 	public const int ID = PacketId::REQUEST_PERMISSIONS;
 
+	public const int FLAG_BUILD = 1;
+	public const int FLAG_MINE = 2;
+	public const int FLAG_DOORS_AND_SWITCHES = 4;
+	public const int FLAG_OPEN_CONTAINERS = 8;
+	public const int FLAG_ATTACK_PLAYERS = 16;
+	public const int FLAG_ATTACK_MOBS = 32;
+	public const int FLAG_OPERATOR = 64;
+	public const int FLAG_TELEPORT = 128;
+
 	public function __construct(
 		public int $targetPlayerIdsRawId,
 		public int $playerPermissionLevel,

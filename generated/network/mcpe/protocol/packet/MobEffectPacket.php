@@ -32,6 +32,10 @@ use quark\network\mcpe\protocol\Packet;
 final class MobEffectPacket extends Packet{
 	public const int ID = PacketId::MOB_EFFECT;
 
+	public const int EVENT_ADD = 1;
+	public const int EVENT_MODIFY = 2;
+	public const int EVENT_REMOVE = 3;
+
 	public function __construct(
 		public int $targetRuntimeId,
 		public int $eventId,
