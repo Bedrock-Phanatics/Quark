@@ -244,7 +244,7 @@ class NetworkSession{
 	private int $pulseSessionId = 0;
 	private ?int $protocolVersion = null;
 	private string $connectionPhase = "session_start";
-	/** @phpstan-var array{string, string, string}|null display name, UUID and XUID the transport verified */
+	/** @phpstan-var array{string, string, string, string}|null display name, UUID, XUID and client key DER the transport verified */
 	private ?array $transportVerifiedLogin = null;
 
 	private function getPulseNetwork() : ?PulseNetwork{
@@ -419,15 +419,15 @@ class NetworkSession{
 	/**
 	 * @internal Called by transports that verify Microsoft-signed logins themselves, before the Login packet arrives.
 	 */
-	public function setTransportVerifiedLogin(string $displayName, string $uuid, string $xuid) : void{
-		$this->transportVerifiedLogin = [$displayName, $uuid, $xuid];
+	public function setTransportVerifiedLogin(string $displayName, string $uuid, string $xuid, string $clientKeyDer) : void{
+		$this->transportVerifiedLogin = [$displayName, $uuid, $xuid, $clientKeyDer];
 	}
 
 	/**
-	 * Returns the display name, UUID and XUID of a login the transport already verified against Microsoft's keys,
-	 * or null if the login still has to be verified here.
+	 * Returns the display name, UUID, XUID and client key DER of a login the transport already verified against
+	 * Microsoft's keys, or null if the login still has to be verified here.
 	 *
-	 * @phpstan-return array{string, string, string}|null
+	 * @phpstan-return array{string, string, string, string}|null
 	 */
 	public function getTransportVerifiedLogin() : ?array{
 		return $this->transportVerifiedLogin;

@@ -26,6 +26,7 @@ namespace quark\network\mcpe\handler;
 use PHPUnit\Framework\TestCase;
 use quark\network\PacketHandlingException;
 use Ramsey\Uuid\Uuid;
+use function str_repeat;
 
 class LoginPacketHandlerTest extends TestCase{
 
@@ -72,12 +73,14 @@ class LoginPacketHandlerTest extends TestCase{
 
 	public function testTrustsTransportLoginsOnlyWithTheSameIdentity() : void{
 		$uuid = Uuid::fromString("6f4a9b2e-1c3d-3e5f-8a7b-9c0d1e2f3a4b");
-		$verified = ["Steve", "6F4A9B2E-1C3D-3E5F-8A7B-9C0D1E2F3A4B", "2535400000000000"];
-		self::assertTrue(LoginPacketHandler::matchesTransportLogin($verified, "Steve", $uuid, "2535400000000000"));
-		self::assertFalse(LoginPacketHandler::matchesTransportLogin(null, "Steve", $uuid, "2535400000000000"));
-		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Alex", $uuid, "2535400000000000"));
-		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Steve", Uuid::fromString("00000000-0000-3000-8000-000000000001"), "2535400000000000"));
-		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Steve", $uuid, "2535400000000001"));
-		self::assertFalse(LoginPacketHandler::matchesTransportLogin(["Steve", "not a uuid", "2535400000000000"], "Steve", $uuid, "2535400000000000"));
+		$key = str_repeat("k", 120);
+		$verified = ["Steve", "6F4A9B2E-1C3D-3E5F-8A7B-9C0D1E2F3A4B", "2535400000000000", $key];
+		self::assertTrue(LoginPacketHandler::matchesTransportLogin($verified, "Steve", $uuid, "2535400000000000", $key));
+		self::assertFalse(LoginPacketHandler::matchesTransportLogin(null, "Steve", $uuid, "2535400000000000", $key));
+		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Alex", $uuid, "2535400000000000", $key));
+		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Steve", Uuid::fromString("00000000-0000-3000-8000-000000000001"), "2535400000000000", $key));
+		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Steve", $uuid, "2535400000000001", $key));
+		self::assertFalse(LoginPacketHandler::matchesTransportLogin($verified, "Steve", $uuid, "2535400000000000", str_repeat("x", 120)));
+		self::assertFalse(LoginPacketHandler::matchesTransportLogin(["Steve", "not a uuid", "2535400000000000", $key], "Steve", $uuid, "2535400000000000", $key));
 	}
 }

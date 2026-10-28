@@ -223,7 +223,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 						$this->openSession($sessionId, ...$data);
 						break;
 					case BedwireServer::EVENT_LOGIN:
-						/** @phpstan-var array{string, string, string} $data */
+						/** @phpstan-var array{string, string, string, string} $data */
 						($this->sessions[$sessionId] ?? null)?->setTransportVerifiedLogin(...$data);
 						break;
 					case BedwireServer::EVENT_UNRELIABLE:

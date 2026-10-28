@@ -133,7 +133,7 @@ class LoginPacketHandler extends PacketHandler{
 				return true;
 			}
 			$clientKey = base64_decode($claims->cpk, strict: true);
-			if($clientKey !== false && self::matchesTransportLogin($this->session->getTransportVerifiedLogin(), $username, $legacyUuid, $xuid)){
+			if($clientKey !== false && self::matchesTransportLogin($this->session->getTransportVerifiedLogin(), $username, $legacyUuid, $xuid, $clientKey)){
 				//the transport already checked this token and the client data signature against Microsoft's keys
 				$this->session->setHandler(null);
 				($this->authCallback)(true, $authRequired, null, $clientKey);
@@ -179,12 +179,13 @@ class LoginPacketHandler extends PacketHandler{
 	}
 
 	/**
-	 * @phpstan-param array{string, string, string}|null $verified
+	 * @phpstan-param array{string, string, string, string}|null $verified
 	 */
-	public static function matchesTransportLogin(?array $verified, string $username, UuidInterface $uuid, string $xuid) : bool{
+	public static function matchesTransportLogin(?array $verified, string $username, UuidInterface $uuid, string $xuid, string $clientKeyDer) : bool{
 		return $verified !== null &&
 			$verified[0] === $username &&
 			$verified[2] === $xuid &&
+			$verified[3] === $clientKeyDer &&
 			Uuid::isValid($verified[1]) &&
 			Uuid::fromString($verified[1])->equals($uuid);
 	}
