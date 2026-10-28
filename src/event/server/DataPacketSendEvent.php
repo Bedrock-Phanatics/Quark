@@ -34,7 +34,8 @@ use quark\utils\Utils;
 /**
  * Called when packets are sent to network sessions.
  * The packets may be replaced before they are encoded. A packet may be shared by every target, so change one by
- * replacing it with setPackets() rather than in place.
+ * replacing it with setPackets() rather than in place. Vectors in a packet may be the game's own objects too, so give
+ * a packet a new vector instead of changing its coordinates.
  */
 class DataPacketSendEvent extends ServerEvent implements Cancellable{
 	use CancellableTrait;

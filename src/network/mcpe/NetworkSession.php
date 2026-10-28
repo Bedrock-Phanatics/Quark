@@ -77,7 +77,6 @@ use quark\network\mcpe\handler\PreSpawnPacketHandler;
 use quark\network\mcpe\handler\ResourcePacksPacketHandler;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\handler\SpawnResponsePacketHandler;
-use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
@@ -208,7 +207,7 @@ class NetworkSession{
 	/**
 	 * Packets waiting for the next flush, as Bedwire\Protocol::encodeBatch() takes them.
 	 *
-	 * @phpstan-var list<Packet|string|array{int, array<string, mixed>}>
+	 * @phpstan-var list<Packet|string>
 	 */
 	private array $sendBuffer = [];
 	/**
@@ -898,21 +897,14 @@ class NetworkSession{
 		}
 	}
 
-	/**
-	 * @phpstan-return Packet|string|array{int, array<string, mixed>}
-	 */
-	private static function batchEntry(Packet|EncodedPacket $packet) : Packet|string|array{
-		return match(true){
-			$packet instanceof EncodedPacket => $packet->getBytes(),
-			$packet instanceof ArrayPacket => [$packet->getId(), $packet->fields],
-			default => $packet
-		};
+	private static function batchEntry(Packet|EncodedPacket $packet) : Packet|string{
+		return $packet instanceof EncodedPacket ? $packet->getBytes() : $packet;
 	}
 
 	/**
 	 * Encodes queued packets into one batch body with a single native call.
 	 *
-	 * @phpstan-param list<Packet|string|array{int, array<string, mixed>}> $packets
+	 * @phpstan-param list<Packet|string> $packets
 	 * @throws \ValueError naming the first packet whose fields do not fit it
 	 * @throws \TypeError
 	 */
@@ -927,11 +919,10 @@ class NetworkSession{
 				if(is_string($packet)){
 					continue;
 				}
-				[$id, $fields] = $packet instanceof Packet ? [$packet->getId(), $packet] : $packet;
 				try{
-					Protocol::encode($id, $fields);
+					Protocol::encode($packet->getId(), $packet);
 				}catch(\ValueError|\TypeError $inner){
-					throw new \ValueError("Invalid " . Protocol::name($id) . " packet: " . $inner->getMessage(), 0, $inner);
+					throw new \ValueError("Invalid " . $packet->getName() . " packet: " . $inner->getMessage(), 0, $inner);
 				}
 			}
 			throw $e;

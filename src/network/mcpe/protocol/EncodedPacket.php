@@ -43,7 +43,7 @@ final class EncodedPacket{
 	 */
 	public static function of(Packet $packet) : self{
 		ProtocolClasses::bind();
-		return new self($packet->getId(), Protocol::encode($packet->getId(), $packet instanceof ArrayPacket ? $packet->fields : $packet));
+		return new self($packet->getId(), Protocol::encode($packet->getId(), $packet));
 	}
 
 	/**

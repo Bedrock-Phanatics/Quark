@@ -28,13 +28,14 @@ use Bedwire\PacketId;
 use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use quark\network\mcpe\protocol\packet\SetTimePacket;
+use quark\utils\Utils;
 use function hash;
+use function is_subclass_of;
 use function json_encode;
-use function preg_replace;
 use function str_replace;
-use function strtolower;
 use function ucwords;
 use const JSON_THROW_ON_ERROR;
+use const PHP_INT_MAX;
 
 final class PacketTest extends TestCase{
 
@@ -43,17 +44,14 @@ final class PacketTest extends TestCase{
 		self::assertSame(Protocol::VERSION, Packets::PROTOCOL);
 		self::assertSame($hash, Packets::SCHEMA_HASH, "Run composer update-codegen after updating ext-bedwire");
 
-		$methods = 0;
-		foreach((new \ReflectionClass(Packets::class))->getMethods(\ReflectionMethod::IS_STATIC) as $method){
-			$name = strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', $method->getName()));
-			$packet = $method->invoke(null, []);
-			self::assertInstanceOf(Packet::class, $packet);
-			self::assertSame(Protocol::id($name), $packet->getId());
-			$methods++;
-		}
 		$packets = Protocol::schema()["packets"];
 		self::assertIsArray($packets);
-		self::assertCount($methods, $packets);
+		foreach(Utils::promoteKeys($packets) as $name => $_){
+			$name = (string) $name;
+			$class = ProtocolClasses::BINDINGS[$name] ?? self::fail("$name has no packet class");
+			self::assertTrue(is_subclass_of($class, Packet::class));
+			self::assertSame(Protocol::id($name), (new \ReflectionClass($class))->getConstant("ID"));
+		}
 
 		foreach(Packets::HANDLERS as $id => $handler){
 			$name = Protocol::name($id) ?? self::fail("Unknown packet $id");
@@ -97,6 +95,6 @@ final class PacketTest extends TestCase{
 
 	public function testInvalidFieldsAreRejectedWhenEncoding() : void{
 		$this->expectException(\ValueError::class);
-		EncodedPacket::of(new ArrayPacket(PacketId::SET_TIME, ["time" => "soon"]));
+		EncodedPacket::of(new SetTimePacket(PHP_INT_MAX));
 	}
 }

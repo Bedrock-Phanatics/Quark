@@ -27,8 +27,6 @@ use Bedwire\Protocol;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use function array_keys;
-use function array_pop;
-use function array_push;
 use function count;
 use function dirname;
 use function extension_loaded;
@@ -41,7 +39,6 @@ use function is_int;
 use function is_string;
 use function json_decode;
 use function json_encode;
-use function lcfirst;
 use function mkdir;
 use function str_replace;
 use function strtoupper;
@@ -71,115 +68,14 @@ function pascal(string $name) : string{
 	return str_replace("_", "", ucwords($name, "_"));
 }
 
-/**
- * Renders the types of Bedwire\Protocol::schema() as PHPStan types, one alias per struct, union and enum.
- */
 final class Generator{
-	/** @phpstan-var array<string, true> */
-	private array $aliases = [];
-	/** @phpstan-var array<string, true> types that contain themselves, which PHPStan aliases cannot express */
-	private array $recursive = [];
-
 	/**
 	 * @param array<mixed> $schema
 	 * @param array<mixed> $directions packets the schema marks bidirectional that clients only send or only receive
 	 */
-	public function __construct(private array $schema, private array $directions){
-		$references = [];
-		foreach(Utils::promoteKeys(table($schema["types"] ?? null, "types")) as $name => $type){
-			$name = (string) $name;
-			$references[$name] = [];
-			$type = table($type, "type $name");
-			foreach(table($type["fields"] ?? $type["variants"] ?? [], "members of $name") as $member){
-				self::collect($member, $references[$name]);
-			}
-		}
-		foreach(Utils::stringifyKeys($references) as $name => $direct){
-			$seen = [];
-			$pending = $direct;
-			while(count($pending) > 0){
-				$next = array_pop($pending);
-				if($next === $name){
-					$this->recursive[$name] = true;
-					break;
-				}
-				if(!isset($seen[$next])){
-					$seen[$next] = true;
-					array_push($pending, ...($references[$next] ?? []));
-				}
-			}
-		}
-	}
-
-	/**
-	 * @phpstan-param list<string> $out
-	 */
-	private static function collect(mixed $type, array &$out) : void{
-		if(is_array($type)){
-			$kind = str($type[0] ?? null, "type kind");
-			if($kind === "type"){
-				$out[] = str($type[1] ?? null, "type name");
-			}elseif($kind === "optional" || $kind === "list"){
-				self::collect($type[1] ?? null, $out);
-			}
-		}
-	}
-
-	private function render(mixed $type) : string{
-		if(is_string($type)){
-			return $type;
-		}
-		$type = table($type, "a field type");
-		$kind = str($type[0] ?? null, "type kind");
-		return match($kind){
-			"optional" => $this->render($type[1] ?? null) . "|null",
-			"list" => "list<" . $this->render($type[1] ?? null) . ">",
-			"bytes", "bits" => "string",
-			"type" => isset($this->recursive[$name = str($type[1] ?? null, "type name")]) ? "array<mixed>" : $name,
-			default => throw new \RuntimeException("Unknown schema type $kind")
-		};
-	}
-
-	private function shape(mixed $fields) : string{
-		$parts = [];
-		foreach(Utils::promoteKeys(table($fields, "fields")) as $name => $type){
-			$parts[] = "$name: " . $this->render($type);
-		}
-		return "array{" . implode(", ", $parts) . "}";
-	}
-
-	private function union(mixed $variants) : string{
-		$parts = [];
-		foreach(Utils::promoteKeys(table($variants, "variants")) as $name => $type){
-			$parts[] = "array{" . $name . ": " . $this->render($type) . "}";
-		}
-		return implode("|", $parts);
-	}
-
-	private function alias(string $name, string $type) : string{
-		if(isset($this->aliases[$name])){
-			throw new \RuntimeException("Duplicate type alias $name");
-		}
-		$this->aliases[$name] = true;
-		return " * @phpstan-type $name $type\n";
-	}
+	public function __construct(private array $schema, private array $directions){}
 
 	public function generate() : string{
-		$aliases = "";
-		foreach(Utils::promoteKeys(table($this->schema["types"] ?? null, "types")) as $name => $type){
-			$name = (string) $name;
-			if(isset($this->recursive[$name])){
-				continue;
-			}
-			$type = table($type, "type $name");
-			$aliases .= $this->alias($name, match(str($type["kind"] ?? null, "kind of $name")){
-				"struct" => $this->shape($type["fields"] ?? null),
-				"union" => $this->union($type["variants"] ?? null),
-				"enum" => "int",
-				default => throw new \RuntimeException("Unknown kind of $name")
-			});
-		}
-
 		$narrowed = [];
 		foreach(["serverbound" => Protocol::SERVERBOUND, "clientbound" => Protocol::CLIENTBOUND] as $key => $direction){
 			foreach(table($this->directions[$key] ?? null, "$key packets") as $packetName){
@@ -187,26 +83,13 @@ final class Generator{
 			}
 		}
 
-		$factories = "";
 		$handlers = "";
 		$clientbound = "";
 		foreach(Utils::promoteKeys(table($this->schema["packets"] ?? null, "packets")) as $name => $packet){
 			$name = (string) $name;
 			$packet = table($packet, "packet $name");
 			$pascal = pascal($name);
-			$method = lcfirst($pascal);
 			$constant = strtoupper($name);
-			$aliases .= $this->alias($pascal . "Fields", $this->shape($packet["fields"] ?? null));
-			$factories .= <<<FACTORY
-
-	/**
-	 * @phpstan-param {$pascal}Fields \$fields
-	 */
-	public static function $method(array \$fields) : ArrayPacket{
-		return new ArrayPacket(PacketId::$constant, \$fields);
-	}
-
-FACTORY;
 			$direction = $packet["direction"] ?? null;
 			if(!is_int($direction)){
 				throw new \RuntimeException("Expected the direction of $name to be an int");
@@ -243,11 +126,9 @@ namespace quark\\network\\mcpe\\protocol;
 use Bedwire\\PacketId;
 
 /**
- * Factories for every packet of protocol $protocol (Minecraft $minecraft), with the field shapes Bedwire\\Protocol decodes
- * to and encodes from.
+ * Packet directions of protocol $protocol (Minecraft $minecraft).
  * This class is generated from Bedwire\\Protocol::schema() by build/codegen/protocol-packets.php. Do not edit it manually.
- *
-$aliases */
+ */
 final class Packets{
 	public const PROTOCOL = $protocol;
 	public const SCHEMA_HASH = "$hash";
@@ -267,14 +148,14 @@ $clientbound	];
 	private function __construct(){
 		//NOOP
 	}
-$factories}
+}
 
 CLASS;
 	}
 }
 
 if(!extension_loaded("bedwire")){
-	throw new \RuntimeException("ext-bedwire is required to generate the packet factories");
+	throw new \RuntimeException("ext-bedwire is required to generate the packet directions");
 }
 $output = dirname(__DIR__, 2) . "/generated/network/mcpe/protocol/Packets.php";
 if(!@mkdir(dirname($output), recursive: true) && !is_dir(dirname($output))){

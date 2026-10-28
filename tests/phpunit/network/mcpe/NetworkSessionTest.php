@@ -29,14 +29,14 @@ use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
 use quark\lang\Language;
-use quark\network\mcpe\protocol\ArrayPacket;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\SetTimePacket;
 use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\ObjectSet;
 use function strlen;
+use const PHP_INT_MAX;
 
 final class NetworkSessionTest extends TestCase{
 
@@ -92,7 +92,7 @@ final class NetworkSessionTest extends TestCase{
 	 * @return \Generator<string, array{\Closure(NetworkSession) : mixed}>
 	 */
 	public static function flushProvider() : \Generator{
-		yield "flush while connected" => [static fn(NetworkSession $session) => $session->sendDataPacket(Packets::setTime(["time" => 1]), true)];
+		yield "flush while connected" => [static fn(NetworkSession $session) => $session->sendDataPacket(new SetTimePacket(1), true)];
 		yield "final flush of a disconnect" => [static fn(NetworkSession $session) => $session->disconnect("test")];
 	}
 
@@ -153,12 +153,12 @@ final class NetworkSessionTest extends TestCase{
 			$sent[] = $batch;
 		});
 		$rejected = false;
-		$session->sendDataPacketWithReceipt(new ArrayPacket(PacketId::SET_TIME, []))->onCompletion(
+		$session->sendDataPacketWithReceipt(new SetTimePacket(PHP_INT_MAX))->onCompletion(
 			static fn() => self::fail("Receipt of an unsent packet resolved"),
 			static function() use (&$rejected) : void{ $rejected = true; }
 		);
 
-		$session->sendDataPacket(Packets::setTime(["time" => 1]), true);
+		$session->sendDataPacket(new SetTimePacket(1), true);
 
 		self::assertFalse($session->isConnected());
 		self::assertTrue($rejected);
@@ -173,7 +173,7 @@ final class NetworkSessionTest extends TestCase{
 		$session = $this->session(static function() use (&$sends) : void{
 			$sends++;
 		});
-		$session->sendDataPacket(new ArrayPacket(PacketId::SET_TIME, []));
+		$session->sendDataPacket(new SetTimePacket(PHP_INT_MAX));
 
 		$session->disconnect("test");
 

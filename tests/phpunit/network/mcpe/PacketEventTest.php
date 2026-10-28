@@ -74,10 +74,10 @@ final class PacketEventTest extends TestCase{
 	}
 
 	/**
-	 * @phpstan-return list<Packet|string|array{int, array<string, mixed>}>
+	 * @phpstan-return list<Packet|string>
 	 */
 	private function sendBuffer(NetworkSession $session) : array{
-		/** @phpstan-var list<Packet|string|array{int, array<string, mixed>}> $buffer */
+		/** @phpstan-var list<Packet|string> $buffer */
 		$buffer = new \ReflectionProperty(NetworkSession::class, "sendBuffer")->getValue($session);
 		return $buffer;
 	}

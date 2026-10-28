@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use Bedwire\PacketId;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
@@ -52,7 +51,6 @@ use quark\inventory\transaction\InventoryTransaction;
 use quark\item\enchantment\EnchantingOption;
 use quark\item\Item;
 use quark\network\mcpe\cache\CreativeInventoryCache;
-use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\packet\ContainerClosePacket;
@@ -352,9 +350,6 @@ class InventoryManager{
 						//Bedrock 1.21 requires ContainerClose packets to include the window type
 						if($pk instanceof ContainerOpenPacket){
 							$windowType = $pk->containerType;
-						}elseif($pk instanceof ArrayPacket && $pk->getId() === PacketId::CONTAINER_OPEN){
-							$type = $pk->fields["container_type"] ?? null;
-							$windowType = is_int($type) ? $type : null;
 						}
 						$this->session->sendDataPacket($pk);
 					}
