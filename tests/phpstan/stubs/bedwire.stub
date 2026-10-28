@@ -128,7 +128,7 @@ final class Server{
 	/** @param list<string> $packets */
 	public function sendBatch(int $session, array $packets) : bool{}
 
-	/** @param list<array{int|string, array<string, mixed>}|array{int|string, array<string, mixed>, int}|array{int|string, array<string, mixed>, int, int}> $packets */
+	/** @param list<string|object|array{int|string, array<string, mixed>|object}|array{int|string, array<string, mixed>|object, int}|array{int|string, array<string, mixed>|object, int, int}> $packets */
 	public function sendPackets(int $session, array $packets) : bool{}
 
 	public function sendRawBatch(int $session, string $batch, int $offset = 0) : bool{}

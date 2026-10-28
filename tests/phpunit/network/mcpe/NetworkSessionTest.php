@@ -81,6 +81,16 @@ final class NetworkSessionTest extends TestCase{
 				($this->onSend)($this->session, $batch);
 			}
 
+			public function sendPackets(array $packets) : bool{
+				try{
+					$batch = NetworkSession::encodeBatch($packets);
+				}catch(\ValueError|\TypeError){
+					return false;
+				}
+				($this->onSend)($this->session, $batch);
+				return true;
+			}
+
 			public function acceptLogin(string $clientPublicKeyDer) : void{}
 
 			public function close(string $reason = "unknown reason") : void{}

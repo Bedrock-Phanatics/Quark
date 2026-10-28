@@ -944,6 +944,22 @@ class NetworkSession{
 				$this->sendBuffer = [];
 				$ackPromises = $this->sendBufferAckPromises;
 				$this->sendBufferAckPromises = [];
+				if($this->sender instanceof NativeBatchPacketSender && $this->compressedQueue->isEmpty()){
+					ProtocolClasses::bind();
+					$encodeScope = PulseZones::$playerNetworkSendEncode->start();
+					try{
+						$sent = $this->sender->sendPackets($packets);
+					}finally{
+						PulseZones::$playerNetworkSendEncode->stop($encodeScope);
+					}
+					if($sent){
+						//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
+						foreach($ackPromises as $promise){
+							$promise->resolve(true);
+						}
+						return;
+					}
+				}
 				try{
 					$encoded = self::encodeBatch($packets);
 				}catch(\ValueError|\TypeError $e){

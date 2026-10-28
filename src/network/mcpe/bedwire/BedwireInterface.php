@@ -37,6 +37,7 @@ use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\PacketBroadcaster;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\Network;
 use quark\network\NetworkInterfaceStartException;
 use quark\network\PacketHandlingException;
@@ -341,6 +342,27 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		}catch(\ValueError $e){
 			$this->sessions[$sessionId]->disconnectWithError("Failed to send packet: " . $e->getMessage());
 		}
+	}
+
+	/**
+	 * @internal
+	 * @phpstan-param list<Packet|string> $packets
+	 * @return bool false if the packets need encoding and sending another way
+	 */
+	public function putPackets(int $sessionId, array $packets) : bool{
+		if($this->bedwire === null || !isset($this->sessions[$sessionId])){
+			return true;
+		}
+		try{
+			$this->bedwire->sendPackets($sessionId, $packets);
+		}catch(BackpressureException){
+			$session = $this->sessions[$sessionId];
+			$this->close($sessionId);
+			$session->disconnectWithError("Network send queue is full");
+		}catch(\ValueError|\TypeError){
+			return false;
+		}
+		return true;
 	}
 
 	/**

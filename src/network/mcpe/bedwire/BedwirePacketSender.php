@@ -46,6 +46,10 @@ final class BedwirePacketSender implements NativeBatchPacketSender{
 		}
 	}
 
+	public function sendPackets(array $packets) : bool{
+		return $this->closed || $this->interface->putPackets($this->sessionId, $packets);
+	}
+
 	public function acceptLogin(string $clientPublicKeyDer) : void{
 		if(!$this->closed){
 			$this->interface->acceptLogin($this->sessionId, $clientPublicKeyDer);
