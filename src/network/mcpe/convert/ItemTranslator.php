@@ -32,6 +32,7 @@ use quark\data\bedrock\item\ItemTypeDeserializeException;
 use quark\data\bedrock\item\ItemTypeSerializeException;
 use quark\data\bedrock\item\SavedItemData;
 use quark\item\Item;
+use quark\item\ItemBlock;
 use quark\utils\AssumptionFailedError;
 
 /**
@@ -39,6 +40,14 @@ use quark\utils\AssumptionFailedError;
  */
 final class ItemTranslator{
 	public const NO_BLOCK_RUNTIME_ID = 0; //this is technically a valid block runtime ID, but is used to represent "no block" (derp mojang)
+
+	/**
+	 * Network IDs of block items by block state ID. Only block items are cached, since a block's state decides how it
+	 * serializes, while some items take their meta from data outside their state.
+	 *
+	 * @phpstan-var array<int, array{int, int, ?int}>
+	 */
+	private array $blockItemIds = [];
 
 	public function __construct(
 		private ItemTypeDictionary $itemTypeDictionary,
@@ -67,8 +76,19 @@ final class ItemTranslator{
 	 * @throws ItemTypeSerializeException
 	 */
 	public function toNetworkId(Item $item) : array{
-		//TODO: we should probably come up with a cache for this
+		if($item instanceof ItemBlock){
+			$stateId = $item->getBlock()->getStateId();
+			return $this->blockItemIds[$stateId] ??= $this->serializeNetworkId($item);
+		}
+		return $this->serializeNetworkId($item);
+	}
 
+	/**
+	 * @phpstan-return array{int, int, ?int}
+	 *
+	 * @throws ItemTypeSerializeException
+	 */
+	private function serializeNetworkId(Item $item) : array{
 		$itemData = $this->itemSerializer->serializeType($item);
 
 		$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());

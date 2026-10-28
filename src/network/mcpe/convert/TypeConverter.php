@@ -75,6 +75,8 @@ class TypeConverter{
 	private ItemTranslator $itemTranslator;
 	private ItemTypeDictionary $itemTypeDictionary;
 	private int $shieldRuntimeId;
+	private string $emptyExtraData;
+	private string $emptyShieldExtraData;
 
 	private SkinAdapter $skinAdapter;
 
@@ -91,6 +93,8 @@ class TypeConverter{
 
 		$this->itemTypeDictionary = ItemTypeDictionaryFromDataHelper::loadFromString(Filesystem::fileGetContents(BedrockDataFiles::REQUIRED_ITEM_LIST_JSON));
 		$this->shieldRuntimeId = $this->itemTypeDictionary->fromStringId(ItemTypeNames::SHIELD);
+		$this->emptyExtraData = self::writeExtraData(new ItemStackExtraData(null, canPlaceOn: [], canDestroy: []));
+		$this->emptyShieldExtraData = self::writeExtraData(new ItemStackExtraDataShield(null, canPlaceOn: [], canDestroy: [], blockingTick: 0));
 
 		$this->itemTranslator = new ItemTranslator(
 			$this->itemTypeDictionary,
@@ -307,19 +311,28 @@ class TypeConverter{
 			[$id, $meta, $blockRuntimeId] = $idMeta;
 		}
 
-		$extraData = $id === $this->shieldRuntimeId ?
-			new ItemStackExtraDataShield($nbt, canPlaceOn: [], canDestroy: [], blockingTick: 0) :
-			new ItemStackExtraData($nbt, canPlaceOn: [], canDestroy: []);
-		$extraDataSerializer = new ByteBufferWriter();
-		$extraData->write($extraDataSerializer);
+		$shield = $id === $this->shieldRuntimeId;
+		if($nbt === null){
+			$extraData = $shield ? $this->emptyShieldExtraData : $this->emptyExtraData;
+		}else{
+			$extraData = self::writeExtraData($shield ?
+				new ItemStackExtraDataShield($nbt, canPlaceOn: [], canDestroy: [], blockingTick: 0) :
+				new ItemStackExtraData($nbt, canPlaceOn: [], canDestroy: []));
+		}
 
 		return new ItemStack(
 			$id,
 			$meta,
 			$itemStack->getCount(),
 			$blockRuntimeId ?? ItemTranslator::NO_BLOCK_RUNTIME_ID,
-			$extraDataSerializer->getData(),
+			$extraData,
 		);
+	}
+
+	private static function writeExtraData(ItemStackExtraData $extraData) : string{
+		$writer = new ByteBufferWriter();
+		$extraData->write($writer);
+		return $writer->getData();
 	}
 
 	/**
