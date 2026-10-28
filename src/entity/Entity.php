@@ -52,6 +52,7 @@ use quark\event\entity\EntityTeleportEvent;
 use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\packet\AddActorPacket;
@@ -162,6 +163,14 @@ abstract class Entity{
 	protected bool $gravityEnabled = true;
 
 	protected Server $server;
+
+	/**
+	 * AddActor packets encoded this tick by entity ID, so an entity spawning to many players at once is built once.
+	 *
+	 * @phpstan-var array<int, EncodedPacket>
+	 */
+	private static array $spawnPackets = [];
+	private static int $spawnPacketsTick = -1;
 
 	protected bool $closed = false;
 	private bool $closeInFlight = false;
@@ -1541,6 +1550,15 @@ abstract class Entity{
 	 * Called by spawnTo() to send whatever packets needed to spawn the entity to the client.
 	 */
 	protected function sendSpawnPacket(Player $player) : void{
+		$tick = $this->server->getTick();
+		if(self::$spawnPacketsTick !== $tick){
+			self::$spawnPackets = [];
+			self::$spawnPacketsTick = $tick;
+		}
+		$player->getNetworkSession()->sendDataPacket(self::$spawnPackets[$this->id] ??= EncodedPacket::of($this->spawnPacket()));
+	}
+
+	protected function spawnPacket() : AddActorPacket{
 		$attributes = [];
 		foreach($this->attributeMap->getAll() as $attribute){
 			$attributes[] = new SyncedAttribute(
@@ -1550,7 +1568,7 @@ abstract class Entity{
 				maxValue: $attribute->getMaxValue(),
 			);
 		}
-		$player->getNetworkSession()->sendDataPacket(new AddActorPacket(
+		return new AddActorPacket(
 			targetActorId: $this->getId(), //TODO: actor unique ID
 			targetRuntimeId: $this->getId(),
 			actorType: static::getNetworkTypeId(),
@@ -1563,7 +1581,7 @@ abstract class Entity{
 			actorData: $this->getAllNetworkData(),
 			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
 			actorLinks: [], //TODO: entity links
-		));
+		);
 	}
 
 	public function spawnTo(Player $player) : void{
