@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use pocketmine\network\mcpe\protocol\EmotePacket;
-use pocketmine\network\mcpe\protocol\MobEffectPacket;
+use pocketmine\network\mcpe\protocol\EmotePacket as BedrockEmotePacket;
+use pocketmine\network\mcpe\protocol\MobEffectPacket as BedrockMobEffectPacket;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\data\bedrock\EffectIdMap;
@@ -35,7 +35,17 @@ use quark\entity\Living;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\EmotePacket;
+use quark\network\mcpe\protocol\packet\MobArmourEquipmentPacket;
+use quark\network\mcpe\protocol\packet\MobEffectPacket;
+use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
+use quark\network\mcpe\protocol\packet\RemoveActorPacket;
+use quark\network\mcpe\protocol\packet\SetActorDataPacket;
+use quark\network\mcpe\protocol\packet\TakeItemActorPacket;
+use quark\network\mcpe\protocol\packet\UpdateAttributesPacket;
+use quark\network\mcpe\protocol\types\AttributeData;
+use quark\network\mcpe\protocol\types\DataItemEntry;
+use quark\network\mcpe\protocol\types\PropertySyncData;
 use function count;
 use function usort;
 
@@ -57,112 +67,112 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 		if(count($attributes) > 0){
 			$list = [];
 			foreach($attributes as $attribute){
-				$list[] = [
-					"min_value" => $attribute->getMinValue(),
-					"max_value" => $attribute->getMaxValue(),
-					"current_value" => $attribute->getValue(),
-					"default_min_value" => $attribute->getMinValue(),
-					"default_max_value" => $attribute->getMaxValue(),
-					"default_value" => $attribute->getDefaultValue(),
-					"name" => $attribute->getId(),
-					"modifiers" => [],
-				];
+				$list[] = new AttributeData(
+					minValue: $attribute->getMinValue(),
+					maxValue: $attribute->getMaxValue(),
+					currentValue: $attribute->getValue(),
+					defaultMinValue: $attribute->getMinValue(),
+					defaultMaxValue: $attribute->getMaxValue(),
+					defaultValue: $attribute->getDefaultValue(),
+					name: $attribute->getId(),
+					modifiers: [],
+				);
 			}
-			$this->sendDataPacket($recipients, Packets::updateAttributes(["target_runtime_id" => $entity->getId(), "attribute_list" => $list, "tick" => 0]));
+			$this->sendDataPacket($recipients, new UpdateAttributesPacket(targetRuntimeId: $entity->getId(), attributeList: $list, tick: 0));
 		}
 	}
 
 	public function syncActorData(array $recipients, Entity $entity, array $properties) : void{
 		//TODO: HACK! as of 1.18.10, the client responds differently to the same data ordered in different orders - for
 		//example, sending HEIGHT in the list before FLAGS when unsetting the SWIMMING flag results in a hitbox glitch
-		usort($properties, fn(array $a, array $b) : int => $a["id"] <=> $b["id"]);
-		$this->sendDataPacket($recipients, Packets::setActorData([
-			"target_runtime_id" => $entity->getId(),
-			"actor_data" => $properties,
-			"synched_properties" => ["int_entries_list" => [], "float_entries_list" => []],
-			"tick" => 0,
-		]));
+		usort($properties, fn(DataItemEntry $a, DataItemEntry $b) : int => $a->id <=> $b->id);
+		$this->sendDataPacket($recipients, new SetActorDataPacket(
+			targetRuntimeId: $entity->getId(),
+			actorData: $properties,
+			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
+			tick: 0,
+		));
 	}
 
 	public function onEntityEffectAdded(array $recipients, Living $entity, EffectInstance $effect, bool $replacesOldEffect) : void{
 		//TODO: we may need yet another effect <=> ID map in the future depending on protocol changes
-		$this->sendDataPacket($recipients, Packets::mobEffect([
-			"target_runtime_id" => $entity->getId(),
-			"event_id" => $replacesOldEffect ? MobEffectPacket::EVENT_MODIFY : MobEffectPacket::EVENT_ADD,
-			"effect_id" => EffectIdMap::getInstance()->toId($effect->getType()),
-			"effect_amplifier" => $effect->getAmplifier(),
-			"show_particles" => $effect->isVisible(),
-			"effect_duration_ticks" => $effect->isInfinite() ? -1 : $effect->getDuration(),
-			"tick" => 0,
-			"ambient" => $effect->isAmbient(),
-		]));
+		$this->sendDataPacket($recipients, new MobEffectPacket(
+			targetRuntimeId: $entity->getId(),
+			eventId: $replacesOldEffect ? BedrockMobEffectPacket::EVENT_MODIFY : BedrockMobEffectPacket::EVENT_ADD,
+			effectId: EffectIdMap::getInstance()->toId($effect->getType()),
+			effectAmplifier: $effect->getAmplifier(),
+			showParticles: $effect->isVisible(),
+			effectDurationTicks: $effect->isInfinite() ? -1 : $effect->getDuration(),
+			tick: 0,
+			ambient: $effect->isAmbient(),
+		));
 	}
 
 	public function onEntityEffectRemoved(array $recipients, Living $entity, EffectInstance $effect) : void{
-		$this->sendDataPacket($recipients, Packets::mobEffect([
-			"target_runtime_id" => $entity->getId(),
-			"event_id" => MobEffectPacket::EVENT_REMOVE,
-			"effect_id" => EffectIdMap::getInstance()->toId($effect->getType()),
-			"effect_amplifier" => 0,
-			"show_particles" => false,
-			"effect_duration_ticks" => 0,
-			"tick" => 0,
-			"ambient" => false,
-		]));
+		$this->sendDataPacket($recipients, new MobEffectPacket(
+			targetRuntimeId: $entity->getId(),
+			eventId: BedrockMobEffectPacket::EVENT_REMOVE,
+			effectId: EffectIdMap::getInstance()->toId($effect->getType()),
+			effectAmplifier: 0,
+			showParticles: false,
+			effectDurationTicks: 0,
+			tick: 0,
+			ambient: false,
+		));
 	}
 
 	public function onEntityRemoved(array $recipients, Entity $entity) : void{
-		$this->sendDataPacket($recipients, Packets::removeActor(["target_actor_id" => $entity->getId()]));
+		$this->sendDataPacket($recipients, new RemoveActorPacket(targetActorId: $entity->getId()));
 	}
 
 	public function onMobMainHandItemChange(array $recipients, Human $mob) : void{
 		//TODO: we could send zero for slot here because remote players don't need to know which slot was selected
 		$inv = $mob->getInventory();
-		$this->sendDataPacket($recipients, Packets::mobEquipment([
-			"target_runtime_id" => $mob->getId(),
-			"item" => Fields::legacyItemStack($this->typeConverter->coreItemStackToNet($inv->getItemInHand())),
-			"slot" => $inv->getHeldItemIndex(),
-			"selected_slot" => $inv->getHeldItemIndex(),
-			"container_id" => ContainerIds::INVENTORY,
-		]));
+		$this->sendDataPacket($recipients, new MobEquipmentPacket(
+			targetRuntimeId: $mob->getId(),
+			item: Fields::legacyItemStack($this->typeConverter->coreItemStackToNet($inv->getItemInHand())),
+			slot: $inv->getHeldItemIndex(),
+			selectedSlot: $inv->getHeldItemIndex(),
+			containerId: ContainerIds::INVENTORY,
+		));
 	}
 
 	public function onMobOffHandItemChange(array $recipients, Human $mob) : void{
 		$inv = $mob->getOffHandInventory();
-		$this->sendDataPacket($recipients, Packets::mobEquipment([
-			"target_runtime_id" => $mob->getId(),
-			"item" => Fields::legacyItemStack($this->typeConverter->coreItemStackToNet($inv->getItem(0))),
-			"slot" => 0,
-			"selected_slot" => 0,
-			"container_id" => ContainerIds::OFFHAND,
-		]));
+		$this->sendDataPacket($recipients, new MobEquipmentPacket(
+			targetRuntimeId: $mob->getId(),
+			item: Fields::legacyItemStack($this->typeConverter->coreItemStackToNet($inv->getItem(0))),
+			slot: 0,
+			selectedSlot: 0,
+			containerId: ContainerIds::OFFHAND,
+		));
 	}
 
 	public function onMobArmorChange(array $recipients, Living $mob) : void{
 		$inv = $mob->getArmorInventory();
 		$converter = $this->typeConverter;
-		$this->sendDataPacket($recipients, Packets::mobArmourEquipment([
-			"target_runtime_id" => $mob->getId(),
-			"head" => Fields::legacyItemStack($converter->coreItemStackToNet($inv->getHelmet())),
-			"torso" => Fields::legacyItemStack($converter->coreItemStackToNet($inv->getChestplate())),
-			"legs" => Fields::legacyItemStack($converter->coreItemStackToNet($inv->getLeggings())),
-			"feet" => Fields::legacyItemStack($converter->coreItemStackToNet($inv->getBoots())),
-			"body" => Fields::itemStack(ItemStack::null()),
-		]));
+		$this->sendDataPacket($recipients, new MobArmourEquipmentPacket(
+			targetRuntimeId: $mob->getId(),
+			head: Fields::legacyItemStack($converter->coreItemStackToNet($inv->getHelmet())),
+			torso: Fields::legacyItemStack($converter->coreItemStackToNet($inv->getChestplate())),
+			legs: Fields::legacyItemStack($converter->coreItemStackToNet($inv->getLeggings())),
+			feet: Fields::legacyItemStack($converter->coreItemStackToNet($inv->getBoots())),
+			body: Fields::itemStack(ItemStack::null()),
+		));
 	}
 
 	public function onPickUpItem(array $recipients, Entity $collector, Entity $pickedUp) : void{
-		$this->sendDataPacket($recipients, Packets::takeItemActor(["item_runtime_id" => $pickedUp->getId(), "actor_runtime_id" => $collector->getId()]));
+		$this->sendDataPacket($recipients, new TakeItemActorPacket(itemRuntimeId: $pickedUp->getId(), actorRuntimeId: $collector->getId()));
 	}
 
 	public function onEmote(array $recipients, Human $from, string $emoteId) : void{
-		$this->sendDataPacket($recipients, Packets::emote([
-			"actor_runtime_id" => $from->getId(),
-			"emote_id" => $emoteId,
-			"emote_length_ticks" => 0, //seems to be irrelevant for the client, we cannot risk rebroadcasting random values received
-			"xuid" => "",
-			"platform_id" => "",
-			"flags" => EmotePacket::FLAG_SERVER | EmotePacket::FLAG_MUTE_ANNOUNCEMENT,
-		]));
+		$this->sendDataPacket($recipients, new EmotePacket(
+			actorRuntimeId: $from->getId(),
+			emoteId: $emoteId,
+			emoteLengthTicks: 0, //seems to be irrelevant for the client, we cannot risk rebroadcasting random values received
+			xuid: "",
+			platformId: "",
+			flags: BedrockEmotePacket::FLAG_SERVER | BedrockEmotePacket::FLAG_MUTE_ANNOUNCEMENT,
+		));
 	}
 }

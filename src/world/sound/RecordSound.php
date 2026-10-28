@@ -26,8 +26,8 @@ namespace quark\world\sound;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\block\utils\RecordType;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\PlaySoundPacket;
+use quark\network\mcpe\protocol\packet\RecordStartedPacket;
 
 class RecordSound implements Sound{
 	public function __construct(
@@ -60,18 +60,17 @@ class RecordSound implements Sound{
 				RecordType::DISK_WAIT => LevelSoundEvent::RECORD_WAIT
 		};
 		return [
-			Packets::playSound([
-				"name" => $sound,
+			new PlaySoundPacket(
+				name: $sound,
 				//the position is in eighths of a block
-				"position" => ["x" => (int) ($pos->x * 8), "y" => (int) ($pos->y * 8), "z" => (int) ($pos->z * 8)],
-				"volume" => 1.0,
-				"pitch" => 1.0,
-				"loop_count" => 0,
-				"bypass_listener_range_check" => true,
-				"server_sound_handle" => $this->serverSoundHandleId,
-				"playback_position_seconds" => null,
-			]),
-			Packets::recordStarted(["block_position" => Fields::blockPosition($pos), "server_sound_handle" => $this->serverSoundHandleId]),
+				position: new Vector3((int) ($pos->x * 8), (int) ($pos->y * 8), (int) ($pos->z * 8)),
+				volume: 1.0,
+				pitch: 1.0,
+				loopCount: 0,
+				bypassListenerRangeCheck: true,
+				serverSoundHandle: $this->serverSoundHandleId,
+			),
+			new RecordStartedPacket(blockPosition: $pos->floor(), serverSoundHandle: $this->serverSoundHandleId),
 		];
 	}
 }

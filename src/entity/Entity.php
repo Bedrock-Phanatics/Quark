@@ -35,7 +35,7 @@ use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket;
+use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket as BedrockMoveActorAbsolutePacket;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\utils\Limits;
@@ -54,7 +54,12 @@ use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\AddActorPacket;
+use quark\network\mcpe\protocol\packet\MoveActorAbsolutePacket;
+use quark\network\mcpe\protocol\packet\SetActorMotionPacket;
+use quark\network\mcpe\protocol\types\DataItemEntry;
+use quark\network\mcpe\protocol\types\PropertySyncData;
+use quark\network\mcpe\protocol\types\SyncedAttribute;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\PulseZone;
@@ -79,9 +84,6 @@ use function sin;
 use function spl_object_id;
 use const M_PI_2;
 
-/**
- * @phpstan-import-type DataItemEntry from Packets
- */
 abstract class Entity{
 
 	public const MOTION_THRESHOLD = 0.00001;
@@ -805,23 +807,23 @@ abstract class Entity{
 	}
 
 	protected function broadcastMovement(bool $teleport = false) : void{
-		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [Packets::moveActorAbsolute(["move_data" => [
-			"actor_runtime_id" => $this->id,
+		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [new MoveActorAbsolutePacket(
+			actorRuntimeId: $this->id,
 			//TODO: We should be setting FLAG_TELEPORT here to disable client-side movement interpolation, but it
 			//breaks player teleporting (observers see the player rubberband back to the pre-teleport position while
 			//the teleported player sees themselves at the correct position), and does nothing whatsoever for
 			//non-player entities (movement is still interpolated). Both of these are client bugs.
 			//See https://github.com/Bedrock-Phanatics/Quark/issues/4394
-			"header" => $this->onGround ? MoveActorAbsolutePacket::FLAG_GROUND : 0,
-			"position" => Fields::vec3($this->getOffsetPosition($this->location)),
-			"rotation_x" => Fields::rotationByte($this->location->pitch),
-			"rotation_y" => Fields::rotationByte($this->location->yaw),
-			"rotation_y_head" => Fields::rotationByte($this->location->yaw),
-		]])]);
+			header: $this->onGround ? BedrockMoveActorAbsolutePacket::FLAG_GROUND : 0,
+			position: $this->getOffsetPosition($this->location),
+			rotationX: Fields::rotationByte($this->location->pitch),
+			rotationY: Fields::rotationByte($this->location->yaw),
+			rotationYHead: Fields::rotationByte($this->location->yaw),
+		)]);
 	}
 
 	protected function broadcastMotion() : void{
-		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [Packets::setActorMotion(["target_runtime_id" => $this->id, "motion" => Fields::vec3($this->getMotion()), "tick" => 0])]);
+		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [new SetActorMotionPacket(targetRuntimeId: $this->id, motion: $this->getMotion(), tick: 0)]);
 	}
 
 	public function getGravity() : float{
@@ -1526,27 +1528,27 @@ abstract class Entity{
 	protected function sendSpawnPacket(Player $player) : void{
 		$attributes = [];
 		foreach($this->attributeMap->getAll() as $attribute){
-			$attributes[] = [
-				"attribute_name" => $attribute->getId(),
-				"min_value" => $attribute->getMinValue(),
-				"current_value" => $attribute->getValue(),
-				"max_value" => $attribute->getMaxValue(),
-			];
+			$attributes[] = new SyncedAttribute(
+				attributeName: $attribute->getId(),
+				minValue: $attribute->getMinValue(),
+				currentValue: $attribute->getValue(),
+				maxValue: $attribute->getMaxValue(),
+			);
 		}
-		$player->getNetworkSession()->sendDataPacket(Packets::addActor([
-			"target_actor_id" => $this->getId(), //TODO: actor unique ID
-			"target_runtime_id" => $this->getId(),
-			"actor_type" => static::getNetworkTypeId(),
-			"position" => Fields::vec3($this->getOffsetPosition($this->location->asVector3())),
-			"velocity" => Fields::vec3($this->getMotion()),
-			"rotation" => Fields::vec2($this->location->pitch, $this->location->yaw),
-			"y_head_rotation" => $this->location->yaw, //TODO: head yaw
-			"y_body_rotation" => $this->location->yaw, //TODO: body yaw (wtf mojang?)
-			"attributes_list" => $attributes,
-			"actor_data" => $this->getAllNetworkData(),
-			"synched_properties" => ["int_entries_list" => [], "float_entries_list" => []],
-			"actor_links" => [], //TODO: entity links
-		]));
+		$player->getNetworkSession()->sendDataPacket(new AddActorPacket(
+			targetActorId: $this->getId(), //TODO: actor unique ID
+			targetRuntimeId: $this->getId(),
+			actorType: static::getNetworkTypeId(),
+			position: $this->getOffsetPosition($this->location->asVector3()),
+			velocity: $this->getMotion(),
+			rotation: new Vector2($this->location->pitch, $this->location->yaw),
+			yHeadRotation: $this->location->yaw, //TODO: head yaw
+			yBodyRotation: $this->location->yaw, //TODO: body yaw (wtf mojang?)
+			attributesList: $attributes,
+			actorData: $this->getAllNetworkData(),
+			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
+			actorLinks: [], //TODO: entity links
+		));
 	}
 
 	public function spawnTo(Player $player) : void{

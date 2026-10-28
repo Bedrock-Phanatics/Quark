@@ -77,6 +77,7 @@ use quark\network\mcpe\protocol\packet\EmotePacket;
 use quark\network\mcpe\protocol\packet\InteractPacket;
 use quark\network\mcpe\protocol\packet\InventoryTransactionPacket;
 use quark\network\mcpe\protocol\packet\ItemStackRequestPacket;
+use quark\network\mcpe\protocol\packet\ItemStackResponsePacket;
 use quark\network\mcpe\protocol\packet\LecternUpdatePacket;
 use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
 use quark\network\mcpe\protocol\packet\ModalFormResponsePacket;
@@ -86,7 +87,6 @@ use quark\network\mcpe\protocol\packet\PlayerSkinPacket;
 use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
 use quark\network\mcpe\protocol\packet\SetPlayerGameTypePacket;
 use quark\network\mcpe\protocol\packet\TextPacket;
-use quark\network\mcpe\protocol\Packets;
 use quark\network\mcpe\protocol\types\BookEditActionAddPage;
 use quark\network\mcpe\protocol\types\BookEditActionFinalize;
 use quark\network\mcpe\protocol\types\BookEditActionReplacePage;
@@ -386,7 +386,7 @@ class InGamePacketHandler extends PacketHandler{
 
 		if($itemStackRequest !== null){
 			$itemStackResponse = $itemStackResponseBuilder?->build() ?? ItemStackResponseBuilder::error($itemStackRequest->clientRequestId);
-			$this->session->sendDataPacket(Packets::itemStackResponse(["responses" => [$itemStackResponse]]));
+			$this->session->sendDataPacket(new ItemStackResponsePacket(responses: [$itemStackResponse]));
 		}
 
 		return $packetHandled;
@@ -728,7 +728,7 @@ class InGamePacketHandler extends PacketHandler{
 			$responses[] = $this->handleSingleItemStackRequest($request)?->build() ?? ItemStackResponseBuilder::error($request->clientRequestId);
 		}
 
-		$this->session->sendDataPacket(Packets::itemStackResponse(["responses" => $responses]));
+		$this->session->sendDataPacket(new ItemStackResponsePacket(responses: $responses));
 
 		return true;
 	}

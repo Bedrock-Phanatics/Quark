@@ -30,21 +30,21 @@ use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
+use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
-use pocketmine\network\mcpe\protocol\MovePlayerPacket;
-use pocketmine\network\mcpe\protocol\PlayStatusPacket;
-use pocketmine\network\mcpe\protocol\SetSpawnPositionPacket;
-use pocketmine\network\mcpe\protocol\SetTitlePacket;
+use pocketmine\network\mcpe\protocol\AvailableCommandsPacket as BedrockAvailableCommandsPacket;
+use pocketmine\network\mcpe\protocol\MovePlayerPacket as BedrockMovePlayerPacket;
+use pocketmine\network\mcpe\protocol\PlayStatusPacket as BedrockPlayStatusPacket;
+use pocketmine\network\mcpe\protocol\SetSpawnPositionPacket as BedrockSetSpawnPositionPacket;
+use pocketmine\network\mcpe\protocol\SetTitlePacket as BedrockSetTitlePacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
-use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use pocketmine\utils\Limits;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
@@ -81,9 +81,36 @@ use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\packet\AvailableCommandsPacket;
+use quark\network\mcpe\protocol\packet\ChunkRadiusUpdatedPacket;
+use quark\network\mcpe\protocol\packet\ClientBoundCloseFormPacket;
+use quark\network\mcpe\protocol\packet\ClientStartItemCooldownPacket;
+use quark\network\mcpe\protocol\packet\DisconnectPacket;
+use quark\network\mcpe\protocol\packet\ModalFormRequestPacket;
+use quark\network\mcpe\protocol\packet\MovePlayerPacket;
+use quark\network\mcpe\protocol\packet\NetworkChunkPublisherUpdatePacket;
+use quark\network\mcpe\protocol\packet\OpenSignPacket;
+use quark\network\mcpe\protocol\packet\PlayerListPacket;
+use quark\network\mcpe\protocol\packet\PlayStatusPacket;
+use quark\network\mcpe\protocol\packet\ServerToClientHandshakePacket;
+use quark\network\mcpe\protocol\packet\SetDifficultyPacket;
+use quark\network\mcpe\protocol\packet\SetPlayerGameTypePacket;
+use quark\network\mcpe\protocol\packet\SetSpawnPositionPacket;
+use quark\network\mcpe\protocol\packet\SetTimePacket;
+use quark\network\mcpe\protocol\packet\SetTitlePacket;
+use quark\network\mcpe\protocol\packet\ToastRequestPacket;
+use quark\network\mcpe\protocol\packet\TransferPacket;
+use quark\network\mcpe\protocol\packet\UpdateAbilitiesPacket;
+use quark\network\mcpe\protocol\packet\UpdateAdventureSettingsPacket;
 use quark\network\mcpe\protocol\Packets;
 use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\network\mcpe\protocol\TextPackets;
+use quark\network\mcpe\protocol\types\Command;
+use quark\network\mcpe\protocol\types\CommandEnum;
+use quark\network\mcpe\protocol\types\CommandOverload;
+use quark\network\mcpe\protocol\types\CommandParameter;
+use quark\network\mcpe\protocol\types\DisconnectMessagesData;
+use quark\network\mcpe\protocol\types\MovePlayerTeleportData;
 use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
 use quark\network\TransportIdentityException;
@@ -1137,7 +1164,7 @@ class NetworkSession{
 		}else{
 			$translated = $message;
 		}
-		$this->sendDataPacket(Packets::disconnect(["reason" => 0, "messages" => ["messages" => ["message" => $translated, "filtered_message" => ""]]]));
+		$this->sendDataPacket(new DisconnectPacket(reason: 0, messages: ["messages" => new DisconnectMessagesData(message: $translated, filteredMessage: "")]));
 	}
 
 	/**
@@ -1169,7 +1196,7 @@ class NetworkSession{
 	public function disconnectIncompatibleProtocol(int $protocolVersion) : void{
 		$this->tryDisconnect(
 			function() use ($protocolVersion) : void{
-				$this->sendDataPacket(Packets::playStatus(["status" => $protocolVersion < Protocol::VERSION ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER]), true);
+				$this->sendDataPacket(new PlayStatusPacket(status: $protocolVersion < Protocol::VERSION ? BedrockPlayStatusPacket::LOGIN_FAILED_CLIENT : BedrockPlayStatusPacket::LOGIN_FAILED_SERVER), true);
 			},
 			KnownTranslationFactory::quark_disconnect_incompatibleProtocol((string) $protocolVersion)
 		);
@@ -1181,7 +1208,7 @@ class NetworkSession{
 	public function transfer(string $ip, int $port, Translatable|string|null $reason = null) : void{
 		$reason ??= KnownTranslationFactory::quark_disconnect_transfer();
 		$this->tryDisconnect(function() use ($ip, $port, $reason) : void{
-			$this->sendDataPacket(Packets::transfer(["server_address" => $ip, "server_port" => $port, "reload_world" => false, "gatherings_configuration" => null]), true);
+			$this->sendDataPacket(new TransferPacket(serverAddress: $ip, serverPort: $port, reloadWorld: false), true);
 			if($this->player !== null){
 				$this->player->onPostDisconnect($reason, null);
 			}
@@ -1325,7 +1352,7 @@ class NetworkSession{
 				if(!$this->connected){
 					return;
 				}
-				$this->sendDataPacket(Packets::serverToClientHandshake(["handshake_web_token" => $handshakeJwt]), true); //make sure this gets sent before encryption is enabled
+				$this->sendDataPacket(new ServerToClientHandshakePacket(handshakeWebToken: $handshakeJwt), true); //make sure this gets sent before encryption is enabled
 
 				$this->cipher = EncryptionContext::fakeGCM($encryptionKey);
 
@@ -1340,7 +1367,7 @@ class NetworkSession{
 	private function onServerLoginSuccess() : void{
 		$this->loggedIn = true;
 
-		$this->sendDataPacket(Packets::playStatus(["status" => PlayStatusPacket::LOGIN_SUCCESS]));
+		$this->sendDataPacket(new PlayStatusPacket(status: BedrockPlayStatusPacket::LOGIN_SUCCESS));
 
 		$this->logger->debug("Initiating resource packs phase");
 
@@ -1369,7 +1396,7 @@ class NetworkSession{
 
 	public function notifyTerrainReady() : void{
 		$this->logger->debug("Sending spawn notification, waiting for spawn response");
-		$this->sendDataPacket(Packets::playStatus(["status" => PlayStatusPacket::PLAYER_SPAWN]));
+		$this->sendDataPacket(new PlayStatusPacket(status: BedrockPlayStatusPacket::PLAYER_SPAWN));
 		$this->setHandler(new SpawnResponsePacketHandler($this->onClientSpawnResponse(...)));
 	}
 
@@ -1396,23 +1423,23 @@ class NetworkSession{
 		$this->setHandler(new InGamePacketHandler($this->player, $this, $this->invManager));
 	}
 
-	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL) : void{
+	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = BedrockMovePlayerPacket::MODE_NORMAL) : void{
 		if($this->player !== null){
 			$location = $this->player->getLocation();
 			$yaw = $yaw ?? $location->getYaw();
 			$pitch = $pitch ?? $location->getPitch();
 
-			$this->sendDataPacket(Packets::movePlayer([
-				"player_runtime_id" => $this->player->getId(),
-				"position" => Fields::vec3($this->player->getOffsetPosition($pos)),
-				"rotation" => Fields::vec2($pitch, $yaw),
-				"y_head_rotation" => $yaw, //TODO: head yaw
-				"position_mode" => $mode,
-				"on_ground" => $this->player->onGround,
-				"riding_runtime_id" => 0, //TODO: riding entity ID
-				"teleport_data" => $mode === MovePlayerPacket::MODE_TELEPORT ? ["teleportation_cause" => 0, "source_actor_type" => 0] : null,
-				"tick" => 0, //TODO: tick
-			]));
+			$this->sendDataPacket(new MovePlayerPacket(
+				playerRuntimeId: $this->player->getId(),
+				position: $this->player->getOffsetPosition($pos),
+				rotation: new Vector2($pitch, $yaw),
+				yHeadRotation: $yaw, //TODO: head yaw
+				positionMode: $mode,
+				onGround: $this->player->onGround,
+				ridingRuntimeId: 0, //TODO: riding entity ID
+				teleportData: $mode === BedrockMovePlayerPacket::MODE_TELEPORT ? new MovePlayerTeleportData(teleportationCause: 0, sourceActorType: 0) : null,
+				tick: 0, //TODO: tick
+			));
 
 			if($this->handler instanceof InGamePacketHandler){
 				$this->handler->forceMoveSync = true;
@@ -1421,39 +1448,39 @@ class NetworkSession{
 	}
 
 	public function syncViewAreaRadius(int $distance) : void{
-		$this->sendDataPacket(Packets::chunkRadiusUpdated(["chunk_radius" => $distance]));
+		$this->sendDataPacket(new ChunkRadiusUpdatedPacket(chunkRadius: $distance));
 	}
 
 	public function syncViewAreaCenterPoint(Vector3 $newPos, int $viewDistance) : void{
-		$this->sendDataPacket(Packets::networkChunkPublisherUpdate([
-			"new_position_for_view" => Fields::blockPosition($newPos),
-			"new_radius_for_view" => $viewDistance * 16, //blocks, not chunks >.>
-			"server_built_chunks_list" => [],
-		]));
+		$this->sendDataPacket(new NetworkChunkPublisherUpdatePacket(
+			newPositionForView: $newPos->floor(),
+			newRadiusForView: $viewDistance * 16, //blocks, not chunks >.>
+			serverBuiltChunksList: [],
+		));
 	}
 
 	public function syncPlayerSpawnPoint(Position $newSpawn) : void{
-		$newSpawnBlockPosition = Fields::blockPosition($newSpawn);
+		$newSpawnBlockPosition = $newSpawn->floor();
 		//TODO: respawn causing block position (bed, respawn anchor)
-		$this->sendDataPacket(Packets::setSpawnPosition([
-			"spawn_position_type" => SetSpawnPositionPacket::TYPE_PLAYER_SPAWN,
-			"block_position" => $newSpawnBlockPosition,
-			"dimension_type" => DimensionIds::OVERWORLD,
-			"spawn_block_pos" => $newSpawnBlockPosition,
-		]));
+		$this->sendDataPacket(new SetSpawnPositionPacket(
+			spawnPositionType: BedrockSetSpawnPositionPacket::TYPE_PLAYER_SPAWN,
+			blockPosition: $newSpawnBlockPosition,
+			dimensionType: DimensionIds::OVERWORLD,
+			spawnBlockPos: $newSpawnBlockPosition,
+		));
 	}
 
 	public function syncWorldSpawnPoint(Position $newSpawn) : void{
-		$this->sendDataPacket(Packets::setSpawnPosition([
-			"spawn_position_type" => SetSpawnPositionPacket::TYPE_WORLD_SPAWN,
-			"block_position" => Fields::blockPosition($newSpawn),
-			"dimension_type" => DimensionIds::OVERWORLD,
-			"spawn_block_pos" => ["x" => Limits::INT32_MIN, "y" => Limits::INT32_MIN, "z" => Limits::INT32_MIN],
-		]));
+		$this->sendDataPacket(new SetSpawnPositionPacket(
+			spawnPositionType: BedrockSetSpawnPositionPacket::TYPE_WORLD_SPAWN,
+			blockPosition: $newSpawn->floor(),
+			dimensionType: DimensionIds::OVERWORLD,
+			spawnBlockPos: new Vector3(Limits::INT32_MIN, Limits::INT32_MIN, Limits::INT32_MIN),
+		));
 	}
 
 	public function syncGameMode(GameMode $mode, bool $isRollback = false) : void{
-		$this->sendDataPacket(Packets::setPlayerGameType(["player_game_type" => $this->typeConverter->coreGameModeToProtocol($mode)->value]));
+		$this->sendDataPacket(new SetPlayerGameTypePacket(playerGameType: $this->typeConverter->coreGameModeToProtocol($mode)->value));
 		if($this->player !== null){
 			$this->syncAbilities($this->player);
 			$this->syncAdventureSettings(); //TODO: we might be able to do this with the abilities packet alone
@@ -1501,12 +1528,12 @@ class NetworkSession{
 			], null, null, null);
 		}
 
-		$this->sendDataPacket(Packets::updateAbilities(["data" => Fields::abilities(new AbilitiesData(
+		$this->sendDataPacket(new UpdateAbilitiesPacket(data: Fields::abilities(new AbilitiesData(
 			$isOp ? CommandPermissions::OPERATOR : CommandPermissions::NORMAL,
 			$isOp ? PlayerPermissions::OPERATOR : PlayerPermissions::MEMBER,
 			$for->getId(),
 			$layers
-		))]));
+		))));
 	}
 
 	public function syncAdventureSettings() : void{
@@ -1514,13 +1541,13 @@ class NetworkSession{
 			throw new \LogicException("Cannot sync adventure settings for a player that is not yet created");
 		}
 		//everything except auto jump is handled via UpdateAbilitiesPacket
-		$this->sendDataPacket(Packets::updateAdventureSettings(["adventure_settings" => [
-			"no_pv_m" => false,
-			"no_mv_p" => false,
-			"immutable_world" => false,
-			"show_name_tags" => true,
-			"auto_jump" => $this->player->hasAutoJump(),
-		]]));
+		$this->sendDataPacket(new UpdateAdventureSettingsPacket(
+			noPvM: false,
+			noMvP: false,
+			immutableWorld: false,
+			showNameTags: true,
+			autoJump: $this->player->hasAutoJump(),
+		));
 	}
 
 	public function syncAvailableCommands() : void{
@@ -1551,39 +1578,39 @@ class NetworkSession{
 					$valueIndexes[] = $enumValueIndexes[$alias];
 				}
 				$aliasEnum = count($enums);
-				$enums[] = ["name" => ucfirst($command->getLabel()) . "Aliases", "values" => $valueIndexes];
+				$enums[] = new CommandEnum(name: ucfirst($command->getLabel()) . "Aliases", values: $valueIndexes);
 			}
 
 			$description = $command->getDescription();
-			$commands[$command->getLabel()] = [
-				"name" => $lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
-				"description" => $description instanceof Translatable ? $this->player->getLanguage()->translate($description) : $description,
-				"flags" => 0,
-				"permission_level" => CommandPermissions::NORMAL->value,
-				"alias_enum" => $aliasEnum,
-				"command_data_chained_subcommand_indexes" => [],
-				"overloads" => [[
-					"is_chaining" => false,
-					"parameter_data" => [[
-						"name" => "args",
-						"parse_symbol" => AvailableCommandsPacket::ARG_FLAG_VALID | AvailableCommandsPacket::ARG_TYPE_RAWTEXT,
-						"is_optional" => true,
-						"options" => 0,
-					]],
-				]],
-			];
+			$commands[$command->getLabel()] = new Command(
+				name: $lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
+				description: $description instanceof Translatable ? $this->player->getLanguage()->translate($description) : $description,
+				flags: 0,
+				permissionLevel: CommandPermissions::NORMAL->value,
+				aliasEnum: $aliasEnum,
+				commandDataChainedSubcommandIndexes: [],
+				overloads: [new CommandOverload(
+					isChaining: false,
+					parameterData: [new CommandParameter(
+						name: "args",
+						parseSymbol: BedrockAvailableCommandsPacket::ARG_FLAG_VALID | BedrockAvailableCommandsPacket::ARG_TYPE_RAWTEXT,
+						isOptional: true,
+						options: 0,
+					)],
+				)],
+			);
 		}
 
-		$this->sendDataPacket(Packets::availableCommands([
-			"enum_values" => $enumValues,
-			"chained_subcommand_values" => [],
-			"post_fixes" => [],
-			"enum_data" => $enums,
-			"chained_subcommand_data" => [],
-			"commands" => array_values($commands),
-			"soft_enums" => [],
-			"constraints" => [],
-		]));
+		$this->sendDataPacket(new AvailableCommandsPacket(
+			enumValues: $enumValues,
+			chainedSubcommandValues: [],
+			postFixes: [],
+			enumData: $enums,
+			chainedSubcommandData: [],
+			commands: array_values($commands),
+			softEnums: [],
+			constraints: [],
+		));
 	}
 
 	/**
@@ -1632,11 +1659,11 @@ class NetworkSession{
 	}
 
 	public function onFormSent(int $id, Form $form) : bool{
-		return $this->sendDataPacket(Packets::modalFormRequest(["form_id" => $id, "form_ui_json" => json_encode($form, JSON_THROW_ON_ERROR)]));
+		return $this->sendDataPacket(new ModalFormRequestPacket(formId: $id, formUiJson: json_encode($form, JSON_THROW_ON_ERROR)));
 	}
 
 	public function onCloseAllForms() : void{
-		$this->sendDataPacket(Packets::clientBoundCloseForm([]));
+		$this->sendDataPacket(new ClientBoundCloseFormPacket());
 	}
 
 	/**
@@ -1702,11 +1729,11 @@ class NetworkSession{
 	}
 
 	public function syncWorldTime(int $worldTime) : void{
-		$this->sendDataPacket(Packets::setTime(["time" => $worldTime]));
+		$this->sendDataPacket(new SetTimePacket(time: $worldTime));
 	}
 
 	public function syncWorldDifficulty(int $worldDifficulty) : void{
-		$this->sendDataPacket(Packets::setDifficulty(["difficulty" => $worldDifficulty]));
+		$this->sendDataPacket(new SetDifficultyPacket(difficulty: $worldDifficulty));
 	}
 
 	public function getInvManager() : ?InventoryManager{
@@ -1721,69 +1748,69 @@ class NetworkSession{
 		foreach($players as $player){
 			$entries[] = Fields::playerListAddition($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($player->getSkin()), $player->getXuid());
 		}
-		$this->sendDataPacket(Packets::playerList(["entries" => $entries]));
+		$this->sendDataPacket(new PlayerListPacket(entries: $entries));
 	}
 
 	public function onPlayerAdded(Player $p) : void{
-		$this->sendDataPacket(Packets::playerList(["entries" => [Fields::playerListAddition($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($p->getSkin()), $p->getXuid())]]));
+		$this->sendDataPacket(new PlayerListPacket(entries: [Fields::playerListAddition($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($p->getSkin()), $p->getXuid())]));
 	}
 
 	public function onPlayerRemoved(Player $p) : void{
 		if($p !== $this->player){
-			$this->sendDataPacket(Packets::playerList(["entries" => [Fields::playerListRemoval($p->getUniqueId())]]));
+			$this->sendDataPacket(new PlayerListPacket(entries: [Fields::playerListRemoval($p->getUniqueId())]));
 		}
 	}
 
 	private static function title(int $type, string $text = "", int $fadeIn = 0, int $stay = 0, int $fadeOut = 0) : Packet{
-		return Packets::setTitle([
-			"title_type" => $type,
-			"title_text" => $text,
-			"fade_in_time" => $fadeIn,
-			"stay_time" => $stay,
-			"fade_out_time" => $fadeOut,
-			"xuid" => "",
-			"platform_online_id" => "",
-			"filtered_title_message" => "",
-		]);
+		return new SetTitlePacket(
+			titleType: $type,
+			titleText: $text,
+			fadeInTime: $fadeIn,
+			stayTime: $stay,
+			fadeOutTime: $fadeOut,
+			xuid: "",
+			platformOnlineId: "",
+			filteredTitleMessage: "",
+		);
 	}
 
 	public function onTitle(string $title) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_TITLE, $title));
+		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_TITLE, $title));
 	}
 
 	public function onSubTitle(string $subtitle) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_SUBTITLE, $subtitle));
+		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_SUBTITLE, $subtitle));
 	}
 
 	public function onActionBar(string $actionBar) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE, $actionBar));
+		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE, $actionBar));
 	}
 
 	public function onClearTitle() : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_CLEAR_TITLE));
+		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_CLEAR_TITLE));
 	}
 
 	public function onResetTitleOptions() : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_RESET_TITLE));
+		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_RESET_TITLE));
 	}
 
 	public function onTitleDuration(int $fadeIn, int $stay, int $fadeOut) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ANIMATION_TIMES, "", $fadeIn, $stay, $fadeOut));
+		$this->sendDataPacket(self::title(BedrockSetTitlePacket::TYPE_SET_ANIMATION_TIMES, "", $fadeIn, $stay, $fadeOut));
 	}
 
 	public function onToastNotification(string $title, string $body) : void{
-		$this->sendDataPacket(Packets::toastRequest(["title" => $title, "content" => $body]));
+		$this->sendDataPacket(new ToastRequestPacket(title: $title, content: $body));
 	}
 
 	public function onOpenSignEditor(Vector3 $signPosition, bool $frontSide) : void{
-		$this->sendDataPacket(Packets::openSign(["pos" => Fields::blockPosition($signPosition), "is_front_side" => $frontSide]));
+		$this->sendDataPacket(new OpenSignPacket(pos: $signPosition->floor(), isFrontSide: $frontSide));
 	}
 
 	public function onItemCooldownChanged(Item $item, int $ticks) : void{
-		$this->sendDataPacket(Packets::clientStartItemCooldown([
-			"item_category" => GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
-			"duration_ticks" => $ticks,
-		]));
+		$this->sendDataPacket(new ClientStartItemCooldownPacket(
+			itemCategory: GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
+			durationTicks: $ticks,
+		));
 	}
 
 	public function tick() : void{

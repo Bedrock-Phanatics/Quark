@@ -62,14 +62,15 @@ use pocketmine\network\mcpe\protocol\types\PlayMode;
 use quark\item\VanillaItems;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\LevelPackets;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\MoveActorAbsolutePacket as NetMoveActorAbsolutePacket;
+use quark\network\mcpe\protocol\packet\SetActorDataPacket as NetSetActorDataPacket;
 use quark\network\mcpe\protocol\ProtocolClasses;
+use quark\network\mcpe\protocol\types\PropertySyncData as NetPropertySyncData;
 use quark\pulse\internal\PulseZones;
 use function array_map;
 use function bin2hex;
@@ -248,14 +249,14 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 		$packets = [];
 		++$nativeTick;
 		foreach($positions as $i => $position){
-			$packets[] = Packets::moveActorAbsolute(["move_data" => [
-				"actor_runtime_id" => $i + 10,
-				"header" => MoveActorAbsolutePacket::FLAG_GROUND,
-				"position" => Fields::vec3($position),
-				"rotation_x" => Fields::rotationByte(12.0),
-				"rotation_y" => Fields::rotationByte(90.0 + $i),
-				"rotation_y_head" => Fields::rotationByte(90.0 + $i),
-			]]);
+			$packets[] = new NetMoveActorAbsolutePacket(
+				actorRuntimeId: $i + 10,
+				header: MoveActorAbsolutePacket::FLAG_GROUND,
+				position: $position,
+				rotationX: Fields::rotationByte(12.0),
+				rotationY: Fields::rotationByte(90.0 + $i),
+				rotationYHead: Fields::rotationByte(90.0 + $i),
+			);
 			if($spawn){
 				$data = mobMetadata(new EntityMetadata(), $i)->getAll();
 			}elseif($i < 3){
@@ -265,12 +266,12 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 			}else{
 				continue;
 			}
-			$packets[] = Packets::setActorData([
-				"target_runtime_id" => $i + 10,
-				"actor_data" => $data,
-				"synched_properties" => ["int_entries_list" => [], "float_entries_list" => []],
-				"tick" => 0,
-			]);
+			$packets[] = new NetSetActorDataPacket(
+				targetRuntimeId: $i + 10,
+				actorData: $data,
+				synchedProperties: new NetPropertySyncData(intEntriesList: [], floatEntriesList: []),
+				tick: 0,
+			);
 		}
 		for($i = 0; $i < 3; ++$i){
 			$packets[] = LevelPackets::sound(LevelSoundEvent::STEP, $positions[$i], false);
@@ -286,7 +287,7 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 	//the adapter encoded with BedrockProtocol, then batched the encoded strings natively
 	$adapterPackets = $legacyPackets();
 	$adapter = static fn() : string => NetworkSession::encodeBatch(array_map(static fn(DataPacket $packet) : string => EncodedPacket::fromBytes(legacyEncode($packet))->getBytes(), $adapterPackets()));
-	$native = static fn() : string => NetworkSession::encodeBatch(array_map(static fn(Packet $packet) => $packet instanceof ArrayPacket ? [$packet->getId(), $packet->fields] : $packet, $nativePackets()));
+	$native = static fn() : string => NetworkSession::encodeBatch($nativePackets());
 	return compare("tick", $iterations, [$old, $old], [$adapter, $adapter], [$native, $native]);
 }
 

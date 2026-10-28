@@ -25,7 +25,7 @@ namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferWriter;
-use pocketmine\network\mcpe\protocol\ItemStackResponsePacket;
+use pocketmine\network\mcpe\protocol\ItemStackResponsePacket as BedrockItemStackResponsePacket;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
@@ -36,7 +36,7 @@ use quark\item\VanillaItems;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\ItemStackInfo;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ItemStackResponsePacket;
 use function bin2hex;
 
 final class ItemStackResponseBuilderTest extends TestCase{
@@ -57,7 +57,7 @@ final class ItemStackResponseBuilderTest extends TestCase{
 		$builder->addSlot(ContainerUIIds::HOTBAR, 20); //unknown slots are left out
 		$builder->addSlot(ContainerUIIds::CREATED_OUTPUT, 50);
 
-		$expected = ItemStackResponsePacket::create([
+		$expected = BedrockItemStackResponsePacket::create([
 			new ItemStackResponse(ItemStackResponse::RESULT_OK, -7, [
 				new ItemStackResponseContainerInfo(new FullContainerName(ContainerUIIds::HOTBAR), [
 					new ItemStackResponseSlotInfo(1, 1, 1, 101, "blade", "blade", 12),
@@ -69,7 +69,7 @@ final class ItemStackResponseBuilderTest extends TestCase{
 		$writer = new ByteBufferWriter();
 		$expected->encode($writer);
 
-		$actual = Packets::itemStackResponse(["responses" => [$builder->build(), ItemStackResponseBuilder::error(9)]]);
+		$actual = new ItemStackResponsePacket([$builder->build(), ItemStackResponseBuilder::error(9)]);
 		self::assertSame(bin2hex($writer->getData()), bin2hex(EncodedPacket::of($actual)->getBytes()));
 	}
 }

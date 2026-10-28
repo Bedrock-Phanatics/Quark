@@ -26,15 +26,26 @@ namespace quark\network\mcpe\protocol;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataTypes;
+use quark\network\mcpe\protocol\types\DataItemBytePayload;
+use quark\network\mcpe\protocol\types\DataItemCompoundTagPayload;
+use quark\network\mcpe\protocol\types\DataItemEntry;
+use quark\network\mcpe\protocol\types\DataItemFloatPayload;
+use quark\network\mcpe\protocol\types\DataItemInt64Payload;
+use quark\network\mcpe\protocol\types\DataItemIntPayload;
+use quark\network\mcpe\protocol\types\DataItemPosPayload;
+use quark\network\mcpe\protocol\types\DataItemShortPayload;
+use quark\network\mcpe\protocol\types\DataItemStringPayload;
+use quark\network\mcpe\protocol\types\DataItemVec3Payload;
+use quark\utils\AssumptionFailedError;
 use function array_fill_keys;
 use function array_keys;
+use function is_float;
 use function is_int;
+use function is_string;
 
 /**
  * An entity's network properties and the ones that changed since they were last sent. Properties are kept as flat
  * type and value maps, since every entity holds one of these, and only become actor_data entries when sent.
- *
- * @phpstan-import-type DataItemEntry from Packets
  */
 final class EntityMetadata{
 	private const VARIANTS = [
@@ -51,7 +62,7 @@ final class EntityMetadata{
 
 	/** @phpstan-var array<int, int> property ID => EntityMetadataTypes constant */
 	private array $types = [];
-	/** @phpstan-var array<int, int|float|string|array<string, int|float>> */
+	/** @phpstan-var array<int, int|float|string|Vector3> */
 	private array $values = [];
 	/** @phpstan-var array<int, true> */
 	private array $dirty = [];
@@ -93,7 +104,7 @@ final class EntityMetadata{
 	}
 
 	public function setBlockPos(int $key, ?Vector3 $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::POS, $value !== null ? Fields::blockPosition($value) : ["x" => 0, "y" => 0, "z" => 0], $force);
+		$this->set($key, EntityMetadataTypes::POS, $value?->floor() ?? new Vector3(0, 0, 0), $force);
 	}
 
 	public function setLong(int $key, int $value, bool $force = false) : void{
@@ -101,19 +112,17 @@ final class EntityMetadata{
 	}
 
 	public function setVector3(int $key, ?Vector3 $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::VECTOR3F, $value !== null ? Fields::vec3($value) : ["x" => 0.0, "y" => 0.0, "z" => 0.0], $force);
+		$this->set($key, EntityMetadataTypes::VECTOR3F, $value?->asVector3() ?? new Vector3(0.0, 0.0, 0.0), $force);
 	}
 
-	/**
-	 * @phpstan-param int|float|string|array<string, int|float> $value
-	 */
-	private function set(int $key, int $type, int|float|string|array $value, bool $force) : void{
+	private function set(int $key, int $type, int|float|string|Vector3 $value, bool $force) : void{
 		$currentType = $this->types[$key] ?? null;
 		if($currentType !== null){
 			if(!$force && $currentType !== $type){
 				throw new \InvalidArgumentException("Can't overwrite property $key of type " . self::VARIANTS[$currentType] . " with " . self::VARIANTS[$type]);
 			}
-			if($currentType === $type && $this->values[$key] === $value){
+			$current = $this->values[$key];
+			if($currentType === $type && ($value instanceof Vector3 ? $current instanceof Vector3 && $current->equals($value) : $current === $value)){
 				return;
 			}
 		}
@@ -160,9 +169,19 @@ final class EntityMetadata{
 		$entries = [];
 		foreach($keys as $key => $_){
 			$type = $this->types[$key];
-			/** @phpstan-var DataItemEntry $entry */
-			$entry = ["id" => $key, "payload" => [self::VARIANTS[$type] => ["type" => $type, "value" => $this->values[$key]]]];
-			$entries[] = $entry;
+			$value = $this->values[$key];
+			$entries[] = new DataItemEntry($key, match(true){
+				$type === EntityMetadataTypes::BYTE && is_int($value) => ["byte" => new DataItemBytePayload($type, $value)],
+				$type === EntityMetadataTypes::SHORT && is_int($value) => ["short" => new DataItemShortPayload($type, $value)],
+				$type === EntityMetadataTypes::INT && is_int($value) => ["int" => new DataItemIntPayload($type, $value)],
+				$type === EntityMetadataTypes::FLOAT && is_float($value) => ["float" => new DataItemFloatPayload($type, $value)],
+				$type === EntityMetadataTypes::STRING && is_string($value) => ["string" => new DataItemStringPayload($type, $value)],
+				$type === EntityMetadataTypes::COMPOUND_TAG && is_string($value) => ["compound_tag" => new DataItemCompoundTagPayload($type, $value)],
+				$type === EntityMetadataTypes::POS && $value instanceof Vector3 => ["pos" => new DataItemPosPayload($type, $value)],
+				$type === EntityMetadataTypes::LONG && is_int($value) => ["int64" => new DataItemInt64Payload($type, $value)],
+				$type === EntityMetadataTypes::VECTOR3F && $value instanceof Vector3 => ["vec3" => new DataItemVec3Payload($type, $value)],
+				default => throw new AssumptionFailedError("Property $key holds the wrong value for its type"),
+			});
 		}
 		return $entries;
 	}

@@ -27,10 +27,8 @@ use Bedwire\Nbt;
 use pocketmine\math\Facing;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
-use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
-use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\BlockActorDataPacket;
 use quark\utils\AssumptionFailedError;
 
 final class Bell extends Spawnable{
@@ -91,6 +89,6 @@ final class Bell extends Spawnable{
 			default => throw new AssumptionFailedError("Unreachable")
 		});
 		$nbt->setInt(self::TAG_TICKS, 0);
-		return Packets::blockActorData(["block_position" => Fields::blockPosition($this->position), "actor_data_tags" => Nbt::write(new TreeRoot($nbt), Nbt::NETWORK)]);
+		return new BlockActorDataPacket(blockPosition: $this->position->floor(), actorDataTags: Nbt::write(new TreeRoot($nbt), Nbt::NETWORK));
 	}
 }

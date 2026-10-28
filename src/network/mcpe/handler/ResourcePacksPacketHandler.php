@@ -29,10 +29,17 @@ use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\packet\ResourcePackChunkDataPacket;
 use quark\network\mcpe\protocol\packet\ResourcePackChunkRequestPacket;
 use quark\network\mcpe\protocol\packet\ResourcePackClientResponsePacket;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ResourcePackDataInfoPacket;
+use quark\network\mcpe\protocol\packet\ResourcePacksInfoPacket;
+use quark\network\mcpe\protocol\packet\ResourcePackStackPacket;
 use quark\network\mcpe\protocol\types\Downloading;
+use quark\network\mcpe\protocol\types\Experiments;
+use quark\network\mcpe\protocol\types\PackIDVersionData;
+use quark\network\mcpe\protocol\types\PackInfoData;
+use quark\network\mcpe\protocol\types\StackResourcePack;
 use quark\network\PacketHandlingException;
 use quark\resourcepacks\ResourcePack;
 use Ramsey\Uuid\Uuid;
@@ -124,26 +131,26 @@ class ResourcePacksPacketHandler extends PacketHandler{
 	}
 
 	public function setUp() : void{
-		$resourcePackEntries = array_map(fn(ResourcePack $pack) : array => [ //TODO: more stuff
-			"pack_id_version" => ["pack_uuid" => Fields::uuid(Uuid::fromString($pack->getPackId())), "pack_version" => $pack->getPackVersion()],
-			"pack_size" => $pack->getPackSize(),
-			"content_key" => $this->encryptionKeys[$pack->getPackId()] ?? "",
-			"subpack_name" => "",
-			"content_identity" => $pack->getPackId(),
-			"has_scripts" => false,
-			"is_addon_pack" => false,
-			"is_ray_tracing_capable" => false,
-			"cdn_url" => "",
-		], $this->resourcePackStack);
+		$resourcePackEntries = array_map(fn(ResourcePack $pack) : PackInfoData => new PackInfoData( //TODO: more stuff
+			packIdVersion: new PackIDVersionData(packUuid: Fields::uuid(Uuid::fromString($pack->getPackId())), packVersion: $pack->getPackVersion()),
+			packSize: $pack->getPackSize(),
+			contentKey: $this->encryptionKeys[$pack->getPackId()] ?? "",
+			subpackName: "",
+			contentIdentity: $pack->getPackId(),
+			hasScripts: false,
+			isAddonPack: false,
+			isRayTracingCapable: false,
+			cdnUrl: "",
+		), $this->resourcePackStack);
 		//TODO: support forcing server packs
-		$this->session->sendDataPacket(Packets::resourcePacksInfo([
-			"resource_pack_required" => $this->mustAccept,
-			"has_addon_packs" => false,
-			"has_scripts" => false,
-			"force_disable_vibrant_visuals" => true,
-			"world_template_id_and_version" => ["pack_uuid" => Fields::uuid(Uuid::fromString(Uuid::NIL)), "pack_version" => ""],
-			"resource_packs" => $resourcePackEntries,
-		]));
+		$this->session->sendDataPacket(new ResourcePacksInfoPacket(
+			resourcePackRequired: $this->mustAccept,
+			hasAddonPacks: false,
+			hasScripts: false,
+			forceDisableVibrantVisuals: true,
+			worldTemplateIdAndVersion: new PackIDVersionData(packUuid: Fields::uuid(Uuid::fromString(Uuid::NIL)), packVersion: ""),
+			resourcePacks: $resourcePackEntries,
+		));
 		$this->session->getLogger()->debug("Waiting for client to accept resource packs");
 	}
 
@@ -203,15 +210,15 @@ class ResourcePacksPacketHandler extends PacketHandler{
 						throw new PacketHandlingException("Repeated metadata request for pack $uuid");
 					}
 
-					$this->session->sendDataPacket(Packets::resourcePackDataInfo([
-						"resource_name" => $pack->getPackId(),
-						"chunk_size" => self::PACK_CHUNK_SIZE,
-						"number_of_chunks" => (int) ceil($pack->getPackSize() / self::PACK_CHUNK_SIZE),
-						"file_size" => $pack->getPackSize(),
-						"file_hash" => $pack->getSha256(),
-						"is_premium_pack" => false,
-						"pack_type" => ResourcePackType::RESOURCES->value, //TODO: this might be an addon (not behaviour pack), needed to properly support client-side custom items
-					]));
+					$this->session->sendDataPacket(new ResourcePackDataInfoPacket(
+						resourceName: $pack->getPackId(),
+						chunkSize: self::PACK_CHUNK_SIZE,
+						numberOfChunks: (int) ceil($pack->getPackSize() / self::PACK_CHUNK_SIZE),
+						fileSize: $pack->getPackSize(),
+						fileHash: $pack->getSha256(),
+						isPremiumPack: false,
+						packType: ResourcePackType::RESOURCES->value, //TODO: this might be an addon (not behaviour pack), needed to properly support client-side custom items
+					));
 					$seen[$pack->getPackId()] = true;
 				}
 				$this->session->getLogger()->debug("Player requested download of " . count($packIds) . " resource packs");
@@ -222,27 +229,27 @@ class ResourcePacksPacketHandler extends PacketHandler{
 				}
 				$this->requestedStack = true;
 
-				$stack = array_map(static fn(ResourcePack $pack) : array => [
-					"pack_id" => $pack->getPackId(),
-					"version" => $pack->getPackVersion(),
-					"sub_pack_name" => "", //TODO: subpacks
-				], $this->resourcePackStack);
+				$stack = array_map(static fn(ResourcePack $pack) : StackResourcePack => new StackResourcePack(
+					packId: $pack->getPackId(),
+					version: $pack->getPackVersion(),
+					subPackName: "", //TODO: subpacks
+				), $this->resourcePackStack);
 
 				//we support chemistry blocks by default, the client should already have these installed
 				foreach(self::CHEMISTRY_RESOURCE_PACKS as [$uuid, $version]){
-					$stack[] = ["pack_id" => $uuid, "version" => $version, "sub_pack_name" => ""];
+					$stack[] = new StackResourcePack(packId: $uuid, version: $version, subPackName: "");
 				}
 
 				//we don't force here, because it doesn't have user-facing effects
 				//but it does have an annoying side-effect when true: it makes
 				//the client remove its own non-server-supplied resource packs.
-				$this->session->sendDataPacket(Packets::resourcePackStack([
-					"texture_pack_required" => false,
-					"texture_pack_list" => $stack,
-					"base_game_version" => ProtocolInfo::MINECRAFT_VERSION_NETWORK,
-					"experiments" => ["toggles" => [], "experiments_ever_toggled" => false],
-					"include_editor_packs" => false,
-				]));
+				$this->session->sendDataPacket(new ResourcePackStackPacket(
+					texturePackRequired: false,
+					texturePackList: $stack,
+					baseGameVersion: ProtocolInfo::MINECRAFT_VERSION_NETWORK,
+					experiments: new Experiments(toggles: [], experimentsEverToggled: false),
+					includeEditorPacks: false,
+				));
 				$this->session->getLogger()->debug("Applying resource pack stack");
 				break;
 			case ResourcePackClientResponseStatus::COMPLETED:
@@ -306,12 +313,12 @@ class ResourcePacksPacketHandler extends PacketHandler{
 		$chunkData = $pack->getPackChunk($offset, self::PACK_CHUNK_SIZE);
 		$this->activeRequests++;
 		$this->session
-			->sendDataPacketWithReceipt(Packets::resourcePackChunkData([
-				"resource_name" => $packId,
-				"chunk_id" => $chunkIndex,
-				"byte_offset" => $offset,
-				"chunk_data" => $chunkData,
-			]))
+			->sendDataPacketWithReceipt(new ResourcePackChunkDataPacket(
+				resourceName: $packId,
+				chunkId: $chunkIndex,
+				byteOffset: $offset,
+				chunkData: $chunkData,
+			))
 			->onCompletion(
 				function() : void{
 					$this->activeRequests--;

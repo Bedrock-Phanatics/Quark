@@ -28,12 +28,10 @@ use quark\entity\effect\EffectInstance;
 use quark\entity\Entity;
 use quark\entity\Human;
 use quark\entity\Living;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\types\DataItemEntry;
 
 /**
  * This class allows broadcasting entity events to many viewers on the server network.
- *
- * @phpstan-import-type DataItemEntry from Packets
  */
 interface EntityEventBroadcaster{
 

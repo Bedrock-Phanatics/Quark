@@ -25,17 +25,14 @@ namespace quark\network\mcpe\cache;
 
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeGroup;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
 
-/**
- * @phpstan-import-type CreativeItemEntryPayload from Packets
- */
 final class CreativeInventoryCacheEntry{
 
 	/**
-	 * @param CreativeCategory[]     $categories
-	 * @param CreativeGroup[]|null[] $groups
-	 * @param array[]                $items
+	 * @param CreativeCategory[]         $categories
+	 * @param CreativeGroup[]|null[]     $groups
+	 * @param CreativeItemEntryPayload[] $items
 	 *
 	 * @phpstan-param list<CreativeCategory>          $categories
 	 * @phpstan-param list<CreativeGroup|null>        $groups

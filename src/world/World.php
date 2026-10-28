@@ -31,7 +31,7 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
+use pocketmine\network\mcpe\protocol\UpdateBlockPacket as BedrockUpdateBlockPacket;
 use pocketmine\utils\Limits;
 use pocketmine\world\format\LightArray;
 use quark\block\Air;
@@ -74,9 +74,9 @@ use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\BlockActorDataPacket;
+use quark\network\mcpe\protocol\packet\UpdateBlockPacket;
 use quark\player\Player;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
@@ -1134,7 +1134,7 @@ class World implements ChunkManager{
 			}
 
 			$fullBlock = $this->getBlockAt($b->x, $b->y, $b->z);
-			$blockPosition = Fields::blockPosition($b);
+			$blockPosition = $b->floor();
 
 			$tile = $this->getTileAt($b->x, $b->y, $b->z);
 			if($tile instanceof Spawnable){
@@ -1146,23 +1146,23 @@ class World implements ChunkManager{
 						array_merge($originalStateData->getStates(), $fakeStateProperties),
 						$originalStateData->getVersion()
 					);
-					$packets[] = Packets::updateBlock([
-						"block_position" => $blockPosition,
-						"block_runtime_id" => $blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
-						"flags" => UpdateBlockPacket::FLAG_NETWORK,
-						"layer" => UpdateBlockPacket::DATA_LAYER_NORMAL,
-					]);
+					$packets[] = new UpdateBlockPacket(
+						blockPosition: $blockPosition,
+						blockRuntimeId: $blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
+						flags: BedrockUpdateBlockPacket::FLAG_NETWORK,
+						layer: BedrockUpdateBlockPacket::DATA_LAYER_NORMAL,
+					);
 				}
 			}
-			$packets[] = Packets::updateBlock([
-				"block_position" => $blockPosition,
-				"block_runtime_id" => $blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
-				"flags" => UpdateBlockPacket::FLAG_NETWORK,
-				"layer" => UpdateBlockPacket::DATA_LAYER_NORMAL,
-			]);
+			$packets[] = new UpdateBlockPacket(
+				blockPosition: $blockPosition,
+				blockRuntimeId: $blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
+				flags: BedrockUpdateBlockPacket::FLAG_NETWORK,
+				layer: BedrockUpdateBlockPacket::DATA_LAYER_NORMAL,
+			);
 
 			if($tile instanceof Spawnable){
-				$packets[] = Packets::blockActorData(["block_position" => $blockPosition, "actor_data_tags" => $tile->getSerializedSpawnCompound()]);
+				$packets[] = new BlockActorDataPacket(blockPosition: $blockPosition, actorDataTags: $tile->getSerializedSpawnCompound());
 			}
 		}
 

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use pocketmine\network\mcpe\protocol\CreativeContentPacket;
+use pocketmine\network\mcpe\protocol\CreativeContentPacket as BedrockCreativeContentPacket;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeInventory;
@@ -32,7 +32,9 @@ use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\CreativeContentPacket;
+use quark\network\mcpe\protocol\types\CreativeGroup;
+use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
 use quark\utils\SingletonTrait;
 use function is_string;
 use function spl_object_id;
@@ -96,11 +98,11 @@ final class CreativeInventoryCache{
 		//creative inventory may have holes if items were unregistered - ensure network IDs used are always consistent
 		$items = [];
 		foreach($inventory->getAllEntries() as $k => $entry){
-			$items[] = [
-				"creative_net_id" => $k,
-				"item_instance" => Fields::itemInstance($typeConverter->coreItemStackToNet($entry->getItem())),
-				"group_index" => $itemGroupIndexes[$k],
-			];
+			$items[] = new CreativeItemEntryPayload(
+				creativeNetId: $k,
+				itemInstance: Fields::itemInstance($typeConverter->coreItemStackToNet($entry->getItem())),
+				groupIndex: $itemGroupIndexes[$k],
+			);
 		}
 
 		return new CreativeInventoryCacheEntry($categories, $groups, $items);
@@ -127,13 +129,13 @@ final class CreativeInventoryCache{
 		foreach($cachedEntry->categories as $index => $category){
 			$group = $cachedEntry->groups[$index];
 			$categoryId = match ($category) {
-				CreativeCategory::CONSTRUCTION => CreativeContentPacket::CATEGORY_CONSTRUCTION,
-				CreativeCategory::NATURE => CreativeContentPacket::CATEGORY_NATURE,
-				CreativeCategory::EQUIPMENT => CreativeContentPacket::CATEGORY_EQUIPMENT,
-				CreativeCategory::ITEMS => CreativeContentPacket::CATEGORY_ITEMS
+				CreativeCategory::CONSTRUCTION => BedrockCreativeContentPacket::CATEGORY_CONSTRUCTION,
+				CreativeCategory::NATURE => BedrockCreativeContentPacket::CATEGORY_NATURE,
+				CreativeCategory::EQUIPMENT => BedrockCreativeContentPacket::CATEGORY_EQUIPMENT,
+				CreativeCategory::ITEMS => BedrockCreativeContentPacket::CATEGORY_ITEMS
 			};
 			if($group === null){
-				$groupEntries[] = ["creative_category" => $categoryId, "name" => "", "group_icon_item" => Fields::itemInstance(ItemStack::null())];
+				$groupEntries[] = new CreativeGroup(creativeCategory: $categoryId, name: "", groupIconItem: Fields::itemInstance(ItemStack::null()));
 			}else{
 				$groupIcon = $group->getIcon();
 				//TODO: HACK! In 1.21.60, Workaround glitchy behaviour when an item is used as an icon for a group it
@@ -141,14 +143,14 @@ final class CreativeInventoryCache{
 				//will actually expand the group work correctly.
 				$groupIcon->getNamedTag()->setInt("___GroupBugWorkaround___", $index);
 				$groupName = $group->getName();
-				$groupEntries[] = [
-					"creative_category" => $categoryId,
-					"name" => $translate($groupName),
-					"group_icon_item" => Fields::itemInstance($typeConverter->coreItemStackToNet($groupIcon)),
-				];
+				$groupEntries[] = new CreativeGroup(
+					creativeCategory: $categoryId,
+					name: $translate($groupName),
+					groupIconItem: Fields::itemInstance($typeConverter->coreItemStackToNet($groupIcon)),
+				);
 			}
 		}
 
-		return Packets::creativeContent(["groups" => $groupEntries, "entries" => $cachedEntry->items]);
+		return new CreativeContentPacket(groups: $groupEntries, entries: $cachedEntry->items);
 	}
 }

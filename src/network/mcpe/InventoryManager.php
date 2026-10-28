@@ -24,8 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use Bedwire\PacketId;
-use pocketmine\network\mcpe\protocol\InventoryContentPacket;
-use pocketmine\network\mcpe\protocol\InventorySlotPacket;
+use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
@@ -56,9 +55,18 @@ use quark\network\mcpe\cache\CreativeInventoryCache;
 use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\packet\ContainerClosePacket;
 use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ContainerSetDataPacket;
+use quark\network\mcpe\protocol\packet\InventoryContentPacket;
+use quark\network\mcpe\protocol\packet\InventorySlotPacket;
+use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
+use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
+use quark\network\mcpe\protocol\types\EnchantmentInstance as NetEnchantmentInstance;
+use quark\network\mcpe\protocol\types\FullContainerName;
 use quark\network\mcpe\protocol\types\InventoryAction;
+use quark\network\mcpe\protocol\types\ItemEnchantOption;
+use quark\network\mcpe\protocol\types\ItemEnchants;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;
@@ -370,7 +378,7 @@ class InventoryManager{
 		//TODO: we should be using some kind of tagging system to identify the types. Instanceof is flaky especially
 		//if the class isn't final, not to mention being inflexible.
 		if($inv instanceof BlockInventory){
-			$blockPosition = Fields::blockPosition($inv->getHolder());
+			$blockPosition = $inv->getHolder()->floor();
 			$windowType = match(true){
 				$inv instanceof BlockInventoryWindow => $inv->getNetworkWindowType(),
 				$inv instanceof LoomInventory => WindowTypes::LOOM,
@@ -390,7 +398,7 @@ class InventoryManager{
 				$inv instanceof SmithingTableInventory => WindowTypes::SMITHING_TABLE,
 				default => WindowTypes::CONTAINER
 			};
-			return [Packets::containerOpen(["container_id" => $id, "container_type" => $windowType, "position" => $blockPosition, "target_actor_id" => -1])];
+			return [new ContainerOpenPacket(containerId: $id, containerType: $windowType, position: $blockPosition, targetActorId: -1)];
 		}
 		return null;
 	}
@@ -403,19 +411,19 @@ class InventoryManager{
 			$this->associateIdWithInventory($windowId, $this->player->getInventory());
 			$this->currentWindowType = WindowTypes::INVENTORY;
 
-			$this->session->sendDataPacket(Packets::containerOpen([
-				"container_id" => $windowId,
-				"container_type" => $this->currentWindowType,
-				"position" => ["x" => 0, "y" => 0, "z" => 0],
-				"target_actor_id" => $this->player->getId(),
-			]));
+			$this->session->sendDataPacket(new ContainerOpenPacket(
+				containerId: $windowId,
+				containerType: $this->currentWindowType,
+				position: new Vector3(0, 0, 0),
+				targetActorId: $this->player->getId(),
+			));
 		});
 	}
 
 	public function onCurrentWindowRemove() : void{
 		if(isset($this->networkIdToInventoryMap[$this->lastInventoryNetworkId])){
 			$this->remove($this->lastInventoryNetworkId);
-			$this->session->sendDataPacket(Packets::containerClose(["container_id" => $this->lastInventoryNetworkId, "container_type" => $this->currentWindowType, "server_initiated_close" => true]));
+			$this->session->sendDataPacket(new ContainerClosePacket(containerId: $this->lastInventoryNetworkId, containerType: $this->currentWindowType, serverInitiatedClose: true));
 			if($this->pendingCloseWindowId !== null){
 				throw new AssumptionFailedError("We should not have opened a new window while a window was waiting to be closed");
 			}
@@ -445,7 +453,7 @@ class InventoryManager{
 
 		//Always send this, even if no window matches. If we told the client to close a window, it will behave as if it
 		//initiated the close and expect an ack.
-		$this->session->sendDataPacket(Packets::containerClose(["container_id" => $id, "container_type" => $this->currentWindowType, "server_initiated_close" => false]));
+		$this->session->sendDataPacket(new ContainerClosePacket(containerId: $id, containerType: $this->currentWindowType, serverInitiatedClose: false));
 
 		if($this->pendingCloseWindowId === $id){
 			$this->pendingCloseWindowId = null;
@@ -523,22 +531,22 @@ class InventoryManager{
 		 * The network cost of doing this is fortunately minimal, as an air itemstack is only 1 byte.
 		 */
 		if($itemStackWrapper->getStackId() !== 0){
-			$this->session->sendDataPacket(Packets::inventorySlot([
-				"container_id" => $windowId,
-				"slot" => $netSlot,
-				"full_container_name" => null,
-				"storage_item" => null,
-				"item" => Fields::itemStack(ItemStack::null()),
-			]));
+			$this->session->sendDataPacket(new InventorySlotPacket(
+				containerId: $windowId,
+				slot: $netSlot,
+				fullContainerName: null,
+				storageItem: null,
+				item: Fields::itemStack(ItemStack::null()),
+			));
 		}
 		//now send the real contents
-		$this->session->sendDataPacket(Packets::inventorySlot([
-			"container_id" => $windowId,
-			"slot" => $netSlot,
-			"full_container_name" => null,
-			"storage_item" => null,
-			"item" => Fields::itemStackWrapper($itemStackWrapper),
-		]));
+		$this->session->sendDataPacket(new InventorySlotPacket(
+			containerId: $windowId,
+			slot: $netSlot,
+			fullContainerName: null,
+			storageItem: null,
+			item: Fields::itemStackWrapper($itemStackWrapper),
+		));
 	}
 
 	/**
@@ -554,23 +562,23 @@ class InventoryManager{
 		 * The network cost of doing this is fortunately minimal, as an air itemstack is only 1 byte.
 		 */
 		$empty = Fields::itemStack(ItemStack::null());
-		$this->session->sendDataPacket(Packets::inventoryContent([
-			"container_id" => $windowId,
-			"slots" => array_fill(0, count($itemStackWrappers), $empty),
-			"full_container_name" => ["container_name" => 0, "dynamic_id" => null],
-			"storage_item" => $empty,
-		]));
+		$this->session->sendDataPacket(new InventoryContentPacket(
+			containerId: $windowId,
+			slots: array_fill(0, count($itemStackWrappers), $empty),
+			fullContainerName: new FullContainerName(containerName: 0),
+			storageItem: $empty,
+		));
 		//now send the real contents
 		$slots = [];
 		foreach($itemStackWrappers as $itemStackWrapper){
 			$slots[] = Fields::itemStackWrapper($itemStackWrapper);
 		}
-		$this->session->sendDataPacket(Packets::inventoryContent([
-			"container_id" => $windowId,
-			"slots" => $slots,
-			"full_container_name" => ["container_name" => 0, "dynamic_id" => null],
-			"storage_item" => $empty,
-		]));
+		$this->session->sendDataPacket(new InventoryContentPacket(
+			containerId: $windowId,
+			slots: $slots,
+			fullContainerName: new FullContainerName(containerName: 0),
+			storageItem: $empty,
+		));
 	}
 
 	public function syncSlot(Inventory $inventory, int $slot, ItemStack $itemStack) : void{
@@ -691,7 +699,7 @@ class InventoryManager{
 	public function syncData(Inventory $inventory, int $propertyId, int $value) : void{
 		$windowId = $this->getWindowId($inventory);
 		if($windowId !== null){
-			$this->session->sendDataPacket(Packets::containerSetData(["container_id" => $windowId, "id" => $propertyId, "value" => $value]));
+			$this->session->sendDataPacket(new ContainerSetDataPacket(containerId: $windowId, id: $propertyId, value: $value));
 		}
 	}
 
@@ -712,13 +720,13 @@ class InventoryManager{
 				throw new AssumptionFailedError("Untracked player inventory slot $selected");
 			}
 
-			$this->session->sendDataPacket(Packets::mobEquipment([
-				"target_runtime_id" => $this->player->getId(),
-				"item" => Fields::itemStack($this->session->getTypeConverter()->coreItemStackToNet($playerInventory->getItemInHand()), $itemStackInfo->getStackId()),
-				"slot" => $selected,
-				"selected_slot" => $selected,
-				"container_id" => ContainerIds::INVENTORY,
-			]));
+			$this->session->sendDataPacket(new MobEquipmentPacket(
+				targetRuntimeId: $this->player->getId(),
+				item: Fields::itemStack($this->session->getTypeConverter()->coreItemStackToNet($playerInventory->getItemInHand()), $itemStackInfo->getStackId()),
+				slot: $selected,
+				selectedSlot: $selected,
+				containerId: ContainerIds::INVENTORY,
+			));
 			$this->clientSelectedHotbarSlot = $selected;
 		}
 	}
@@ -740,19 +748,19 @@ class InventoryManager{
 
 			$protocolEnchantments = [];
 			foreach($option->getEnchantments() as $enchantment){
-				$protocolEnchantments[] = ["enchant_type" => EnchantmentIdMap::getInstance()->toId($enchantment->getType()), "enchant_level" => $enchantment->getLevel()];
+				$protocolEnchantments[] = new NetEnchantmentInstance(EnchantmentIdMap::getInstance()->toId($enchantment->getType()), $enchantment->getLevel());
 			}
 			// We don't pay attention to the slot flags, held activated enchantments and self activated enchantments
 			// as everything works fine without them (perhaps these values are used somehow in the BDS).
-			$protocolOptions[] = [
-				"cost" => $option->getRequiredXpLevel(),
-				"enchants" => ["slot" => 0, "item_enchants" => [$protocolEnchantments, [], []]],
-				"enchant_name" => $option->getDisplayName(),
-				"enchant_net_id" => $optionId,
-			];
+			$protocolOptions[] = new ItemEnchantOption(
+				cost: $option->getRequiredXpLevel(),
+				enchants: new ItemEnchants(slot: 0, itemEnchants: [$protocolEnchantments, [], []]),
+				enchantName: $option->getDisplayName(),
+				enchantNetId: $optionId,
+			);
 		}
 
-		$this->session->sendDataPacket(Packets::playerEnchantOptions(["options" => $protocolOptions]));
+		$this->session->sendDataPacket(new PlayerEnchantOptionsPacket(options: $protocolOptions));
 	}
 
 	public function getEnchantingTableOptionIndex(int $recipeId) : ?int{

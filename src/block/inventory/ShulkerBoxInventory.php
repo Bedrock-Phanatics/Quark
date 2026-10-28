@@ -27,8 +27,7 @@ use quark\block\BlockTypeIds;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\BlockEventPacket;
 use quark\world\Position;
 use quark\world\sound\ShulkerBoxCloseSound;
 use quark\world\sound\ShulkerBoxOpenSound;
@@ -62,6 +61,6 @@ class ShulkerBoxInventory extends SimpleInventory implements BlockInventory{
 		$holder = $this->getHolder();
 
 		//event ID is always 1 for a chest
-		$holder->getWorld()->broadcastPacketToViewers($holder, Packets::blockEvent(["block_position" => Fields::blockPosition($holder), "event_type" => 1, "event_value" => $isOpen ? 1 : 0]));
+		$holder->getWorld()->broadcastPacketToViewers($holder, new BlockEventPacket(blockPosition: $holder->floor(), eventType: 1, eventValue: $isOpen ? 1 : 0));
 	}
 }

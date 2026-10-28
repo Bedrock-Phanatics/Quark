@@ -24,20 +24,30 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use Bedwire\PacketId;
+use pocketmine\math\Vector2;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\EditorWorldType;
 use pocketmine\network\mcpe\protocol\types\GeneratorType;
 use pocketmine\network\mcpe\protocol\types\MultiplayerGameVisibility;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
-use pocketmine\network\mcpe\protocol\types\SpawnSettings;
+use pocketmine\network\mcpe\protocol\types\SpawnSettings as BedrockSpawnSettings;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
 use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\StartGamePacket;
+use quark\network\mcpe\protocol\types\EducationSharedResourceURI;
+use quark\network\mcpe\protocol\types\EventsServerTelemetryData;
+use quark\network\mcpe\protocol\types\Experiments;
+use quark\network\mcpe\protocol\types\GameRule;
+use quark\network\mcpe\protocol\types\ItemData;
+use quark\network\mcpe\protocol\types\LevelSettings;
+use quark\network\mcpe\protocol\types\PlayerMovementSettings;
+use quark\network\mcpe\protocol\types\SpawnSettings;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
@@ -76,101 +86,101 @@ class PreSpawnPacketHandler extends PacketHandler{
 			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getVoxelShapes());
 
 			$this->session->getLogger()->debug("Preparing StartGamePacket");
-			$disabledGameRule = fn(string $name) => ["rule_name" => $name, "rule_can_be_modified" => false, "rule_value" => ["bool" => false]];
-			$this->session->sendDataPacket(Packets::startGame([
-				"entity_id" => $this->player->getId(),
-				"runtime_id" => $this->player->getId(),
-				"game_type" => $typeConverter->coreGameModeToProtocol($this->player->getGamemode())->value,
-				"position" => Fields::vec3($this->player->getOffsetPosition($location)),
-				"rotation" => Fields::vec2($location->pitch, $location->yaw),
-				"settings" => [
-					"seed" => -1,
-					"spawn_settings" => ["spawn_biome_type" => SpawnSettings::BIOME_TYPE_DEFAULT, "user_defined_biome_name" => "", "dimension" => DimensionIds::OVERWORLD], //TODO: implement this properly
-					"generator_type" => GeneratorType::OVERWORLD,
-					"game_type" => $typeConverter->coreGameModeToProtocol($this->server->getGamemode())->value,
-					"is_hardcore" => false,
-					"game_difficulty" => $world->getDifficulty(),
-					"default_spawn_block_position" => Fields::blockPosition($world->getSpawnLocation()),
-					"achievements_disabled" => true,
-					"editor_world_type" => EditorWorldType::NON_EDITOR,
-					"is_created_in_editor" => false,
-					"is_exported_from_editor" => false,
-					"day_cycle_stop_time" => $world->getTime(),
-					"education_edition_offer" => 0,
-					"education_features_enabled" => false,
-					"education_product_id" => "",
-					"rain_level" => 0.0, //TODO: implement these properly
-					"lightning_level" => 0.0,
-					"has_confirmed_platform_locked_content" => false,
-					"multiplayer_game_intent" => true,
-					"lan_broadcast_intent" => true,
-					"xbox_live_broadcast_setting" => MultiplayerGameVisibility::PUBLIC,
-					"platform_broadcast_setting" => MultiplayerGameVisibility::PUBLIC,
-					"commands_enabled" => true,
-					"texture_packs_required" => true,
-					"rule_data" => [
+			$disabledGameRule = fn(string $name) => new GameRule($name, false, ["bool" => false]);
+			$this->session->sendDataPacket(new StartGamePacket(
+				entityId: $this->player->getId(),
+				runtimeId: $this->player->getId(),
+				gameType: $typeConverter->coreGameModeToProtocol($this->player->getGamemode())->value,
+				position: $this->player->getOffsetPosition($location),
+				rotation: new Vector2($location->pitch, $location->yaw),
+				settings: new LevelSettings(
+					seed: -1,
+					spawnSettings: new SpawnSettings(spawnBiomeType: BedrockSpawnSettings::BIOME_TYPE_DEFAULT, userDefinedBiomeName: "", dimension: DimensionIds::OVERWORLD), //TODO: implement this properly
+					generatorType: GeneratorType::OVERWORLD,
+					gameType: $typeConverter->coreGameModeToProtocol($this->server->getGamemode())->value,
+					isHardcore: false,
+					gameDifficulty: $world->getDifficulty(),
+					defaultSpawnBlockPosition: $world->getSpawnLocation()->floor(),
+					achievementsDisabled: true,
+					editorWorldType: EditorWorldType::NON_EDITOR,
+					isCreatedInEditor: false,
+					isExportedFromEditor: false,
+					dayCycleStopTime: $world->getTime(),
+					educationEditionOffer: 0,
+					educationFeaturesEnabled: false,
+					educationProductId: "",
+					rainLevel: 0.0, //TODO: implement these properly
+					lightningLevel: 0.0,
+					hasConfirmedPlatformLockedContent: false,
+					multiplayerGameIntent: true,
+					lanBroadcastIntent: true,
+					xboxLiveBroadcastSetting: MultiplayerGameVisibility::PUBLIC,
+					platformBroadcastSetting: MultiplayerGameVisibility::PUBLIC,
+					commandsEnabled: true,
+					texturePacksRequired: true,
+					ruleData: [
 						$disabledGameRule("naturalregeneration"), //Hack for client side regeneration
 						$disabledGameRule("locatorbar"), //Disable client-side tracking of nearby players
 					],
-					"experiments" => ["toggles" => [], "experiments_ever_toggled" => false],
-					"has_bonus_chest_enabled" => false,
-					"start_with_map_enabled" => false,
-					"player_permissions" => PlayerPermissions::MEMBER->value,
-					"server_chunk_tick_range" => 4,
-					"has_locked_behavior_pack" => false,
-					"has_locked_resource_pack" => false,
-					"is_from_locked_template" => false,
-					"use_msa_gamertags_only" => false,
-					"is_from_world_template" => false,
-					"is_world_template_option_locked" => false,
-					"only_spawn_v1_villagers" => false,
-					"persona_disabled" => false,
-					"custom_skins_disabled" => false,
-					"emote_chat_muted" => false,
-					"base_game_version" => ProtocolInfo::MINECRAFT_VERSION_NETWORK,
-					"limited_world_width" => 0,
-					"limited_world_depth" => 0,
-					"nether_type" => true,
-					"edu_shared_uri_resource" => ["button_name" => "", "link_uri" => ""],
-					"override_force_experimental_gameplay" => null,
-					"chat_restriction_level" => 0,
-					"disable_player_interactions" => false,
-					"server_editor_connection_policy" => 0,
-					"allow_anonymous_block_drops_in_editor_worlds" => false,
-				],
-				"level_id" => "",
-				"level_name" => $this->server->getMotd(),
-				"template_content_identity" => "",
-				"is_trial" => false,
-				"movement_settings" => ["rewind_history_size" => 0, "server_authoritative_block_breaking" => true],
-				"level_current_time" => 0,
-				"enchantment_seed" => 0,
-				"block_properties" => StaticPacketCache::getInstance()->getBlockPaletteEntries(),
-				"multiplayer_correlation_id" => "",
-				"enable_item_stack_net_manager" => true,
-				"server_version" => sprintf("%s %s", VersionInfo::NAME, VersionInfo::VERSION()->getFullVersion(true)),
-				"player_property_data" => self::EMPTY_COMPOUND, //TODO: we don't care about this right now
-				"server_block_type_registry_checksum" => 0,
-				"world_template_id" => Fields::uuid(Uuid::fromString(Uuid::NIL)),
-				"server_enabled_client_side_generation" => false,
-				"block_network_ids_are_hashes" => false,
-				"network_permissions" => true, //disables client sounds
-				"server_configuration_join_info" => null,
-				"server_telemetry_data" => ["server_id" => "", "scenario_id" => "", "world_id" => "", "owner_id" => ""],
-			]));
+					experiments: new Experiments(toggles: [], experimentsEverToggled: false),
+					hasBonusChestEnabled: false,
+					startWithMapEnabled: false,
+					playerPermissions: PlayerPermissions::MEMBER->value,
+					serverChunkTickRange: 4,
+					hasLockedBehaviorPack: false,
+					hasLockedResourcePack: false,
+					isFromLockedTemplate: false,
+					useMsaGamertagsOnly: false,
+					isFromWorldTemplate: false,
+					isWorldTemplateOptionLocked: false,
+					onlySpawnV1Villagers: false,
+					personaDisabled: false,
+					customSkinsDisabled: false,
+					emoteChatMuted: false,
+					baseGameVersion: ProtocolInfo::MINECRAFT_VERSION_NETWORK,
+					limitedWorldWidth: 0,
+					limitedWorldDepth: 0,
+					netherType: true,
+					eduSharedUriResource: new EducationSharedResourceURI(buttonName: "", linkUri: ""),
+					overrideForceExperimentalGameplay: null,
+					chatRestrictionLevel: 0,
+					disablePlayerInteractions: false,
+					serverEditorConnectionPolicy: 0,
+					allowAnonymousBlockDropsInEditorWorlds: false,
+				),
+				levelId: "",
+				levelName: $this->server->getMotd(),
+				templateContentIdentity: "",
+				isTrial: false,
+				movementSettings: new PlayerMovementSettings(rewindHistorySize: 0, serverAuthoritativeBlockBreaking: true),
+				levelCurrentTime: 0,
+				enchantmentSeed: 0,
+				blockProperties: StaticPacketCache::getInstance()->getBlockPaletteEntries(),
+				multiplayerCorrelationId: "",
+				enableItemStackNetManager: true,
+				serverVersion: sprintf("%s %s", VersionInfo::NAME, VersionInfo::VERSION()->getFullVersion(true)),
+				playerPropertyData: self::EMPTY_COMPOUND, //TODO: we don't care about this right now
+				serverBlockTypeRegistryChecksum: 0,
+				worldTemplateId: Fields::uuid(Uuid::fromString(Uuid::NIL)),
+				serverEnabledClientSideGeneration: false,
+				blockNetworkIdsAreHashes: false,
+				networkPermissions: true, //disables client sounds
+				serverConfigurationJoinInfo: null,
+				serverTelemetryData: new EventsServerTelemetryData(serverId: "", scenarioId: "", worldId: "", ownerId: ""),
+			));
 
 			$this->session->getLogger()->debug("Sending items");
 			$items = [];
 			foreach($typeConverter->getItemTypeDictionary()->getEntries() as $entry){
-				$items[] = [
-					"item_name" => $entry->getStringId(),
-					"item_id" => $entry->getNumericId(),
-					"is_component_based" => $entry->isComponentBased(),
-					"item_version" => $entry->getVersion(),
-					"item_component_data" => $entry->getComponentNbt()->getEncodedNbt(),
-				];
+				$items[] = new ItemData(
+					itemName: $entry->getStringId(),
+					itemId: $entry->getNumericId(),
+					isComponentBased: $entry->isComponentBased(),
+					itemVersion: $entry->getVersion(),
+					itemComponentData: $entry->getComponentNbt()->getEncodedNbt(),
+				);
 			}
-			$this->session->sendDataPacket(Packets::itemRegistry(["item_data" => $items]));
+			$this->session->sendDataPacket(new ItemRegistryPacket(itemData: $items));
 
 			$this->session->getLogger()->debug("Sending actor identifiers");
 			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getAvailableActorIdentifiers());

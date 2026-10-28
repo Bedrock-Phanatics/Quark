@@ -26,7 +26,7 @@ namespace quark\player;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\network\mcpe\protocol\AnimatePacket;
+use pocketmine\network\mcpe\protocol\AnimatePacket as BedrockAnimatePacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
@@ -118,8 +118,8 @@ use quark\lang\Language;
 use quark\lang\Translatable;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\AnimatePacket;
+use quark\network\mcpe\protocol\packet\SetActorMotionPacket;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
@@ -1200,7 +1200,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 			$this->getWorld()->setSleepTicks(0);
 
-			$this->getNetworkSession()->sendDataPacket(Packets::animate(["action" => AnimatePacket::ACTION_STOP_SLEEP, "target_actor_runtime_id" => $this->getId(), "data" => 0.0, "swing_source" => null]));
+			$this->getNetworkSession()->sendDataPacket(new AnimatePacket(action: BedrockAnimatePacket::ACTION_STOP_SLEEP, targetActorRuntimeId: $this->getId(), data: 0.0));
 		}
 	}
 
@@ -1499,7 +1499,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	public function setMotion(Vector3 $motion) : bool{
 		if(parent::setMotion($motion)){
 			$this->broadcastMotion();
-			$this->getNetworkSession()->sendDataPacket(Packets::setActorMotion(["target_runtime_id" => $this->id, "motion" => Fields::vec3($motion), "tick" => 0]));
+			$this->getNetworkSession()->sendDataPacket(new SetActorMotionPacket(targetRuntimeId: $this->id, motion: $motion, tick: 0));
 
 			return true;
 		}
