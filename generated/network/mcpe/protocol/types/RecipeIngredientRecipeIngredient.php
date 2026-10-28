@@ -27,11 +27,8 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class RecipeIngredientRecipeIngredient{
-	/**
-	 * @param array{empty: DescriptorEmpty}|array{item: DescriptorItem}|array{molang: DescriptorMolang}|array{item_tag: DescriptorItemTag} $descriptor
-	 */
 	public function __construct(
-		public array $descriptor,
+		public Descriptor $descriptor,
 		public int $count,
 	){}
 }

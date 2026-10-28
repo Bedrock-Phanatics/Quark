@@ -26,7 +26,7 @@ namespace quark\network\mcpe\protocol\types;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class EASFloatAttributeData{
+final class EASFloatAttributeData implements EnvironmentAttributeValue{
 	public function __construct(
 		public float $value,
 		public string $operation,

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
+use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferWriter;
 use pocketmine\color\Color;
@@ -31,6 +32,7 @@ use pocketmine\network\mcpe\protocol\MobEquipmentPacket as BedrockMobEquipmentPa
 use pocketmine\network\mcpe\protocol\PlayerEnchantOptionsPacket as BedrockPlayerEnchantOptionsPacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket as BedrockPlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket as BedrockPlayerSkinPacket;
+use pocketmine\network\mcpe\protocol\TextPacket as BedrockTextPacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
@@ -48,18 +50,25 @@ use pocketmine\network\mcpe\protocol\types\skin\SkinArmSizeType;
 use pocketmine\network\mcpe\protocol\types\skin\SkinData;
 use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket as BedrockUpdateAbilitiesPacket;
+use quark\crafting\CraftingManagerFromDataHelper;
+use quark\data\bedrock\BedrockDataFiles;
 use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\VanillaItems;
+use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
 use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
 use quark\network\mcpe\protocol\packet\PlayerListPacket;
 use quark\network\mcpe\protocol\packet\PlayerSkinPacket;
 use quark\network\mcpe\protocol\packet\UpdateAbilitiesPacket;
+use quark\network\mcpe\protocol\types\DescriptorEmpty;
+use quark\network\mcpe\protocol\types\DescriptorItem;
 use quark\network\mcpe\protocol\types\EnchantmentInstance as NetEnchantmentInstance;
 use quark\network\mcpe\protocol\types\ItemEnchantOption;
 use quark\network\mcpe\protocol\types\ItemEnchants;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use Ramsey\Uuid\Uuid;
 use function bin2hex;
 use function str_repeat;
@@ -84,6 +93,31 @@ final class FieldsTest extends TestCase{
 		$uuid = Uuid::fromString("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0");
 		self::assertSame(16, strlen(Fields::uuid($uuid)));
 		self::assertTrue(Fields::toUuid(Fields::uuid($uuid))->equals($uuid));
+	}
+
+	public function testTextMatchesBedrockProtocol() : void{
+		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::raw("hello"))), bin2hex(self::bytes(TextPackets::raw("hello"))));
+		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::tip(" "))), bin2hex(self::bytes(TextPackets::tip(""))));
+		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::translation("key", ["a", "b"]))), bin2hex(self::bytes(TextPackets::translation("key", ["a", "b"]))));
+		self::assertSame(bin2hex(self::legacy(BedrockTextPacket::jukeboxPopup("disc", ["c"]))), bin2hex(self::bytes(TextPackets::jukeboxPopup("disc", ["c"]))));
+	}
+
+	public function testVanillaCraftingDataRoundTrips() : void{
+		Pulse::reset();
+		PulseZones::init();
+		$bytes = CraftingDataCache::getInstance()->getCache(CraftingManagerFromDataHelper::make(BedrockDataFiles::RECIPES))->getBytes();
+		ProtocolClasses::bind();
+		$packet = Protocol::decode($bytes);
+		self::assertInstanceOf(packet\CraftingDataPacket::class, $packet);
+		$descriptors = [];
+		foreach($packet->shapedRecipes as $recipe){
+			foreach($recipe->ingredients as $ingredient){
+				$descriptors[$ingredient->descriptor::class] = true;
+			}
+		}
+		self::assertArrayHasKey(DescriptorEmpty::class, $descriptors);
+		self::assertArrayHasKey(DescriptorItem::class, $descriptors);
+		self::assertSame(bin2hex($bytes), bin2hex(Protocol::encode($packet->getId(), $packet)));
 	}
 
 	/**

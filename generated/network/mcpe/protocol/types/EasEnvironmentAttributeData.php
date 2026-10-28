@@ -27,16 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class EasEnvironmentAttributeData{
-	/**
-	 * @param array{bool: EASBoolAttributeData}|array{float: EASFloatAttributeData}|array{color: EASColorAttributeData}|null $fromAttribute
-	 * @param array{bool: EASBoolAttributeData}|array{float: EASFloatAttributeData}|array{color: EASColorAttributeData} $attribute
-	 * @param array{bool: EASBoolAttributeData}|array{float: EASFloatAttributeData}|array{color: EASColorAttributeData}|null $toAttribute
-	 */
 	public function __construct(
 		public string $attributeName,
-		public ?array $fromAttribute,
-		public array $attribute,
-		public ?array $toAttribute,
+		public ?EnvironmentAttributeValue $fromAttribute,
+		public EnvironmentAttributeValue $attribute,
+		public ?EnvironmentAttributeValue $toAttribute,
 		public int $currentTransitionTicks,
 		public int $totalTransitionTicks,
 		public string $easing,

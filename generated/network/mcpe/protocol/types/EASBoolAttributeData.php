@@ -26,7 +26,7 @@ namespace quark\network\mcpe\protocol\types;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class EASBoolAttributeData{
+final class EASBoolAttributeData implements EnvironmentAttributeValue{
 	public function __construct(
 		public bool $value,
 		public string $operation,

@@ -26,7 +26,7 @@ namespace quark\network\mcpe\protocol\types;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class EASColorAttributeData{
+final class EASColorAttributeData implements EnvironmentAttributeValue{
 	/**
 	 * @param list<int> $value
 	 */

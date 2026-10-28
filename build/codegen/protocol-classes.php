@@ -117,7 +117,8 @@ final class PropertyType{
 
 /**
  * Generates a class for every packet and struct of Bedwire\Protocol::schema(), which Bedwire\Protocol::bind() then
- * decodes into and encodes from by property slot. Unions and recursive structs stay arrays.
+ * decodes into and encodes from by property slot. Recursive structs, and unions Bedwire cannot tell apart by class, stay
+ * arrays.
  */
 final class Generator{
 	/** @phpstan-var array<string, array<mixed>> */
@@ -126,6 +127,10 @@ final class Generator{
 	private array $recursive = [];
 	/** @phpstan-var array<string, string> struct names mapped to the packet a packet with only that struct is flattened into */
 	private array $flattened = [];
+	/** @phpstan-var array<string, list<string>> struct names mapped to the object unions they are a variant of */
+	private array $variantOf = [];
+	/** @phpstan-var array<string, true> unions decoded to their variant's object, each with an interface its variants implement */
+	private array $objectUnions = [];
 	/** @phpstan-var array<string, string> imports of the file being generated, by short name */
 	private array $imports = [];
 
@@ -189,6 +194,29 @@ final class Generator{
 			if($this->kind($inner) === "struct" && ($uses[$inner] ?? 0) === 1 && !isset($this->recursive[$inner]) && !isset(MATH_CLASSES[$inner])){
 				$this->flattened[$inner] = $name;
 			}
+		}
+
+		//mirrors Bedwire: a union of distinct structs is its variant's object once all of them have classes
+		foreach(Utils::stringifyKeys($this->types) as $name => $type){
+			if(($type["kind"] ?? null) !== "union"){
+				continue;
+			}
+			$variants = [];
+			foreach(table($type["variants"] ?? null, "variants of $name") as $variant){
+				if(!is_array($variant) || ($variant[0] ?? null) !== "type" || $this->kind($inner = str($variant[1] ?? null, "type name")) !== "struct" || isset($variants[$inner])){
+					continue 2;
+				}
+				$variants[$inner] = true;
+			}
+			foreach(Utils::stringifyKeys($variants) as $inner => $_){
+				if(isset($this->recursive[$inner]) || isset($this->flattened[$inner]) || isset(MATH_CLASSES[$inner])){
+					throw new \RuntimeException("$name has a variant $inner without a class of its own, so Bedwire cannot tell it apart");
+				}
+			}
+			foreach(Utils::stringifyKeys($variants) as $inner => $_){
+				$this->variantOf[$inner][] = $name;
+			}
+			$this->objectUnions[$name] = true;
 		}
 	}
 
@@ -273,7 +301,7 @@ final class Generator{
 				}
 				return match($this->kind($name)){
 					"struct" => new PropertyType($this->import($this->structClass($name))),
-					"union" => new PropertyType("array", $this->union($name)),
+					"union" => isset($this->objectUnions[$name]) ? new PropertyType($this->import(TYPE_NAMESPACE . "\\" . $name)) : new PropertyType("array", $this->union($name)),
 					"enum" => new PropertyType("int"),
 					default => throw new \RuntimeException("Unknown kind of $name")
 				};
@@ -292,8 +320,9 @@ final class Generator{
 
 	/**
 	 * @param array<mixed> $fields
+	 * @param list<string> $unions the object unions the class is a variant of
 	 */
-	private function classFile(string $class, array $fields, ?string $packetConstant) : string{
+	private function classFile(string $class, array $fields, ?string $packetConstant, array $unions = []) : string{
 		$this->imports = [];
 		$namespace = namespaceOf($class);
 		$short = shortName($class);
@@ -339,6 +368,12 @@ final class Generator{
 			$body .= "\n\tpublic function getId() : int{\n\t\treturn self::ID;\n\t}\n";
 		}
 
+		$interfaces = [];
+		foreach($unions as $union){
+			$interfaces[] = $this->import(TYPE_NAMESPACE . "\\" . $union);
+		}
+		$implements = count($interfaces) > 0 ? " implements " . implode(", ", $interfaces) : "";
+
 		$uses = $this->uses($namespace);
 
 		return Filesystem::fileGetContents(__DIR__ . "/templates/header.php") . <<<CLASS
@@ -348,7 +383,7 @@ namespace $namespace;
 /**
  * This class is generated from Bedwire\\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class $short$extends{
+final class $short$extends$implements{
 $body}
 
 CLASS;
@@ -381,8 +416,23 @@ CLASS;
 				continue;
 			}
 			$class = $this->structClass($name);
-			$files["types/$name.php"] = $this->classFile($class, table($type["fields"] ?? null, "fields of $name"), null);
+			$files["types/$name.php"] = $this->classFile($class, table($type["fields"] ?? null, "fields of $name"), null, $this->variantOf[$name] ?? []);
 			$bindings[$name] = $class;
+		}
+		$namespace = TYPE_NAMESPACE;
+		foreach(Utils::stringifyKeys($this->objectUnions) as $name => $_){
+			$files["types/$name.php"] = Filesystem::fileGetContents(__DIR__ . "/templates/header.php") . <<<INTERFACE
+
+namespace $namespace;
+
+/**
+ * The variants of the $name union, which Bedwire\\Protocol tells apart by class.
+ * This interface is generated from Bedwire\\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
+ */
+interface $name{
+}
+
+INTERFACE;
 		}
 
 		$entries = "";

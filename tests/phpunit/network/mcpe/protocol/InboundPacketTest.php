@@ -317,7 +317,7 @@ final class InboundPacketTest extends TestCase{
 		$text->sourceName = "Steve";
 		$text->message = "hello";
 		$chat = self::decode($text, NetText::class);
-		self::assertEquals(new TextAuthorAndMessage(TextPacket::TYPE_CHAT, "Steve", "hello"), $chat->body["author_and_message"] ?? null);
+		self::assertEquals(new TextAuthorAndMessage(TextPacket::TYPE_CHAT, "Steve", "hello"), $chat->body);
 
 		$form = self::decode(ModalFormResponsePacket::response(5, "[1,2]"), NetModalFormResponse::class);
 		self::assertSame([5, "[1,2]", null], [$form->formId, $form->jsonResponse, $form->formCancelReason]);

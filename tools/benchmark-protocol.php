@@ -226,7 +226,7 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 		foreach($positions as $i => $position){
 			$packets[] = MoveActorAbsolutePacket::create($i + 10, $position, 12.0, 90.0 + $i, 90.0 + $i, MoveActorAbsolutePacket::FLAG_GROUND);
 			if($spawn){
-				$packets[] = SetActorDataPacket::create($i + 10, mobMetadata(new EntityMetadataCollection(), $i)->getAll(), new PropertySyncData([], []), 0);
+				$packets[] = SetActorDataPacket::create($i + 10, $legacyMetadata[$i]->getAll(), new PropertySyncData([], []), 0);
 			}elseif($i < 3){
 				$legacyMetadata[$i]->setShort(EntityMetadataProperties::AIR, $legacyTick % 300);
 				$packets[] = SetActorDataPacket::create($i + 10, $legacyMetadata[$i]->getDirty(), new PropertySyncData([], []), 0);
@@ -258,7 +258,7 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 				rotationYHead: Fields::rotationByte(90.0 + $i),
 			);
 			if($spawn){
-				$data = mobMetadata(new EntityMetadata(), $i)->getAll();
+				$data = $nativeMetadata[$i]->getAll();
 			}elseif($i < 3){
 				$nativeMetadata[$i]->setShort(EntityMetadataProperties::AIR, $nativeTick % 300);
 				$data = $nativeMetadata[$i]->getDirty();

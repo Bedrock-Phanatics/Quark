@@ -183,7 +183,7 @@ class InGamePacketHandler extends PacketHandler{
 	){}
 
 	public function handleText(TextPacket $packet) : bool{
-		$body = $packet->body["author_and_message"] ?? null;
+		$body = $packet->body;
 		if($body instanceof TextAuthorAndMessage && $body->messageType === BedrockTextPacket::TYPE_CHAT){
 			return $this->player->chat($body->message);
 		}

@@ -25,8 +25,7 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\types\PlayerListAddEntry;
-use quark\network\mcpe\protocol\types\PlayerListRemoveEntry;
+use quark\network\mcpe\protocol\types\PlayerListEntriesItem;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
@@ -35,7 +34,7 @@ final class PlayerListPacket extends Packet{
 	public const int ID = PacketId::PLAYER_LIST;
 
 	/**
-	 * @param list<array{remove: PlayerListRemoveEntry}|array{add: PlayerListAddEntry}> $entries
+	 * @param list<PlayerListEntriesItem> $entries
 	 */
 	public function __construct(
 		public array $entries,

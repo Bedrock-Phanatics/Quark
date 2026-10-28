@@ -59,7 +59,6 @@ use quark\item\Totem;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\packet\AddPlayerPacket;
 use quark\network\mcpe\protocol\packet\PlayerListPacket;
@@ -531,9 +530,10 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		));
 
 		//TODO: Hack for MCPE 1.2.13: DATA_NAMETAG is useless in add_player, so it has to be sent separately
-		$nameTag = new EntityMetadata();
-		$nameTag->setString(EntityMetadataProperties::NAMETAG, $this->getNameTag());
-		$this->sendData([$player], $nameTag->getAll());
+		$nameTag = $this->getNetworkProperties()->get(EntityMetadataProperties::NAMETAG);
+		if($nameTag !== null){
+			$this->sendData([$player], [$nameTag]);
+		}
 
 		$entityEventBroadcaster = $networkSession->getEntityEventBroadcaster();
 		$entityEventBroadcaster->onMobArmorChange([$networkSession], $this);

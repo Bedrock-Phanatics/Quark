@@ -25,10 +25,7 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\types\ChangeEntityScore;
-use quark\network\mcpe\protocol\types\ChangeFakePlayerScore;
-use quark\network\mcpe\protocol\types\ChangePlayerScore;
-use quark\network\mcpe\protocol\types\RemoveScore;
+use quark\network\mcpe\protocol\types\SetScoreScoreInfoItem;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
@@ -37,7 +34,7 @@ final class SetScorePacket extends Packet{
 	public const int ID = PacketId::SET_SCORE;
 
 	/**
-	 * @param list<array{remove: RemoveScore}|array{change_player: ChangePlayerScore}|array{change_entity: ChangeEntityScore}|array{change_fake_player: ChangeFakePlayerScore}> $scoreInfo
+	 * @param list<SetScoreScoreInfoItem> $scoreInfo
 	 */
 	public function __construct(
 		public array $scoreInfo,

@@ -27,11 +27,8 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class DataItemEntry{
-	/**
-	 * @param array{byte: DataItemBytePayload}|array{short: DataItemShortPayload}|array{int: DataItemIntPayload}|array{float: DataItemFloatPayload}|array{string: DataItemStringPayload}|array{compound_tag: DataItemCompoundTagPayload}|array{pos: DataItemPosPayload}|array{int64: DataItemInt64Payload}|array{vec3: DataItemVec3Payload} $payload
-	 */
 	public function __construct(
 		public int $id,
-		public array $payload,
+		public DataItemEntryPayload $payload,
 	){}
 }

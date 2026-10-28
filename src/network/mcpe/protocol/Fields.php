@@ -126,10 +126,10 @@ final class Fields{
 	public static function recipeIngredient(RecipeIngredient $ingredient) : NetRecipeIngredient{
 		$descriptor = $ingredient->getDescriptor();
 		return new NetRecipeIngredient(match(true){
-			$descriptor === null => ["empty" => new DescriptorEmpty(0x7fff)],
-			$descriptor instanceof StringIdMetaItemDescriptor => ["item" => new DescriptorItem($descriptor->getId(), $descriptor->getMeta())],
-			$descriptor instanceof TagItemDescriptor => ["item_tag" => new DescriptorItemTag($descriptor->getTag(), $descriptor->getMeta())],
-			$descriptor instanceof MolangItemDescriptor => ["molang" => new DescriptorMolang($descriptor->getMolangExpression(), $descriptor->getMolangVersion())],
+			$descriptor === null => new DescriptorEmpty(0x7fff),
+			$descriptor instanceof StringIdMetaItemDescriptor => new DescriptorItem($descriptor->getId(), $descriptor->getMeta()),
+			$descriptor instanceof TagItemDescriptor => new DescriptorItemTag($descriptor->getTag(), $descriptor->getMeta()),
+			$descriptor instanceof MolangItemDescriptor => new DescriptorMolang($descriptor->getMolangExpression(), $descriptor->getMolangVersion()),
 		}, $ingredient->getCount());
 	}
 
@@ -232,11 +232,8 @@ final class Fields{
 		);
 	}
 
-	/**
-	 * @phpstan-return array{add: PlayerListAddEntry}
-	 */
-	public static function playerListAddition(UuidInterface $uuid, int $actorUniqueId, string $username, SkinData $skin, string $xboxUserId = "") : array{
-		return ["add" => new PlayerListAddEntry(
+	public static function playerListAddition(UuidInterface $uuid, int $actorUniqueId, string $username, SkinData $skin, string $xboxUserId = "") : PlayerListAddEntry{
+		return new PlayerListAddEntry(
 			action: 0,
 			uuid: self::uuid($uuid),
 			actorUniqueId: $actorUniqueId,
@@ -249,14 +246,11 @@ final class Fields{
 			isHost: false,
 			isSubClient: false,
 			playerColor: -1, //white
-		)];
+		);
 	}
 
-	/**
-	 * @phpstan-return array{remove: PlayerListRemoveEntry}
-	 */
-	public static function playerListRemoval(UuidInterface $uuid) : array{
-		return ["remove" => new PlayerListRemoveEntry(1, self::uuid($uuid))];
+	public static function playerListRemoval(UuidInterface $uuid) : PlayerListRemoveEntry{
+		return new PlayerListRemoveEntry(1, self::uuid($uuid));
 	}
 
 	public static function abilities(AbilitiesData $data) : AbilityData{

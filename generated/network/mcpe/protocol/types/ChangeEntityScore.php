@@ -26,7 +26,7 @@ namespace quark\network\mcpe\protocol\types;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ChangeEntityScore{
+final class ChangeEntityScore implements SetScoreScoreInfoItem{
 	public function __construct(
 		public string $action,
 		public int $scoreboardId,

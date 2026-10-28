@@ -29,6 +29,7 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataTypes;
 use quark\network\mcpe\protocol\types\DataItemBytePayload;
 use quark\network\mcpe\protocol\types\DataItemCompoundTagPayload;
 use quark\network\mcpe\protocol\types\DataItemEntry;
+use quark\network\mcpe\protocol\types\DataItemEntryPayload;
 use quark\network\mcpe\protocol\types\DataItemFloatPayload;
 use quark\network\mcpe\protocol\types\DataItemInt64Payload;
 use quark\network\mcpe\protocol\types\DataItemIntPayload;
@@ -36,19 +37,19 @@ use quark\network\mcpe\protocol\types\DataItemPosPayload;
 use quark\network\mcpe\protocol\types\DataItemShortPayload;
 use quark\network\mcpe\protocol\types\DataItemStringPayload;
 use quark\network\mcpe\protocol\types\DataItemVec3Payload;
-use quark\utils\AssumptionFailedError;
 use function array_fill_keys;
 use function array_keys;
-use function is_float;
+use function array_values;
 use function is_int;
-use function is_string;
 
 /**
- * An entity's network properties and the ones that changed since they were last sent. Properties are kept as flat
- * type and value maps, since every entity holds one of these, and only become actor_data entries when sent.
+ * An entity's network properties, kept as the actor_data entries they are sent as, and the ones that changed since
+ * they were last sent. Entries are replaced rather than changed, so the lists handed out stay valid.
+ *
+ * @phpstan-type Payload DataItemBytePayload|DataItemShortPayload|DataItemIntPayload|DataItemFloatPayload|DataItemStringPayload|DataItemCompoundTagPayload|DataItemPosPayload|DataItemInt64Payload|DataItemVec3Payload
  */
 final class EntityMetadata{
-	private const VARIANTS = [
+	private const NAMES = [
 		EntityMetadataTypes::BYTE => "byte",
 		EntityMetadataTypes::SHORT => "short",
 		EntityMetadataTypes::INT => "int",
@@ -60,10 +61,10 @@ final class EntityMetadata{
 		EntityMetadataTypes::VECTOR3F => "vec3",
 	];
 
-	/** @phpstan-var array<int, int> property ID => EntityMetadataTypes constant */
-	private array $types = [];
-	/** @phpstan-var array<int, int|float|string|Vector3> */
-	private array $values = [];
+	/** @phpstan-var array<int, DataItemEntry> by property ID, in the order they were first set */
+	private array $entries = [];
+	/** @phpstan-var list<DataItemEntry>|null */
+	private ?array $all = null;
 	/** @phpstan-var array<int, true> */
 	private array $dirty = [];
 
@@ -75,72 +76,105 @@ final class EntityMetadata{
 
 	public function setByte(int $key, int $value, bool $force = false) : void{
 		self::checkRange($value, -0x80, 0x7f);
-		$this->set($key, EntityMetadataTypes::BYTE, $value, $force);
+		if($this->changes($key, EntityMetadataTypes::BYTE, $value, $force)){
+			$this->put($key, new DataItemBytePayload(EntityMetadataTypes::BYTE, $value));
+		}
 	}
 
 	public function setShort(int $key, int $value, bool $force = false) : void{
 		self::checkRange($value, -0x8000, 0x7fff);
-		$this->set($key, EntityMetadataTypes::SHORT, $value, $force);
+		if($this->changes($key, EntityMetadataTypes::SHORT, $value, $force)){
+			$this->put($key, new DataItemShortPayload(EntityMetadataTypes::SHORT, $value));
+		}
 	}
 
 	public function setInt(int $key, int $value, bool $force = false) : void{
 		self::checkRange($value, -0x80000000, 0x7fffffff);
-		$this->set($key, EntityMetadataTypes::INT, $value, $force);
+		if($this->changes($key, EntityMetadataTypes::INT, $value, $force)){
+			$this->put($key, new DataItemIntPayload(EntityMetadataTypes::INT, $value));
+		}
 	}
 
 	public function setFloat(int $key, float $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::FLOAT, $value, $force);
+		if($this->changes($key, EntityMetadataTypes::FLOAT, $value, $force)){
+			$this->put($key, new DataItemFloatPayload(EntityMetadataTypes::FLOAT, $value));
+		}
 	}
 
 	public function setString(int $key, string $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::STRING, $value, $force);
+		if($this->changes($key, EntityMetadataTypes::STRING, $value, $force)){
+			$this->put($key, new DataItemStringPayload(EntityMetadataTypes::STRING, $value));
+		}
 	}
 
 	/**
 	 * @param string $nbt a compound tag in the network NBT encoding
 	 */
 	public function setCompoundTag(int $key, string $nbt, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::COMPOUND_TAG, $nbt, $force);
+		if($this->changes($key, EntityMetadataTypes::COMPOUND_TAG, $nbt, $force)){
+			$this->put($key, new DataItemCompoundTagPayload(EntityMetadataTypes::COMPOUND_TAG, $nbt));
+		}
 	}
 
 	public function setBlockPos(int $key, ?Vector3 $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::POS, $value?->floor() ?? new Vector3(0, 0, 0), $force);
+		$value = $value?->floor() ?? new Vector3(0, 0, 0);
+		if($this->changes($key, EntityMetadataTypes::POS, $value, $force)){
+			$this->put($key, new DataItemPosPayload(EntityMetadataTypes::POS, $value));
+		}
 	}
 
 	public function setLong(int $key, int $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::LONG, $value, $force);
+		if($this->changes($key, EntityMetadataTypes::LONG, $value, $force)){
+			$this->put($key, new DataItemInt64Payload(EntityMetadataTypes::LONG, $value));
+		}
 	}
 
 	public function setVector3(int $key, ?Vector3 $value, bool $force = false) : void{
-		$this->set($key, EntityMetadataTypes::VECTOR3F, $value?->asVector3() ?? new Vector3(0.0, 0.0, 0.0), $force);
+		$value ??= new Vector3(0.0, 0.0, 0.0);
+		if($this->changes($key, EntityMetadataTypes::VECTOR3F, $value, $force)){
+			$this->put($key, new DataItemVec3Payload(EntityMetadataTypes::VECTOR3F, $value->asVector3()));
+		}
 	}
 
-	private function set(int $key, int $type, int|float|string|Vector3 $value, bool $force) : void{
-		$currentType = $this->types[$key] ?? null;
-		if($currentType !== null){
-			if(!$force && $currentType !== $type){
-				throw new \InvalidArgumentException("Can't overwrite property $key of type " . self::VARIANTS[$currentType] . " with " . self::VARIANTS[$type]);
-			}
-			$current = $this->values[$key];
-			if($currentType === $type && ($value instanceof Vector3 ? $current instanceof Vector3 && $current->equals($value) : $current === $value)){
-				return;
-			}
+	/**
+	 * @phpstan-return Payload|null
+	 */
+	private function payload(int $key) : ?DataItemEntryPayload{
+		/** @phpstan-var Payload|null $payload */
+		$payload = ($this->entries[$key] ?? null)?->payload;
+		return $payload;
+	}
+
+	private function changes(int $key, int $type, int|float|string|Vector3 $value, bool $force) : bool{
+		$current = $this->payload($key);
+		if($current === null){
+			return true;
 		}
-		$this->types[$key] = $type;
-		$this->values[$key] = $value;
+		if($current->type !== $type){
+			if(!$force){
+				throw new \InvalidArgumentException("Can't overwrite property $key of type " . self::NAMES[$current->type] . " with " . self::NAMES[$type]);
+			}
+			return true;
+		}
+		$old = $current->value;
+		return $value instanceof Vector3 ? !($old instanceof Vector3 && $old->equals($value)) : $old !== $value;
+	}
+
+	private function put(int $key, DataItemEntryPayload $payload) : void{
+		$this->entries[$key] = new DataItemEntry($key, $payload);
+		$this->all = null;
 		$this->dirty[$key] = true;
 	}
 
 	private function flags(int $key, int $type) : int{
-		$currentType = $this->types[$key] ?? null;
-		if($currentType === null){
+		$current = $this->payload($key);
+		if($current === null){
 			return 0;
 		}
-		$value = $this->values[$key];
-		if($currentType !== $type || !is_int($value)){
-			throw new \InvalidArgumentException("Wrong type found for flags, want " . self::VARIANTS[$type] . ", but have " . self::VARIANTS[$currentType]);
+		if($current->type !== $type || !is_int($current->value)){
+			throw new \InvalidArgumentException("Wrong type found for flags, want " . self::NAMES[$type] . ", but have " . self::NAMES[$current->type]);
 		}
-		return $value;
+		return $current->value;
 	}
 
 	public function setGenericFlag(int $flagId, bool $value) : void{
@@ -161,29 +195,8 @@ final class EntityMetadata{
 		}
 	}
 
-	/**
-	 * @phpstan-param iterable<int, mixed> $keys
-	 * @phpstan-return list<DataItemEntry>
-	 */
-	private function entries(iterable $keys) : array{
-		$entries = [];
-		foreach($keys as $key => $_){
-			$type = $this->types[$key];
-			$value = $this->values[$key];
-			$entries[] = new DataItemEntry($key, match(true){
-				$type === EntityMetadataTypes::BYTE && is_int($value) => ["byte" => new DataItemBytePayload($type, $value)],
-				$type === EntityMetadataTypes::SHORT && is_int($value) => ["short" => new DataItemShortPayload($type, $value)],
-				$type === EntityMetadataTypes::INT && is_int($value) => ["int" => new DataItemIntPayload($type, $value)],
-				$type === EntityMetadataTypes::FLOAT && is_float($value) => ["float" => new DataItemFloatPayload($type, $value)],
-				$type === EntityMetadataTypes::STRING && is_string($value) => ["string" => new DataItemStringPayload($type, $value)],
-				$type === EntityMetadataTypes::COMPOUND_TAG && is_string($value) => ["compound_tag" => new DataItemCompoundTagPayload($type, $value)],
-				$type === EntityMetadataTypes::POS && $value instanceof Vector3 => ["pos" => new DataItemPosPayload($type, $value)],
-				$type === EntityMetadataTypes::LONG && is_int($value) => ["int64" => new DataItemInt64Payload($type, $value)],
-				$type === EntityMetadataTypes::VECTOR3F && $value instanceof Vector3 => ["vec3" => new DataItemVec3Payload($type, $value)],
-				default => throw new AssumptionFailedError("Property $key holds the wrong value for its type"),
-			});
-		}
-		return $entries;
+	public function get(int $key) : ?DataItemEntry{
+		return $this->entries[$key] ?? null;
 	}
 
 	/**
@@ -192,7 +205,7 @@ final class EntityMetadata{
 	 * @phpstan-return list<DataItemEntry>
 	 */
 	public function getAll() : array{
-		return $this->entries($this->types);
+		return $this->all ??= array_values($this->entries);
 	}
 
 	/**
@@ -201,7 +214,11 @@ final class EntityMetadata{
 	 * @phpstan-return list<DataItemEntry>
 	 */
 	public function getDirty() : array{
-		return $this->entries($this->dirty);
+		$dirty = [];
+		foreach($this->dirty as $key => $_){
+			$dirty[] = $this->entries[$key];
+		}
+		return $dirty;
 	}
 
 	public function hasDirty() : bool{
@@ -213,12 +230,12 @@ final class EntityMetadata{
 	}
 
 	public function markDirty(int $key) : void{
-		if(isset($this->types[$key])){
+		if(isset($this->entries[$key])){
 			$this->dirty[$key] = true;
 		}
 	}
 
 	public function markAllDirty() : void{
-		$this->dirty = array_fill_keys(array_keys($this->types), true);
+		$this->dirty = array_fill_keys(array_keys($this->entries), true);
 	}
 }
