@@ -53,9 +53,12 @@ use quark\inventory\transaction\InventoryTransaction;
 use quark\item\enchantment\EnchantingOption;
 use quark\item\Item;
 use quark\network\mcpe\cache\CreativeInventoryCache;
+use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\types\InventoryAction;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;
@@ -71,7 +74,6 @@ use function max;
 use function spl_object_id;
 
 /**
- * @phpstan-import-type InventoryAction from Packets
  * @phpstan-type ContainerOpenClosure \Closure(int $id, Inventory $inventory) : (list<Packet>|null)
  */
 class InventoryManager{
@@ -253,10 +255,10 @@ class InventoryManager{
 	 */
 	public function addRawPredictedSlotChanges(array $networkInventoryActions) : void{
 		foreach($networkInventoryActions as $action){
-			if($action["source"]["source_type"] !== NetworkInventoryAction::SOURCE_CONTAINER){
+			if($action->source->sourceType !== NetworkInventoryAction::SOURCE_CONTAINER){
 				continue;
 			}
-			$windowId = $action["source"]["container_id"];
+			$windowId = $action->source->containerId;
 			if($windowId === null){
 				throw new PacketHandlingException("Window ID should always be set for SOURCE_CONTAINER");
 			}
@@ -269,13 +271,13 @@ class InventoryManager{
 			}){
 				throw new PacketHandlingException("Legacy transactions cannot predict changes to inventory with ID " . $windowId);
 			}
-			$info = $this->locateWindowAndSlot($windowId, $action["slot"]);
+			$info = $this->locateWindowAndSlot($windowId, $action->slot);
 			if($info === null){
 				continue;
 			}
 
 			[$inventory, $slot] = $info;
-			$this->addPredictedSlotChangeInternal($inventory, $slot, Fields::toItemStack($action["to_item"]));
+			$this->addPredictedSlotChangeInternal($inventory, $slot, Fields::toItemStack($action->toItem));
 		}
 	}
 
@@ -339,9 +341,11 @@ class InventoryManager{
 				if($pks !== null){
 					$windowType = null;
 					foreach($pks as $pk){
-						if($pk->getId() === PacketId::CONTAINER_OPEN){
-							//Bedrock 1.21 requires ContainerClose packets to include the window type
-							$type = $pk->getFields()["container_type"] ?? null;
+						//Bedrock 1.21 requires ContainerClose packets to include the window type
+						if($pk instanceof ContainerOpenPacket){
+							$windowType = $pk->containerType;
+						}elseif($pk instanceof ArrayPacket && $pk->getId() === PacketId::CONTAINER_OPEN){
+							$type = $pk->fields["container_type"] ?? null;
 							$windowType = is_int($type) ? $type : null;
 						}
 						$this->session->sendDataPacket($pk);

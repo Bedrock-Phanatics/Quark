@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\CommandOrigin;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CommandRequestPacket{
+final class CommandRequestPacket extends Packet{
 	public const int ID = PacketId::COMMAND_REQUEST;
 
 	public function __construct(
@@ -38,4 +39,8 @@ final class CommandRequestPacket{
 		public bool $isInternal,
 		public string $version,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

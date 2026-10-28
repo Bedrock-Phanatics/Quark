@@ -24,14 +24,19 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class AvailableActorIdentifiersPacket{
+final class AvailableActorIdentifiersPacket extends Packet{
 	public const int ID = PacketId::AVAILABLE_ACTOR_IDENTIFIERS;
 
 	public function __construct(
 		public string $identifierList,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

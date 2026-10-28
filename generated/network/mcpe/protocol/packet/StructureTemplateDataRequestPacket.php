@@ -25,12 +25,13 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\StructureSettings;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class StructureTemplateDataRequestPacket{
+final class StructureTemplateDataRequestPacket extends Packet{
 	public const int ID = PacketId::STRUCTURE_TEMPLATE_DATA_REQUEST;
 
 	public function __construct(
@@ -39,4 +40,8 @@ final class StructureTemplateDataRequestPacket{
 		public StructureSettings $structureSettings,
 		public int $requestedOperation,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

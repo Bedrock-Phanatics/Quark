@@ -24,15 +24,20 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class LoginPacket{
+final class LoginPacket extends Packet{
 	public const int ID = PacketId::LOGIN;
 
 	public function __construct(
 		public int $clientNetworkVersion,
 		public string $connectionRequest,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

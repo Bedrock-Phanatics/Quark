@@ -26,11 +26,12 @@ namespace quark\network\mcpe\protocol\packet;
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CorrectPlayerMovePredictionPacket{
+final class CorrectPlayerMovePredictionPacket extends Packet{
 	public const int ID = PacketId::CORRECT_PLAYER_MOVE_PREDICTION;
 
 	public function __construct(
@@ -42,4 +43,8 @@ final class CorrectPlayerMovePredictionPacket{
 		public bool $onGround,
 		public int $tick,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

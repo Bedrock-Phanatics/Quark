@@ -29,7 +29,7 @@ use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
 use quark\lang\Language;
-use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\ArrayPacket;
 use quark\network\mcpe\protocol\Packets;
 use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
@@ -153,7 +153,7 @@ final class NetworkSessionTest extends TestCase{
 			$sent[] = $batch;
 		});
 		$rejected = false;
-		$session->sendDataPacketWithReceipt(Packet::fromFields(PacketId::SET_TIME, []))->onCompletion(
+		$session->sendDataPacketWithReceipt(new ArrayPacket(PacketId::SET_TIME, []))->onCompletion(
 			static fn() => self::fail("Receipt of an unsent packet resolved"),
 			static function() use (&$rejected) : void{ $rejected = true; }
 		);
@@ -173,7 +173,7 @@ final class NetworkSessionTest extends TestCase{
 		$session = $this->session(static function() use (&$sends) : void{
 			$sends++;
 		});
-		$session->sendDataPacket(Packet::fromFields(PacketId::SET_TIME, []));
+		$session->sendDataPacket(new ArrayPacket(PacketId::SET_TIME, []));
 
 		$session->disconnect("test");
 

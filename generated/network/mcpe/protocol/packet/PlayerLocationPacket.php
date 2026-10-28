@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\PlayerLocationCoordinatesLocation;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PlayerLocationPacket{
+final class PlayerLocationPacket extends Packet{
 	public const int ID = PacketId::PLAYER_LOCATION;
 
 	/**
@@ -39,4 +40,8 @@ final class PlayerLocationPacket{
 		public int $targetActorId,
 		public array $location,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class NetworkSettingsPacket{
+final class NetworkSettingsPacket extends Packet{
 	public const int ID = PacketId::NETWORK_SETTINGS;
 
 	public function __construct(
@@ -38,4 +39,8 @@ final class NetworkSettingsPacket{
 		public int $clientThrottleThreshold,
 		public float $clientThrottleScalar,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

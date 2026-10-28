@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\PlayerArmourDamageEntry;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PlayerArmourDamagePacket{
+final class PlayerArmourDamagePacket extends Packet{
 	public const int ID = PacketId::PLAYER_ARMOUR_DAMAGE;
 
 	/**
@@ -38,4 +39,8 @@ final class PlayerArmourDamagePacket{
 	public function __construct(
 		public array $armorSlotAndDamagePairs,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

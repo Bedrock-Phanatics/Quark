@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\ContainerMixDataEntry;
 use quark\network\mcpe\protocol\types\MaterialReducerDataEntry;
 use quark\network\mcpe\protocol\types\MultiRecipePayload;
@@ -36,7 +37,7 @@ use quark\network\mcpe\protocol\types\SmithingTrimRecipePayload;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CraftingDataPacket{
+final class CraftingDataPacket extends Packet{
 	public const int ID = PacketId::CRAFTING_DATA;
 
 	/**
@@ -66,4 +67,8 @@ final class CraftingDataPacket{
 		public array $materialReducers,
 		public bool $clearRecipes,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

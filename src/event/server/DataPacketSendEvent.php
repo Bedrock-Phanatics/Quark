@@ -26,20 +26,22 @@ namespace quark\event\server;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
 use quark\utils\Utils;
 
 /**
  * Called when packets are sent to network sessions.
- * The packets may be replaced, or their fields changed with Packet::setFields(), before they are encoded.
+ * The packets may be replaced before they are encoded. A packet may be shared by every target, so change one by
+ * replacing it with setPackets() rather than in place.
  */
 class DataPacketSendEvent extends ServerEvent implements Cancellable{
 	use CancellableTrait;
 
 	/**
-	 * @param NetworkSession[] $targets
-	 * @param Packet[]         $packets
+	 * @param NetworkSession[]         $targets
+	 * @param (Packet|EncodedPacket)[] $packets
 	 */
 	public function __construct(
 		private array $targets,
@@ -54,18 +56,18 @@ class DataPacketSendEvent extends ServerEvent implements Cancellable{
 	}
 
 	/**
-	 * @return Packet[]
+	 * @return (Packet|EncodedPacket)[]
 	 */
 	public function getPackets() : array{
 		return $this->packets;
 	}
 
 	/**
-	 * @param Packet[] $packets
+	 * @param (Packet|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	public function setPackets(array $packets) : void{
-		Utils::validateArrayValueType($packets, function(Packet $packet) : void{
+		Utils::validateArrayValueType($packets, function(Packet|EncodedPacket $packet) : void{
 			if(!isset(Packets::CLIENTBOUND[$packet->getId()])){
 				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
 			}

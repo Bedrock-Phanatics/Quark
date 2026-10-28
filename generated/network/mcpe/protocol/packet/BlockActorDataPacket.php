@@ -25,15 +25,20 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class BlockActorDataPacket{
+final class BlockActorDataPacket extends Packet{
 	public const int ID = PacketId::BLOCK_ACTOR_DATA;
 
 	public function __construct(
 		public Vector3 $blockPosition,
 		public string $actorDataTags,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

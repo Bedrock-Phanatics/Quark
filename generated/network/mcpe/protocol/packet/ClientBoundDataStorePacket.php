@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\DataStoreChange;
 use quark\network\mcpe\protocol\types\DduiDataStoreUpdate;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ClientBoundDataStorePacket{
+final class ClientBoundDataStorePacket extends Packet{
 	public const int ID = PacketId::CLIENT_BOUND_DATA_STORE;
 
 	/**
@@ -39,4 +40,8 @@ final class ClientBoundDataStorePacket{
 	public function __construct(
 		public array $updates,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

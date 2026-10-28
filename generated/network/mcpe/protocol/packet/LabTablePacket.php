@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class LabTablePacket{
+final class LabTablePacket extends Packet{
 	public const int ID = PacketId::LAB_TABLE;
 
 	public function __construct(
@@ -37,4 +38,8 @@ final class LabTablePacket{
 		public Vector3 $position,
 		public int $reaction,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

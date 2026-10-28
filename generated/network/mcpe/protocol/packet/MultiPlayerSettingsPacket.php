@@ -24,14 +24,19 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class MultiPlayerSettingsPacket{
+final class MultiPlayerSettingsPacket extends Packet{
 	public const int ID = PacketId::MULTI_PLAYER_SETTINGS;
 
 	public function __construct(
 		public int $packetType,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

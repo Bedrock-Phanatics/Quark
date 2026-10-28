@@ -30,8 +30,7 @@ use quark\network\mcpe\protocol\Packet;
 
 /**
  * Called when a session receives a packet it is about to handle.
- * Replacing the packet's fields with Packet::setFields() changes what the server handles, and cancelling the event
- * drops the packet.
+ * Changing the packet changes what the server handles, and cancelling the event drops the packet.
  */
 class DataPacketReceiveEvent extends ServerEvent implements Cancellable{
 	use CancellableTrait;

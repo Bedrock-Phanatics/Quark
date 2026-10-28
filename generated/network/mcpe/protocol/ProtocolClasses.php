@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
+use Bedwire\Protocol;
+
 /**
  * The classes Bedwire\Protocol::bind() is given, by schema name.
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
@@ -530,7 +532,19 @@ final class ProtocolClasses{
 		"FurnaceOptions" => \quark\network\mcpe\protocol\types\FurnaceOptions::class,
 	];
 
+	private static bool $bound = false;
+
 	private function __construct(){
 		//NOOP
+	}
+
+	/**
+	 * Binds the classes on this thread, which every thread must do before it encodes or decodes packet classes.
+	 */
+	public static function bind() : void{
+		if(!self::$bound){
+			Protocol::bind(self::BINDINGS);
+			self::$bound = true;
+		}
 	}
 }

@@ -26,12 +26,13 @@ namespace quark\network\mcpe\protocol\packet;
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\MovePlayerTeleportData;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class MovePlayerPacket{
+final class MovePlayerPacket extends Packet{
 	public const int ID = PacketId::MOVE_PLAYER;
 
 	public function __construct(
@@ -45,4 +46,8 @@ final class MovePlayerPacket{
 		public ?MovePlayerTeleportData $teleportData,
 		public int $tick,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

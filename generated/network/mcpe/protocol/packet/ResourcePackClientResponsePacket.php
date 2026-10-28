@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\Downloading;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ResourcePackClientResponsePacket{
+final class ResourcePackClientResponsePacket extends Packet{
 	public const int ID = PacketId::RESOURCE_PACK_CLIENT_RESPONSE;
 
 	/**
@@ -38,4 +39,8 @@ final class ResourcePackClientResponsePacket{
 	public function __construct(
 		public array $response,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

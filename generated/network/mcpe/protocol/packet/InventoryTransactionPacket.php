@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\InventoryAction;
 use quark\network\mcpe\protocol\types\ItemReleaseInventoryTransaction;
 use quark\network\mcpe\protocol\types\ItemUseInventoryTransaction;
@@ -33,7 +34,7 @@ use quark\network\mcpe\protocol\types\LegacySetSlot;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class InventoryTransactionPacket{
+final class InventoryTransactionPacket extends Packet{
 	public const int ID = PacketId::INVENTORY_TRANSACTION;
 
 	/**
@@ -45,4 +46,8 @@ final class InventoryTransactionPacket{
 		public ?array $legacySetItemSlots,
 		public array $transaction,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

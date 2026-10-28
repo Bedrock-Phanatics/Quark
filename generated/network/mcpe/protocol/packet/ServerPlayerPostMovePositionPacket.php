@@ -25,14 +25,19 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ServerPlayerPostMovePositionPacket{
+final class ServerPlayerPostMovePositionPacket extends Packet{
 	public const int ID = PacketId::SERVER_PLAYER_POST_MOVE_POSITION;
 
 	public function __construct(
 		public Vector3 $pos,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

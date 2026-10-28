@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SetSpawnPositionPacket{
+final class SetSpawnPositionPacket extends Packet{
 	public const int ID = PacketId::SET_SPAWN_POSITION;
 
 	public function __construct(
@@ -38,4 +39,8 @@ final class SetSpawnPositionPacket{
 		public int $dimensionType,
 		public Vector3 $spawnBlockPos,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

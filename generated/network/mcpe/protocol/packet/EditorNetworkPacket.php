@@ -24,15 +24,20 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class EditorNetworkPacket{
+final class EditorNetworkPacket extends Packet{
 	public const int ID = PacketId::EDITOR_NETWORK;
 
 	public function __construct(
 		public bool $routeToManager,
 		public string $payload,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

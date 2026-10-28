@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ContainerOpenPacket{
+final class ContainerOpenPacket extends Packet{
 	public const int ID = PacketId::CONTAINER_OPEN;
 
 	public function __construct(
@@ -38,4 +39,8 @@ final class ContainerOpenPacket{
 		public Vector3 $position,
 		public int $targetActorId,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

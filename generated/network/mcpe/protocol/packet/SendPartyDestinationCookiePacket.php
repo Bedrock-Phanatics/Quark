@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SendPartyDestinationCookiePacket{
+final class SendPartyDestinationCookiePacket extends Packet{
 	public const int ID = PacketId::SEND_PARTY_DESTINATION_COOKIE;
 
 	public function __construct(
@@ -36,4 +37,8 @@ final class SendPartyDestinationCookiePacket{
 		public string $intent,
 		public string $destinationName,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packet;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
@@ -36,8 +37,8 @@ final class NetworkBroadcastUtils{
 	}
 
 	/**
-	 * @param Player[] $recipients
-	 * @param Packet[] $packets
+	 * @param Player[]                 $recipients
+	 * @param (Packet|EncodedPacket)[] $packets
 	 */
 	public static function broadcastPackets(array $recipients, array $packets) : bool{
 		if(count($packets) === 0){

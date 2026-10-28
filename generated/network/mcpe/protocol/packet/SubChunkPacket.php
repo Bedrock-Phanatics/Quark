@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\SubChunkData;
 use quark\network\mcpe\protocol\types\SubChunkPosition;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SubChunkPacket{
+final class SubChunkPacket extends Packet{
 	public const int ID = PacketId::SUB_CHUNK;
 
 	/**
@@ -42,4 +43,8 @@ final class SubChunkPacket{
 		public SubChunkPosition $centerPos,
 		public array $subChunkData,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

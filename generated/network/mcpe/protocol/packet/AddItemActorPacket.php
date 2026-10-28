@@ -25,13 +25,14 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\DataItemEntry;
 use quark\network\mcpe\protocol\types\NetworkItemStackDescriptor;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class AddItemActorPacket{
+final class AddItemActorPacket extends Packet{
 	public const int ID = PacketId::ADD_ITEM_ACTOR;
 
 	/**
@@ -46,4 +47,8 @@ final class AddItemActorPacket{
 		public array $entityData,
 		public bool $isFromFishing,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

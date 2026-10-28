@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\SerializedSkinRef;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PlayerSkinPacket{
+final class PlayerSkinPacket extends Packet{
 	public const int ID = PacketId::PLAYER_SKIN;
 
 	public function __construct(
@@ -38,4 +39,8 @@ final class PlayerSkinPacket{
 		public string $localizedNewSkinName,
 		public string $localizedOldSkinName,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

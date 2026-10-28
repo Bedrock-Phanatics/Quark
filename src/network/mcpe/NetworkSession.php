@@ -77,9 +77,12 @@ use quark\network\mcpe\handler\PreSpawnPacketHandler;
 use quark\network\mcpe\handler\ResourcePacksPacketHandler;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\handler\SpawnResponsePacketHandler;
+use quark\network\mcpe\protocol\ArrayPacket;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\network\mcpe\protocol\TextPackets;
 use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
@@ -114,7 +117,6 @@ use function bin2hex;
 use function count;
 use function implode;
 use function in_array;
-use function is_array;
 use function is_string;
 use function json_encode;
 use function ord;
@@ -164,7 +166,7 @@ class NetworkSession{
 	 * @phpstan-var array<int, PacketHandlerAction>|null
 	 */
 	private ?array $handlerActions = null;
-	/** @phpstan-var array<int, \Closure(array<string, mixed>) : bool> */
+	/** @phpstan-var array<int, \Closure(Packet) : bool> */
 	private array $handlerMethods = [];
 
 	private bool $connected = true;
@@ -179,7 +181,7 @@ class NetworkSession{
 	/**
 	 * Packets waiting for the next flush, as Bedwire\Protocol::encodeBatch() takes them.
 	 *
-	 * @phpstan-var list<string|array{int, array<string, mixed>}>
+	 * @phpstan-var list<Packet|string|array{int, array<string, mixed>}>
 	 */
 	private array $sendBuffer = [];
 	/**
@@ -572,6 +574,7 @@ class NetworkSession{
 	private function handleBatchBuffers(iterable $buffers, ?PulseNetwork $network, ?int $window, ?int $packetLimit) : void{
 		$count = 0;
 		$recording = Pulse::isRecording();
+		ProtocolClasses::bind();
 		try{
 			foreach($buffers as $buffer){
 				if($packetLimit !== null && ++$count >= $packetLimit){
@@ -668,6 +671,7 @@ class NetworkSession{
 	 * @throws FilterNoisyPacketException
 	 */
 	public function handleDataPacket(int $packetId, string $buffer) : void{
+		ProtocolClasses::bind();
 		$network = $this->getPulseNetwork();
 		$this->handlePacket($packetId, $buffer, $network, $network?->window($this->pulseSessionId), Pulse::isRecording());
 	}
@@ -723,7 +727,10 @@ class NetworkSession{
 			try{
 				$work?->stage($workToken, PulseNetworkWork::DECODE);
 				try{
-					$packet = Packet::decoded($packetId, $buffer, Protocol::decode($buffer, self::MAX_DECODED_VALUES) ?? throw new PacketException("Unknown packet ID"));
+					$packet = Protocol::decode($buffer, self::MAX_DECODED_VALUES);
+					if(!$packet instanceof Packet){
+						throw new PacketException("Unknown packet ID");
+					}
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
 				}catch(PacketException $e){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
@@ -742,18 +749,13 @@ class NetworkSession{
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PLUGIN_CANCELLED); }
 					return;
 				}
-				if(!$packet->hasEncoded()){
-					//fields a plugin replaced are only handled once they encode and decode like a received packet would
-					$encoded = $packet->getEncoded();
-					$packet = Packet::decoded($packetId, $encoded, Protocol::decode($encoded) ?? throw new AssumptionFailedError("Known packet IDs always decode"));
-				}
 			}
 			$handlerZone = $recording ? PulseZones::getHandleDataPacketZone($packetId) : null;
 			$handlerZoneScope = $handlerZone?->start() ?? 0;
 			try{
 				$work?->stage($workToken, PulseNetworkWork::HANDLE);
 				$method = $this->handlerMethods[$packetId] ?? null;
-				if($method === null || !$method($packet->getFields())){
+				if($method === null || !$method($packet)){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::STATE_DROPPED); }
 					$this->recordNetworkSecurityEvent("packet.state", "drop_packet", $packetId);
 					$this->unhandledPacketDebug($packetId, $buffer, "Handler rejected");
@@ -786,7 +788,7 @@ class NetworkSession{
 	/**
 	 * @phpstan-param PromiseResolver<true>|null $ackReceiptResolver
 	 */
-	private function sendDataPacketInternal(Packet $packet, bool $immediate, ?PromiseResolver $ackReceiptResolver) : bool{
+	private function sendDataPacketInternal(Packet|EncodedPacket $packet, bool $immediate, ?PromiseResolver $ackReceiptResolver) : bool{
 		if(!$this->connected){
 			return false;
 		}
@@ -822,14 +824,14 @@ class NetworkSession{
 	/**
 	 * Queues a packet, which is encoded with the rest of the session's packets when they are flushed.
 	 */
-	public function sendDataPacket(Packet $packet, bool $immediate = false) : bool{
+	public function sendDataPacket(Packet|EncodedPacket $packet, bool $immediate = false) : bool{
 		return $this->sendDataPacketInternal($packet, $immediate, null);
 	}
 
 	/**
 	 * @phpstan-return Promise<true>
 	 */
-	public function sendDataPacketWithReceipt(Packet $packet, bool $immediate = false) : Promise{
+	public function sendDataPacketWithReceipt(Packet|EncodedPacket $packet, bool $immediate = false) : Promise{
 		/** @phpstan-var PromiseResolver<true> $resolver */
 		$resolver = new PromiseResolver();
 
@@ -842,7 +844,7 @@ class NetworkSession{
 
 	/**
 	 * @internal
-	 * @param Packet[] $packets
+	 * @param (Packet|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	public function checkSendable(array $packets) : void{
@@ -859,36 +861,50 @@ class NetworkSession{
 
 	/**
 	 * @internal Queues packets the broadcaster already fired events for.
-	 * @param Packet[] $packets
+	 * @param (Packet|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	public function addToSendBuffer(array $packets) : void{
 		$this->checkSendable($packets);
 		foreach($packets as $packet){
-			$this->sendBuffer[] = $packet->toBatchEntry();
+			$this->sendBuffer[] = self::batchEntry($packet);
 		}
+	}
+
+	/**
+	 * @phpstan-return Packet|string|array{int, array<string, mixed>}
+	 */
+	private static function batchEntry(Packet|EncodedPacket $packet) : Packet|string|array{
+		return match(true){
+			$packet instanceof EncodedPacket => $packet->getBytes(),
+			$packet instanceof ArrayPacket => [$packet->getId(), $packet->fields],
+			default => $packet
+		};
 	}
 
 	/**
 	 * Encodes queued packets into one batch body with a single native call.
 	 *
-	 * @phpstan-param list<string|array{int, array<string, mixed>}> $packets
+	 * @phpstan-param list<Packet|string|array{int, array<string, mixed>}> $packets
 	 * @throws \ValueError naming the first packet whose fields do not fit it
 	 * @throws \TypeError
 	 */
 	public static function encodeBatch(array $packets) : string{
+		ProtocolClasses::bind();
 		$scope = PulseZones::$playerNetworkSendEncode->start();
 		try{
 			return Protocol::encodeBatch($packets);
 		}catch(\ValueError|\TypeError $e){
 			//find the culprit, so a bad packet is reported where it was built instead of as an anonymous batch
 			foreach($packets as $packet){
-				if(is_array($packet)){
-					try{
-						Protocol::encode($packet[0], $packet[1]);
-					}catch(\ValueError|\TypeError $inner){
-						throw new \ValueError("Invalid " . Protocol::name($packet[0]) . " packet: " . $inner->getMessage(), 0, $inner);
-					}
+				if(is_string($packet)){
+					continue;
+				}
+				[$id, $fields] = $packet instanceof Packet ? [$packet->getId(), $packet] : $packet;
+				try{
+					Protocol::encode($id, $fields);
+				}catch(\ValueError|\TypeError $inner){
+					throw new \ValueError("Invalid " . Protocol::name($id) . " packet: " . $inner->getMessage(), 0, $inner);
 				}
 			}
 			throw $e;

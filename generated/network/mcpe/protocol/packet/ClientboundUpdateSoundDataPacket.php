@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\SoundDataEventFade;
 use quark\network\mcpe\protocol\types\SoundDataEventPause;
 use quark\network\mcpe\protocol\types\SoundDataEventResume;
@@ -32,7 +33,7 @@ use quark\network\mcpe\protocol\types\SoundDataEventStop;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ClientboundUpdateSoundDataPacket{
+final class ClientboundUpdateSoundDataPacket extends Packet{
 	public const int ID = PacketId::CLIENTBOUND_UPDATE_SOUND_DATA;
 
 	/**
@@ -54,4 +55,8 @@ final class ClientboundUpdateSoundDataPacket{
 		public array $pause,
 		public array $resume,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

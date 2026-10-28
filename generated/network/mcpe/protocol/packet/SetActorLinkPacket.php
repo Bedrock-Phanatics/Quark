@@ -24,15 +24,20 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\EntityLink;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SetActorLinkPacket{
+final class SetActorLinkPacket extends Packet{
 	public const int ID = PacketId::SET_ACTOR_LINK;
 
 	public function __construct(
 		public EntityLink $link,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

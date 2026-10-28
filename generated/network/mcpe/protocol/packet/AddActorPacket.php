@@ -26,6 +26,7 @@ namespace quark\network\mcpe\protocol\packet;
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\DataItemEntry;
 use quark\network\mcpe\protocol\types\EntityLink;
 use quark\network\mcpe\protocol\types\PropertySyncData;
@@ -34,7 +35,7 @@ use quark\network\mcpe\protocol\types\SyncedAttribute;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class AddActorPacket{
+final class AddActorPacket extends Packet{
 	public const int ID = PacketId::ADD_ACTOR;
 
 	/**
@@ -56,4 +57,8 @@ final class AddActorPacket{
 		public PropertySyncData $synchedProperties,
 		public array $actorLinks,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

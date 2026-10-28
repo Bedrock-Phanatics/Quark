@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\CameraInstructionFade;
 use quark\network\mcpe\protocol\types\CameraInstructionFieldOfView;
 use quark\network\mcpe\protocol\types\CameraInstructionSet;
@@ -33,7 +34,7 @@ use quark\network\mcpe\protocol\types\CameraSplineInstruction;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CameraInstructionPacket{
+final class CameraInstructionPacket extends Packet{
 	public const int ID = PacketId::CAMERA_INSTRUCTION;
 
 	public function __construct(
@@ -47,4 +48,8 @@ final class CameraInstructionPacket{
 		public ?int $attachToEntity = null,
 		public ?bool $detachFromEntity = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

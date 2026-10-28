@@ -26,6 +26,7 @@ namespace quark\network\mcpe\protocol\packet;
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\EventsServerTelemetryData;
 use quark\network\mcpe\protocol\types\LevelSettings;
 use quark\network\mcpe\protocol\types\PlayerMovementSettings;
@@ -35,7 +36,7 @@ use quark\network\mcpe\protocol\types\ServerConfigurationJoinInfo;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class StartGamePacket{
+final class StartGamePacket extends Packet{
 	public const int ID = PacketId::START_GAME;
 
 	/**
@@ -68,4 +69,8 @@ final class StartGamePacket{
 		public ?ServerConfigurationJoinInfo $serverConfigurationJoinInfo,
 		public EventsServerTelemetryData $serverTelemetryData,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

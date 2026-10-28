@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\TrimMaterial;
 use quark\network\mcpe\protocol\types\TrimPattern;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class TrimDataPacket{
+final class TrimDataPacket extends Packet{
 	public const int ID = PacketId::TRIM_DATA;
 
 	/**
@@ -41,4 +42,8 @@ final class TrimDataPacket{
 		public array $trimPatternList,
 		public array $trimMaterialList,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

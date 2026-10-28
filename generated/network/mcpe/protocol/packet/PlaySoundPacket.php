@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PlaySoundPacket{
+final class PlaySoundPacket extends Packet{
 	public const int ID = PacketId::PLAY_SOUND;
 
 	public function __construct(
@@ -42,4 +43,8 @@ final class PlaySoundPacket{
 		public ?int $serverSoundHandle = null,
 		public ?float $playbackPositionSeconds = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

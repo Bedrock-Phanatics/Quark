@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\LocatorBarWaypointPayload;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class LocatorBarPacket{
+final class LocatorBarPacket extends Packet{
 	public const int ID = PacketId::LOCATOR_BAR;
 
 	/**
@@ -38,4 +39,8 @@ final class LocatorBarPacket{
 	public function __construct(
 		public array $waypoints,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

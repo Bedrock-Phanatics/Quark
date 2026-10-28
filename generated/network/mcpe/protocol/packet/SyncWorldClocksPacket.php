@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\SyncWorldClockStateData;
 use quark\network\mcpe\protocol\types\SyncWorldClocksAddTimeMarkerData;
 use quark\network\mcpe\protocol\types\SyncWorldClocksRemoveTimeMarkerData;
@@ -32,7 +33,7 @@ use quark\network\mcpe\protocol\types\WorldClockData;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SyncWorldClocksPacket{
+final class SyncWorldClocksPacket extends Packet{
 	public const int ID = PacketId::SYNC_WORLD_CLOCKS;
 
 	/**
@@ -41,4 +42,8 @@ final class SyncWorldClocksPacket{
 	public function __construct(
 		public array $data,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

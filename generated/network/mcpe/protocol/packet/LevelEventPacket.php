@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class LevelEventPacket{
+final class LevelEventPacket extends Packet{
 	public const int ID = PacketId::LEVEL_EVENT;
 
 	public function __construct(
@@ -37,4 +38,8 @@ final class LevelEventPacket{
 		public Vector3 $position,
 		public int $data,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

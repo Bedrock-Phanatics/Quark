@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\AttributeData;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class UpdateAttributesPacket{
+final class UpdateAttributesPacket extends Packet{
 	public const int ID = PacketId::UPDATE_ATTRIBUTES;
 
 	/**
@@ -40,4 +41,8 @@ final class UpdateAttributesPacket{
 		public array $attributeList,
 		public int $tick,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

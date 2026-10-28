@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\PlayerVideoCaptureStartVideoCapture;
 use quark\network\mcpe\protocol\types\PlayerVideoCaptureStopVideoCapture;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PlayerVideoCapturePacket{
+final class PlayerVideoCapturePacket extends Packet{
 	public const int ID = PacketId::PLAYER_VIDEO_CAPTURE;
 
 	/**
@@ -39,4 +40,8 @@ final class PlayerVideoCapturePacket{
 	public function __construct(
 		public array $action,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,17 +24,22 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\CommandOrigin;
 use quark\network\mcpe\protocol\types\CommandOutputData;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CommandOutputPacket{
+final class CommandOutputPacket extends Packet{
 	public const int ID = PacketId::COMMAND_OUTPUT;
 
 	public function __construct(
 		public CommandOrigin $originData,
 		public CommandOutputData $output,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class GameTestRequestPacket{
+final class GameTestRequestPacket extends Packet{
 	public const int ID = PacketId::GAME_TEST_REQUEST;
 
 	public function __construct(
@@ -41,4 +42,8 @@ final class GameTestRequestPacket{
 		public int $testsPerRow,
 		public string $testName,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\PacketMapOfBiomeNamesToDataEntry;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class BiomeDefinitionListPacket{
+final class BiomeDefinitionListPacket extends Packet{
 	public const int ID = PacketId::BIOME_DEFINITION_LIST;
 
 	/**
@@ -40,4 +41,8 @@ final class BiomeDefinitionListPacket{
 		public array $mapOfBiomeNamesToData,
 		public array $stringList,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

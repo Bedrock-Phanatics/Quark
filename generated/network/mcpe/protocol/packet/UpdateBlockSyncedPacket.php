@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class UpdateBlockSyncedPacket{
+final class UpdateBlockSyncedPacket extends Packet{
 	public const int ID = PacketId::UPDATE_BLOCK_SYNCED;
 
 	public function __construct(
@@ -40,4 +41,8 @@ final class UpdateBlockSyncedPacket{
 		public int $uniqueActorId,
 		public int $actorSyncMessage,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\PixelRequest;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class MapInfoRequestPacket{
+final class MapInfoRequestPacket extends Packet{
 	public const int ID = PacketId::MAP_INFO_REQUEST;
 
 	/**
@@ -39,4 +40,8 @@ final class MapInfoRequestPacket{
 		public int $mapUniqueId,
 		public array $clientPixelsList,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

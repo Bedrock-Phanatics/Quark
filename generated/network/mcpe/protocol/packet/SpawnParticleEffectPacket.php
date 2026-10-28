@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SpawnParticleEffectPacket{
+final class SpawnParticleEffectPacket extends Packet{
 	public const int ID = PacketId::SPAWN_PARTICLE_EFFECT;
 
 	public function __construct(
@@ -39,4 +40,8 @@ final class SpawnParticleEffectPacket{
 		public string $effectName,
 		public ?string $molangVariables = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

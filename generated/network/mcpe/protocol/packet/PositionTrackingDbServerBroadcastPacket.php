@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PositionTrackingDbServerBroadcastPacket{
+final class PositionTrackingDbServerBroadcastPacket extends Packet{
 	public const int ID = PacketId::POSITION_TRACKING_DB_SERVER_BROADCAST;
 
 	public function __construct(
@@ -36,4 +37,8 @@ final class PositionTrackingDbServerBroadcastPacket{
 		public int $id,
 		public string $positionTrackingData,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

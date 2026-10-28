@@ -25,6 +25,7 @@ namespace quark\network\mcpe\handler;
 
 use Bedwire\Protocol;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\utils\AssumptionFailedError;
 use function array_flip;
 use function array_keys;
@@ -63,14 +64,12 @@ final class PacketHandlerInspector{
 			if(!str_starts_with($name, "handle") || $method->isStatic()){
 				continue;
 			}
-			$type = ($method->getParameters()[0] ?? null)?->getType();
-			if(!$type instanceof \ReflectionNamedType){
-				throw new AssumptionFailedError($handler::class . "::$name() must take the packet as its first parameter");
-			}
-			if($type->getName() !== "array"){
-				throw new AssumptionFailedError($handler::class . "::$name() must take an array of packet fields");
-			}
 			$id = $ids[$name] ?? throw new AssumptionFailedError($handler::class . "::$name() does not handle a packet clients send");
+			$class = ProtocolClasses::BINDINGS[Protocol::name($id) ?? ""] ?? throw new AssumptionFailedError("No class is generated for packet $id");
+			$type = ($method->getParameters()[0] ?? null)?->getType();
+			if(!$type instanceof \ReflectionNamedType || $type->getName() !== $class){
+				throw new AssumptionFailedError($handler::class . "::$name() must take a $class as its first parameter");
+			}
 			$methods[$id] = $name;
 			$actions[$id] = PacketHandlerAction::HANDLED;
 		}

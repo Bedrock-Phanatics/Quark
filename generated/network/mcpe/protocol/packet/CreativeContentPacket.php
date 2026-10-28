@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\CreativeGroup;
 use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CreativeContentPacket{
+final class CreativeContentPacket extends Packet{
 	public const int ID = PacketId::CREATIVE_CONTENT;
 
 	/**
@@ -41,4 +42,8 @@ final class CreativeContentPacket{
 		public array $groups,
 		public array $entries,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

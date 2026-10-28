@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\MissingBlobData;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ClientCacheMissResponsePacket{
+final class ClientCacheMissResponsePacket extends Packet{
 	public const int ID = PacketId::CLIENT_CACHE_MISS_RESPONSE;
 
 	/**
@@ -38,4 +39,8 @@ final class ClientCacheMissResponsePacket{
 	public function __construct(
 		public array $missingBlobs,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

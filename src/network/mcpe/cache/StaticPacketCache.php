@@ -31,6 +31,7 @@ use pocketmine\utils\Binary;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\data\SavedDataLoadingException;
 use quark\network\mcpe\cache\model\VoxelShapesData;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
 use quark\utils\Filesystem;
@@ -60,7 +61,7 @@ class StaticPacketCache{
 		return Nbt::write(new TreeRoot($tag), Nbt::NETWORK);
 	}
 
-	private static function buildBiomeDefinitions(string $filePath) : Packet{
+	private static function buildBiomeDefinitions(string $filePath) : EncodedPacket{
 		$biomeEntries = json_decode(Filesystem::fileGetContents($filePath), associative: true);
 		if(!is_array($biomeEntries)){
 			throw new SavedDataLoadingException("$filePath root should be an array, got " . get_debug_type($biomeEntries));
@@ -114,7 +115,7 @@ class StaticPacketCache{
 		return self::encoded(Packets::biomeDefinitionList(["map_of_biome_names_to_data" => $definitions, "string_list" => $strings]));
 	}
 
-	private static function buildVoxelShapes(string $filePath) : Packet{
+	private static function buildVoxelShapes(string $filePath) : EncodedPacket{
 		$voxelShapes = json_decode(Filesystem::fileGetContents($filePath), associative: true);
 		if(!is_array($voxelShapes)){
 			throw new SavedDataLoadingException("$filePath root should be an array, got " . get_debug_type($voxelShapes));
@@ -173,9 +174,8 @@ class StaticPacketCache{
 	/**
 	 * Encodes the packet now, so every session sends the same bytes without encoding them again.
 	 */
-	private static function encoded(Packet $packet) : Packet{
-		$packet->getEncoded();
-		return $packet;
+	private static function encoded(Packet $packet) : EncodedPacket{
+		return EncodedPacket::of($packet);
 	}
 
 	private static function make() : self{
@@ -190,27 +190,27 @@ class StaticPacketCache{
 
 	/** @phpstan-param list<ServerBlockProperty> $blockPaletteEntries */
 	public function __construct(
-		private Packet $biomeDefs,
-		private Packet $availableActorIdentifiers,
-		private Packet $jigsawStructureData,
-		private Packet $voxelShapes,
+		private EncodedPacket $biomeDefs,
+		private EncodedPacket $availableActorIdentifiers,
+		private EncodedPacket $jigsawStructureData,
+		private EncodedPacket $voxelShapes,
 		private array $blockPaletteEntries
 	){
 	}
 
-	public function getBiomeDefs() : Packet{
+	public function getBiomeDefs() : EncodedPacket{
 		return $this->biomeDefs;
 	}
 
-	public function getAvailableActorIdentifiers() : Packet{
+	public function getAvailableActorIdentifiers() : EncodedPacket{
 		return $this->availableActorIdentifiers;
 	}
 
-	public function getJigsawStructureData() : Packet{
+	public function getJigsawStructureData() : EncodedPacket{
 		return $this->jigsawStructureData;
 	}
 
-	public function getVoxelShapes() : Packet{
+	public function getVoxelShapes() : EncodedPacket{
 		return $this->voxelShapes;
 	}
 

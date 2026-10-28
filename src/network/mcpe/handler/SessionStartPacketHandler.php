@@ -24,13 +24,11 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use Bedwire\Protocol;
-use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
+use pocketmine\network\mcpe\protocol\NetworkSettingsPacket as BedrockNetworkSettingsPacket;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\NetworkSettingsPacket;
+use quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket;
 
-/**
- * @phpstan-import-type RequestNetworkSettingsFields from Packets
- */
 final class SessionStartPacketHandler extends PacketHandler{
 
 	/**
@@ -41,11 +39,8 @@ final class SessionStartPacketHandler extends PacketHandler{
 		private \Closure $onSuccess
 	){}
 
-	/**
-	 * @phpstan-param RequestNetworkSettingsFields $packet
-	 */
-	public function handleRequestNetworkSettings(array $packet) : bool{
-		$protocolVersion = $packet["client_network_version"];
+	public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{
+		$protocolVersion = $packet->clientNetworkVersion;
 		$this->session->recordProtocolVersion($protocolVersion);
 		if(!$this->isCompatibleProtocol($protocolVersion)){
 			$this->session->disconnectIncompatibleProtocol($protocolVersion);
@@ -54,13 +49,13 @@ final class SessionStartPacketHandler extends PacketHandler{
 		}
 
 		//TODO: we're filling in the defaults to get pre-1.19.30 behaviour back for now, but we should explore the new options in the future
-		$this->session->sendDataPacket(Packets::networkSettings([
-			"compression_threshold" => NetworkSettingsPacket::COMPRESS_EVERYTHING,
-			"compression_algorithm" => $this->session->getCompressor()->getNetworkType()->value,
-			"client_throttle_enabled" => false,
-			"client_throttle_threshold" => 0,
-			"client_throttle_scalar" => 0.0,
-		]));
+		$this->session->sendDataPacket(new NetworkSettingsPacket(
+			compressionThreshold: BedrockNetworkSettingsPacket::COMPRESS_EVERYTHING,
+			compressionAlgorithm: $this->session->getCompressor()->getNetworkType()->value,
+			clientThrottleEnabled: false,
+			clientThrottleThreshold: 0,
+			clientThrottleScalar: 0.0,
+		));
 		($this->onSuccess)();
 
 		return true;

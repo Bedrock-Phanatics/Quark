@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SetHudPacket{
+final class SetHudPacket extends Packet{
 	public const int ID = PacketId::SET_HUD;
 
 	/**
@@ -38,4 +39,8 @@ final class SetHudPacket{
 		public array $hudElement,
 		public int $hudVisible,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

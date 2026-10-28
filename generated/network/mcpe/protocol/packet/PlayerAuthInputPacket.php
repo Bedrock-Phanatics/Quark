@@ -26,6 +26,7 @@ namespace quark\network\mcpe\protocol\packet;
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\ItemStackRequestData;
 use quark\network\mcpe\protocol\types\PackedItemUseLegacyInventoryTransaction;
 use quark\network\mcpe\protocol\types\PlayerBlockAction;
@@ -33,7 +34,7 @@ use quark\network\mcpe\protocol\types\PlayerBlockAction;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class PlayerAuthInputPacket{
+final class PlayerAuthInputPacket extends Packet{
 	public const int ID = PacketId::PLAYER_AUTH_INPUT;
 
 	/**
@@ -61,4 +62,8 @@ final class PlayerAuthInputPacket{
 		public Vector3 $cameraOrientation,
 		public Vector2 $rawMoveVector,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

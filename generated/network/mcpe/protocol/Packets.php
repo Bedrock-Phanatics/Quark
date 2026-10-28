@@ -975,1617 +975,1617 @@ final class Packets{
 	/**
 	 * @phpstan-param LoginFields $fields
 	 */
-	public static function login(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LOGIN, $fields);
+	public static function login(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LOGIN, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayStatusFields $fields
 	 */
-	public static function playStatus(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAY_STATUS, $fields);
+	public static function playStatus(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAY_STATUS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerToClientHandshakeFields $fields
 	 */
-	public static function serverToClientHandshake(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_TO_CLIENT_HANDSHAKE, $fields);
+	public static function serverToClientHandshake(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_TO_CLIENT_HANDSHAKE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientToServerHandshakeFields $fields
 	 */
-	public static function clientToServerHandshake(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_TO_SERVER_HANDSHAKE, $fields);
+	public static function clientToServerHandshake(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_TO_SERVER_HANDSHAKE, $fields);
 	}
 
 	/**
 	 * @phpstan-param DisconnectFields $fields
 	 */
-	public static function disconnect(array $fields) : Packet{
-		return Packet::fromFields(PacketId::DISCONNECT, $fields);
+	public static function disconnect(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::DISCONNECT, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePacksInfoFields $fields
 	 */
-	public static function resourcePacksInfo(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACKS_INFO, $fields);
+	public static function resourcePacksInfo(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACKS_INFO, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePackStackFields $fields
 	 */
-	public static function resourcePackStack(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACK_STACK, $fields);
+	public static function resourcePackStack(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACK_STACK, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePackClientResponseFields $fields
 	 */
-	public static function resourcePackClientResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACK_CLIENT_RESPONSE, $fields);
+	public static function resourcePackClientResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACK_CLIENT_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param TextFields $fields
 	 */
-	public static function text(array $fields) : Packet{
-		return Packet::fromFields(PacketId::TEXT, $fields);
+	public static function text(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::TEXT, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetTimeFields $fields
 	 */
-	public static function setTime(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_TIME, $fields);
+	public static function setTime(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_TIME, $fields);
 	}
 
 	/**
 	 * @phpstan-param StartGameFields $fields
 	 */
-	public static function startGame(array $fields) : Packet{
-		return Packet::fromFields(PacketId::START_GAME, $fields);
+	public static function startGame(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::START_GAME, $fields);
 	}
 
 	/**
 	 * @phpstan-param AddPlayerFields $fields
 	 */
-	public static function addPlayer(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ADD_PLAYER, $fields);
+	public static function addPlayer(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ADD_PLAYER, $fields);
 	}
 
 	/**
 	 * @phpstan-param AddActorFields $fields
 	 */
-	public static function addActor(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ADD_ACTOR, $fields);
+	public static function addActor(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ADD_ACTOR, $fields);
 	}
 
 	/**
 	 * @phpstan-param RemoveActorFields $fields
 	 */
-	public static function removeActor(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REMOVE_ACTOR, $fields);
+	public static function removeActor(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REMOVE_ACTOR, $fields);
 	}
 
 	/**
 	 * @phpstan-param AddItemActorFields $fields
 	 */
-	public static function addItemActor(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ADD_ITEM_ACTOR, $fields);
+	public static function addItemActor(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ADD_ITEM_ACTOR, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerPlayerPostMovePositionFields $fields
 	 */
-	public static function serverPlayerPostMovePosition(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_PLAYER_POST_MOVE_POSITION, $fields);
+	public static function serverPlayerPostMovePosition(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_PLAYER_POST_MOVE_POSITION, $fields);
 	}
 
 	/**
 	 * @phpstan-param TakeItemActorFields $fields
 	 */
-	public static function takeItemActor(array $fields) : Packet{
-		return Packet::fromFields(PacketId::TAKE_ITEM_ACTOR, $fields);
+	public static function takeItemActor(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::TAKE_ITEM_ACTOR, $fields);
 	}
 
 	/**
 	 * @phpstan-param MoveActorAbsoluteFields $fields
 	 */
-	public static function moveActorAbsolute(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOVE_ACTOR_ABSOLUTE, $fields);
+	public static function moveActorAbsolute(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOVE_ACTOR_ABSOLUTE, $fields);
 	}
 
 	/**
 	 * @phpstan-param MovePlayerFields $fields
 	 */
-	public static function movePlayer(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOVE_PLAYER, $fields);
+	public static function movePlayer(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOVE_PLAYER, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateBlockFields $fields
 	 */
-	public static function updateBlock(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_BLOCK, $fields);
+	public static function updateBlock(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_BLOCK, $fields);
 	}
 
 	/**
 	 * @phpstan-param AddPaintingFields $fields
 	 */
-	public static function addPainting(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ADD_PAINTING, $fields);
+	public static function addPainting(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ADD_PAINTING, $fields);
 	}
 
 	/**
 	 * @phpstan-param LevelEventFields $fields
 	 */
-	public static function levelEvent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LEVEL_EVENT, $fields);
+	public static function levelEvent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LEVEL_EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param BlockEventFields $fields
 	 */
-	public static function blockEvent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::BLOCK_EVENT, $fields);
+	public static function blockEvent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::BLOCK_EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param ActorEventFields $fields
 	 */
-	public static function actorEvent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ACTOR_EVENT, $fields);
+	public static function actorEvent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ACTOR_EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param MobEffectFields $fields
 	 */
-	public static function mobEffect(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOB_EFFECT, $fields);
+	public static function mobEffect(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOB_EFFECT, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateAttributesFields $fields
 	 */
-	public static function updateAttributes(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_ATTRIBUTES, $fields);
+	public static function updateAttributes(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_ATTRIBUTES, $fields);
 	}
 
 	/**
 	 * @phpstan-param InventoryTransactionFields $fields
 	 */
-	public static function inventoryTransaction(array $fields) : Packet{
-		return Packet::fromFields(PacketId::INVENTORY_TRANSACTION, $fields);
+	public static function inventoryTransaction(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::INVENTORY_TRANSACTION, $fields);
 	}
 
 	/**
 	 * @phpstan-param MobEquipmentFields $fields
 	 */
-	public static function mobEquipment(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOB_EQUIPMENT, $fields);
+	public static function mobEquipment(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOB_EQUIPMENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param MobArmourEquipmentFields $fields
 	 */
-	public static function mobArmourEquipment(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOB_ARMOUR_EQUIPMENT, $fields);
+	public static function mobArmourEquipment(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOB_ARMOUR_EQUIPMENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param InteractFields $fields
 	 */
-	public static function interact(array $fields) : Packet{
-		return Packet::fromFields(PacketId::INTERACT, $fields);
+	public static function interact(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::INTERACT, $fields);
 	}
 
 	/**
 	 * @phpstan-param BlockPickRequestFields $fields
 	 */
-	public static function blockPickRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::BLOCK_PICK_REQUEST, $fields);
+	public static function blockPickRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::BLOCK_PICK_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ActorPickRequestFields $fields
 	 */
-	public static function actorPickRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ACTOR_PICK_REQUEST, $fields);
+	public static function actorPickRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ACTOR_PICK_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerActionFields $fields
 	 */
-	public static function playerAction(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_ACTION, $fields);
+	public static function playerAction(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_ACTION, $fields);
 	}
 
 	/**
 	 * @phpstan-param HurtArmourFields $fields
 	 */
-	public static function hurtArmour(array $fields) : Packet{
-		return Packet::fromFields(PacketId::HURT_ARMOUR, $fields);
+	public static function hurtArmour(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::HURT_ARMOUR, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetActorDataFields $fields
 	 */
-	public static function setActorData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_ACTOR_DATA, $fields);
+	public static function setActorData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_ACTOR_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetActorMotionFields $fields
 	 */
-	public static function setActorMotion(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_ACTOR_MOTION, $fields);
+	public static function setActorMotion(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_ACTOR_MOTION, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetActorLinkFields $fields
 	 */
-	public static function setActorLink(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_ACTOR_LINK, $fields);
+	public static function setActorLink(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_ACTOR_LINK, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetHealthFields $fields
 	 */
-	public static function setHealth(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_HEALTH, $fields);
+	public static function setHealth(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_HEALTH, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetSpawnPositionFields $fields
 	 */
-	public static function setSpawnPosition(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_SPAWN_POSITION, $fields);
+	public static function setSpawnPosition(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_SPAWN_POSITION, $fields);
 	}
 
 	/**
 	 * @phpstan-param AnimateFields $fields
 	 */
-	public static function animate(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ANIMATE, $fields);
+	public static function animate(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ANIMATE, $fields);
 	}
 
 	/**
 	 * @phpstan-param RespawnFields $fields
 	 */
-	public static function respawn(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESPAWN, $fields);
+	public static function respawn(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESPAWN, $fields);
 	}
 
 	/**
 	 * @phpstan-param ContainerOpenFields $fields
 	 */
-	public static function containerOpen(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CONTAINER_OPEN, $fields);
+	public static function containerOpen(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CONTAINER_OPEN, $fields);
 	}
 
 	/**
 	 * @phpstan-param ContainerCloseFields $fields
 	 */
-	public static function containerClose(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CONTAINER_CLOSE, $fields);
+	public static function containerClose(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CONTAINER_CLOSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerHotBarFields $fields
 	 */
-	public static function playerHotBar(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_HOT_BAR, $fields);
+	public static function playerHotBar(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_HOT_BAR, $fields);
 	}
 
 	/**
 	 * @phpstan-param InventoryContentFields $fields
 	 */
-	public static function inventoryContent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::INVENTORY_CONTENT, $fields);
+	public static function inventoryContent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::INVENTORY_CONTENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param InventorySlotFields $fields
 	 */
-	public static function inventorySlot(array $fields) : Packet{
-		return Packet::fromFields(PacketId::INVENTORY_SLOT, $fields);
+	public static function inventorySlot(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::INVENTORY_SLOT, $fields);
 	}
 
 	/**
 	 * @phpstan-param ContainerSetDataFields $fields
 	 */
-	public static function containerSetData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CONTAINER_SET_DATA, $fields);
+	public static function containerSetData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CONTAINER_SET_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param CraftingDataFields $fields
 	 */
-	public static function craftingData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CRAFTING_DATA, $fields);
+	public static function craftingData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CRAFTING_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param GuiDataPickItemFields $fields
 	 */
-	public static function guiDataPickItem(array $fields) : Packet{
-		return Packet::fromFields(PacketId::GUI_DATA_PICK_ITEM, $fields);
+	public static function guiDataPickItem(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::GUI_DATA_PICK_ITEM, $fields);
 	}
 
 	/**
 	 * @phpstan-param BlockActorDataFields $fields
 	 */
-	public static function blockActorData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::BLOCK_ACTOR_DATA, $fields);
+	public static function blockActorData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::BLOCK_ACTOR_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param LevelChunkFields $fields
 	 */
-	public static function levelChunk(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LEVEL_CHUNK, $fields);
+	public static function levelChunk(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LEVEL_CHUNK, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetCommandsEnabledFields $fields
 	 */
-	public static function setCommandsEnabled(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_COMMANDS_ENABLED, $fields);
+	public static function setCommandsEnabled(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_COMMANDS_ENABLED, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetDifficultyFields $fields
 	 */
-	public static function setDifficulty(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_DIFFICULTY, $fields);
+	public static function setDifficulty(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_DIFFICULTY, $fields);
 	}
 
 	/**
 	 * @phpstan-param ChangeDimensionFields $fields
 	 */
-	public static function changeDimension(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CHANGE_DIMENSION, $fields);
+	public static function changeDimension(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CHANGE_DIMENSION, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetPlayerGameTypeFields $fields
 	 */
-	public static function setPlayerGameType(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_PLAYER_GAME_TYPE, $fields);
+	public static function setPlayerGameType(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_PLAYER_GAME_TYPE, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerListFields $fields
 	 */
-	public static function playerList(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_LIST, $fields);
+	public static function playerList(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_LIST, $fields);
 	}
 
 	/**
 	 * @phpstan-param SimpleEventFields $fields
 	 */
-	public static function simpleEvent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SIMPLE_EVENT, $fields);
+	public static function simpleEvent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SIMPLE_EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param EventFields $fields
 	 */
-	public static function event(array $fields) : Packet{
-		return Packet::fromFields(PacketId::EVENT, $fields);
+	public static function event(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param SpawnExperienceOrbFields $fields
 	 */
-	public static function spawnExperienceOrb(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SPAWN_EXPERIENCE_ORB, $fields);
+	public static function spawnExperienceOrb(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SPAWN_EXPERIENCE_ORB, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundMapItemDataFields $fields
 	 */
-	public static function clientBoundMapItemData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_MAP_ITEM_DATA, $fields);
+	public static function clientBoundMapItemData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_MAP_ITEM_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param MapInfoRequestFields $fields
 	 */
-	public static function mapInfoRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MAP_INFO_REQUEST, $fields);
+	public static function mapInfoRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MAP_INFO_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param RequestChunkRadiusFields $fields
 	 */
-	public static function requestChunkRadius(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REQUEST_CHUNK_RADIUS, $fields);
+	public static function requestChunkRadius(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REQUEST_CHUNK_RADIUS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ChunkRadiusUpdatedFields $fields
 	 */
-	public static function chunkRadiusUpdated(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CHUNK_RADIUS_UPDATED, $fields);
+	public static function chunkRadiusUpdated(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CHUNK_RADIUS_UPDATED, $fields);
 	}
 
 	/**
 	 * @phpstan-param GameRulesChangedFields $fields
 	 */
-	public static function gameRulesChanged(array $fields) : Packet{
-		return Packet::fromFields(PacketId::GAME_RULES_CHANGED, $fields);
+	public static function gameRulesChanged(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::GAME_RULES_CHANGED, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraFields $fields
 	 */
-	public static function camera(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA, $fields);
+	public static function camera(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA, $fields);
 	}
 
 	/**
 	 * @phpstan-param BossEventFields $fields
 	 */
-	public static function bossEvent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::BOSS_EVENT, $fields);
+	public static function bossEvent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::BOSS_EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param ShowCreditsFields $fields
 	 */
-	public static function showCredits(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SHOW_CREDITS, $fields);
+	public static function showCredits(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SHOW_CREDITS, $fields);
 	}
 
 	/**
 	 * @phpstan-param AvailableCommandsFields $fields
 	 */
-	public static function availableCommands(array $fields) : Packet{
-		return Packet::fromFields(PacketId::AVAILABLE_COMMANDS, $fields);
+	public static function availableCommands(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::AVAILABLE_COMMANDS, $fields);
 	}
 
 	/**
 	 * @phpstan-param CommandRequestFields $fields
 	 */
-	public static function commandRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::COMMAND_REQUEST, $fields);
+	public static function commandRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::COMMAND_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param CommandBlockUpdateFields $fields
 	 */
-	public static function commandBlockUpdate(array $fields) : Packet{
-		return Packet::fromFields(PacketId::COMMAND_BLOCK_UPDATE, $fields);
+	public static function commandBlockUpdate(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::COMMAND_BLOCK_UPDATE, $fields);
 	}
 
 	/**
 	 * @phpstan-param CommandOutputFields $fields
 	 */
-	public static function commandOutput(array $fields) : Packet{
-		return Packet::fromFields(PacketId::COMMAND_OUTPUT, $fields);
+	public static function commandOutput(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::COMMAND_OUTPUT, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateTradeFields $fields
 	 */
-	public static function updateTrade(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_TRADE, $fields);
+	public static function updateTrade(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_TRADE, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateEquipFields $fields
 	 */
-	public static function updateEquip(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_EQUIP, $fields);
+	public static function updateEquip(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_EQUIP, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePackDataInfoFields $fields
 	 */
-	public static function resourcePackDataInfo(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACK_DATA_INFO, $fields);
+	public static function resourcePackDataInfo(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACK_DATA_INFO, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePackChunkDataFields $fields
 	 */
-	public static function resourcePackChunkData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACK_CHUNK_DATA, $fields);
+	public static function resourcePackChunkData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACK_CHUNK_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePackChunkRequestFields $fields
 	 */
-	public static function resourcePackChunkRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACK_CHUNK_REQUEST, $fields);
+	public static function resourcePackChunkRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACK_CHUNK_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param TransferFields $fields
 	 */
-	public static function transfer(array $fields) : Packet{
-		return Packet::fromFields(PacketId::TRANSFER, $fields);
+	public static function transfer(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::TRANSFER, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlaySoundFields $fields
 	 */
-	public static function playSound(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAY_SOUND, $fields);
+	public static function playSound(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAY_SOUND, $fields);
 	}
 
 	/**
 	 * @phpstan-param StopSoundFields $fields
 	 */
-	public static function stopSound(array $fields) : Packet{
-		return Packet::fromFields(PacketId::STOP_SOUND, $fields);
+	public static function stopSound(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::STOP_SOUND, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetTitleFields $fields
 	 */
-	public static function setTitle(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_TITLE, $fields);
+	public static function setTitle(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_TITLE, $fields);
 	}
 
 	/**
 	 * @phpstan-param AddBehaviourTreeFields $fields
 	 */
-	public static function addBehaviourTree(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ADD_BEHAVIOUR_TREE, $fields);
+	public static function addBehaviourTree(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ADD_BEHAVIOUR_TREE, $fields);
 	}
 
 	/**
 	 * @phpstan-param StructureBlockUpdateFields $fields
 	 */
-	public static function structureBlockUpdate(array $fields) : Packet{
-		return Packet::fromFields(PacketId::STRUCTURE_BLOCK_UPDATE, $fields);
+	public static function structureBlockUpdate(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::STRUCTURE_BLOCK_UPDATE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ShowStoreOfferFields $fields
 	 */
-	public static function showStoreOffer(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SHOW_STORE_OFFER, $fields);
+	public static function showStoreOffer(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SHOW_STORE_OFFER, $fields);
 	}
 
 	/**
 	 * @phpstan-param PurchaseReceiptFields $fields
 	 */
-	public static function purchaseReceipt(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PURCHASE_RECEIPT, $fields);
+	public static function purchaseReceipt(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PURCHASE_RECEIPT, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerSkinFields $fields
 	 */
-	public static function playerSkin(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_SKIN, $fields);
+	public static function playerSkin(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_SKIN, $fields);
 	}
 
 	/**
 	 * @phpstan-param SubClientLoginFields $fields
 	 */
-	public static function subClientLogin(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SUB_CLIENT_LOGIN, $fields);
+	public static function subClientLogin(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SUB_CLIENT_LOGIN, $fields);
 	}
 
 	/**
 	 * @phpstan-param AutomationClientConnectFields $fields
 	 */
-	public static function automationClientConnect(array $fields) : Packet{
-		return Packet::fromFields(PacketId::AUTOMATION_CLIENT_CONNECT, $fields);
+	public static function automationClientConnect(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::AUTOMATION_CLIENT_CONNECT, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetLastHurtByFields $fields
 	 */
-	public static function setLastHurtBy(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_LAST_HURT_BY, $fields);
+	public static function setLastHurtBy(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_LAST_HURT_BY, $fields);
 	}
 
 	/**
 	 * @phpstan-param BookEditFields $fields
 	 */
-	public static function bookEdit(array $fields) : Packet{
-		return Packet::fromFields(PacketId::BOOK_EDIT, $fields);
+	public static function bookEdit(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::BOOK_EDIT, $fields);
 	}
 
 	/**
 	 * @phpstan-param NpcRequestFields $fields
 	 */
-	public static function npcRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::NPC_REQUEST, $fields);
+	public static function npcRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::NPC_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param PhotoTransferFields $fields
 	 */
-	public static function photoTransfer(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PHOTO_TRANSFER, $fields);
+	public static function photoTransfer(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PHOTO_TRANSFER, $fields);
 	}
 
 	/**
 	 * @phpstan-param ModalFormRequestFields $fields
 	 */
-	public static function modalFormRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MODAL_FORM_REQUEST, $fields);
+	public static function modalFormRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MODAL_FORM_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ModalFormResponseFields $fields
 	 */
-	public static function modalFormResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MODAL_FORM_RESPONSE, $fields);
+	public static function modalFormResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MODAL_FORM_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerSettingsRequestFields $fields
 	 */
-	public static function serverSettingsRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_SETTINGS_REQUEST, $fields);
+	public static function serverSettingsRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_SETTINGS_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerSettingsResponseFields $fields
 	 */
-	public static function serverSettingsResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_SETTINGS_RESPONSE, $fields);
+	public static function serverSettingsResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_SETTINGS_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ShowProfileFields $fields
 	 */
-	public static function showProfile(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SHOW_PROFILE, $fields);
+	public static function showProfile(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SHOW_PROFILE, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetDefaultGameTypeFields $fields
 	 */
-	public static function setDefaultGameType(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_DEFAULT_GAME_TYPE, $fields);
+	public static function setDefaultGameType(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_DEFAULT_GAME_TYPE, $fields);
 	}
 
 	/**
 	 * @phpstan-param RemoveObjectiveFields $fields
 	 */
-	public static function removeObjective(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REMOVE_OBJECTIVE, $fields);
+	public static function removeObjective(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REMOVE_OBJECTIVE, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetDisplayObjectiveFields $fields
 	 */
-	public static function setDisplayObjective(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_DISPLAY_OBJECTIVE, $fields);
+	public static function setDisplayObjective(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_DISPLAY_OBJECTIVE, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetScoreFields $fields
 	 */
-	public static function setScore(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_SCORE, $fields);
+	public static function setScore(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_SCORE, $fields);
 	}
 
 	/**
 	 * @phpstan-param LabTableFields $fields
 	 */
-	public static function labTable(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LAB_TABLE, $fields);
+	public static function labTable(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LAB_TABLE, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateBlockSyncedFields $fields
 	 */
-	public static function updateBlockSynced(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_BLOCK_SYNCED, $fields);
+	public static function updateBlockSynced(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_BLOCK_SYNCED, $fields);
 	}
 
 	/**
 	 * @phpstan-param MoveActorDeltaFields $fields
 	 */
-	public static function moveActorDelta(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOVE_ACTOR_DELTA, $fields);
+	public static function moveActorDelta(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOVE_ACTOR_DELTA, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetScoreboardIdentityFields $fields
 	 */
-	public static function setScoreboardIdentity(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_SCOREBOARD_IDENTITY, $fields);
+	public static function setScoreboardIdentity(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_SCOREBOARD_IDENTITY, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetLocalPlayerAsInitialisedFields $fields
 	 */
-	public static function setLocalPlayerAsInitialised(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_LOCAL_PLAYER_AS_INITIALISED, $fields);
+	public static function setLocalPlayerAsInitialised(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_LOCAL_PLAYER_AS_INITIALISED, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateSoftEnumFields $fields
 	 */
-	public static function updateSoftEnum(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_SOFT_ENUM, $fields);
+	public static function updateSoftEnum(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_SOFT_ENUM, $fields);
 	}
 
 	/**
 	 * @phpstan-param NetworkStackLatencyFields $fields
 	 */
-	public static function networkStackLatency(array $fields) : Packet{
-		return Packet::fromFields(PacketId::NETWORK_STACK_LATENCY, $fields);
+	public static function networkStackLatency(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::NETWORK_STACK_LATENCY, $fields);
 	}
 
 	/**
 	 * @phpstan-param SpawnParticleEffectFields $fields
 	 */
-	public static function spawnParticleEffect(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SPAWN_PARTICLE_EFFECT, $fields);
+	public static function spawnParticleEffect(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SPAWN_PARTICLE_EFFECT, $fields);
 	}
 
 	/**
 	 * @phpstan-param AvailableActorIdentifiersFields $fields
 	 */
-	public static function availableActorIdentifiers(array $fields) : Packet{
-		return Packet::fromFields(PacketId::AVAILABLE_ACTOR_IDENTIFIERS, $fields);
+	public static function availableActorIdentifiers(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::AVAILABLE_ACTOR_IDENTIFIERS, $fields);
 	}
 
 	/**
 	 * @phpstan-param NetworkChunkPublisherUpdateFields $fields
 	 */
-	public static function networkChunkPublisherUpdate(array $fields) : Packet{
-		return Packet::fromFields(PacketId::NETWORK_CHUNK_PUBLISHER_UPDATE, $fields);
+	public static function networkChunkPublisherUpdate(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::NETWORK_CHUNK_PUBLISHER_UPDATE, $fields);
 	}
 
 	/**
 	 * @phpstan-param BiomeDefinitionListFields $fields
 	 */
-	public static function biomeDefinitionList(array $fields) : Packet{
-		return Packet::fromFields(PacketId::BIOME_DEFINITION_LIST, $fields);
+	public static function biomeDefinitionList(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::BIOME_DEFINITION_LIST, $fields);
 	}
 
 	/**
 	 * @phpstan-param LevelSoundEventFields $fields
 	 */
-	public static function levelSoundEvent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LEVEL_SOUND_EVENT, $fields);
+	public static function levelSoundEvent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LEVEL_SOUND_EVENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param LevelEventGenericFields $fields
 	 */
-	public static function levelEventGeneric(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LEVEL_EVENT_GENERIC, $fields);
+	public static function levelEventGeneric(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LEVEL_EVENT_GENERIC, $fields);
 	}
 
 	/**
 	 * @phpstan-param LecternUpdateFields $fields
 	 */
-	public static function lecternUpdate(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LECTERN_UPDATE, $fields);
+	public static function lecternUpdate(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LECTERN_UPDATE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientCacheStatusFields $fields
 	 */
-	public static function clientCacheStatus(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_CACHE_STATUS, $fields);
+	public static function clientCacheStatus(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_CACHE_STATUS, $fields);
 	}
 
 	/**
 	 * @phpstan-param OnScreenTextureAnimationFields $fields
 	 */
-	public static function onScreenTextureAnimation(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ON_SCREEN_TEXTURE_ANIMATION, $fields);
+	public static function onScreenTextureAnimation(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ON_SCREEN_TEXTURE_ANIMATION, $fields);
 	}
 
 	/**
 	 * @phpstan-param MapCreateLockedCopyFields $fields
 	 */
-	public static function mapCreateLockedCopy(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MAP_CREATE_LOCKED_COPY, $fields);
+	public static function mapCreateLockedCopy(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MAP_CREATE_LOCKED_COPY, $fields);
 	}
 
 	/**
 	 * @phpstan-param StructureTemplateDataRequestFields $fields
 	 */
-	public static function structureTemplateDataRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::STRUCTURE_TEMPLATE_DATA_REQUEST, $fields);
+	public static function structureTemplateDataRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::STRUCTURE_TEMPLATE_DATA_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param StructureTemplateDataResponseFields $fields
 	 */
-	public static function structureTemplateDataResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::STRUCTURE_TEMPLATE_DATA_RESPONSE, $fields);
+	public static function structureTemplateDataResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::STRUCTURE_TEMPLATE_DATA_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientCacheBlobStatusFields $fields
 	 */
-	public static function clientCacheBlobStatus(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_CACHE_BLOB_STATUS, $fields);
+	public static function clientCacheBlobStatus(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_CACHE_BLOB_STATUS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientCacheMissResponseFields $fields
 	 */
-	public static function clientCacheMissResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_CACHE_MISS_RESPONSE, $fields);
+	public static function clientCacheMissResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_CACHE_MISS_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param EducationSettingsFields $fields
 	 */
-	public static function educationSettings(array $fields) : Packet{
-		return Packet::fromFields(PacketId::EDUCATION_SETTINGS, $fields);
+	public static function educationSettings(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::EDUCATION_SETTINGS, $fields);
 	}
 
 	/**
 	 * @phpstan-param EmoteFields $fields
 	 */
-	public static function emote(array $fields) : Packet{
-		return Packet::fromFields(PacketId::EMOTE, $fields);
+	public static function emote(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::EMOTE, $fields);
 	}
 
 	/**
 	 * @phpstan-param MultiPlayerSettingsFields $fields
 	 */
-	public static function multiPlayerSettings(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MULTI_PLAYER_SETTINGS, $fields);
+	public static function multiPlayerSettings(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MULTI_PLAYER_SETTINGS, $fields);
 	}
 
 	/**
 	 * @phpstan-param SettingsCommandFields $fields
 	 */
-	public static function settingsCommand(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SETTINGS_COMMAND, $fields);
+	public static function settingsCommand(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SETTINGS_COMMAND, $fields);
 	}
 
 	/**
 	 * @phpstan-param AnvilDamageFields $fields
 	 */
-	public static function anvilDamage(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ANVIL_DAMAGE, $fields);
+	public static function anvilDamage(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ANVIL_DAMAGE, $fields);
 	}
 
 	/**
 	 * @phpstan-param CompletedUsingItemFields $fields
 	 */
-	public static function completedUsingItem(array $fields) : Packet{
-		return Packet::fromFields(PacketId::COMPLETED_USING_ITEM, $fields);
+	public static function completedUsingItem(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::COMPLETED_USING_ITEM, $fields);
 	}
 
 	/**
 	 * @phpstan-param NetworkSettingsFields $fields
 	 */
-	public static function networkSettings(array $fields) : Packet{
-		return Packet::fromFields(PacketId::NETWORK_SETTINGS, $fields);
+	public static function networkSettings(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::NETWORK_SETTINGS, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerAuthInputFields $fields
 	 */
-	public static function playerAuthInput(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_AUTH_INPUT, $fields);
+	public static function playerAuthInput(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_AUTH_INPUT, $fields);
 	}
 
 	/**
 	 * @phpstan-param CreativeContentFields $fields
 	 */
-	public static function creativeContent(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CREATIVE_CONTENT, $fields);
+	public static function creativeContent(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CREATIVE_CONTENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerEnchantOptionsFields $fields
 	 */
-	public static function playerEnchantOptions(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_ENCHANT_OPTIONS, $fields);
+	public static function playerEnchantOptions(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_ENCHANT_OPTIONS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ItemStackRequestFields $fields
 	 */
-	public static function itemStackRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ITEM_STACK_REQUEST, $fields);
+	public static function itemStackRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ITEM_STACK_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ItemStackResponseFields $fields
 	 */
-	public static function itemStackResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ITEM_STACK_RESPONSE, $fields);
+	public static function itemStackResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ITEM_STACK_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerArmourDamageFields $fields
 	 */
-	public static function playerArmourDamage(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_ARMOUR_DAMAGE, $fields);
+	public static function playerArmourDamage(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_ARMOUR_DAMAGE, $fields);
 	}
 
 	/**
 	 * @phpstan-param CodeBuilderFields $fields
 	 */
-	public static function codeBuilder(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CODE_BUILDER, $fields);
+	public static function codeBuilder(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CODE_BUILDER, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdatePlayerGameTypeFields $fields
 	 */
-	public static function updatePlayerGameType(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_PLAYER_GAME_TYPE, $fields);
+	public static function updatePlayerGameType(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_PLAYER_GAME_TYPE, $fields);
 	}
 
 	/**
 	 * @phpstan-param EmoteListFields $fields
 	 */
-	public static function emoteList(array $fields) : Packet{
-		return Packet::fromFields(PacketId::EMOTE_LIST, $fields);
+	public static function emoteList(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::EMOTE_LIST, $fields);
 	}
 
 	/**
 	 * @phpstan-param PositionTrackingDbServerBroadcastFields $fields
 	 */
-	public static function positionTrackingDbServerBroadcast(array $fields) : Packet{
-		return Packet::fromFields(PacketId::POSITION_TRACKING_DB_SERVER_BROADCAST, $fields);
+	public static function positionTrackingDbServerBroadcast(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::POSITION_TRACKING_DB_SERVER_BROADCAST, $fields);
 	}
 
 	/**
 	 * @phpstan-param PositionTrackingDbClientRequestFields $fields
 	 */
-	public static function positionTrackingDbClientRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::POSITION_TRACKING_DB_CLIENT_REQUEST, $fields);
+	public static function positionTrackingDbClientRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::POSITION_TRACKING_DB_CLIENT_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param DebugInfoFields $fields
 	 */
-	public static function debugInfo(array $fields) : Packet{
-		return Packet::fromFields(PacketId::DEBUG_INFO, $fields);
+	public static function debugInfo(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::DEBUG_INFO, $fields);
 	}
 
 	/**
 	 * @phpstan-param PacketViolationWarningFields $fields
 	 */
-	public static function packetViolationWarning(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PACKET_VIOLATION_WARNING, $fields);
+	public static function packetViolationWarning(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PACKET_VIOLATION_WARNING, $fields);
 	}
 
 	/**
 	 * @phpstan-param MotionPredictionHintsFields $fields
 	 */
-	public static function motionPredictionHints(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOTION_PREDICTION_HINTS, $fields);
+	public static function motionPredictionHints(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOTION_PREDICTION_HINTS, $fields);
 	}
 
 	/**
 	 * @phpstan-param AnimateEntityFields $fields
 	 */
-	public static function animateEntity(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ANIMATE_ENTITY, $fields);
+	public static function animateEntity(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ANIMATE_ENTITY, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraShakeFields $fields
 	 */
-	public static function cameraShake(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_SHAKE, $fields);
+	public static function cameraShake(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_SHAKE, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerFogFields $fields
 	 */
-	public static function playerFog(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_FOG, $fields);
+	public static function playerFog(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_FOG, $fields);
 	}
 
 	/**
 	 * @phpstan-param CorrectPlayerMovePredictionFields $fields
 	 */
-	public static function correctPlayerMovePrediction(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CORRECT_PLAYER_MOVE_PREDICTION, $fields);
+	public static function correctPlayerMovePrediction(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CORRECT_PLAYER_MOVE_PREDICTION, $fields);
 	}
 
 	/**
 	 * @phpstan-param ItemRegistryFields $fields
 	 */
-	public static function itemRegistry(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ITEM_REGISTRY, $fields);
+	public static function itemRegistry(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ITEM_REGISTRY, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundDebugRendererFields $fields
 	 */
-	public static function clientBoundDebugRenderer(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_DEBUG_RENDERER, $fields);
+	public static function clientBoundDebugRenderer(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_DEBUG_RENDERER, $fields);
 	}
 
 	/**
 	 * @phpstan-param SyncActorPropertyFields $fields
 	 */
-	public static function syncActorProperty(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SYNC_ACTOR_PROPERTY, $fields);
+	public static function syncActorProperty(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SYNC_ACTOR_PROPERTY, $fields);
 	}
 
 	/**
 	 * @phpstan-param AddVolumeEntityFields $fields
 	 */
-	public static function addVolumeEntity(array $fields) : Packet{
-		return Packet::fromFields(PacketId::ADD_VOLUME_ENTITY, $fields);
+	public static function addVolumeEntity(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::ADD_VOLUME_ENTITY, $fields);
 	}
 
 	/**
 	 * @phpstan-param RemoveVolumeEntityFields $fields
 	 */
-	public static function removeVolumeEntity(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REMOVE_VOLUME_ENTITY, $fields);
+	public static function removeVolumeEntity(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REMOVE_VOLUME_ENTITY, $fields);
 	}
 
 	/**
 	 * @phpstan-param SimulationTypeFields $fields
 	 */
-	public static function simulationType(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SIMULATION_TYPE, $fields);
+	public static function simulationType(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SIMULATION_TYPE, $fields);
 	}
 
 	/**
 	 * @phpstan-param NpcDialogueFields $fields
 	 */
-	public static function npcDialogue(array $fields) : Packet{
-		return Packet::fromFields(PacketId::NPC_DIALOGUE, $fields);
+	public static function npcDialogue(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::NPC_DIALOGUE, $fields);
 	}
 
 	/**
 	 * @phpstan-param EducationResourceUriFields $fields
 	 */
-	public static function educationResourceUri(array $fields) : Packet{
-		return Packet::fromFields(PacketId::EDUCATION_RESOURCE_URI, $fields);
+	public static function educationResourceUri(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::EDUCATION_RESOURCE_URI, $fields);
 	}
 
 	/**
 	 * @phpstan-param CreatePhotoFields $fields
 	 */
-	public static function createPhoto(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CREATE_PHOTO, $fields);
+	public static function createPhoto(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CREATE_PHOTO, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateSubChunkBlocksFields $fields
 	 */
-	public static function updateSubChunkBlocks(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_SUB_CHUNK_BLOCKS, $fields);
+	public static function updateSubChunkBlocks(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_SUB_CHUNK_BLOCKS, $fields);
 	}
 
 	/**
 	 * @phpstan-param SubChunkFields $fields
 	 */
-	public static function subChunk(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SUB_CHUNK, $fields);
+	public static function subChunk(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SUB_CHUNK, $fields);
 	}
 
 	/**
 	 * @phpstan-param SubChunkRequestFields $fields
 	 */
-	public static function subChunkRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SUB_CHUNK_REQUEST, $fields);
+	public static function subChunkRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SUB_CHUNK_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientStartItemCooldownFields $fields
 	 */
-	public static function clientStartItemCooldown(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_START_ITEM_COOLDOWN, $fields);
+	public static function clientStartItemCooldown(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_START_ITEM_COOLDOWN, $fields);
 	}
 
 	/**
 	 * @phpstan-param ScriptMessageFields $fields
 	 */
-	public static function scriptMessage(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SCRIPT_MESSAGE, $fields);
+	public static function scriptMessage(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SCRIPT_MESSAGE, $fields);
 	}
 
 	/**
 	 * @phpstan-param CodeBuilderSourceFields $fields
 	 */
-	public static function codeBuilderSource(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CODE_BUILDER_SOURCE, $fields);
+	public static function codeBuilderSource(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CODE_BUILDER_SOURCE, $fields);
 	}
 
 	/**
 	 * @phpstan-param TickingAreasLoadStatusFields $fields
 	 */
-	public static function tickingAreasLoadStatus(array $fields) : Packet{
-		return Packet::fromFields(PacketId::TICKING_AREAS_LOAD_STATUS, $fields);
+	public static function tickingAreasLoadStatus(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::TICKING_AREAS_LOAD_STATUS, $fields);
 	}
 
 	/**
 	 * @phpstan-param DimensionDataFields $fields
 	 */
-	public static function dimensionData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::DIMENSION_DATA, $fields);
+	public static function dimensionData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::DIMENSION_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param AgentActionFields $fields
 	 */
-	public static function agentAction(array $fields) : Packet{
-		return Packet::fromFields(PacketId::AGENT_ACTION, $fields);
+	public static function agentAction(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::AGENT_ACTION, $fields);
 	}
 
 	/**
 	 * @phpstan-param ChangeMobPropertyFields $fields
 	 */
-	public static function changeMobProperty(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CHANGE_MOB_PROPERTY, $fields);
+	public static function changeMobProperty(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CHANGE_MOB_PROPERTY, $fields);
 	}
 
 	/**
 	 * @phpstan-param LessonProgressFields $fields
 	 */
-	public static function lessonProgress(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LESSON_PROGRESS, $fields);
+	public static function lessonProgress(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LESSON_PROGRESS, $fields);
 	}
 
 	/**
 	 * @phpstan-param RequestAbilityFields $fields
 	 */
-	public static function requestAbility(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REQUEST_ABILITY, $fields);
+	public static function requestAbility(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REQUEST_ABILITY, $fields);
 	}
 
 	/**
 	 * @phpstan-param RequestPermissionsFields $fields
 	 */
-	public static function requestPermissions(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REQUEST_PERMISSIONS, $fields);
+	public static function requestPermissions(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REQUEST_PERMISSIONS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ToastRequestFields $fields
 	 */
-	public static function toastRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::TOAST_REQUEST, $fields);
+	public static function toastRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::TOAST_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateAbilitiesFields $fields
 	 */
-	public static function updateAbilities(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_ABILITIES, $fields);
+	public static function updateAbilities(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_ABILITIES, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateAdventureSettingsFields $fields
 	 */
-	public static function updateAdventureSettings(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_ADVENTURE_SETTINGS, $fields);
+	public static function updateAdventureSettings(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_ADVENTURE_SETTINGS, $fields);
 	}
 
 	/**
 	 * @phpstan-param DeathInfoFields $fields
 	 */
-	public static function deathInfo(array $fields) : Packet{
-		return Packet::fromFields(PacketId::DEATH_INFO, $fields);
+	public static function deathInfo(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::DEATH_INFO, $fields);
 	}
 
 	/**
 	 * @phpstan-param EditorNetworkFields $fields
 	 */
-	public static function editorNetwork(array $fields) : Packet{
-		return Packet::fromFields(PacketId::EDITOR_NETWORK, $fields);
+	public static function editorNetwork(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::EDITOR_NETWORK, $fields);
 	}
 
 	/**
 	 * @phpstan-param FeatureRegistryFields $fields
 	 */
-	public static function featureRegistry(array $fields) : Packet{
-		return Packet::fromFields(PacketId::FEATURE_REGISTRY, $fields);
+	public static function featureRegistry(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::FEATURE_REGISTRY, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerStatsFields $fields
 	 */
-	public static function serverStats(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_STATS, $fields);
+	public static function serverStats(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_STATS, $fields);
 	}
 
 	/**
 	 * @phpstan-param RequestNetworkSettingsFields $fields
 	 */
-	public static function requestNetworkSettings(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REQUEST_NETWORK_SETTINGS, $fields);
+	public static function requestNetworkSettings(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REQUEST_NETWORK_SETTINGS, $fields);
 	}
 
 	/**
 	 * @phpstan-param GameTestRequestFields $fields
 	 */
-	public static function gameTestRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::GAME_TEST_REQUEST, $fields);
+	public static function gameTestRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::GAME_TEST_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param GameTestResultsFields $fields
 	 */
-	public static function gameTestResults(array $fields) : Packet{
-		return Packet::fromFields(PacketId::GAME_TEST_RESULTS, $fields);
+	public static function gameTestResults(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::GAME_TEST_RESULTS, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateClientInputLocksFields $fields
 	 */
-	public static function updateClientInputLocks(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_CLIENT_INPUT_LOCKS, $fields);
+	public static function updateClientInputLocks(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_CLIENT_INPUT_LOCKS, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraPresetsFields $fields
 	 */
-	public static function cameraPresets(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_PRESETS, $fields);
+	public static function cameraPresets(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_PRESETS, $fields);
 	}
 
 	/**
 	 * @phpstan-param UnlockedRecipesFields $fields
 	 */
-	public static function unlockedRecipes(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UNLOCKED_RECIPES, $fields);
+	public static function unlockedRecipes(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UNLOCKED_RECIPES, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraInstructionFields $fields
 	 */
-	public static function cameraInstruction(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_INSTRUCTION, $fields);
+	public static function cameraInstruction(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_INSTRUCTION, $fields);
 	}
 
 	/**
 	 * @phpstan-param TrimDataFields $fields
 	 */
-	public static function trimData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::TRIM_DATA, $fields);
+	public static function trimData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::TRIM_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param OpenSignFields $fields
 	 */
-	public static function openSign(array $fields) : Packet{
-		return Packet::fromFields(PacketId::OPEN_SIGN, $fields);
+	public static function openSign(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::OPEN_SIGN, $fields);
 	}
 
 	/**
 	 * @phpstan-param AgentAnimationFields $fields
 	 */
-	public static function agentAnimation(array $fields) : Packet{
-		return Packet::fromFields(PacketId::AGENT_ANIMATION, $fields);
+	public static function agentAnimation(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::AGENT_ANIMATION, $fields);
 	}
 
 	/**
 	 * @phpstan-param RefreshEntitlementsFields $fields
 	 */
-	public static function refreshEntitlements(array $fields) : Packet{
-		return Packet::fromFields(PacketId::REFRESH_ENTITLEMENTS, $fields);
+	public static function refreshEntitlements(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::REFRESH_ENTITLEMENTS, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerToggleCrafterSlotRequestFields $fields
 	 */
-	public static function playerToggleCrafterSlotRequest(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_TOGGLE_CRAFTER_SLOT_REQUEST, $fields);
+	public static function playerToggleCrafterSlotRequest(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_TOGGLE_CRAFTER_SLOT_REQUEST, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetPlayerInventoryOptionsFields $fields
 	 */
-	public static function setPlayerInventoryOptions(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_PLAYER_INVENTORY_OPTIONS, $fields);
+	public static function setPlayerInventoryOptions(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_PLAYER_INVENTORY_OPTIONS, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetHudFields $fields
 	 */
-	public static function setHud(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_HUD, $fields);
+	public static function setHud(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_HUD, $fields);
 	}
 
 	/**
 	 * @phpstan-param AwardAchievementFields $fields
 	 */
-	public static function awardAchievement(array $fields) : Packet{
-		return Packet::fromFields(PacketId::AWARD_ACHIEVEMENT, $fields);
+	public static function awardAchievement(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::AWARD_ACHIEVEMENT, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundCloseFormFields $fields
 	 */
-	public static function clientBoundCloseForm(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_CLOSE_FORM, $fields);
+	public static function clientBoundCloseForm(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_CLOSE_FORM, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerBoundLoadingScreenFields $fields
 	 */
-	public static function serverBoundLoadingScreen(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_BOUND_LOADING_SCREEN, $fields);
+	public static function serverBoundLoadingScreen(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_BOUND_LOADING_SCREEN, $fields);
 	}
 
 	/**
 	 * @phpstan-param JigsawStructureDataFields $fields
 	 */
-	public static function jigsawStructureData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::JIGSAW_STRUCTURE_DATA, $fields);
+	public static function jigsawStructureData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::JIGSAW_STRUCTURE_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param CurrentStructureFeatureFields $fields
 	 */
-	public static function currentStructureFeature(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CURRENT_STRUCTURE_FEATURE, $fields);
+	public static function currentStructureFeature(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CURRENT_STRUCTURE_FEATURE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerBoundDiagnosticsFields $fields
 	 */
-	public static function serverBoundDiagnostics(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_BOUND_DIAGNOSTICS, $fields);
+	public static function serverBoundDiagnostics(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_BOUND_DIAGNOSTICS, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraAimAssistFields $fields
 	 */
-	public static function cameraAimAssist(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_AIM_ASSIST, $fields);
+	public static function cameraAimAssist(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_AIM_ASSIST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ContainerRegistryCleanupFields $fields
 	 */
-	public static function containerRegistryCleanup(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CONTAINER_REGISTRY_CLEANUP, $fields);
+	public static function containerRegistryCleanup(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CONTAINER_REGISTRY_CLEANUP, $fields);
 	}
 
 	/**
 	 * @phpstan-param MovementEffectFields $fields
 	 */
-	public static function movementEffect(array $fields) : Packet{
-		return Packet::fromFields(PacketId::MOVEMENT_EFFECT, $fields);
+	public static function movementEffect(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::MOVEMENT_EFFECT, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraAimAssistPresetsFields $fields
 	 */
-	public static function cameraAimAssistPresets(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_AIM_ASSIST_PRESETS, $fields);
+	public static function cameraAimAssistPresets(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_AIM_ASSIST_PRESETS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientCameraAimAssistFields $fields
 	 */
-	public static function clientCameraAimAssist(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_CAMERA_AIM_ASSIST, $fields);
+	public static function clientCameraAimAssist(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_CAMERA_AIM_ASSIST, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientMovementPredictionSyncFields $fields
 	 */
-	public static function clientMovementPredictionSync(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_MOVEMENT_PREDICTION_SYNC, $fields);
+	public static function clientMovementPredictionSync(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_MOVEMENT_PREDICTION_SYNC, $fields);
 	}
 
 	/**
 	 * @phpstan-param UpdateClientOptionsFields $fields
 	 */
-	public static function updateClientOptions(array $fields) : Packet{
-		return Packet::fromFields(PacketId::UPDATE_CLIENT_OPTIONS, $fields);
+	public static function updateClientOptions(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::UPDATE_CLIENT_OPTIONS, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerVideoCaptureFields $fields
 	 */
-	public static function playerVideoCapture(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_VIDEO_CAPTURE, $fields);
+	public static function playerVideoCapture(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_VIDEO_CAPTURE, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerUpdateEntityOverridesFields $fields
 	 */
-	public static function playerUpdateEntityOverrides(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_UPDATE_ENTITY_OVERRIDES, $fields);
+	public static function playerUpdateEntityOverrides(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_UPDATE_ENTITY_OVERRIDES, $fields);
 	}
 
 	/**
 	 * @phpstan-param PlayerLocationFields $fields
 	 */
-	public static function playerLocation(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PLAYER_LOCATION, $fields);
+	public static function playerLocation(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PLAYER_LOCATION, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundControlSchemeSetFields $fields
 	 */
-	public static function clientBoundControlSchemeSet(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_CONTROL_SCHEME_SET, $fields);
+	public static function clientBoundControlSchemeSet(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_CONTROL_SCHEME_SET, $fields);
 	}
 
 	/**
 	 * @phpstan-param PrimitiveShapesFields $fields
 	 */
-	public static function primitiveShapes(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PRIMITIVE_SHAPES, $fields);
+	public static function primitiveShapes(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PRIMITIVE_SHAPES, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerBoundPackSettingChangeFields $fields
 	 */
-	public static function serverBoundPackSettingChange(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_BOUND_PACK_SETTING_CHANGE, $fields);
+	public static function serverBoundPackSettingChange(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_BOUND_PACK_SETTING_CHANGE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundDataStoreFields $fields
 	 */
-	public static function clientBoundDataStore(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_DATA_STORE, $fields);
+	public static function clientBoundDataStore(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_DATA_STORE, $fields);
 	}
 
 	/**
 	 * @phpstan-param GraphicsOverrideParameterFields $fields
 	 */
-	public static function graphicsOverrideParameter(array $fields) : Packet{
-		return Packet::fromFields(PacketId::GRAPHICS_OVERRIDE_PARAMETER, $fields);
+	public static function graphicsOverrideParameter(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::GRAPHICS_OVERRIDE_PARAMETER, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerBoundDataStoreFields $fields
 	 */
-	public static function serverBoundDataStore(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_BOUND_DATA_STORE, $fields);
+	public static function serverBoundDataStore(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_BOUND_DATA_STORE, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundDataDrivenUiShowScreenFields $fields
 	 */
-	public static function clientBoundDataDrivenUiShowScreen(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_DATA_DRIVEN_UI_SHOW_SCREEN, $fields);
+	public static function clientBoundDataDrivenUiShowScreen(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_DATA_DRIVEN_UI_SHOW_SCREEN, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundDataDrivenUiCloseScreenFields $fields
 	 */
-	public static function clientBoundDataDrivenUiCloseScreen(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_DATA_DRIVEN_UI_CLOSE_SCREEN, $fields);
+	public static function clientBoundDataDrivenUiCloseScreen(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_DATA_DRIVEN_UI_CLOSE_SCREEN, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundDataDrivenUiReloadFields $fields
 	 */
-	public static function clientBoundDataDrivenUiReload(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_DATA_DRIVEN_UI_RELOAD, $fields);
+	public static function clientBoundDataDrivenUiReload(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_DATA_DRIVEN_UI_RELOAD, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundTextureShiftFields $fields
 	 */
-	public static function clientBoundTextureShift(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_TEXTURE_SHIFT, $fields);
+	public static function clientBoundTextureShift(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_TEXTURE_SHIFT, $fields);
 	}
 
 	/**
 	 * @phpstan-param VoxelShapesFields $fields
 	 */
-	public static function voxelShapes(array $fields) : Packet{
-		return Packet::fromFields(PacketId::VOXEL_SHAPES, $fields);
+	public static function voxelShapes(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::VOXEL_SHAPES, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraSplineFields $fields
 	 */
-	public static function cameraSpline(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_SPLINE, $fields);
+	public static function cameraSpline(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_SPLINE, $fields);
 	}
 
 	/**
 	 * @phpstan-param CameraAimAssistActorPriorityFields $fields
 	 */
-	public static function cameraAimAssistActorPriority(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CAMERA_AIM_ASSIST_ACTOR_PRIORITY, $fields);
+	public static function cameraAimAssistActorPriority(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CAMERA_AIM_ASSIST_ACTOR_PRIORITY, $fields);
 	}
 
 	/**
 	 * @phpstan-param ResourcePacksReadyForValidationFields $fields
 	 */
-	public static function resourcePacksReadyForValidation(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RESOURCE_PACKS_READY_FOR_VALIDATION, $fields);
+	public static function resourcePacksReadyForValidation(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RESOURCE_PACKS_READY_FOR_VALIDATION, $fields);
 	}
 
 	/**
 	 * @phpstan-param LocatorBarFields $fields
 	 */
-	public static function locatorBar(array $fields) : Packet{
-		return Packet::fromFields(PacketId::LOCATOR_BAR, $fields);
+	public static function locatorBar(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::LOCATOR_BAR, $fields);
 	}
 
 	/**
 	 * @phpstan-param PartyChangedFields $fields
 	 */
-	public static function partyChanged(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PARTY_CHANGED, $fields);
+	public static function partyChanged(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PARTY_CHANGED, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerBoundDataDrivenScreenClosedFields $fields
 	 */
-	public static function serverBoundDataDrivenScreenClosed(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_BOUND_DATA_DRIVEN_SCREEN_CLOSED, $fields);
+	public static function serverBoundDataDrivenScreenClosed(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_BOUND_DATA_DRIVEN_SCREEN_CLOSED, $fields);
 	}
 
 	/**
 	 * @phpstan-param SyncWorldClocksFields $fields
 	 */
-	public static function syncWorldClocks(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SYNC_WORLD_CLOCKS, $fields);
+	public static function syncWorldClocks(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SYNC_WORLD_CLOCKS, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientBoundAttributeLayerSyncFields $fields
 	 */
-	public static function clientBoundAttributeLayerSync(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENT_BOUND_ATTRIBUTE_LAYER_SYNC, $fields);
+	public static function clientBoundAttributeLayerSync(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENT_BOUND_ATTRIBUTE_LAYER_SYNC, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerStoreInfoFields $fields
 	 */
-	public static function serverStoreInfo(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_STORE_INFO, $fields);
+	public static function serverStoreInfo(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_STORE_INFO, $fields);
 	}
 
 	/**
 	 * @phpstan-param ServerPresenceInfoFields $fields
 	 */
-	public static function serverPresenceInfo(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SERVER_PRESENCE_INFO, $fields);
+	public static function serverPresenceInfo(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SERVER_PRESENCE_INFO, $fields);
 	}
 
 	/**
 	 * @phpstan-param ClientboundUpdateSoundDataFields $fields
 	 */
-	public static function clientboundUpdateSoundData(array $fields) : Packet{
-		return Packet::fromFields(PacketId::CLIENTBOUND_UPDATE_SOUND_DATA, $fields);
+	public static function clientboundUpdateSoundData(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::CLIENTBOUND_UPDATE_SOUND_DATA, $fields);
 	}
 
 	/**
 	 * @phpstan-param SendPartyDestinationCookieFields $fields
 	 */
-	public static function sendPartyDestinationCookie(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SEND_PARTY_DESTINATION_COOKIE, $fields);
+	public static function sendPartyDestinationCookie(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SEND_PARTY_DESTINATION_COOKIE, $fields);
 	}
 
 	/**
 	 * @phpstan-param PartyDestinationCookieResponseFields $fields
 	 */
-	public static function partyDestinationCookieResponse(array $fields) : Packet{
-		return Packet::fromFields(PacketId::PARTY_DESTINATION_COOKIE_RESPONSE, $fields);
+	public static function partyDestinationCookieResponse(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::PARTY_DESTINATION_COOKIE_RESPONSE, $fields);
 	}
 
 	/**
 	 * @phpstan-param SetPlayerFurnaceOptionsFields $fields
 	 */
-	public static function setPlayerFurnaceOptions(array $fields) : Packet{
-		return Packet::fromFields(PacketId::SET_PLAYER_FURNACE_OPTIONS, $fields);
+	public static function setPlayerFurnaceOptions(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::SET_PLAYER_FURNACE_OPTIONS, $fields);
 	}
 
 	/**
 	 * @phpstan-param RecordStartedFields $fields
 	 */
-	public static function recordStarted(array $fields) : Packet{
-		return Packet::fromFields(PacketId::RECORD_STARTED, $fields);
+	public static function recordStarted(array $fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::RECORD_STARTED, $fields);
 	}
 }

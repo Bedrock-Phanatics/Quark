@@ -25,12 +25,13 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\StructureEditorData;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class StructureBlockUpdatePacket{
+final class StructureBlockUpdatePacket extends Packet{
 	public const int ID = PacketId::STRUCTURE_BLOCK_UPDATE;
 
 	public function __construct(
@@ -39,4 +40,8 @@ final class StructureBlockUpdatePacket{
 		public bool $trigger,
 		public bool $isWaterlogged,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\TextAuthorAndMessage;
 use quark\network\mcpe\protocol\types\TextMessageAndParams;
 use quark\network\mcpe\protocol\types\TextMessageOnly;
@@ -31,7 +32,7 @@ use quark\network\mcpe\protocol\types\TextMessageOnly;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class TextPacket{
+final class TextPacket extends Packet{
 	public const int ID = PacketId::TEXT;
 
 	/**
@@ -44,4 +45,8 @@ final class TextPacket{
 		public string $platformId,
 		public ?string $filteredMessage = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -27,6 +27,7 @@ use Bedwire\PacketException;
 use Bedwire\PacketId;
 use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
+use quark\network\mcpe\protocol\packet\SetTimePacket;
 use function hash;
 use function json_encode;
 use function preg_replace;
@@ -37,9 +38,10 @@ use const JSON_THROW_ON_ERROR;
 
 final class PacketTest extends TestCase{
 
-	public function testGeneratedFactoriesMatchTheLoadedProtocol() : void{
+	public function testGeneratedCodeMatchesTheLoadedProtocol() : void{
+		$hash = hash("sha256", json_encode(Protocol::schema(), JSON_THROW_ON_ERROR));
 		self::assertSame(Protocol::VERSION, Packets::PROTOCOL);
-		self::assertSame(hash("sha256", json_encode(Protocol::schema(), JSON_THROW_ON_ERROR)), Packets::SCHEMA_HASH, "Run composer update-codegen after updating ext-bedwire");
+		self::assertSame($hash, Packets::SCHEMA_HASH, "Run composer update-codegen after updating ext-bedwire");
 
 		$methods = 0;
 		foreach((new \ReflectionClass(Packets::class))->getMethods(\ReflectionMethod::IS_STATIC) as $method){
@@ -59,48 +61,42 @@ final class PacketTest extends TestCase{
 			self::assertNotSame(0, Protocol::direction($id) & Protocol::SERVERBOUND);
 		}
 		self::assertArrayNotHasKey(PacketId::START_GAME, Packets::HANDLERS);
+
+		Protocol::bind([]);
+		Protocol::bind(ProtocolClasses::BINDINGS);
 	}
 
-	public function testFieldsAreEncodedOnlyWhenNeeded() : void{
-		$packet = Packets::setTime(["time" => 1234]);
-		self::assertFalse($packet->hasEncoded());
-		self::assertSame([PacketId::SET_TIME, ["time" => 1234]], $packet->toBatchEntry());
-		self::assertSame("set_time", $packet->getName());
+	public function testEncodedPacketsDecodeANewCopyEachTime() : void{
+		$encoded = EncodedPacket::of(new SetTimePacket(1234));
+		self::assertSame(PacketId::SET_TIME, $encoded->getId());
+		self::assertSame("set_time", $encoded->getName());
+		self::assertSame(Protocol::encode(PacketId::SET_TIME, ["time" => 1234]), $encoded->getBytes());
 
-		$encoded = $packet->getEncoded();
-		self::assertTrue($packet->hasEncoded());
-		self::assertSame($encoded, $packet->toBatchEntry());
-		self::assertSame(["time" => 1234], Protocol::decode($encoded));
-
-		$packet->setFields(["time" => -1]);
-		self::assertFalse($packet->hasEncoded());
-		self::assertSame(["time" => -1], Protocol::decode($packet->getEncoded()));
-	}
-
-	public function testEncodedPacketsAreDecodedOnlyWhenNeeded() : void{
-		$encoded = Protocol::encode(PacketId::SET_TIME, ["time" => 7]);
-		$packet = Packet::fromEncoded($encoded);
-		self::assertSame(PacketId::SET_TIME, $packet->getId());
-		self::assertSame($encoded, $packet->toBatchEntry());
-		self::assertSame(["time" => 7], $packet->getFields());
-		self::assertSame($encoded, $packet->getEncoded());
+		$first = $encoded->getPacket();
+		self::assertInstanceOf(SetTimePacket::class, $first);
+		self::assertSame(1234, $first->time);
+		$first->time = -1;
+		$second = $encoded->getPacket();
+		self::assertInstanceOf(SetTimePacket::class, $second);
+		self::assertSame(1234, $second->time);
+		self::assertSame($encoded->getBytes(), EncodedPacket::fromBytes($encoded->getBytes())->getBytes());
 	}
 
 	public function testMalformedPacketsAreRejected() : void{
 		$this->expectException(PacketException::class);
-		Packet::fromEncoded(Protocol::encode(PacketId::SET_TIME, ["time" => 7]) . "\x00")->getFields();
+		EncodedPacket::fromBytes(Protocol::encode(PacketId::SET_TIME, ["time" => 7]) . "\x00")->getPacket();
 	}
 
 	public function testUnknownPacketsCannotBeDecoded() : void{
-		$packet = Packet::fromEncoded("\xff\x07");
+		$packet = EncodedPacket::fromBytes("\xff\x07");
 		self::assertSame(1023, $packet->getId());
 		self::assertSame("unknown_1023", $packet->getName());
 		$this->expectException(PacketException::class);
-		$packet->getFields();
+		$packet->getPacket();
 	}
 
 	public function testInvalidFieldsAreRejectedWhenEncoding() : void{
 		$this->expectException(\ValueError::class);
-		Packet::fromFields(PacketId::SET_TIME, ["time" => "soon"])->getEncoded();
+		EncodedPacket::of(new ArrayPacket(PacketId::SET_TIME, ["time" => "soon"]));
 	}
 }

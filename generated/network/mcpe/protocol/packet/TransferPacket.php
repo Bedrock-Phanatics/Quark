@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\GatheringJoinInfo;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class TransferPacket{
+final class TransferPacket extends Packet{
 	public const int ID = PacketId::TRANSFER;
 
 	public function __construct(
@@ -38,4 +39,8 @@ final class TransferPacket{
 		public bool $reloadWorld,
 		public ?GatheringJoinInfo $gatheringsConfiguration = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

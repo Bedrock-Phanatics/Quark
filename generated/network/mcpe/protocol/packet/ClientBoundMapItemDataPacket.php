@@ -25,13 +25,14 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\MapDecoration;
 use quark\network\mcpe\protocol\types\MapTrackedObject;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ClientBoundMapItemDataPacket{
+final class ClientBoundMapItemDataPacket extends Packet{
 	public const int ID = PacketId::CLIENT_BOUND_MAP_ITEM_DATA;
 
 	/**
@@ -55,4 +56,8 @@ final class ClientBoundMapItemDataPacket{
 		public ?int $startY = null,
 		public ?array $pixels = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

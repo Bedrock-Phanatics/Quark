@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\AttributeLayerSettings;
 use quark\network\mcpe\protocol\types\EasAttributeLayerData;
 use quark\network\mcpe\protocol\types\EnvironmentAttributeData;
@@ -32,7 +33,7 @@ use quark\network\mcpe\protocol\types\RemoveEnvironmentAttributes;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ClientBoundAttributeLayerSyncPacket{
+final class ClientBoundAttributeLayerSyncPacket extends Packet{
 	public const int ID = PacketId::CLIENT_BOUND_ATTRIBUTE_LAYER_SYNC;
 
 	/**
@@ -41,4 +42,8 @@ final class ClientBoundAttributeLayerSyncPacket{
 	public function __construct(
 		public array $data,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

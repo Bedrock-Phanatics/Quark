@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class MobEffectPacket{
+final class MobEffectPacket extends Packet{
 	public const int ID = PacketId::MOB_EFFECT;
 
 	public function __construct(
@@ -41,4 +42,8 @@ final class MobEffectPacket{
 		public int $tick,
 		public bool $ambient,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

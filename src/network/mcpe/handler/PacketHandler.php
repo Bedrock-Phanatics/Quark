@@ -28,7 +28,7 @@ namespace quark\network\mcpe\handler;
  * is mutable and may be removed/replaced at any time.
  *
  * A handler handles a packet by declaring the public method Packets::HANDLERS names for it, such as handleText(). The
- * method takes the packet's decoded fields and returns whether it handled them. Packets a handler has no method for are
+ * method takes the decoded packet's class and returns whether it handled it. Packets a handler has no method for are
  * dropped without being decoded.
  */
 abstract class PacketHandler{

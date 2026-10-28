@@ -59,6 +59,7 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 const PACKET_NAMESPACE = "quark\\network\\mcpe\\protocol\\packet";
 const TYPE_NAMESPACE = "quark\\network\\mcpe\\protocol\\types";
+const PACKET_BASE = "quark\\network\\mcpe\\protocol\\Packet";
 
 /** Structs that already have a math class with the same public properties. */
 const MATH_CLASSES = [
@@ -324,13 +325,18 @@ final class Generator{
 		}
 
 		$body = "";
+		$extends = "";
 		if($packetConstant !== null){
 			$this->import("Bedwire\\PacketId");
+			$extends = " extends " . $this->import(PACKET_BASE);
 			$body .= "\tpublic const int ID = PacketId::$packetConstant;\n";
 		}
 		if(count($parameters) > 0){
 			$body .= ($body !== "" ? "\n" : "") . (count($docs) > 0 ? "\t/**\n" . implode("\n", $docs) . "\n\t */\n" : "");
 			$body .= "\tpublic function __construct(\n" . implode("\n", $parameters) . "\n\t){}\n";
+		}
+		if($packetConstant !== null){
+			$body .= "\n\tpublic function getId() : int{\n\t\treturn self::ID;\n\t}\n";
 		}
 
 		$uses = $this->uses($namespace);
@@ -342,7 +348,7 @@ namespace $namespace;
 /**
  * This class is generated from Bedwire\\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class $short{
+final class $short$extends{
 $body}
 
 CLASS;
@@ -388,6 +394,8 @@ CLASS;
 
 namespace quark\\network\\mcpe\\protocol;
 
+use Bedwire\\Protocol;
+
 /**
  * The classes Bedwire\\Protocol::bind() is given, by schema name.
  * This class is generated from Bedwire\\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
@@ -399,8 +407,20 @@ final class ProtocolClasses{
 	public const array BINDINGS = [
 $entries	];
 
+	private static bool \$bound = false;
+
 	private function __construct(){
 		//NOOP
+	}
+
+	/**
+	 * Binds the classes on this thread, which every thread must do before it encodes or decodes packet classes.
+	 */
+	public static function bind() : void{
+		if(!self::\$bound){
+			Protocol::bind(self::BINDINGS);
+			self::\$bound = true;
+		}
 	}
 }
 

@@ -37,7 +37,11 @@ use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackInfoEntry;
 use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackStackEntry;
 use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\packet\ResourcePackChunkRequestPacket;
+use quark\network\mcpe\protocol\packet\ResourcePackClientResponsePacket;
+use quark\network\mcpe\protocol\types\Downloading;
 use quark\network\PacketHandlingException;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
@@ -96,10 +100,10 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 	public function testDownloadSequenceMatchesBedrockProtocol() : void{
 		$handler = $this->handler($this->session());
 		$handler->setUp();
-		self::assertTrue($handler->handleResourcePackClientResponse(["response" => ["downloading" => ["response_type" => "downloading", "downloading_packs" => [self::PACK_ID . "_1.0.0"]]]]));
-		self::assertTrue($handler->handleResourcePackChunkRequest(["resource_name" => self::PACK_ID, "chunk" => 1]));
-		self::assertTrue($handler->handleResourcePackClientResponse(["response" => ["downloading_finished" => "downloadingfinished"]]));
-		self::assertTrue($handler->handleResourcePackClientResponse(["response" => ["resource_pack_stack_finished" => "resourcepackstackfinished"]]));
+		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading" => new Downloading("downloading", [self::PACK_ID . "_1.0.0"])])));
+		self::assertTrue($handler->handleResourcePackChunkRequest(new ResourcePackChunkRequestPacket(self::PACK_ID, 1)));
+		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading_finished" => "downloadingfinished"])));
+		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["resource_pack_stack_finished" => "resourcepackstackfinished"])));
 		self::assertTrue($this->completed);
 
 		/** @phpstan-var list<array{string, string}> $chemistryPacks */
@@ -124,19 +128,19 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 		];
 		self::assertSame(
 			array_map(fn(ClientboundPacket $packet) : string => bin2hex(self::legacy($packet)), $expected),
-			array_map(fn(Packet $packet) : string => bin2hex($packet->getEncoded()), $this->sent)
+			array_map(fn(Packet $packet) : string => bin2hex(EncodedPacket::of($packet)->getBytes()), $this->sent)
 		);
 	}
 
 	public function testRejectsMismatchedResponseType() : void{
 		$handler = $this->handler($this->session());
 		$this->expectException(PacketHandlingException::class);
-		$handler->handleResourcePackClientResponse(["response" => ["downloading_finished" => "resourcepackstackfinished"]]);
+		$handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading_finished" => "resourcepackstackfinished"]));
 	}
 
 	public function testRejectsRepeatedMetadataRequests() : void{
 		$handler = $this->handler($this->session());
-		$request = ["response" => ["downloading" => ["response_type" => "downloading", "downloading_packs" => [self::PACK_ID]]]];
+		$request = new ResourcePackClientResponsePacket(["downloading" => new Downloading("downloading", [self::PACK_ID])]);
 		$handler->handleResourcePackClientResponse($request);
 		$this->expectException(PacketHandlingException::class);
 		$handler->handleResourcePackClientResponse($request);
@@ -155,7 +159,7 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 	public function testDisconnectsOnOutOfBoundsChunk(int $chunk) : void{
 		$session = $this->session();
 		$session->expects(self::once())->method("disconnectWithError");
-		self::assertFalse($this->handler($session)->handleResourcePackChunkRequest(["resource_name" => self::PACK_ID, "chunk" => $chunk]));
+		self::assertFalse($this->handler($session)->handleResourcePackChunkRequest(new ResourcePackChunkRequestPacket(self::PACK_ID, $chunk)));
 		self::assertSame([], $this->sent);
 	}
 
@@ -163,13 +167,13 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 		$session = $this->session();
 		$session->expects(self::once())->method("disconnectWithError");
 		$handler = $this->handler($session);
-		self::assertTrue($handler->handleResourcePackChunkRequest(["resource_name" => self::PACK_ID, "chunk" => 0]));
-		self::assertFalse($handler->handleResourcePackChunkRequest(["resource_name" => self::PACK_ID, "chunk" => 0]));
+		self::assertTrue($handler->handleResourcePackChunkRequest(new ResourcePackChunkRequestPacket(self::PACK_ID, 0)));
+		self::assertFalse($handler->handleResourcePackChunkRequest(new ResourcePackChunkRequestPacket(self::PACK_ID, 0)));
 	}
 
 	public function testDisconnectsOnUnknownPack() : void{
 		$session = $this->session();
 		$session->expects(self::once())->method("disconnectWithError");
-		self::assertFalse($this->handler($session)->handleResourcePackChunkRequest(["resource_name" => Uuid::NIL, "chunk" => 0]));
+		self::assertFalse($this->handler($session)->handleResourcePackChunkRequest(new ResourcePackChunkRequestPacket(Uuid::NIL, 0)));
 	}
 }

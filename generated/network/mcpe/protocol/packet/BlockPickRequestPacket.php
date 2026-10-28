@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class BlockPickRequestPacket{
+final class BlockPickRequestPacket extends Packet{
 	public const int ID = PacketId::BLOCK_PICK_REQUEST;
 
 	public function __construct(
@@ -37,4 +38,8 @@ final class BlockPickRequestPacket{
 		public bool $withData,
 		public int $maxSlots,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

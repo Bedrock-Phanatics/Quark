@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\EntityDiagnosticTimingInfo;
 use quark\network\mcpe\protocol\types\MemoryCategoryCounter;
 use quark\network\mcpe\protocol\types\SystemCategory;
@@ -33,7 +34,7 @@ use quark\network\mcpe\protocol\types\WhiskerScopeDataSummary;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ServerBoundDiagnosticsPacket{
+final class ServerBoundDiagnosticsPacket extends Packet{
 	public const int ID = PacketId::SERVER_BOUND_DIAGNOSTICS;
 
 	/**
@@ -59,4 +60,8 @@ final class ServerBoundDiagnosticsPacket{
 		public array $systemCategories,
 		public array $whiskerScopes,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

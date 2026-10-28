@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ResourcePackDataInfoPacket{
+final class ResourcePackDataInfoPacket extends Packet{
 	public const int ID = PacketId::RESOURCE_PACK_DATA_INFO;
 
 	public function __construct(
@@ -40,4 +41,8 @@ final class ResourcePackDataInfoPacket{
 		public bool $isPremiumPack,
 		public int $packType,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -25,16 +25,21 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\UpdateSubChunkBlocksChangedInfo;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class UpdateSubChunkBlocksPacket{
+final class UpdateSubChunkBlocksPacket extends Packet{
 	public const int ID = PacketId::UPDATE_SUB_CHUNK_BLOCKS;
 
 	public function __construct(
 		public Vector3 $subChunkBlockPosition,
 		public UpdateSubChunkBlocksChangedInfo $blocksChanged,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

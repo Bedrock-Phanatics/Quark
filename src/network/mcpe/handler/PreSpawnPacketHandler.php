@@ -36,6 +36,7 @@ use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
 use quark\network\mcpe\protocol\Packets;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
@@ -46,8 +47,6 @@ use function sprintf;
 
 /**
  * Handler used for the pre-spawn phase of the session.
- *
- * @phpstan-import-type RequestChunkRadiusFields from Packets
  */
 #[SilentDiscard(PacketId::PLAYER_AUTH_INPUT, comment: "Spammed after StartGame even though player has no controls")]
 #[SilentDiscard(PacketId::SERVER_BOUND_LOADING_SCREEN, "Not needed")]
@@ -214,11 +213,8 @@ class PreSpawnPacketHandler extends PacketHandler{
 		}
 	}
 
-	/**
-	 * @phpstan-param RequestChunkRadiusFields $packet
-	 */
-	public function handleRequestChunkRadius(array $packet) : bool{
-		$this->player->setViewDistance($packet["chunk_radius"]);
+	public function handleRequestChunkRadius(RequestChunkRadiusPacket $packet) : bool{
+		$this->player->setViewDistance($packet->chunkRadius);
 
 		return true;
 	}

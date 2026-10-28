@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use quark\event\server\DataPacketSendEvent;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packets;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
@@ -77,13 +78,16 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 
 		$totalLength = 0;
 		$packetBuffers = [];
+		$encodedPackets = [];
 		$encodeScope = PulseZones::$playerNetworkSendEncode->start();
 		try{
 			foreach($packets as $packet){
-				$buffer = $packet->getEncoded();
+				$encoded = $packet instanceof EncodedPacket ? $packet : EncodedPacket::of($packet);
+				$buffer = $encoded->getBytes();
 				//varint length prefix + packet buffer
 				$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
 				$packetBuffers[] = $buffer;
+				$encodedPackets[] = $encoded;
 			}
 		}finally{
 			PulseZones::$playerNetworkSendEncode->stop($encodeScope);
@@ -104,7 +108,7 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 				}
 			}else{
 				foreach($compressorTargets as $target){
-					$target->addToSendBuffer($packets);
+					$target->addToSendBuffer($encodedPackets);
 				}
 			}
 		}

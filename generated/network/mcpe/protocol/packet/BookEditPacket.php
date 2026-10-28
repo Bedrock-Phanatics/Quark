@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\BookEditActionAddPage;
 use quark\network\mcpe\protocol\types\BookEditActionFinalize;
 use quark\network\mcpe\protocol\types\BookEditActionReplacePage;
@@ -32,7 +33,7 @@ use quark\network\mcpe\protocol\types\BookEditActionSwapPages;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class BookEditPacket{
+final class BookEditPacket extends Packet{
 	public const int ID = PacketId::BOOK_EDIT;
 
 	/**
@@ -42,4 +43,8 @@ final class BookEditPacket{
 		public int $bookSlot,
 		public array $operation,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\CameraAimAssistCategory;
 use quark\network\mcpe\protocol\types\CameraAimAssistPresetDefinition;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CameraAimAssistPresetsPacket{
+final class CameraAimAssistPresetsPacket extends Packet{
 	public const int ID = PacketId::CAMERA_AIM_ASSIST_PRESETS;
 
 	/**
@@ -42,4 +43,8 @@ final class CameraAimAssistPresetsPacket{
 		public array $cameraAimAssistCategories,
 		public int $operation,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

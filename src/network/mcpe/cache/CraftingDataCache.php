@@ -35,8 +35,8 @@ use quark\crafting\ShapelessRecipe;
 use quark\crafting\ShapelessRecipeType;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
 use quark\pulse\internal\PulseZones;
 use quark\utils\AssumptionFailedError;
@@ -52,8 +52,8 @@ final class CraftingDataCache{
 	use SingletonTrait;
 
 	/**
-	 * @var Packet[]
-	 * @phpstan-var array<int, Packet>
+	 * @var EncodedPacket[]
+	 * @phpstan-var array<int, EncodedPacket>
 	 */
 	private array $caches = [];
 
@@ -63,7 +63,7 @@ final class CraftingDataCache{
 	 */
 	public const RECIPE_ID_OFFSET = 1;
 
-	public function getCache(CraftingManager $manager) : Packet{
+	public function getCache(CraftingManager $manager) : EncodedPacket{
 		$id = spl_object_id($manager);
 		if(!isset($this->caches[$id])){
 			$manager->getDestructorCallbacks()->add(function() use ($id) : void{
@@ -80,7 +80,7 @@ final class CraftingDataCache{
 	/**
 	 * Rebuilds the cached crafting data packet.
 	 */
-	private function buildCraftingDataCache(CraftingManager $manager) : Packet{
+	private function buildCraftingDataCache(CraftingManager $manager) : EncodedPacket{
 		$craftingDataCacheRebuildScope = PulseZones::$craftingDataCacheRebuild->start();
 
 		$nullUUID = Fields::uuid(Uuid::fromString(Uuid::NIL));
@@ -209,8 +209,8 @@ final class CraftingDataCache{
 			"clear_recipes" => true,
 		]);
 		//every player gets the same bytes, so encode them once
-		$packet->getEncoded();
+		$encoded = EncodedPacket::of($packet);
 		PulseZones::$craftingDataCacheRebuild->stop($craftingDataCacheRebuildScope);
-		return $packet;
+		return $encoded;
 	}
 }

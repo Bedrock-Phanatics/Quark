@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class DeathInfoPacket{
+final class DeathInfoPacket extends Packet{
 	public const int ID = PacketId::DEATH_INFO;
 
 	/**
@@ -38,4 +39,8 @@ final class DeathInfoPacket{
 		public string $deathCauseAttackName,
 		public array $deathCauseMessageList,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

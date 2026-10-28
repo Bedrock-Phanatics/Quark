@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class LecternUpdatePacket{
+final class LecternUpdatePacket extends Packet{
 	public const int ID = PacketId::LECTERN_UPDATE;
 
 	public function __construct(
@@ -37,4 +38,8 @@ final class LecternUpdatePacket{
 		public int $totalPages,
 		public Vector3 $positionOfLecternToUpdate,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

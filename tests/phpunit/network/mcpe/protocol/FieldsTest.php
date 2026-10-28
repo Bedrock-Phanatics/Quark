@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
-use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferWriter;
 use pocketmine\color\Color;
@@ -61,9 +60,6 @@ use function strlen;
 
 /**
  * Checks that values built for Bedwire\Protocol encode exactly like BedrockProtocol's encoders did, and read back.
- *
- * @phpstan-import-type MobEquipmentFields from Packets
- * @phpstan-import-type PlayerSkinFields from Packets
  */
 final class FieldsTest extends TestCase{
 
@@ -73,10 +69,13 @@ final class FieldsTest extends TestCase{
 		return $writer->getData();
 	}
 
+	private static function bytes(Packet $packet) : string{
+		return EncodedPacket::of($packet)->getBytes();
+	}
+
 	public function testVectorsAndUuids() : void{
 		$vector = new Vector3(1, -2.5, 3.25);
 		self::assertSame(["x" => 1.0, "y" => -2.5, "z" => 3.25], Fields::vec3($vector));
-		self::assertTrue(Fields::toVector3(Fields::vec3($vector))->equals($vector));
 		self::assertSame(["x" => 1, "y" => -3, "z" => 3], Fields::blockPosition($vector));
 		$uuid = Uuid::fromString("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0");
 		self::assertSame(16, strlen(Fields::uuid($uuid)));
@@ -102,19 +101,18 @@ final class FieldsTest extends TestCase{
 	 */
 	public function testItemsMatchBedrockProtocol(ItemStackWrapper $item) : void{
 		$expected = self::legacy(MobEquipmentPacket::create(5, $item, 1, 2, 0));
-		$actual = Packets::mobEquipment([
+		$actual = self::bytes(Packets::mobEquipment([
 			"target_runtime_id" => 5,
 			"item" => Fields::itemStackWrapper($item),
 			"slot" => 1,
 			"selected_slot" => 2,
 			"container_id" => 0,
-		])->getEncoded();
+		]));
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 
-		/** @phpstan-var MobEquipmentFields $decoded */
-		$decoded = Protocol::decode($actual);
-		self::assertEquals($item, Fields::toItemStackWrapper($decoded["item"]));
-		self::assertEquals($item->getItemStack(), Fields::toItemStack(Fields::itemInstance($item->getItemStack())));
+		$decoded = EncodedPacket::fromBytes($actual)->getPacket();
+		self::assertInstanceOf(packet\MobEquipmentPacket::class, $decoded);
+		self::assertEquals($item, Fields::toItemStackWrapper($decoded->item));
 	}
 
 	public function testSkinsMatchBedrockProtocol() : void{
@@ -145,27 +143,27 @@ final class FieldsTest extends TestCase{
 		);
 		$uuid = Uuid::fromString("01234567-89ab-cdef-0123-456789abcdef");
 		$expected = self::legacy(PlayerSkinPacket::create($uuid, "old", "new", $skin));
-		$actual = Packets::playerSkin([
+		$actual = self::bytes(Packets::playerSkin([
 			"uuid" => Fields::uuid($uuid),
 			"serialized_skin" => Fields::skin($skin),
 			"localized_new_skin_name" => "new",
 			"localized_old_skin_name" => "old",
-		])->getEncoded();
+		]));
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 
-		/** @phpstan-var PlayerSkinFields $decoded */
-		$decoded = Protocol::decode($actual);
-		self::assertEquals($skin, Fields::toSkinData($decoded["serialized_skin"]));
-		self::assertTrue(Fields::toUuid($decoded["uuid"])->equals($uuid));
+		$decoded = EncodedPacket::fromBytes($actual)->getPacket();
+		self::assertInstanceOf(packet\PlayerSkinPacket::class, $decoded);
+		self::assertEquals($skin, Fields::toSkinData($decoded->serializedSkin));
+		self::assertTrue(Fields::toUuid($decoded->uuid)->equals($uuid));
 
 		$expected = self::legacy(PlayerListPacket::create([
 			PlayerListEntry::createAdditionEntry($uuid, -9, "Steve", $skin, "1234"),
 			PlayerListEntry::createRemovalEntry($uuid),
 		]));
-		$actual = Packets::playerList(["entries" => [
+		$actual = self::bytes(Packets::playerList(["entries" => [
 			Fields::playerListAddition($uuid, -9, "Steve", $skin, "1234"),
 			Fields::playerListRemoval($uuid),
-		]])->getEncoded();
+		]]));
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}
 
@@ -173,7 +171,7 @@ final class FieldsTest extends TestCase{
 		$expected = self::legacy(PlayerEnchantOptionsPacket::create([
 			new EnchantOption(30, 0, [new Enchant(9, 3), new Enchant(17, 1)], [], [], "fire", 77),
 		]));
-		$actual = Packets::playerEnchantOptions(["options" => [[
+		$actual = self::bytes(Packets::playerEnchantOptions(["options" => [[
 			"cost" => 30,
 			"enchants" => ["slot" => 0, "item_enchants" => [[
 				["enchant_type" => 9, "enchant_level" => 3],
@@ -181,7 +179,7 @@ final class FieldsTest extends TestCase{
 			], [], []]],
 			"enchant_name" => "fire",
 			"enchant_net_id" => 77,
-		]]])->getEncoded();
+		]]]));
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}
 
@@ -195,7 +193,7 @@ final class FieldsTest extends TestCase{
 			new AbilitiesLayer(AbilitiesLayer::LAYER_SPECTATOR, [AbilitiesLayer::ABILITY_FLYING => true], null, null, null),
 		]);
 		$expected = self::legacy(UpdateAbilitiesPacket::create($data));
-		$actual = Packets::updateAbilities(["data" => Fields::abilities($data)])->getEncoded();
+		$actual = self::bytes(Packets::updateAbilities(["data" => Fields::abilities($data)]));
 		self::assertSame(bin2hex($expected), bin2hex($actual));
 	}
 }

@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ServerBoundPackSettingChangePacket{
+final class ServerBoundPackSettingChangePacket extends Packet{
 	public const int ID = PacketId::SERVER_BOUND_PACK_SETTING_CHANGE;
 
 	/**
@@ -39,4 +40,8 @@ final class ServerBoundPackSettingChangePacket{
 		public string $packSettingName,
 		public array $packSettingValue,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

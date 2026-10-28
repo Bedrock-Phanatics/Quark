@@ -71,7 +71,7 @@ final class GameplayPacketGoldenTest extends TestCase{
 
 	private static function hex(Packet|ClientboundPacket $packet) : string{
 		if($packet instanceof Packet){
-			return bin2hex($packet->getEncoded());
+			return bin2hex(EncodedPacket::of($packet)->getBytes());
 		}
 		$writer = new ByteBufferWriter();
 		$packet->encode($writer);

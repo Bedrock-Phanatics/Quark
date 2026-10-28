@@ -30,29 +30,32 @@ final class Protocol{
 
 	public static function packetId(string $bytes) : int{}
 
-	/** @return array<string, mixed>|null */
-	public static function decode(string $bytes, int $maxValues = 0) : ?array{}
+	/** @return array<string, mixed>|object|null */
+	public static function decode(string $bytes, int $maxValues = 0) : array|object|null{}
 
 	/**
 	 * @param list<string> $packets
-	 * @return list<array<string, mixed>|null>
+	 * @return list<array<string, mixed>|object|null>
 	 */
 	public static function decodeMany(array $packets, int $maxValues = 0) : array{}
 
-	/** @param array<string, mixed> $fields */
-	public static function encode(int|string $packet, array $fields, int $senderSubClient = 0, int $targetSubClient = 0) : string{}
+	/** @param array<string, mixed>|object $fields */
+	public static function encode(int|string $packet, array|object $fields, int $senderSubClient = 0, int $targetSubClient = 0) : string{}
 
 	/**
-	 * @param list<array{int|string, array<string, mixed>}|array{int|string, array<string, mixed>, int}|array{int|string, array<string, mixed>, int, int}> $packets
+	 * @param list<object|array{int|string, array<string, mixed>|object}|array{int|string, array<string, mixed>|object, int}|array{int|string, array<string, mixed>|object, int, int}> $packets
 	 * @return list<string>
 	 */
 	public static function encodeMany(array $packets) : array{}
 
-	/** @param list<string|array{int|string, array<string, mixed>}|array{int|string, array<string, mixed>, int}|array{int|string, array<string, mixed>, int, int}> $packets */
+	/** @param list<string|object|array{int|string, array<string, mixed>|object}|array{int|string, array<string, mixed>|object, int}|array{int|string, array<string, mixed>|object, int, int}> $packets */
 	public static function encodeBatch(array $packets) : string{}
 
 	/** @return array<string, mixed> */
 	public static function schema() : array{}
+
+	/** @param array<string, class-string> $types */
+	public static function bind(array $types) : void{}
 }
 
 final class Nbt{

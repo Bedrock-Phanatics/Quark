@@ -62,11 +62,14 @@ use pocketmine\network\mcpe\protocol\types\PlayMode;
 use quark\item\VanillaItems;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\ArrayPacket;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\Fields;
 use quark\network\mcpe\protocol\LevelPackets;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\pulse\internal\PulseZones;
 use function array_map;
 use function bin2hex;
@@ -166,7 +169,8 @@ function inbound(string $label, string $buffer, int $iterations) : array{
 		$packet->decode(new ByteBufferReader($buffer));
 		return $packet;
 	};
-	$decodeNative = static fn() : array => Protocol::decode($buffer, 65536) ?? throw new \RuntimeException("Unknown packet");
+	ProtocolClasses::bind();
+	$decodeNative = static fn() : Packet => EncodedPacket::fromBytes($buffer)->getPacket();
 	return compare(
 		$label,
 		$iterations,
@@ -281,8 +285,8 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 	};
 	//the adapter encoded with BedrockProtocol, then batched the encoded strings natively
 	$adapterPackets = $legacyPackets();
-	$adapter = static fn() : string => NetworkSession::encodeBatch(array_map(static fn(DataPacket $packet) : string => Packet::fromEncoded(legacyEncode($packet))->getEncoded(), $adapterPackets()));
-	$native = static fn() : string => NetworkSession::encodeBatch(array_map(static fn(Packet $packet) => $packet->toBatchEntry(), $nativePackets()));
+	$adapter = static fn() : string => NetworkSession::encodeBatch(array_map(static fn(DataPacket $packet) : string => EncodedPacket::fromBytes(legacyEncode($packet))->getBytes(), $adapterPackets()));
+	$native = static fn() : string => NetworkSession::encodeBatch(array_map(static fn(Packet $packet) => $packet instanceof ArrayPacket ? [$packet->getId(), $packet->fields] : $packet, $nativePackets()));
 	return compare("tick", $iterations, [$old, $old], [$adapter, $adapter], [$native, $native]);
 }
 

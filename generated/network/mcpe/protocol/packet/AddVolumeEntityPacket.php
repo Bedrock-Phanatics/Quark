@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class AddVolumeEntityPacket{
+final class AddVolumeEntityPacket extends Packet{
 	public const int ID = PacketId::ADD_VOLUME_ENTITY;
 
 	public function __construct(
@@ -42,4 +43,8 @@ final class AddVolumeEntityPacket{
 		public int $dimensionType,
 		public string $engineVersion,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -25,11 +25,12 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class CameraAimAssistPacket{
+final class CameraAimAssistPacket extends Packet{
 	public const int ID = PacketId::CAMERA_AIM_ASSIST;
 
 	public function __construct(
@@ -40,4 +41,8 @@ final class CameraAimAssistPacket{
 		public int $action,
 		public bool $showDebugRender,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

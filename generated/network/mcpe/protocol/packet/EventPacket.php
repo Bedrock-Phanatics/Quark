@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\BossKilledEvent;
 use quark\network\mcpe\protocol\types\CauldronInteractEvent;
 use quark\network\mcpe\protocol\types\CauldronUsedEvent;
@@ -43,7 +44,7 @@ use quark\network\mcpe\protocol\types\RaidUpdateEvent;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class EventPacket{
+final class EventPacket extends Packet{
 	public const int ID = PacketId::EVENT;
 
 	/**
@@ -55,4 +56,8 @@ final class EventPacket{
 		public bool $usePlayerId,
 		public array $eventData,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

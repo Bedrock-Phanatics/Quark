@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\Experiments;
 use quark\network\mcpe\protocol\types\StackResourcePack;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ResourcePackStackPacket{
+final class ResourcePackStackPacket extends Packet{
 	public const int ID = PacketId::RESOURCE_PACK_STACK;
 
 	/**
@@ -43,4 +44,8 @@ final class ResourcePackStackPacket{
 		public Experiments $experiments,
 		public bool $includeEditorPacks,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

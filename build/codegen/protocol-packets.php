@@ -202,8 +202,8 @@ final class Generator{
 	/**
 	 * @phpstan-param {$pascal}Fields \$fields
 	 */
-	public static function $method(array \$fields) : Packet{
-		return Packet::fromFields(PacketId::$constant, \$fields);
+	public static function $method(array \$fields) : ArrayPacket{
+		return new ArrayPacket(PacketId::$constant, \$fields);
 	}
 
 FACTORY;

@@ -24,15 +24,20 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class SettingsCommandPacket{
+final class SettingsCommandPacket extends Packet{
 	public const int ID = PacketId::SETTINGS_COMMAND;
 
 	public function __construct(
 		public string $command,
 		public bool $suppressOutput,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

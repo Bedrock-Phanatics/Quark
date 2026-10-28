@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\FullContainerName;
 use quark\network\mcpe\protocol\types\NetworkItemStackDescriptor;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class InventorySlotPacket{
+final class InventorySlotPacket extends Packet{
 	public const int ID = PacketId::INVENTORY_SLOT;
 
 	public function __construct(
@@ -40,4 +41,8 @@ final class InventorySlotPacket{
 		public ?NetworkItemStackDescriptor $storageItem,
 		public NetworkItemStackDescriptor $item,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

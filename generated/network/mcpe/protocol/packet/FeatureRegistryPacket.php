@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\FeatureRegistryFeatureBinaryJsonFormat;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class FeatureRegistryPacket{
+final class FeatureRegistryPacket extends Packet{
 	public const int ID = PacketId::FEATURE_REGISTRY;
 
 	/**
@@ -38,4 +39,8 @@ final class FeatureRegistryPacket{
 	public function __construct(
 		public array $featuresDataList,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

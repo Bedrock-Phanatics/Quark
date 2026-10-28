@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class StructureTemplateDataResponsePacket{
+final class StructureTemplateDataResponsePacket extends Packet{
 	public const int ID = PacketId::STRUCTURE_TEMPLATE_DATA_RESPONSE;
 
 	public function __construct(
@@ -36,4 +37,8 @@ final class StructureTemplateDataResponsePacket{
 		public string $structuresNbt,
 		public int $responseType,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

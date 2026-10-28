@@ -25,12 +25,13 @@ namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\PacketParameterKeyframeValuesEntry;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class GraphicsOverrideParameterPacket{
+final class GraphicsOverrideParameterPacket extends Packet{
 	public const int ID = PacketId::GRAPHICS_OVERRIDE_PARAMETER;
 
 	/**
@@ -45,4 +46,8 @@ final class GraphicsOverrideParameterPacket{
 		public int $identifierForParameter,
 		public bool $resetParameter,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

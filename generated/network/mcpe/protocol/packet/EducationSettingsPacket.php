@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\EducationExternalLinkSettings;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class EducationSettingsPacket{
+final class EducationSettingsPacket extends Packet{
 	public const int ID = PacketId::EDUCATION_SETTINGS;
 
 	public function __construct(
@@ -44,4 +45,8 @@ final class EducationSettingsPacket{
 		public bool $deprecatedAlwaysFalse,
 		public ?EducationExternalLinkSettings $externalLinkSettings = null,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

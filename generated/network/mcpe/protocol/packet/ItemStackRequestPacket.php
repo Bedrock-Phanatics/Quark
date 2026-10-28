@@ -24,12 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\ItemStackRequestPacketData;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class ItemStackRequestPacket{
+final class ItemStackRequestPacket extends Packet{
 	public const int ID = PacketId::ITEM_STACK_REQUEST;
 
 	/**
@@ -38,4 +39,8 @@ final class ItemStackRequestPacket{
 	public function __construct(
 		public array $requests,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

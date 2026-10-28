@@ -26,6 +26,7 @@ namespace quark\network\mcpe\protocol\packet;
 use Bedwire\PacketId;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\AbilityData;
 use quark\network\mcpe\protocol\types\DataItemEntry;
 use quark\network\mcpe\protocol\types\EntityLink;
@@ -35,7 +36,7 @@ use quark\network\mcpe\protocol\types\PropertySyncData;
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class AddPlayerPacket{
+final class AddPlayerPacket extends Packet{
 	public const int ID = PacketId::ADD_PLAYER;
 
 	/**
@@ -60,4 +61,8 @@ final class AddPlayerPacket{
 		public string $deviceId,
 		public int $buildPlatform,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol\packet;
 
 use Bedwire\PacketId;
+use quark\network\mcpe\protocol\Packet;
 
 /**
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
-final class MoveActorDeltaPacket{
+final class MoveActorDeltaPacket extends Packet{
 	public const int ID = PacketId::MOVE_ACTOR_DELTA;
 
 	public function __construct(
@@ -45,4 +46,8 @@ final class MoveActorDeltaPacket{
 		public bool $forceCompletion,
 		public int $ticks,
 	){}
+
+	public function getId() : int{
+		return self::ID;
+	}
 }

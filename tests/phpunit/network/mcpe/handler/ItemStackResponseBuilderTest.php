@@ -35,6 +35,7 @@ use quark\inventory\SimpleInventory;
 use quark\item\VanillaItems;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\ItemStackInfo;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Packets;
 use function bin2hex;
 
@@ -69,6 +70,6 @@ final class ItemStackResponseBuilderTest extends TestCase{
 		$expected->encode($writer);
 
 		$actual = Packets::itemStackResponse(["responses" => [$builder->build(), ItemStackResponseBuilder::error(9)]]);
-		self::assertSame(bin2hex($writer->getData()), bin2hex($actual->getEncoded()));
+		self::assertSame(bin2hex($writer->getData()), bin2hex(EncodedPacket::of($actual)->getBytes()));
 	}
 }

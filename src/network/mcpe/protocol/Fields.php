@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol;
 
 use pocketmine\color\Color;
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
@@ -42,6 +41,10 @@ use pocketmine\network\mcpe\protocol\types\skin\SkinArmSizeType;
 use pocketmine\network\mcpe\protocol\types\skin\SkinData;
 use pocketmine\network\mcpe\protocol\types\skin\SkinImage as ProtocolSkinImage;
 use pocketmine\utils\Binary;
+use quark\network\mcpe\protocol\types\NetworkItemInstanceDescriptor as NetItemInstance;
+use quark\network\mcpe\protocol\types\NetworkItemStackDescriptor as NetItemStack;
+use quark\network\mcpe\protocol\types\SerializedSkinRef as NetSkinRef;
+use quark\network\mcpe\protocol\types\SkinImage as NetSkinImage;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function strlen;
@@ -79,24 +82,10 @@ final class Fields{
 	}
 
 	/**
-	 * @phpstan-param Vec3f $vector
-	 */
-	public static function toVector3(array $vector) : Vector3{
-		return new Vector3($vector["x"], $vector["y"], $vector["z"]);
-	}
-
-	/**
 	 * @phpstan-return Vec2f
 	 */
 	public static function vec2(float $x, float $y) : array{
 		return ["x" => $x, "y" => $y];
-	}
-
-	/**
-	 * @phpstan-param Vec2f $vector
-	 */
-	public static function toVector2(array $vector) : Vector2{
-		return new Vector2($vector["x"], $vector["y"]);
 	}
 
 	/**
@@ -111,13 +100,6 @@ final class Fields{
 	 */
 	public static function blockPosition(Vector3 $vector) : array{
 		return ["x" => $vector->getFloorX(), "y" => $vector->getFloorY(), "z" => $vector->getFloorZ()];
-	}
-
-	/**
-	 * @phpstan-param BlockPosition $position
-	 */
-	public static function toBlockVector(array $position) : Vector3{
-		return new Vector3($position["x"], $position["y"], $position["z"]);
 	}
 
 	/**
@@ -166,11 +148,8 @@ final class Fields{
 		return self::itemStack($wrapper->getItemStack(), $wrapper->getStackId());
 	}
 
-	/**
-	 * @phpstan-param NetworkItemStackDescriptor $item
-	 */
-	public static function toItemStackWrapper(array $item) : ItemStackWrapper{
-		return new ItemStackWrapper($item["net_id_variant"] ?? 0, new ItemStack($item["id"], $item["aux_value"], $item["stack_size"], $item["block_runtime_id"], $item["user_data_buffer"]));
+	public static function toItemStackWrapper(NetItemStack $item) : ItemStackWrapper{
+		return new ItemStackWrapper($item->netIdVariant ?? 0, self::toItemStack($item));
 	}
 
 	/**
@@ -186,11 +165,8 @@ final class Fields{
 		];
 	}
 
-	/**
-	 * @phpstan-param NetworkItemInstanceDescriptor $item
-	 */
-	public static function toItemStack(array $item) : ItemStack{
-		return new ItemStack($item["id"], $item["aux_value"], $item["stack_size"], $item["block_runtime_id"], $item["user_data_buffer"]);
+	public static function toItemStack(NetItemStack|NetItemInstance $item) : ItemStack{
+		return new ItemStack($item->id, $item->auxValue, $item->stackSize, $item->blockRuntimeId, $item->userDataBuffer);
 	}
 
 	/**
@@ -218,11 +194,8 @@ final class Fields{
 		return ["width" => $image->getWidth(), "height" => $image->getHeight(), "image_bytes" => $image->getData()];
 	}
 
-	/**
-	 * @phpstan-param SkinImage $image
-	 */
-	private static function toSkinImage(array $image) : ProtocolSkinImage{
-		return new ProtocolSkinImage($image["height"], $image["width"], $image["image_bytes"]);
+	private static function toSkinImage(NetSkinImage $image) : ProtocolSkinImage{
+		return new ProtocolSkinImage($image->height, $image->width, $image->imageBytes);
 	}
 
 	/**
@@ -283,22 +256,21 @@ final class Fields{
 	}
 
 	/**
-	 * @phpstan-param SerializedSkinRef $skin
 	 * @throws \InvalidArgumentException if the skin is not one the protocol objects can represent
 	 */
-	public static function toSkinData(array $skin) : SkinData{
+	public static function toSkinData(NetSkinRef $skin) : SkinData{
 		$animations = [];
-		foreach($skin["animated_image_data"] as $animation){
-			$animations[] = new SkinAnimation(self::toSkinImage($animation["skin_image"]), $animation["animated_texture_type"], $animation["frames"], $animation["animation_expression"]);
+		foreach($skin->animatedImageData as $animation){
+			$animations[] = new SkinAnimation(self::toSkinImage($animation->skinImage), $animation->animatedTextureType, $animation->frames, $animation->animationExpression);
 		}
 		$pieces = [];
-		foreach($skin["persona_pieces"] as $piece){
-			$pieces[] = new PersonaSkinPiece($piece["piece_id"], PersonaSkinPieceType::fromOrdinal($piece["piece_type"]), self::toUuid($piece["pack_id"]), $piece["is_default_piece"], $piece["product_id"]);
+		foreach($skin->personaPieces as $piece){
+			$pieces[] = new PersonaSkinPiece($piece->pieceId, PersonaSkinPieceType::fromOrdinal($piece->pieceType), self::toUuid($piece->packId), $piece->isDefaultPiece, $piece->productId);
 		}
 		$tints = [];
-		foreach($skin["piece_tint_colors"] as $tint){
-			[$a, $b, $c, $d] = $tint["value"];
-			$tints[] = new PersonaPieceTintColor(PersonaSkinPieceType::fromPacket($tint["key"]), [
+		foreach($skin->pieceTintColors as $tint){
+			[$a, $b, $c, $d] = $tint->value;
+			$tints[] = new PersonaPieceTintColor(PersonaSkinPieceType::fromPacket($tint->key), [
 				Color::fromARGB($a & 0xffffffff),
 				Color::fromARGB($b & 0xffffffff),
 				Color::fromARGB($c & 0xffffffff),
@@ -306,28 +278,28 @@ final class Fields{
 			]);
 		}
 		return new SkinData(
-			$skin["id"],
-			$skin["play_fab_id"],
-			$skin["resource_patch"],
-			self::toSkinImage($skin["image_data"]),
+			$skin->id,
+			$skin->playFabId,
+			$skin->resourcePatch,
+			self::toSkinImage($skin->imageData),
 			$animations,
-			self::toSkinImage($skin["cape_image_data"]),
-			$skin["geometry_data"],
-			$skin["geometry_data_min_engine_version"],
-			$skin["animation_data"],
-			$skin["cape_id"],
-			$skin["full_id"],
-			SkinArmSizeType::fromOrdinal($skin["arm_size"]),
-			Color::fromARGB($skin["skin_color"] & 0xffffffff),
+			self::toSkinImage($skin->capeImageData),
+			$skin->geometryData,
+			$skin->geometryDataMinEngineVersion,
+			$skin->animationData,
+			$skin->capeId,
+			$skin->fullId,
+			SkinArmSizeType::fromOrdinal($skin->armSize),
+			Color::fromARGB($skin->skinColor & 0xffffffff),
 			$pieces,
 			$tints,
-			$skin["trusted_skin_flag"],
-			$skin["is_premium"],
-			$skin["is_persona"],
-			$skin["is_persona_cape_on_classic_skin"],
-			$skin["is_primary_user"],
-			$skin["overrides_player_appearance"],
-			$skin["profile_hash"]
+			$skin->trustedSkinFlag,
+			$skin->isPremium,
+			$skin->isPersona,
+			$skin->isPersonaCapeOnClassicSkin,
+			$skin->isPrimaryUser,
+			$skin->overridesPlayerAppearance,
+			$skin->profileHash
 		);
 	}
 

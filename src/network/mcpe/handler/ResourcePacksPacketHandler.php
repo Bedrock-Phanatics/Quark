@@ -29,7 +29,10 @@ use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\packet\ResourcePackChunkRequestPacket;
+use quark\network\mcpe\protocol\packet\ResourcePackClientResponsePacket;
 use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\types\Downloading;
 use quark\network\PacketHandlingException;
 use quark\resourcepacks\ResourcePack;
 use Ramsey\Uuid\Uuid;
@@ -39,7 +42,6 @@ use function array_map;
 use function ceil;
 use function count;
 use function implode;
-use function is_array;
 use function sprintf;
 use function strpos;
 use function strtolower;
@@ -48,9 +50,6 @@ use function substr;
 /**
  * Handler used for the resource packs sequence phase of the session. This handler takes care of downloading resource
  * packs to the client.
- *
- * @phpstan-import-type ResourcePackClientResponseFields from Packets
- * @phpstan-import-type ResourcePackChunkRequestFields from Packets
  */
 class ResourcePacksPacketHandler extends PacketHandler{
 	private const PACK_CHUNK_SIZE = 256 * 1024; //256KB
@@ -155,19 +154,16 @@ class ResourcePacksPacketHandler extends PacketHandler{
 		);
 	}
 
-	/**
-	 * @phpstan-param ResourcePackClientResponseFields $packet
-	 */
-	public function handleResourcePackClientResponse(array $packet) : bool{
-		$response = $packet["response"];
+	public function handleResourcePackClientResponse(ResourcePackClientResponsePacket $packet) : bool{
+		$response = $packet->response;
 		$variant = array_key_first($response);
 		$status = self::RESPONSE_STATUSES[$variant];
 		$body = $response[$variant];
-		$innerType = is_array($body) ? $body["response_type"] : $body;
+		$innerType = $body instanceof Downloading ? $body->responseType : $body;
 		if($innerType !== $status->value){
 			throw new PacketHandlingException("Unexpected inner type $innerType for resource pack client response status $status->name, expected $status->value");
 		}
-		$packIds = is_array($body) ? $body["downloading_packs"] : [];
+		$packIds = $body instanceof Downloading ? $body->downloadingPacks : [];
 
 		switch($status){
 			case ResourcePackClientResponseStatus::REFUSED:
@@ -261,12 +257,9 @@ class ResourcePacksPacketHandler extends PacketHandler{
 		return true;
 	}
 
-	/**
-	 * @phpstan-param ResourcePackChunkRequestFields $packet
-	 */
-	public function handleResourcePackChunkRequest(array $packet) : bool{
-		$requestedId = $packet["resource_name"];
-		$chunkIndex = $packet["chunk"];
+	public function handleResourcePackChunkRequest(ResourcePackChunkRequestPacket $packet) : bool{
+		$requestedId = $packet->resourceName;
+		$chunkIndex = $packet->chunk;
 		$pack = $this->getPackById($requestedId);
 		if(!($pack instanceof ResourcePack)){
 			$this->disconnectWithError("Invalid request for chunk $chunkIndex of unknown pack $requestedId, available packs: " . implode(", ", array_keys($this->resourcePacksById)));

@@ -42,7 +42,7 @@ use quark\network\mcpe\auth\ProcessSelfSignedLoginTask;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\LoginPacket;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
 use quark\player\PlayerInfo;
@@ -75,8 +75,6 @@ use const JSON_THROW_ON_ERROR;
 
 /**
  * Handles the initial login phase of the session. This handler is used as the initial state.
- *
- * @phpstan-import-type LoginFields from Packets
  */
 class LoginPacketHandler extends PacketHandler{
 	/**
@@ -98,11 +96,8 @@ class LoginPacketHandler extends PacketHandler{
 		return Uuid::fromBytes($hash);
 	}
 
-	/**
-	 * @phpstan-param LoginFields $packet
-	 */
-	public function handleLogin(array $packet) : bool{
-		[$authInfoJson, $clientDataJwt] = self::parseConnectionRequest($packet["connection_request"]);
+	public function handleLogin(LoginPacket $packet) : bool{
+		[$authInfoJson, $clientDataJwt] = self::parseConnectionRequest($packet->connectionRequest);
 		$authInfo = $this->parseAuthInfo($authInfoJson);
 		$clientData = $this->parseClientData($clientDataJwt);
 
