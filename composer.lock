@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2db1ced93df1796fd8a795cb1e1bb466",
+    "content-hash": "15b532577ddda44a75da532e515f806c",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -2935,7 +2935,7 @@
     "platform": {
         "php": "^8.4",
         "php-64bit": "*",
-        "ext-bedwire": "^0.3.6",
+        "ext-bedwire": "^0.3.7",
         "ext-chunkutils2": "^0.3.1",
         "ext-crypto": "^0.3.1",
         "ext-ctype": "*",

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\pulse;
 
+use Bedwire\PacketId;
 use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
@@ -107,6 +108,7 @@ use function json_encode;
 use function ord;
 use function range;
 use function str_repeat;
+use function str_replace;
 use function strlen;
 use function substr;
 use function sys_get_temp_dir;
@@ -206,6 +208,21 @@ final class PulseNetworkTest extends TestCase{
 			$session->handleEncoded($payload);
 			self::fail("Invalid packet accepted");
 		}catch(PacketHandlingException){}
+	}
+
+	public function testRejectedBoundsRecordTheSizeAndLimit() : void{
+		$session = $this->session();
+		$this->handler($session, new class extends PacketHandler{
+			public function handleEmote(\quark\network\mcpe\protocol\packet\EmotePacket $packet) : bool{ return true; }
+		});
+		$fields = ["actor_runtime_id" => 1, "emote_id" => str_repeat("a", 64), "emote_length_ticks" => 20, "xuid" => "", "platform_id" => "", "flags" => 0];
+		//one byte over the 64 byte emote ID bound, which encoding itself refuses to write
+		$tooLong = str_replace("\x40" . str_repeat("a", 64), "\x41" . str_repeat("a", 65), Protocol::encode(PacketId::EMOTE, $fields));
+		$capture = Pulse::start();
+		$this->rejected($session, $this->batch([$tooLong]));
+		Pulse::stop();
+		$event = $this->network($capture)["events"][0];
+		self::assertSame(["packet.malformed", 65, 64], [$event[4], $event[5], $event[6]]);
 	}
 
 	public function testPacketDiagnosticsStayBoundedAcrossReceivePaths() : void{
@@ -330,8 +347,8 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::stop();
 		$data = $this->network($capture);
 		self::assertSame(array_merge(array_fill(0, 4, "packet.handler_validation"), array_fill(0, 8, "packet.malformed")), array_column($data["events"], 4));
-		self::assertSame(array_merge(array_fill(0, 4, 51), array_fill(0, 8, null)), array_column($data["events"], 5));
-		self::assertSame(array_merge(array_fill(0, 4, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS), array_fill(0, 8, null)), array_column($data["events"], 6));
+		self::assertSame(array_merge(array_fill(0, 4, 51), [101, 11, 257, 100000, 4294967295, 100000, 4294967295, 100000]), array_column($data["events"], 5));
+		self::assertSame(array_merge(array_fill(0, 4, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS), [100, 10, 256, 10, 1000000, 100, 1000000, 10]), array_column($data["events"], 6));
 		self::assertSame(array_fill(0, 12, InventoryTransactionPacket::NETWORK_ID), array_column($data["events"], 3));
 		self::assertSame(array_fill(0, 12, 1), array_column($data["events"], 1));
 		self::assertSame([12, 4, 8], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
@@ -404,10 +421,10 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::endTick();
 		Pulse::stop();
 		$data = $this->network($capture);
-		//the schema caps each changed slot list at 256 bytes, so the decoder rejects these without a size breakdown
+		//the schema caps each changed slot list at 256 bytes, so the decoder rejects these and reports the size it saw
 		self::assertSame(array_merge(...array_fill(0, 8, ["packet.malformed", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
-		self::assertSame(array_fill(0, 16, null), array_column($data["events"], 5));
-		self::assertSame(array_fill(0, 16, null), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 2, [257, null, 257, null, 100000, null, 100000, null])), array_column($data["events"], 5));
+		self::assertSame(array_merge(...array_fill(0, 8, [256, null])), array_column($data["events"], 6));
 		self::assertSame(array_merge(...array_fill(0, 4, [InventoryTransactionPacket::NETWORK_ID, null, PlayerAuthInputPacket::NETWORK_ID, null])), array_column($data["events"], 3));
 		self::assertSame(array_merge(...array_fill(0, 8, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 16, 1), array_column($data["events"], 1));
@@ -464,10 +481,10 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::endTick();
 		Pulse::stop();
 		$data = $this->network($capture);
-		//the schema caps transaction actions at the same limit, so the decoder rejects these without a size breakdown
+		//the schema caps transaction actions at the same limit, so the decoder rejects these and reports the count it saw
 		self::assertSame(array_merge(...array_fill(0, 4, ["packet.malformed", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
-		self::assertSame(array_fill(0, 8, null), array_column($data["events"], 5));
-		self::assertSame(array_fill(0, 8, null), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 2, [101, null, 100000, null])), array_column($data["events"], 5));
+		self::assertSame(array_merge(...array_fill(0, 4, [100, null])), array_column($data["events"], 6));
 		self::assertSame(array_merge(...array_fill(0, 4, [PlayerAuthInputPacket::NETWORK_ID, null])), array_column($data["events"], 3));
 		self::assertSame(array_merge(...array_fill(0, 4, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
@@ -553,8 +570,8 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::stop();
 		$data = $this->network($capture);
 		self::assertSame(["packet.handler_validation", "packet.malformed", "packet.malformed", "packet.malformed"], array_column($data["events"], 4));
-		self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS + 1, null, null, null], array_column($data["events"], 5));
-		self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS, null, null, null], array_column($data["events"], 6));
+		self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS + 1, 1000000, 4294967295, 1000000], array_column($data["events"], 5));
+		self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS, 128, 1000000, 128], array_column($data["events"], 6));
 		self::assertSame(array_fill(0, 4, PlayerAuthInputPacket::NETWORK_ID), array_column($data["events"], 3));
 		self::assertSame(array_fill(0, 4, 1), array_column($data["events"], 1));
 		self::assertSame([4, 1, 3], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
@@ -636,8 +653,8 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::stop();
 		$data = $this->network($capture);
 		self::assertSame(array_merge(["packet.handler_validation"], array_fill(0, 4, "packet.malformed")), array_column($data["events"], 4));
-		self::assertSame([InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, null, null, null, null], array_column($data["events"], 5));
-		self::assertSame([InGamePacketHandler::MAX_ITEM_STACK_REQUESTS, null, null, null, null], array_column($data["events"], 6));
+		self::assertSame([InGamePacketHandler::MAX_ITEM_STACK_REQUESTS + 1, 101, 100000, 4294967295, 100000], array_column($data["events"], 5));
+		self::assertSame([InGamePacketHandler::MAX_ITEM_STACK_REQUESTS, 100, 100, 1000000, 100], array_column($data["events"], 6));
 		self::assertSame(array_fill(0, 5, "reject_batch"), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 5, 1), array_column($data["events"], 1));
 		self::assertSame([5, 1, 4], [$data["windows"][0][3], $data["windows"][0][6], $data["windows"][0][7]]);
@@ -682,8 +699,8 @@ final class PulseNetworkTest extends TestCase{
 		$data = $this->network($capture);
 		$events = array_merge(...array_fill(0, 2, ["packet.handler_validation", "packet.handler_validation", "packet.malformed", "packet.malformed"]));
 		self::assertSame($events, array_column($data["events"], 4));
-		self::assertSame(array_merge(...array_fill(0, 2, [61, 61, null, null])), array_column($data["events"], 5));
-		self::assertSame(array_merge(...array_fill(0, 2, [60, 60, null, null])), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 2, [61, 61, 100000, 100000])), array_column($data["events"], 5));
+		self::assertSame(array_merge(...array_fill(0, 2, [60, 60, 100, 100])), array_column($data["events"], 6));
 		self::assertSame(array_merge(...array_fill(0, 4, [ItemStackRequestPacket::NETWORK_ID, PlayerAuthInputPacket::NETWORK_ID])), array_column($data["events"], 3));
 		self::assertSame(array_fill(0, 8, "reject_batch"), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, 8, 1), array_column($data["events"], 1));
@@ -1197,10 +1214,10 @@ final class PulseNetworkTest extends TestCase{
 		}
 		Pulse::endTick(); Pulse::stop();
 		$data = $this->network($capture);
-		//each of these caps is part of the protocol schema, so the decoder rejects the packet without a size breakdown
+		//each of these caps is part of the protocol schema, so the decoder rejects the packet and reports the size it saw
 		self::assertSame(array_merge(...array_fill(0, count($buffers) * 2, ["packet.malformed", "packet.bad_packet_disconnect"])), array_column($data["events"], 4));
-		self::assertSame(array_fill(0, count($buffers) * 4, null), array_column($data["events"], 5));
-		self::assertSame(array_fill(0, count($buffers) * 4, null), array_column($data["events"], 6));
+		self::assertSame(array_merge(...array_fill(0, 2, [11, null, 11, null, 100000, null, 100000, null, 257, null, 257, null, 100000, null, 100000, null, 129, null, 129, null, 100000, null, 100000, null, 257, null, 257, null, 100000, null, 100000, null])), array_column($data["events"], 5));
+		self::assertSame(array_merge(...array_fill(0, 2, [10, null, 10, null, 10, null, 10, null, 256, null, 256, null, 256, null, 256, null, 128, null, 128, null, 128, null, 128, null, 256, null, 256, null, 256, null, 256, null])), array_column($data["events"], 6));
 		self::assertSame(array_merge($ids, $ids), array_column($data["events"], 3));
 		self::assertSame(array_merge(...array_fill(0, count($buffers) * 2, ["reject_batch", "disconnect"])), array_column($data["events"], 7));
 		self::assertSame(array_fill(0, count($buffers) * 4, 1), array_column($data["events"], 1));

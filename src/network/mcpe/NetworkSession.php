@@ -760,7 +760,7 @@ class NetworkSession{
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
 				}catch(PacketException $e){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
-					$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packetId);
+					$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packetId, $e->observed, $e->limit);
 					throw PacketHandlingException::wrap($e);
 				}
 			}finally{

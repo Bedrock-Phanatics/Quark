@@ -6,7 +6,11 @@ class Exception extends \RuntimeException{}
 
 final class BackpressureException extends Exception{}
 
-final class PacketException extends Exception{}
+final class PacketException extends Exception{
+	public ?string $field = null;
+	public ?int $observed = null;
+	public ?int $limit = null;
+}
 
 final class NbtException extends Exception{}
 
