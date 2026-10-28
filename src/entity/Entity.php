@@ -777,28 +777,35 @@ abstract class Entity{
 	}
 
 	protected function updateMovement(bool $teleport = false) : void{
-		$diffPosition = $this->location->distanceSquared($this->lastLocation);
-		$diffRotation = ($this->location->yaw - $this->lastLocation->yaw) ** 2 + ($this->location->pitch - $this->lastLocation->pitch) ** 2;
+		$location = $this->location;
+		$lastLocation = $this->lastLocation;
+		$diffPosition = ($location->x - $lastLocation->x) ** 2 + ($location->y - $lastLocation->y) ** 2 + ($location->z - $lastLocation->z) ** 2;
+		$diffRotation = ($location->yaw - $lastLocation->yaw) ** 2 + ($location->pitch - $lastLocation->pitch) ** 2;
 
-		$diffMotion = $this->motion->subtractVector($this->lastMotion)->lengthSquared();
+		$motion = $this->motion;
+		$lastMotion = $this->lastMotion;
+		$diffMotion = ($motion->x - $lastMotion->x) ** 2 + ($motion->y - $lastMotion->y) ** 2 + ($motion->z - $lastMotion->z) ** 2;
 
-		$still = $this->motion->lengthSquared() === 0.0;
-		$wasStill = $this->lastMotion->lengthSquared() === 0.0;
+		$still = $motion->lengthSquared() === 0.0;
+		$wasStill = $lastMotion->lengthSquared() === 0.0;
 		if($wasStill !== $still){
 			//TODO: hack for client-side AI interference: prevent client sided movement when motion is 0
 			$this->setNoClientPredictions($still);
 		}
 
+		$packets = [];
 		if($teleport || $diffPosition > 0.0001 || $diffRotation > 1.0 || (!$wasStill && $still)){
-			$this->lastLocation = $this->location->asLocation();
-
-			$this->broadcastMovement($teleport);
+			$this->lastLocation = $location->asLocation();
+			$packets[] = $this->movementPacket($teleport);
 		}
 
 		if($diffMotion > 0.0025 || $wasStill !== $still){ //0.05 ** 2
-			$this->lastMotion = clone $this->motion;
+			$this->lastMotion = clone $motion;
+			$packets[] = $this->motionPacket();
+		}
 
-			$this->broadcastMotion();
+		if(count($packets) > 0 && count($this->hasSpawned) > 0){
+			NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, $packets);
 		}
 	}
 
@@ -807,7 +814,15 @@ abstract class Entity{
 	}
 
 	protected function broadcastMovement(bool $teleport = false) : void{
-		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [new MoveActorAbsolutePacket(
+		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [$this->movementPacket($teleport)]);
+	}
+
+	protected function broadcastMotion() : void{
+		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [$this->motionPacket()]);
+	}
+
+	protected function movementPacket(bool $teleport) : MoveActorAbsolutePacket{
+		return new MoveActorAbsolutePacket(
 			actorRuntimeId: $this->id,
 			//TODO: We should be setting FLAG_TELEPORT here to disable client-side movement interpolation, but it
 			//breaks player teleporting (observers see the player rubberband back to the pre-teleport position while
@@ -819,11 +834,11 @@ abstract class Entity{
 			rotationX: Fields::rotationByte($this->location->pitch),
 			rotationY: Fields::rotationByte($this->location->yaw),
 			rotationYHead: Fields::rotationByte($this->location->yaw),
-		)]);
+		);
 	}
 
-	protected function broadcastMotion() : void{
-		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [new SetActorMotionPacket(targetRuntimeId: $this->id, motion: $this->getMotion(), tick: 0)]);
+	protected function motionPacket() : SetActorMotionPacket{
+		return new SetActorMotionPacket(targetRuntimeId: $this->id, motion: $this->getMotion(), tick: 0);
 	}
 
 	public function getGravity() : float{

@@ -76,40 +76,44 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			$targetsByCompressor[spl_object_id($compressor)][] = $recipient;
 		}
 
-		$totalLength = 0;
-		$packetBuffers = [];
-		$encodedPackets = [];
 		$encodeScope = PulseZones::$playerNetworkSendEncode->start();
 		try{
-			foreach($packets as $packet){
-				$encoded = $packet instanceof EncodedPacket ? $packet : EncodedPacket::of($packet);
-				$buffer = $encoded->getBytes();
-				//varint length prefix + packet buffer
-				$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
-				$packetBuffers[] = $buffer;
-				$encodedPackets[] = $encoded;
-			}
+			$encodedPackets = EncodedPacket::ofMany($packets);
 		}finally{
 			PulseZones::$playerNetworkSendEncode->stop($encodeScope);
 		}
+		//only a shared batch needs the batch size, so it is worked out the first time one might be built
+		$totalLength = 0;
+		$packetBuffers = null;
 
 		foreach($targetsByCompressor as $compressorId => $compressorTargets){
 			$compressor = $compressors[$compressorId];
 
 			$threshold = $compressor->getCompressionThreshold();
-			if(count($compressorTargets) > 1 && $threshold !== null && $totalLength >= $threshold){
-				foreach($compressorTargets as $target){
-					$target->checkSendable($packets);
+			if(count($compressorTargets) > 1 && $threshold !== null){
+				if($packetBuffers === null){
+					$packetBuffers = [];
+					foreach($encodedPackets as $encoded){
+						$buffer = $encoded->getBytes();
+						//varint length prefix + packet buffer
+						$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
+						$packetBuffers[] = $buffer;
+					}
 				}
-				//do not prepare shared batch unless we're sure it will be compressed
-				$batch = $this->server->prepareBatch(NetworkSession::encodeBatch($packetBuffers), $compressor, pulse: PulseZones::$playerNetworkSendCompressBroadcast);
-				foreach($compressorTargets as $target){
-					$target->queueCompressed($batch);
+				if($totalLength >= $threshold){
+					foreach($compressorTargets as $target){
+						$target->checkSendable($packets);
+					}
+					//do not prepare shared batch unless we're sure it will be compressed
+					$batch = $this->server->prepareBatch(NetworkSession::encodeBatch($packetBuffers), $compressor, pulse: PulseZones::$playerNetworkSendCompressBroadcast);
+					foreach($compressorTargets as $target){
+						$target->queueCompressed($batch);
+					}
+					continue;
 				}
-			}else{
-				foreach($compressorTargets as $target){
-					$target->addToSendBuffer($encodedPackets);
-				}
+			}
+			foreach($compressorTargets as $target){
+				$target->addToSendBuffer($encodedPackets);
 			}
 		}
 	}

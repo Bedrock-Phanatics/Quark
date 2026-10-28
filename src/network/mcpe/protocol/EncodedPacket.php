@@ -25,6 +25,7 @@ namespace quark\network\mcpe\protocol;
 
 use Bedwire\PacketException;
 use Bedwire\Protocol;
+use function count;
 
 /**
  * A packet held as its encoded bytes, for packets sent to many players or cached. It cannot be changed, so it is safe
@@ -44,6 +45,34 @@ final class EncodedPacket{
 	public static function of(Packet $packet) : self{
 		ProtocolClasses::bind();
 		return new self($packet->getId(), Protocol::encode($packet->getId(), $packet));
+	}
+
+	/**
+	 * Encodes several packets with one native call, keeping encoded ones as they are.
+	 *
+	 * @param (Packet|EncodedPacket)[] $packets
+	 * @return EncodedPacket[]
+	 * @phpstan-return list<EncodedPacket>
+	 * @throws \ValueError if a packet's fields do not fit it
+	 */
+	public static function ofMany(array $packets) : array{
+		$pending = [];
+		foreach($packets as $packet){
+			if($packet instanceof Packet){
+				$pending[] = $packet;
+			}
+		}
+		$bytes = [];
+		if(count($pending) > 0){
+			ProtocolClasses::bind();
+			$bytes = Protocol::encodeMany($pending);
+		}
+		$encoded = [];
+		$next = 0;
+		foreach($packets as $packet){
+			$encoded[] = $packet instanceof EncodedPacket ? $packet : new self($packet->getId(), $bytes[$next++]);
+		}
+		return $encoded;
 	}
 
 	/**

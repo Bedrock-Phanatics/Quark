@@ -45,33 +45,29 @@ final class NetworkBroadcastUtils{
 			throw new \InvalidArgumentException("Cannot broadcast empty list of packets");
 		}
 
-		return PulseZones::$broadcastPackets->time(function() use ($recipients, $packets) : bool{
-			/** @var NetworkSession[] $sessions */
-			$sessions = [];
+		$scope = PulseZones::$broadcastPackets->start();
+		try{
+			/** @phpstan-var array<int, PacketBroadcaster> $uniqueBroadcasters */
+			$uniqueBroadcasters = [];
+			/** @phpstan-var array<int, array<int, NetworkSession>> $broadcasterTargets */
+			$broadcasterTargets = [];
 			foreach($recipients as $player){
 				if($player->isConnected()){
-					$sessions[] = $player->getNetworkSession();
+					$session = $player->getNetworkSession();
+					$broadcaster = $session->getBroadcaster();
+					$id = spl_object_id($broadcaster);
+					$uniqueBroadcasters[$id] = $broadcaster;
+					$broadcasterTargets[$id][spl_object_id($session)] = $session;
 				}
 			}
-			if(count($sessions) === 0){
-				return false;
+			foreach($uniqueBroadcasters as $id => $broadcaster){
+				$broadcaster->broadcastPackets($broadcasterTargets[$id], $packets);
 			}
 
-			/** @var PacketBroadcaster[] $uniqueBroadcasters */
-			$uniqueBroadcasters = [];
-			/** @var NetworkSession[][] $broadcasterTargets */
-			$broadcasterTargets = [];
-			foreach($sessions as $recipient){
-				$broadcaster = $recipient->getBroadcaster();
-				$uniqueBroadcasters[spl_object_id($broadcaster)] = $broadcaster;
-				$broadcasterTargets[spl_object_id($broadcaster)][spl_object_id($recipient)] = $recipient;
-			}
-			foreach($uniqueBroadcasters as $broadcaster){
-				$broadcaster->broadcastPackets($broadcasterTargets[spl_object_id($broadcaster)], $packets);
-			}
-
-			return true;
-		});
+			return count($uniqueBroadcasters) > 0;
+		}finally{
+			PulseZones::$broadcastPackets->stop($scope);
+		}
 	}
 
 	/**
