@@ -57,6 +57,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.
 - Retained the existing `pmmpthread` native extension contract.
 - Added the redstone manager and runtime world/chunk override API.
+- Replaced BedrockProtocol packet objects with generated classes in `quark\network\mcpe\protocol\packet`, which `ext-bedwire` decodes into and encodes from directly. Packet handlers and `DataPacketSendEvent`/`DataPacketReceiveEvent` listeners take these classes.
 - Changed `TNT::ignite()` to return activation success as `bool`.
 - Expanded protected- and final-damage APIs.
 - Updated selected `EntityDamageEvent` modifier constant values; plugins must not rely on their former raw integers.
