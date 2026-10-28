@@ -63,7 +63,7 @@ final class PacketFuzzTest extends TestCase{
 			if($line === "" || $line[0] === "#"){
 				continue;
 			}
-			$bytes = hex2bin(explode(" ", $line)[2]);
+			$bytes = hex2bin(explode(" ", $line, 3)[2]);
 			self::assertNotFalse($bytes);
 			$packets[] = $bytes;
 		}
