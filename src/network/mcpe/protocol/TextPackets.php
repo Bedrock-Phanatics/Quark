@@ -19,16 +19,18 @@
  *
  */
 
+
 declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
-use pocketmine\network\mcpe\protocol\TextPacket;
+use pocketmine\network\mcpe\protocol\TextPacket as BedrockTextPacket;
+use quark\network\mcpe\protocol\packet\TextPacket;
+use quark\network\mcpe\protocol\types\TextMessageAndParams;
+use quark\network\mcpe\protocol\types\TextMessageOnly;
 
 /**
  * Chat, popup and tip messages sent by the server.
- *
- * @phpstan-import-type TextBody from Packets
  */
 final class TextPackets{
 
@@ -37,16 +39,10 @@ final class TextPackets{
 	}
 
 	/**
-	 * @phpstan-param TextBody $body
+	 * @phpstan-param array{message_only: TextMessageOnly}|array{message_and_params: TextMessageAndParams} $body
 	 */
-	private static function text(bool $localize, array $body) : Packet{
-		return Packets::text([
-			"localize" => $localize,
-			"body" => $body,
-			"senders_xuid" => "",
-			"platform_id" => "",
-			"filtered_message" => null,
-		]);
+	private static function text(bool $localize, array $body) : TextPacket{
+		return new TextPacket($localize, $body, "", "");
 	}
 
 	//TODO: HACK! Empty message crashes or bugs out client in 1.21.130
@@ -54,31 +50,31 @@ final class TextPackets{
 		return $message === "" ? " " : $message;
 	}
 
-	public static function raw(string $message) : Packet{
-		return self::text(false, ["message_only" => ["message_type" => TextPacket::TYPE_RAW, "message" => self::nonEmpty($message)]]);
+	public static function raw(string $message) : TextPacket{
+		return self::text(false, ["message_only" => new TextMessageOnly(BedrockTextPacket::TYPE_RAW, self::nonEmpty($message))]);
 	}
 
-	public static function tip(string $message) : Packet{
-		return self::text(false, ["message_only" => ["message_type" => TextPacket::TYPE_TIP, "message" => self::nonEmpty($message)]]);
+	public static function tip(string $message) : TextPacket{
+		return self::text(false, ["message_only" => new TextMessageOnly(BedrockTextPacket::TYPE_TIP, self::nonEmpty($message))]);
 	}
 
-	public static function popup(string $message) : Packet{
-		return self::text(false, ["message_and_params" => ["message_type" => TextPacket::TYPE_POPUP, "message" => self::nonEmpty($message), "parameter_list" => []]]);
-	}
-
-	/**
-	 * @param string[] $parameters
-	 * @phpstan-param list<string> $parameters
-	 */
-	public static function translation(string $key, array $parameters = []) : Packet{
-		return self::text(true, ["message_and_params" => ["message_type" => TextPacket::TYPE_TRANSLATION, "message" => self::nonEmpty($key), "parameter_list" => $parameters]]);
+	public static function popup(string $message) : TextPacket{
+		return self::text(false, ["message_and_params" => new TextMessageAndParams(BedrockTextPacket::TYPE_POPUP, self::nonEmpty($message), [])]);
 	}
 
 	/**
 	 * @param string[] $parameters
 	 * @phpstan-param list<string> $parameters
 	 */
-	public static function jukeboxPopup(string $key, array $parameters = []) : Packet{
-		return self::text(true, ["message_and_params" => ["message_type" => TextPacket::TYPE_JUKEBOX_POPUP, "message" => self::nonEmpty($key), "parameter_list" => $parameters]]);
+	public static function translation(string $key, array $parameters = []) : TextPacket{
+		return self::text(true, ["message_and_params" => new TextMessageAndParams(BedrockTextPacket::TYPE_TRANSLATION, self::nonEmpty($key), $parameters)]);
+	}
+
+	/**
+	 * @param string[] $parameters
+	 * @phpstan-param list<string> $parameters
+	 */
+	public static function jukeboxPopup(string $key, array $parameters = []) : TextPacket{
+		return self::text(true, ["message_and_params" => new TextMessageAndParams(BedrockTextPacket::TYPE_JUKEBOX_POPUP, self::nonEmpty($key), $parameters)]);
 	}
 }

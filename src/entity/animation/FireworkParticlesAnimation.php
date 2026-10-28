@@ -25,7 +25,7 @@ namespace quark\entity\animation;
 
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\object\FireworkRocket;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class FireworkParticlesAnimation implements Animation{
 
@@ -35,7 +35,7 @@ final class FireworkParticlesAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			Packets::actorEvent(["target_runtime_id" => $this->entity->getId(), "event_id" => ActorEvent::FIREWORK_PARTICLES, "data" => 0, "fire_at_position" => null])
+			new ActorEventPacket($this->entity->getId(), ActorEvent::FIREWORK_PARTICLES, 0)
 		];
 	}
 }

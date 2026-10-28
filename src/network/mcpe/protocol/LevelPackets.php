@@ -19,12 +19,15 @@
  *
  */
 
+
 declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\network\mcpe\protocol\packet\LevelEventPacket;
+use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
 
 /**
  * The world sound and event packets most sounds and particles are made of.
@@ -41,34 +44,21 @@ final class LevelPackets{
 	 * @param string $sound    a LevelSoundEvent name
 	 * @param bool   $isGlobal whether listeners hear it at full volume wherever they are
 	 */
-	public static function sound(string $sound, Vector3 $position, bool $isGlobal, int $data = -1) : Packet{
-		return Packets::levelSoundEvent([
-			"sound_event" => $sound,
-			"position" => Fields::vec3($position),
-			"data" => $data,
-			"actor_identifier" => ":",
-			"is_baby" => false,
-			"is_global" => $isGlobal,
-			"actor_unique_id" => -1,
-			"fire_at_position" => null,
-		]);
+	public static function sound(string $sound, Vector3 $position, bool $isGlobal, int $data = -1) : LevelSoundEventPacket{
+		return new LevelSoundEventPacket($sound, $position, $data, ":", false, $isGlobal, -1);
 	}
 
 	/**
 	 * @param int $eventId a LevelEvent constant
 	 */
-	public static function event(int $eventId, int $data, ?Vector3 $position) : Packet{
-		return Packets::levelEvent([
-			"event_id" => $eventId,
-			"position" => $position !== null ? Fields::vec3($position) : ["x" => 0.0, "y" => 0.0, "z" => 0.0],
-			"data" => $data,
-		]);
+	public static function event(int $eventId, int $data, ?Vector3 $position) : LevelEventPacket{
+		return new LevelEventPacket($eventId, $position ?? Vector3::zero(), $data);
 	}
 
 	/**
 	 * @param int $particleId a ParticleIds constant
 	 */
-	public static function particle(int $particleId, int $data, Vector3 $position) : Packet{
+	public static function particle(int $particleId, int $data, Vector3 $position) : LevelEventPacket{
 		return self::event(LevelEvent::ADD_PARTICLE_MASK | $particleId, $data, $position);
 	}
 }

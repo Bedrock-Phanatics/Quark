@@ -27,7 +27,7 @@ use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class ConsumingItemAnimation implements Animation{
 
@@ -40,7 +40,7 @@ final class ConsumingItemAnimation implements Animation{
 		[$netId, $netData] = TypeConverter::getInstance()->getItemTranslator()->toNetworkId($this->item);
 		return [
 			//TODO: need to check the data values
-			Packets::actorEvent(["target_runtime_id" => $this->entity->getId(), "event_id" => ActorEvent::EATING_ITEM, "data" => ($netId << 16) | $netData, "fire_at_position" => null])
+			new ActorEventPacket($this->entity->getId(), ActorEvent::EATING_ITEM, ($netId << 16) | $netData)
 		];
 	}
 }

@@ -25,7 +25,7 @@ namespace quark\entity\animation;
 
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Squid;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class SquidInkCloudAnimation implements Animation{
 
@@ -33,7 +33,7 @@ final class SquidInkCloudAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			Packets::actorEvent(["target_runtime_id" => $this->squid->getId(), "event_id" => ActorEvent::SQUID_INK_CLOUD, "data" => 0, "fire_at_position" => null])
+			new ActorEventPacket($this->squid->getId(), ActorEvent::SQUID_INK_CLOUD, 0)
 		];
 	}
 }

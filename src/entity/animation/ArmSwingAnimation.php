@@ -25,7 +25,7 @@ namespace quark\entity\animation;
 
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class ArmSwingAnimation implements Animation{
 
@@ -34,7 +34,7 @@ final class ArmSwingAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			Packets::actorEvent(["target_runtime_id" => $this->entity->getId(), "event_id" => ActorEvent::ARM_SWING, "data" => 0, "fire_at_position" => null])
+			new ActorEventPacket($this->entity->getId(), ActorEvent::ARM_SWING, 0)
 		];
 	}
 }

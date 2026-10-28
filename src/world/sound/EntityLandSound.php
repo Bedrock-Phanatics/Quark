@@ -28,8 +28,7 @@ use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\block\Block;
 use quark\entity\Entity;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
 
 /**
  * Played when an entity hits the ground after falling a distance that doesn't cause damage, e.g. due to jumping.
@@ -41,15 +40,14 @@ class EntityLandSound implements Sound{
 	){}
 
 	public function encode(Vector3 $pos) : array{
-		return [Packets::levelSoundEvent([
-			"sound_event" => LevelSoundEvent::LAND,
-			"position" => Fields::vec3($pos),
-			"data" => TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->blockLandedOn->getStateId()),
-			"actor_identifier" => $this->entity::getNetworkTypeId(),
-			"is_baby" => false, //TODO: does isBaby have any relevance here?
-			"is_global" => false,
-			"actor_unique_id" => $this->entity->getId(),
-			"fire_at_position" => null,
-		])];
+		return [new LevelSoundEventPacket(
+			soundEvent: LevelSoundEvent::LAND,
+			position: $pos,
+			data: TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId($this->blockLandedOn->getStateId()),
+			actorIdentifier: $this->entity::getNetworkTypeId(),
+			isBaby: false, //TODO: does isBaby have any relevance here?
+			isGlobal: false,
+			actorUniqueId: $this->entity->getId(),
+		)];
 	}
 }

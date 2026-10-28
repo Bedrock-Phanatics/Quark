@@ -25,8 +25,7 @@ namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
 
 final class WaterSplashSound implements Sound{
 
@@ -37,15 +36,6 @@ final class WaterSplashSound implements Sound{
 	}
 
 	public function encode(Vector3 $pos) : array{
-		return [Packets::levelSoundEvent([
-			"sound_event" => LevelSoundEvent::SPLASH,
-			"position" => Fields::vec3($pos),
-			"data" => (int) ($this->volume * 16777215),
-			"actor_identifier" => ":",
-			"is_baby" => false,
-			"is_global" => false,
-			"actor_unique_id" => -1,
-			"fire_at_position" => null,
-		])];
+		return [new LevelSoundEventPacket(LevelSoundEvent::SPLASH, $pos, (int) ($this->volume * 16777215), ":", false, false, -1)];
 	}
 }

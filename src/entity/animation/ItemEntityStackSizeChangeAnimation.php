@@ -25,7 +25,7 @@ namespace quark\entity\animation;
 
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\object\ItemEntity;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class ItemEntityStackSizeChangeAnimation implements Animation{
 
@@ -35,6 +35,6 @@ final class ItemEntityStackSizeChangeAnimation implements Animation{
 	){}
 
 	public function encode() : array{
-		return [Packets::actorEvent(["target_runtime_id" => $this->itemEntity->getId(), "event_id" => ActorEvent::ITEM_ENTITY_MERGE, "data" => $this->newStackSize, "fire_at_position" => null])];
+		return [new ActorEventPacket($this->itemEntity->getId(), ActorEvent::ITEM_ENTITY_MERGE, $this->newStackSize)];
 	}
 }

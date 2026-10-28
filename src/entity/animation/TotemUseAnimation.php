@@ -25,7 +25,7 @@ namespace quark\entity\animation;
 
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Human;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class TotemUseAnimation implements Animation{
 
@@ -34,7 +34,7 @@ final class TotemUseAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			Packets::actorEvent(["target_runtime_id" => $this->human->getId(), "event_id" => ActorEvent::CONSUME_TOTEM, "data" => 0, "fire_at_position" => null])
+			new ActorEventPacket($this->human->getId(), ActorEvent::CONSUME_TOTEM, 0)
 		];
 	}
 }

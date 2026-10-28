@@ -25,7 +25,7 @@ namespace quark\entity\animation;
 
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
-use quark\network\mcpe\protocol\Packets;
+use quark\network\mcpe\protocol\packet\ActorEventPacket;
 
 final class HurtAnimation implements Animation{
 
@@ -33,7 +33,7 @@ final class HurtAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			Packets::actorEvent(["target_runtime_id" => $this->entity->getId(), "event_id" => ActorEvent::HURT_ANIMATION, "data" => 0, "fire_at_position" => null])
+			new ActorEventPacket($this->entity->getId(), ActorEvent::HURT_ANIMATION, 0)
 		];
 	}
 }
