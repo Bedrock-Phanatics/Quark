@@ -58,7 +58,7 @@ jobs:
 
       - name: Run PHPUnit
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
-        run: php vendor/bin/phpunit --bootstrap vendor/autoload.php --fail-on-warning tests/phpunit
+        run: php vendor/bin/phpunit --bootstrap vendor/autoload.php --fail-on-warning --display-warnings tests/phpunit
 
       # make-server removes development dependencies, so integration must run last.
       - name: Run integration tests

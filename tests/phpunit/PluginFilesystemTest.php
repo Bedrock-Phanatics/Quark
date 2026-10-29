@@ -23,6 +23,7 @@ use function rmdir;
 use function symlink;
 use function sys_get_temp_dir;
 use function unlink;
+use const PHP_OS_FAMILY;
 
 final class PluginFilesystemTest extends TestCase{
 	private string $root;
@@ -46,6 +47,9 @@ final class PluginFilesystemTest extends TestCase{
 					assert($child instanceof \SplFileInfo);
 					$remove($child->getPathname());
 				}
+				rmdir($path);
+			}elseif(PHP_OS_FAMILY === "Windows" && is_dir($path)){
+				//windows removes a directory symlink with rmdir
 				rmdir($path);
 			}else{
 				unlink($path);
