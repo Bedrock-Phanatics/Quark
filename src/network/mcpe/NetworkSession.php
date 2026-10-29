@@ -131,6 +131,7 @@ use quark\world\format\io\GlobalItemDataHandlers;
 use quark\world\Position;
 use quark\world\World;
 use quark\YmlServerProperties;
+use function array_chunk;
 use function array_map;
 use function array_slice;
 use function array_values;
@@ -165,6 +166,7 @@ class NetworkSession{
 	 * full of tiny list elements from expanding into hundreds of megabytes of arrays.
 	 */
 	private const int MAX_DECODED_VALUES = 65536;
+	private const int PLAYER_LIST_ENTRIES_PER_PACKET = 100;
 
 	private const array PRE_LOGIN_PACKETS = [
 		PacketId::NETWORK_SETTINGS => true,
@@ -1750,7 +1752,10 @@ class NetworkSession{
 		foreach($players as $player){
 			$entries[] = Fields::playerListAddition($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($player->getSkin()), $player->getXuid());
 		}
-		$this->sendDataPacket(new PlayerListPacket(entries: $entries));
+		//the protocol caps a list at 1000 entries, and each carries a whole skin, so big servers send several
+		foreach(array_chunk($entries, self::PLAYER_LIST_ENTRIES_PER_PACKET) as $chunk){
+			$this->sendDataPacket(new PlayerListPacket(entries: $chunk));
+		}
 	}
 
 	public function onPlayerAdded(Player $p) : void{
