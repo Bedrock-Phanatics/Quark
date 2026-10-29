@@ -30,7 +30,7 @@ runs:
       with:
         version: 0.17.0
 
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+    - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       id: runtime
       with:
         path: build/php/bin
@@ -55,16 +55,27 @@ runs:
         SOURCES_PATH: ${{ runner.temp }}\quark-php-sdk
       run: ./windows-compile-vs.ps1
 
+    - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      if: steps.runtime.outputs.cache-hit != 'true'
+      with:
+        path: build/php/bin
+        key: ${{ steps.runtime.outputs.cache-primary-key }}
+
     - name: Extract and validate runtime package
       shell: bash
       run: |
         set -euo pipefail
         runtime="$RUNNER_TEMP/quark-php"
+        if [ "$RUNNER_OS" = Windows ]; then
+          #tar reads D: as a remote host
+          runtime="$(cygpath -u "$runtime")"
+        fi
         mkdir -p "$runtime/empty-ini"
         tar -czf "$runtime/runtime.tar.gz" -C build/php bin
         tar -xzf "$runtime/runtime.tar.gz" -C "$runtime"
         if [ "$RUNNER_OS" = Windows ]; then
           php_bin="$runtime/bin/php"
+          path_entry="$(cygpath -w "$php_bin")"
           extension_dir="$(cygpath -m "$php_bin/ext")"
           ini="$(cygpath -m "$php_bin/php.ini")"
           scan_dir="$(cygpath -m "$runtime/empty-ini")"
@@ -72,6 +83,7 @@ runs:
           openssl_modules="$(cygpath -m "$php_bin/extras/ssl")"
         else
           php_bin="$runtime/bin/php7/bin"
+          path_entry="$php_bin"
           extension_dir=$(find "$runtime/bin/php7/lib/php/extensions" -mindepth 1 -maxdepth 1 -type d -name '*debug-zts*')
           ini="$php_bin/php.ini"
           scan_dir="$runtime/empty-ini"
@@ -87,7 +99,7 @@ runs:
         expected_php=$(sed -n 's/^PHP_VERSION=//p' build/php/versions.env)
         test "$("$php_bin/php" -r 'echo PHP_VERSION;')" = "$expected_php"
         "$php_bin/php" -v
-        echo "$php_bin" >> "$GITHUB_PATH"
+        echo "$path_entry" >> "$GITHUB_PATH"
         echo "PHPRC=$ini" >> "$GITHUB_ENV"
         echo "PHP_INI_SCAN_DIR=$scan_dir" >> "$GITHUB_ENV"
         echo "OPENSSL_CONF=$openssl_conf" >> "$GITHUB_ENV"
