@@ -7,7 +7,7 @@
    "require": {
       "php": "^8.4",
       "php-64bit": "*",
-      "ext-bedwire": "^0.3.9",
+      "ext-bedwire": "^0.3.10",
       "ext-chunkutils2": "^0.3.1",
       "ext-crypto": "^0.3.1",
       "ext-ctype": "*",
