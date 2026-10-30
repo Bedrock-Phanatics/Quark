@@ -1254,7 +1254,13 @@ class NetworkSession{
 				try{
 					$this->transportIdentityKey->verify($clientPubKey);
 				}catch(TransportIdentityException $e){
-					$error = $e->getMessage();
+					if($authRequired){
+						$error = $e->getMessage();
+					}else{
+						//an Xbox login that this connection can't prove is its own counts as unauthenticated
+						$this->logger->debug("Treating login as unauthenticated: " . $e->getMessage());
+						$authenticated = false;
+					}
 				}
 			}
 		}
