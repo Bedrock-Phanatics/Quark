@@ -155,7 +155,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		if($this->bedwire === null){
 			return;
 		}
-		$name = TextFormat::clean($this->name !== "" ? $this->name : $this->server->getMotd());
+		$rawName = $this->name !== "" ? $this->name : $this->server->getMotd();
 		$level = $this->server->getName();
 		$maxPlayers = $this->server->getMaxPlayers();
 		$gameType = match($this->server->getGamemode()){
@@ -163,9 +163,10 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			GameMode::ADVENTURE => 2,
 			default => 0
 		};
-		$status = "$name\0$level\0$maxPlayers\0$gameType";
+		$status = "$rawName\0$level\0$maxPlayers\0$gameType";
 		if($status !== $this->publishedStatus){
 			$this->publishedStatus = $status;
+			$name = TextFormat::clean($rawName);
 			$this->bedwire->setStatus(mb_strcut($name, 0, 256, "UTF-8"), mb_strcut($level, 0, 256, "UTF-8"), $maxPlayers, $gameType);
 		}
 	}
