@@ -106,7 +106,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 					isExportedFromEditor: false,
 					dayCycleStopTime: $world->getTime(),
 					educationEditionOffer: 0,
-					educationFeaturesEnabled: false,
+					educationFeaturesEnabled: true,
 					educationProductId: "",
 					rainLevel: 0.0, //TODO: implement these properly
 					lightningLevel: 0.0,
