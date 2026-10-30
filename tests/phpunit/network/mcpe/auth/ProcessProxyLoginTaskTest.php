@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\network\mcpe\auth;
 
 use PHPUnit\Framework\TestCase;
+use quark\network\mcpe\bedwire\BedwireIdentityKey;
 use quark\network\mcpe\JwtUtils;
-use quark\network\mcpe\nethernet\NetherNetIdentityKey;
 use quark\network\TransportIdentityException;
 use function base64_encode;
 use function hash;
@@ -95,8 +95,8 @@ class ProcessProxyLoginTaskTest extends TestCase{
 
 	public function testTransportKeyMatchesProxyKey() : void{
 		$keyDer = JwtUtils::emitDerPublicKey(self::newKey());
-		(new NetherNetIdentityKey(hash("sha256", $keyDer, binary: true)))->verify($keyDer);
+		(new BedwireIdentityKey(hash("sha256", $keyDer, binary: true)))->verify($keyDer);
 		$this->expectException(TransportIdentityException::class);
-		(new NetherNetIdentityKey(hash("sha256", $keyDer, binary: true)))->verify(JwtUtils::emitDerPublicKey(self::newKey()));
+		(new BedwireIdentityKey(hash("sha256", $keyDer, binary: true)))->verify(JwtUtils::emitDerPublicKey(self::newKey()));
 	}
 }

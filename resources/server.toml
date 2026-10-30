@@ -12,19 +12,14 @@ memory.continuous-trigger = true
 memory.continuous-trigger-rate = 30
 
 # Up to eight comma-separated transports; plugins may register additional names.
-# bedwire serves NetherNet natively through ext-bedwire; nethernet and raknet are the PHP transports.
-transport.name = 'bedwire'
+# nethernet is served natively by ext-bedwire, raknet is the PHP transport.
+transport.name = 'nethernet'
 # Identity players confirm on their first join, relative to the data directory. Keep it across restarts.
-transport.bedwire.key-file = 'bedwire-identity.der'
+transport.nethernet.key-file = 'nethernet-identity.der'
 # Answer LAN discovery on UDP 7551 so the server shows up in the Friends tab on the same network.
-transport.bedwire.lan-discovery = true
+transport.nethernet.lan-discovery = true
 # Share one UDP socket across connections. Not yet verified against vanilla clients.
-transport.bedwire.ice-udp-mux = false
-transport.nethernet.key-file = 'nethernet.key'
 transport.nethernet.ice-udp-mux = false
-transport.nethernet.mtu = 1200
-transport.nethernet.builtin-signaling.enabled = true
-transport.nethernet.builtin-signaling.port = 0
 
 # The update channel may be stable, beta, or development.
 auto-updater.enabled = false
@@ -102,10 +97,6 @@ max-mtu-size = 1492
 enable-encryption = true
 # Base64 public keys of proxies you run, such as Bifrost. A listed proxy can log in as any player.
 trusted-proxy-keys = []
-
-[transport.nethernet.builtin-signaling.reverse-proxy]
-enabled = false
-header = 'X-Forwarded-For'
 
 [debug]
 level = 1

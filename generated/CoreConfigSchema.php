@@ -27,28 +27,12 @@ return array (
   ),
   'transport' =>
   array (
-    'name' => 'bedwire',
-    'bedwire' =>
-    array (
-      'key-file' => 'bedwire-identity.der',
-      'lan-discovery' => true,
-      'ice-udp-mux' => false,
-    ),
+    'name' => 'nethernet',
     'nethernet' =>
     array (
-      'key-file' => 'nethernet.key',
+      'key-file' => 'nethernet-identity.der',
+      'lan-discovery' => true,
       'ice-udp-mux' => false,
-      'mtu' => 1200,
-      'builtin-signaling' =>
-      array (
-        'enabled' => true,
-        'port' => 0,
-        'reverse-proxy' =>
-        array (
-          'enabled' => false,
-          'header' => 'X-Forwarded-For',
-        ),
-      ),
     ),
   ),
   'auto-updater' =>

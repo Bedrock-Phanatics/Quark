@@ -64,7 +64,6 @@ use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\encryption\EncryptionContext;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
-use quark\network\mcpe\nethernet\NetherNetTransport;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\ProtocolInfo;
 use quark\network\mcpe\protocol\types\CompressionAlgorithm;
@@ -1150,7 +1149,6 @@ class Server{
 			$this->network->setName($this->getMotd());
 			$this->network->registerTransport(BedwireTransport::NAME, new BedwireTransport($this));
 			$this->network->registerTransport(RakLibTransport::NAME, new RakLibTransport($this));
-			$this->network->registerTransport(NetherNetTransport::NAME, new NetherNetTransport($this));
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_info(
 				$this->getName(),

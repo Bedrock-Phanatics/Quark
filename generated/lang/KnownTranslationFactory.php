@@ -2950,30 +2950,6 @@ final class KnownTranslationFactory{
 		]);
 	}
 
-	public static function quark_server_nethernet_builtinSignalingDisabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_BUILTINSIGNALINGDISABLED, []);
-	}
-
-	public static function quark_server_nethernet_identityKeySaveFailed(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_IDENTITYKEYSAVEFAILED, [
-			0 => $param0,
-		]);
-	}
-
-	public static function quark_server_nethernet_tls_disabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_TLS_DISABLED, []);
-	}
-
-	public static function quark_server_nethernet_tls_enabled() : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_TLS_ENABLED, []);
-	}
-
-	public static function quark_server_nethernet_udpMuxWithoutPortRange(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETHERNET_UDPMUXWITHOUTPORTRANGE, [
-			0 => $param0,
-		]);
-	}
-
 	public static function quark_server_networkStart(Translatable|string $param0, Translatable|string $param1) : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_SERVER_NETWORKSTART, [
 			0 => $param0,

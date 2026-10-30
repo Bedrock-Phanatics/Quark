@@ -638,11 +638,6 @@ final class KnownTranslationKeys{
 	public const QUARK_SERVER_FORCINGSHUTDOWN = "quark.server.forcingShutdown";
 	public const QUARK_SERVER_INFO = "quark.server.info";
 	public const QUARK_SERVER_LICENSE = "quark.server.license";
-	public const QUARK_SERVER_NETHERNET_BUILTINSIGNALINGDISABLED = "quark.server.nethernet.builtinSignalingDisabled";
-	public const QUARK_SERVER_NETHERNET_IDENTITYKEYSAVEFAILED = "quark.server.nethernet.identityKeySaveFailed";
-	public const QUARK_SERVER_NETHERNET_TLS_DISABLED = "quark.server.nethernet.tls.disabled";
-	public const QUARK_SERVER_NETHERNET_TLS_ENABLED = "quark.server.nethernet.tls.enabled";
-	public const QUARK_SERVER_NETHERNET_UDPMUXWITHOUTPORTRANGE = "quark.server.nethernet.udpMuxWithoutPortRange";
 	public const QUARK_SERVER_NETWORKSTART = "quark.server.networkStart";
 	public const QUARK_SERVER_NETWORKSTARTFAILED = "quark.server.networkStartFailed";
 	public const QUARK_SERVER_OBSOLETE_WARNING1 = "quark.server.obsolete.warning1";

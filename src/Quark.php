@@ -144,7 +144,6 @@ use const ZEND_DEBUG_BUILD;
 			"sockets" => "Sockets",
 			"spl" => "SPL",
 			"toml" => "TOML",
-			"webrtc" => "WebRTC (legacy NetherNet)",
 			"yaml" => "YAML",
 			"zip" => "Zip",
 			"zlib" => "Zlib"
@@ -165,8 +164,7 @@ use const ZEND_DEBUG_BUILD;
 			"leveldb" => ["0.2.1", "0.4.0"],
 			"morton" => ["0.1.0", "0.2.0"],
 			"pmmpthread" => ["6.1.0", "7.0.0"],
-			"toml" => ["0.1.1", "0.2.0"],
-			"webrtc" => ["0.3.1", "0.4.0"]
+			"toml" => ["0.1.1", "0.2.0"]
 		] as $ext => [$min, $max]){
 			$version = phpversion($ext);
 			if(extension_loaded($ext) && ($version === false || version_compare($version, $min, "<") || version_compare($version, $max . "-dev", ">="))){

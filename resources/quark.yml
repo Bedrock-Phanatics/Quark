@@ -98,13 +98,13 @@ network:
   #- MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE...
 
 transport:
-  #Network transport(s) used for player connections. Accepts a comma-separated list (e.g. raknet,nethernet), up to 8 entries.
-  #Built-in options: raknet, nethernet. Plugins may register additional transports.
-  name: bedwire
-  #Settings for the bedwire transport, NetherNet served natively by ext-bedwire.
-  bedwire:
+  #Network transport(s) used for player connections. Accepts a comma-separated list (e.g. nethernet,raknet), up to 8 entries.
+  #Built-in options: nethernet, raknet. Plugins may register additional transports.
+  name: nethernet
+  #Settings for the NetherNet transport, served natively by ext-bedwire.
+  nethernet:
     #Path to the persistent identity key, relative to the data directory. Clients trust this key upon their first join.
-    key-file: bedwire-identity.der
+    key-file: nethernet-identity.der
     #Answer LAN discovery on UDP port 7551 so the server is listed for players on the same network.
     lan-discovery: true
     #Shares one UDP socket across connections. Not yet verified against vanilla clients.
@@ -113,85 +113,6 @@ transport:
     port-range:
     #STUN/TURN servers for NAT traversal, as URLs such as stun:stun.example.com:3478 or turn:user:pass@turn.example.com:3478.
     ice-servers:
-  #Settings for the NetherNet (WebRTC) transport.
-  nethernet:
-    #Path to the persistent identity key, relative to the data directory.
-    #Clients trust this key upon their first join.
-    #Changing this file will prompt players to re-verify on their next connection.
-    key-file: nethernet.key
-
-    #Operator domain or server name included in identity assertions sent to clients.
-    #Leave empty to use the server MOTD (with formatting codes stripped).
-    #Clients pin the public key rather than this name, so changing it does not require players to re-verify.
-    identity-domain:
-
-    #Enables ICE UDP multiplexing so connections share a single UDP socket.
-    #Only uses a fixed port if port-range specifies a single port; otherwise, an arbitrary port is assigned.
-    #NOTE: Cannot be used with TURN servers.
-    ice-udp-mux: false
-
-    #UDP port range for connections.
-    #Parsed as [min, max], e.g. [19132, 19140]. Leave empty to use any available port.
-    port-range:
-
-    #Maximum size in bytes of IP packets sent to clients. Not negotiated, so only raise it if every client's network path allows it.
-    mtu: 1200
-
-    #IP addresses advertised to clients for peer connections instead of locally gathered interface addresses.
-    #Useful when behind a 1:1 NAT (specify the public IP) or when the server has unreachable internal interfaces.
-    #Addresses are announced using the local bound port; 1:1 port forwarding without port translation is required.
-    #Only affects HTTP signaling; LAN discovery always advertises local addresses. Leave empty to advertise all gathered addresses.
-    advertise-addresses:
-    #Example:
-    #- 203.0.113.10
-
-    #STUN/TURN ICE servers for NAT traversal and relay.
-    #Unreachable servers will delay connection establishment until candidate gathering times out.
-    ice-servers:
-      #port defaults to 3478 if omitted.
-      #Example:
-      #- type: stun
-      #  host: stun.example.com
-      #  port: 3478
-      #- type: turn
-      #  host: turn.example.com
-      #  port: 3478
-      #  username: <username for the TURN server>
-      #  password: <password for the TURN server>
-
-    #Built-in signaling channels: HTTP signaling endpoint (GET/POST /v1/join) and LAN broadcast discovery.
-    builtin-signaling:
-      #Disable if signaling is handled externally (e.g. by a custom signaling plugin using NetherNetInterface::acceptOffer()).
-      #If disabled without an alternative signaling mechanism, clients cannot connect.
-      enabled: true
-
-      #TCP port for HTTP signaling. Set to 0 to use server-port from server.properties.
-      #Only modify this when behind a reverse proxy that forwards signaling traffic to a custom port.
-      port: 0
-
-      #TLS encryption for the HTTP signaling endpoint. Plain HTTP requests are redirected to HTTPS.
-      #Leave certificate and key empty to serve plain HTTP only. Paths are relative to the data directory.
-      tls:
-        #Path to PEM certificate or certificate chain file.
-        certificate:
-        #Path to PEM private key file.
-        key:
-        #Optional private key passphrase, or file:<path> to read from a file.
-        passphrase:
-
-      #Enable when HTTP signaling is behind a reverse proxy (e.g. nginx, Caddy, Cloudflare).
-      #Allows resolving the client's real IP from forwarded headers for features like TURN relays.
-      reverse-proxy:
-        enabled: false
-        #Header the proxy sets the client's IP in (e.g. X-Forwarded-For, X-Real-IP, CF-Connecting-IP).
-        header: X-Forwarded-For
-        #List of trusted reverse proxy IP addresses or CIDR blocks.
-        #Forwarded headers from unlisted addresses are ignored to prevent IP address spoofing.
-        #At least one entry is required when enabled.
-        trusted-ips:
-        #Example:
-        #- 127.0.0.1
-        #- 10.0.0.2
 
 debug:
   #If > 1, it will show debug messages in the console
