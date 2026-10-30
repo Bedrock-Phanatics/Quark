@@ -95,7 +95,7 @@ class NetworkSessionManager{
 		foreach($this->sessions as $k => $session){
 			$session->tick();
 			if(!$session->isConnected()){
-				unset($this->sessions[$k]);
+				unset($this->sessions[$k], $this->pendingLoginSessions[$k]);
 			}
 		}
 	}
@@ -111,5 +111,6 @@ class NetworkSessionManager{
 			$session->disconnect($reason, $disconnectScreenMessage);
 		}
 		$this->sessions = [];
+		$this->pendingLoginSessions = [];
 	}
 }
