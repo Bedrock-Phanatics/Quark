@@ -94,7 +94,7 @@ final class BedwireTransport implements Transport{
 			"trusted_identity_keys" => $this->server->getTrustedProxyKeys(),
 			"ice_servers" => self::parseIceServers($config->getProperty(Yml::TRANSPORT_NETHERNET_ICE_SERVERS)),
 			"udp_mux" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX, false),
-			"unreliable_events" => true,
+			"unreliable_events" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_UNRELIABLE_EVENTS, false),
 		];
 		$bindAddress = $this->server->getIp();
 		if($bindAddress !== "0.0.0.0"){

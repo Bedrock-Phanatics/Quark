@@ -20,6 +20,8 @@ transport.nethernet.key-file = 'nethernet-identity.der'
 transport.nethernet.lan-discovery = true
 # Share one UDP socket across connections. Not yet verified against vanilla clients.
 transport.nethernet.ice-udp-mux = false
+# Hand unreliable-channel messages to BedwireInterface::setUnreliablePacketHandler(). Off drops them natively.
+transport.nethernet.unreliable-events = false
 
 # The update channel may be stable, beta, or development.
 auto-updater.enabled = false

@@ -33,6 +33,7 @@ return array (
       'key-file' => 'nethernet-identity.der',
       'lan-discovery' => true,
       'ice-udp-mux' => false,
+      'unreliable-events' => false,
     ),
   ),
   'auto-updater' =>

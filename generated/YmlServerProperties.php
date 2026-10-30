@@ -128,5 +128,6 @@ final class YmlServerProperties{
 	public const TRANSPORT_NETHERNET_KEY_FILE = 'transport.nethernet.key-file';
 	public const TRANSPORT_NETHERNET_LAN_DISCOVERY = 'transport.nethernet.lan-discovery';
 	public const TRANSPORT_NETHERNET_PORT_RANGE = 'transport.nethernet.port-range';
+	public const TRANSPORT_NETHERNET_UNRELIABLE_EVENTS = 'transport.nethernet.unreliable-events';
 	public const WORLDS = 'worlds';
 }

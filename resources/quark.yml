@@ -113,6 +113,8 @@ transport:
     port-range:
     #STUN/TURN servers for NAT traversal, as URLs such as stun:stun.example.com:3478 or turn:user:pass@turn.example.com:3478.
     ice-servers:
+    #Deliver messages clients send on the unreliable channel to BedwireInterface::setUnreliablePacketHandler(). Off drops them natively.
+    unreliable-events: false
 
 debug:
   #If > 1, it will show debug messages in the console

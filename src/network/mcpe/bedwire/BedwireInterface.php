@@ -534,7 +534,8 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 
 	/**
 	 * Sets what receives the payloads clients send on the unreliable channel. They arrive in no particular order,
-	 * so they are kept out of the session's packet stream; without a handler they are dropped.
+	 * so they are kept out of the session's packet stream; without a handler they are dropped. They are only
+	 * delivered when transport.nethernet.unreliable-events is enabled.
 	 *
 	 * @phpstan-param (\Closure(NetworkSession $session, string $payload) : void)|null $handler
 	 */
