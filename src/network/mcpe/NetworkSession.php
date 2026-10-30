@@ -1349,6 +1349,9 @@ class NetworkSession{
 
 		if($this->sender instanceof NativeBatchPacketSender){
 			$this->sender->acceptLogin($clientPubKey);
+			if(!$this->connected){
+				return;
+			}
 		}
 
 		if(EncryptionContext::$ENABLED && !($this->transportEncrypted && $this->transportIdentityKey !== null)){

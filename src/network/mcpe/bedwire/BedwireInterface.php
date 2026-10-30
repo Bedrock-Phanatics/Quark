@@ -51,6 +51,7 @@ use function implode;
 use function intdiv;
 use function mb_strcut;
 use function spl_object_id;
+use function strlen;
 use function strrpos;
 use function substr;
 use function time;
@@ -63,6 +64,9 @@ use function trim;
 final class BedwireInterface implements AdvancedNetworkInterface{
 
 	private const int EVENTS_PER_POLL = 4096;
+	/** The command ring is shared, so a full one only means the network thread is behind, not that a client is slow. */
+	private const int MAX_DEFERRED_BYTES = 64 * 1024 * 1024;
+	private const int MAX_DEFERRED_TICKS = 100;
 
 	private ?BedwireServer $bedwire = null;
 
@@ -74,6 +78,12 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 
 	/** @phpstan-var array<int, true> */
 	private array $pendingDisconnects = [];
+
+	/** @phpstan-var array<int, list<array{int, \Closure() : void}>> sends the command ring had no room for, in order, with their sizes */
+	private array $deferred = [];
+	/** @phpstan-var array<int, int> tick each session's deferred sends started at */
+	private array $deferredSince = [];
+	private int $deferredBytes = 0;
 
 	/** @phpstan-var array<string, int> expiry times of blocked addresses */
 	private array $blockedAddresses = [];
@@ -170,7 +180,11 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		}
 		$this->processEvents();
 		$this->publishStatus();
+		$this->flushDeferred();
 		foreach($this->pendingDisconnects as $sessionId => $_){
+			if(isset($this->deferred[$sessionId])){
+				continue;
+			}
 			try{
 				$bedwire->disconnect($sessionId);
 			}catch(BackpressureException){
@@ -235,6 +249,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 						break;
 					case BedwireServer::EVENT_DISCONNECT:
 						unset($this->pendingDisconnects[$sessionId]);
+						$this->discardDeferred($sessionId);
 						$session = $this->sessions[$sessionId] ?? null;
 						if($session !== null){
 							unset($this->sessions[$sessionId], $this->sessionIds[spl_object_id($session)]);
@@ -335,10 +350,6 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		}
 		try{
 			$this->sendRawBatch($this->bedwire, $sessionId, $batch, $offset);
-		}catch(BackpressureException){
-			$session = $this->sessions[$sessionId];
-			$this->close($sessionId);
-			$session->disconnectWithError("Network send queue is full");
 		}catch(\ValueError $e){
 			$this->sessions[$sessionId]->disconnectWithError("Failed to send packet: " . $e->getMessage());
 		}
@@ -353,25 +364,31 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		if($this->bedwire === null || !isset($this->sessions[$sessionId])){
 			return true;
 		}
+		if(isset($this->deferred[$sessionId])){
+			return false;
+		}
 		try{
 			$this->bedwire->sendPackets($sessionId, $packets);
-		}catch(BackpressureException){
-			$session = $this->sessions[$sessionId];
-			$this->close($sessionId);
-			$session->disconnectWithError("Network send queue is full");
-		}catch(\ValueError|\TypeError){
+		}catch(BackpressureException|\ValueError|\TypeError){
 			return false;
 		}
 		return true;
 	}
 
 	/**
-	 * @throws BackpressureException
+	 * Queues the batch behind any deferred sends of the session, or defers it when the command ring is full.
+	 *
 	 * @throws \ValueError
 	 */
 	private function sendRawBatch(BedwireServer $bedwire, int $sessionId, string $batch, int $offset) : void{
+		if(isset($this->deferred[$sessionId])){
+			$this->defer($sessionId, strlen($batch) - $offset, fn() => $this->sendRawBatch($bedwire, $sessionId, $batch, $offset));
+			return;
+		}
 		try{
 			$bedwire->sendRawBatch($sessionId, $batch, $offset);
+		}catch(BackpressureException){
+			$this->defer($sessionId, strlen($batch) - $offset, fn() => $this->sendRawBatch($bedwire, $sessionId, $batch, $offset));
 		}catch(\ValueError $e){
 			$ends = [];
 			$reader = new ByteBufferReader($batch);
@@ -397,7 +414,86 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	 * @internal
 	 */
 	public function acceptLogin(int $sessionId, string $clientPublicKeyDer) : void{
-		$this->bedwire?->acceptLogin($sessionId, $clientPublicKeyDer);
+		if($this->bedwire === null || !isset($this->sessions[$sessionId])){
+			return;
+		}
+		$this->acceptLoginNow($this->bedwire, $sessionId, $clientPublicKeyDer);
+	}
+
+	private function acceptLoginNow(BedwireServer $bedwire, int $sessionId, string $clientPublicKeyDer) : void{
+		if(isset($this->deferred[$sessionId])){
+			$this->defer($sessionId, strlen($clientPublicKeyDer), fn() => $this->acceptLoginNow($bedwire, $sessionId, $clientPublicKeyDer));
+			return;
+		}
+		try{
+			$bedwire->acceptLogin($sessionId, $clientPublicKeyDer);
+		}catch(BackpressureException){
+			$this->defer($sessionId, strlen($clientPublicKeyDer), fn() => $this->acceptLoginNow($bedwire, $sessionId, $clientPublicKeyDer));
+		}catch(\ValueError $e){
+			$this->dropSession($sessionId, "Invalid login key: " . $e->getMessage());
+		}
+	}
+
+	/**
+	 * @phpstan-param \Closure() : void $send
+	 */
+	private function defer(int $sessionId, int $bytes, \Closure $send) : void{
+		if($this->deferredBytes + $bytes > self::MAX_DEFERRED_BYTES){
+			$this->dropSession($sessionId, "Network send queue is full");
+			return;
+		}
+		$this->deferred[$sessionId][] = [$bytes, $send];
+		$this->deferredSince[$sessionId] ??= $this->server->getTick();
+		$this->deferredBytes += $bytes;
+	}
+
+	/**
+	 * Retries deferred sends in order, until the command ring fills up again.
+	 */
+	private function flushDeferred() : void{
+		$tick = $this->server->getTick();
+		foreach($this->deferred as $sessionId => $queue){
+			$since = $this->deferredSince[$sessionId];
+			if($tick - $since > self::MAX_DEFERRED_TICKS){
+				$this->dropSession($sessionId, "Network send queue is stuck");
+				continue;
+			}
+			unset($this->deferred[$sessionId], $this->deferredSince[$sessionId]);
+			foreach($queue as [$bytes, $send]){
+				$this->deferredBytes -= $bytes;
+				try{
+					$send();
+				}catch(\ValueError $e){
+					$this->dropSession($sessionId, "Failed to send packet: " . $e->getMessage());
+					break;
+				}
+			}
+			if(isset($this->deferred[$sessionId])){
+				$this->deferredSince[$sessionId] = $since;
+				break;
+			}
+		}
+	}
+
+	private function discardDeferred(int $sessionId) : void{
+		foreach($this->deferred[$sessionId] ?? [] as [$bytes]){
+			$this->deferredBytes -= $bytes;
+		}
+		unset($this->deferred[$sessionId], $this->deferredSince[$sessionId]);
+	}
+
+	/**
+	 * Closes the session at once, dropping whatever it still had to send.
+	 */
+	private function dropSession(int $sessionId, string $reason) : void{
+		$this->discardDeferred($sessionId);
+		$session = $this->sessions[$sessionId] ?? null;
+		if($session !== null){
+			$this->close($sessionId);
+			$session->disconnectWithError($reason);
+		}else{
+			$this->disconnectNative($sessionId);
+		}
 	}
 
 	/**
@@ -406,7 +502,12 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	public function close(int $sessionId) : void{
 		if(isset($this->sessions[$sessionId])){
 			unset($this->sessionIds[spl_object_id($this->sessions[$sessionId])], $this->sessions[$sessionId]);
-			$this->disconnectNative($sessionId);
+			if(isset($this->deferred[$sessionId])){
+				//the disconnect waits for what the session still had to send, such as its kick message
+				$this->pendingDisconnects[$sessionId] = true;
+			}else{
+				$this->disconnectNative($sessionId);
+			}
 		}
 	}
 

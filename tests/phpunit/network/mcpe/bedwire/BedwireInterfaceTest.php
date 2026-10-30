@@ -27,6 +27,7 @@ use Bedwire\Server as BedwireServer;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\VarInt;
 use quark\network\mcpe\NetworkSession;
+use quark\Server;
 use function str_repeat;
 
 final class BedwireInterfaceTest extends TestCase{
@@ -69,6 +70,36 @@ final class BedwireInterfaceTest extends TestCase{
 		$session = $this->createMock(NetworkSession::class);
 		$session->expects(self::never())->method("disconnectWithError");
 		$this->interface($session)->putBatch(self::SESSION, $batch, $offset);
+	}
+
+	public function testOversizedLoginKeyOnlyDisconnectsItsSession() : void{
+		$session = $this->createMock(NetworkSession::class);
+		$session->expects(self::once())->method("disconnectWithError");
+		$this->interface($session)->acceptLogin(self::SESSION, str_repeat("k", 600));
+	}
+
+	public function testSendsQueueBehindDeferredOnesUntilFlushed() : void{
+		$session = $this->createMock(NetworkSession::class);
+		$session->expects(self::never())->method("disconnectWithError");
+		$interface = $this->interface($session);
+		$server = $this->createMock(Server::class);
+		$server->method("getTick")->willReturn(10);
+		new \ReflectionProperty(BedwireInterface::class, "server")->setValue($interface, $server);
+
+		$sent = [];
+		$defer = new \ReflectionMethod(BedwireInterface::class, "defer");
+		$defer->invoke($interface, self::SESSION, 4, function() use (&$sent) : void{ $sent[] = "first"; });
+		$interface->putBatch(self::SESSION, self::packets(2, 3), 0);
+		self::assertFalse($interface->putPackets(self::SESSION, ["\x01"]));
+		$deferred = new \ReflectionProperty(BedwireInterface::class, "deferred");
+		/** @var array<int, list<mixed>> $queued */
+		$queued = $deferred->getValue($interface);
+		self::assertCount(2, $queued[self::SESSION]);
+
+		new \ReflectionMethod(BedwireInterface::class, "flushDeferred")->invoke($interface);
+		self::assertSame(["first"], $sent);
+		self::assertSame([], $deferred->getValue($interface));
+		self::assertSame(0, new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->getValue($interface));
 	}
 
 	public function testDisconnectsWhenOnePacketIsTooLarge() : void{
