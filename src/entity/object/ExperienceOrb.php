@@ -45,6 +45,10 @@ class ExperienceOrb extends Entity{
 	public const TAG_VALUE_PC = "Value"; //short
 	public const TAG_VALUE_PE = "experience value"; //int (WTF?)
 	private const TAG_AGE = "Age"; //TAG_Short
+	public const TAG_COUNT = "Count"; //TAG_Int
+
+	//orbs only merge within the same ID group, so a big drop still shows up as a cloud like it does in Java
+	public const MERGE_GROUPS = 40;
 
 	/** Max distance an orb will follow a player across. */
 	public const MAX_TARGET_DISTANCE = 8.0;
@@ -94,6 +98,7 @@ class ExperienceOrb extends Entity{
 	protected ?int $targetPlayerRuntimeId = null;
 
 	protected int $xpValue;
+	private int $count = 1;
 
 	private int $despawnDelay = self::DEFAULT_DESPAWN_DELAY;
 
@@ -118,6 +123,7 @@ class ExperienceOrb extends Entity{
 		}else{
 			$this->despawnDelay = max(0, self::DEFAULT_DESPAWN_DELAY - $age);
 		}
+		$this->count = max(1, $nbt->getInt(self::TAG_COUNT, 1));
 	}
 
 	public function saveNBT() : CompoundTag{
@@ -132,8 +138,57 @@ class ExperienceOrb extends Entity{
 
 		$nbt->setShort(self::TAG_VALUE_PC, min($this->getXpValue(), Limits::INT16_MAX));
 		$nbt->setInt(self::TAG_VALUE_PE, $this->getXpValue());
+		if($this->count > 1){
+			$nbt->setInt(self::TAG_COUNT, $this->count);
+		}
 
 		return $nbt;
+	}
+
+	/**
+	 * How many orbs were merged into this one, so it holds getXpValue() * getCount() experience in total.
+	 */
+	public function getCount() : int{
+		return $this->count;
+	}
+
+	public function setCount(int $count) : void{
+		if($count < 1 || $count > Limits::INT32_MAX){
+			throw new \InvalidArgumentException("Orb count must be in range 1 - " . Limits::INT32_MAX . ", got $count");
+		}
+		$this->count = $count;
+	}
+
+	/**
+	 * @internal
+	 */
+	public function absorbNewOrb() : void{
+		++$this->count;
+		if($this->despawnDelay !== self::NEVER_DESPAWN){
+			$this->despawnDelay = self::DEFAULT_DESPAWN_DELAY;
+		}
+	}
+
+	public function canMergeWith(ExperienceOrb $other) : bool{
+		return
+			$other !== $this &&
+			!$other->isFlaggedForDespawn() &&
+			!$this->isFlaggedForDespawn() &&
+			$other->xpValue === $this->xpValue &&
+			($other->getId() - $this->getId()) % self::MERGE_GROUPS === 0;
+	}
+
+	protected function mergeWithNearbyOrbs() : void{
+		foreach($this->getWorld()->getNearbyEntities($this->boundingBox->expandedCopy(0.5, 0.5, 0.5), $this) as $entity){
+			if(!$entity instanceof ExperienceOrb || !$this->canMergeWith($entity) || $this->count + $entity->count > Limits::INT32_MAX){
+				continue;
+			}
+			$this->count += $entity->count;
+			if($this->despawnDelay !== self::NEVER_DESPAWN && ($entity->despawnDelay === self::NEVER_DESPAWN || $entity->despawnDelay > $this->despawnDelay)){
+				$this->despawnDelay = $entity->despawnDelay;
+			}
+			$entity->flagForDespawn();
+		}
 	}
 
 	public function getDespawnDelay() : int{ return $this->despawnDelay; }
@@ -199,6 +254,7 @@ class ExperienceOrb extends Entity{
 		}
 
 		if($this->lookForTargetTime >= 20){
+			$this->mergeWithNearbyOrbs();
 			if($currentTarget === null){
 				$newTarget = $this->getWorld()->getNearestEntity($this->location, self::MAX_TARGET_DISTANCE, Human::class);
 
@@ -215,8 +271,7 @@ class ExperienceOrb extends Entity{
 		$this->setTargetPlayer($currentTarget);
 
 		if($currentTarget !== null){
-			//Vector3 maths written out in the same order of operations, so the results are identical without the
-			//intermediate vectors, since this runs for every attracted orb every tick
+			//same maths as the Vector3 version, written out to skip the allocations since it runs every tick
 			$target = $currentTarget->getPosition();
 			$vx = ($target->x + 0 + -$this->location->x) / self::MAX_TARGET_DISTANCE;
 			$vy = ($target->y + $currentTarget->getEyeHeight() / 2 + -$this->location->y) / self::MAX_TARGET_DISTANCE;
@@ -237,7 +292,10 @@ class ExperienceOrb extends Entity{
 			}
 
 			if($currentTarget->getXpManager()->canPickupXp() && $this->boundingBox->intersectsWith($currentTarget->getBoundingBox())){
-				$this->flagForDespawn();
+				//merged orbs still get picked up one at a time
+				if(--$this->count <= 0){
+					$this->flagForDespawn();
+				}
 
 				$currentTarget->getXpManager()->onPickupXp($this->getXpValue());
 			}

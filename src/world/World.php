@@ -2197,13 +2197,18 @@ class World implements ChunkManager{
 	/**
 	 * Drops XP orbs into the world for the specified amount, splitting the amount into several orbs if necessary.
 	 *
-	 * @return ExperienceOrb[]
+	 * @return ExperienceOrb[] new orbs only, drops that merged into an existing orb aren't included
 	 * @phpstan-return list<ExperienceOrb>
 	 */
 	public function dropExperience(Vector3 $pos, int $amount) : array{
 		$orbs = [];
 
 		foreach(ExperienceOrb::splitIntoOrbSizes($amount) as $split){
+			$existing = $this->findOrbToMergeInto($pos, $split);
+			if($existing !== null){
+				$existing->absorbNewOrb();
+				continue;
+			}
 			$orb = new ExperienceOrb(Location::fromObject($pos, $this, Utils::getRandomFloat() * 360, 0), $split);
 
 			$orb->setMotion(new Vector3((Utils::getRandomFloat() * 0.2 - 0.1) * 2, Utils::getRandomFloat() * 0.4, (Utils::getRandomFloat() * 0.2 - 0.1) * 2));
@@ -2213,6 +2218,22 @@ class World implements ChunkManager{
 		}
 
 		return $orbs;
+	}
+
+	private function findOrbToMergeInto(Vector3 $pos, int $value) : ?ExperienceOrb{
+		$group = mt_rand(0, ExperienceOrb::MERGE_GROUPS - 1);
+		foreach($this->getNearbyEntities(new AxisAlignedBB($pos->x - 0.5, $pos->y - 0.5, $pos->z - 0.5, $pos->x + 0.5, $pos->y + 0.5, $pos->z + 0.5)) as $entity){
+			if(
+				$entity instanceof ExperienceOrb &&
+				!$entity->isFlaggedForDespawn() &&
+				$entity->getXpValue() === $value &&
+				$entity->getCount() < Limits::INT32_MAX &&
+				$entity->getId() % ExperienceOrb::MERGE_GROUPS === $group
+			){
+				return $entity;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -2512,7 +2533,7 @@ class World implements ChunkManager{
 		$minZ = ((int) floor($bb->minZ - 2)) >> Chunk::COORD_BIT_SIZE;
 		$maxZ = ((int) floor($bb->maxZ + 2)) >> Chunk::COORD_BIT_SIZE;
 
-		//same test as AxisAlignedBB::intersectsWith() with its default epsilon, inlined since this runs for every entity nearby
+		//inlined intersectsWith() since this runs for every nearby entity
 		$bbMinX = $bb->minX;
 		$bbMinY = $bb->minY;
 		$bbMinZ = $bb->minZ;
