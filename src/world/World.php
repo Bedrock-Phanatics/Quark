@@ -2512,10 +2512,23 @@ class World implements ChunkManager{
 		$minZ = ((int) floor($bb->minZ - 2)) >> Chunk::COORD_BIT_SIZE;
 		$maxZ = ((int) floor($bb->maxZ + 2)) >> Chunk::COORD_BIT_SIZE;
 
+		//same test as AxisAlignedBB::intersectsWith() with its default epsilon, inlined since this runs for every entity nearby
+		$bbMinX = $bb->minX;
+		$bbMinY = $bb->minY;
+		$bbMinZ = $bb->minZ;
+		$bbMaxX = $bb->maxX;
+		$bbMaxY = $bb->maxY;
+		$bbMaxZ = $bb->maxZ;
 		for($x = $minX; $x <= $maxX; ++$x){
 			for($z = $minZ; $z <= $maxZ; ++$z){
 				foreach($this->getChunkEntities($x, $z) as $ent){
-					if($ent !== $entity && $ent->boundingBox->intersectsWith($bb)){
+					$entBB = $ent->boundingBox;
+					if(
+						$ent !== $entity &&
+						$bbMaxX - $entBB->minX > 0.00001 && $entBB->maxX - $bbMinX > 0.00001 &&
+						$bbMaxY - $entBB->minY > 0.00001 && $entBB->maxY - $bbMinY > 0.00001 &&
+						$bbMaxZ - $entBB->minZ > 0.00001 && $entBB->maxZ - $bbMinZ > 0.00001
+					){
 						$nearby[] = $ent;
 					}
 				}
