@@ -28,6 +28,8 @@ use PHPUnit\Framework\TestCase;
 use pmmp\encoding\VarInt;
 use quark\network\mcpe\NetworkSession;
 use quark\Server;
+use function array_fill_keys;
+use function array_keys;
 use function str_repeat;
 
 final class BedwireInterfaceTest extends TestCase{
@@ -100,6 +102,55 @@ final class BedwireInterfaceTest extends TestCase{
 		self::assertSame(["first"], $sent);
 		self::assertSame([], $deferred->getValue($interface));
 		self::assertSame(0, new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->getValue($interface));
+	}
+
+	private function deferredInterface(NetworkSession $session) : BedwireInterface{
+		$interface = $this->interface($session);
+		$server = $this->createMock(Server::class);
+		$server->method("getTick")->willReturn(10);
+		new \ReflectionProperty(BedwireInterface::class, "server")->setValue($interface, $server);
+		return $interface;
+	}
+
+	/**
+	 * @phpstan-param array<int, list<array{int, \Closure() : void}>> $deferred
+	 */
+	private static function flushDeferred(BedwireInterface $interface, array $deferred) : int{
+		$bytes = 0;
+		foreach($deferred as $queue){
+			foreach($queue as [$size]){
+				$bytes += $size;
+			}
+		}
+		new \ReflectionProperty(BedwireInterface::class, "deferred")->setValue($interface, $deferred);
+		new \ReflectionProperty(BedwireInterface::class, "deferredSince")->setValue($interface, array_fill_keys(array_keys($deferred), 10));
+		new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->setValue($interface, $bytes);
+		new \ReflectionMethod(BedwireInterface::class, "flushDeferred")->invoke($interface);
+		$left = new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->getValue($interface);
+		self::assertIsInt($left);
+		return $left;
+	}
+
+	public function testFailedDeferredSendReleasesEverythingQueuedBehindIt() : void{
+		$session = $this->createMock(NetworkSession::class);
+		$session->expects(self::once())->method("disconnectWithError");
+		self::assertSame(0, self::flushDeferred($this->deferredInterface($session), [self::SESSION => [
+			[100, function() : void{ throw new \ValueError("too large"); }],
+			[200, function() : void{}],
+			[300, function() : void{}],
+		]]));
+	}
+
+	public function testDeferredQueueDroppedDuringFlushIsSkipped() : void{
+		$interface = $this->deferredInterface($this->createMock(NetworkSession::class));
+		$ran = false;
+		self::assertSame(0, self::flushDeferred($interface, [
+			self::SESSION => [[10, function() use ($interface) : void{
+				new \ReflectionMethod(BedwireInterface::class, "discardDeferred")->invoke($interface, 2);
+			}]],
+			2 => [[20, function() use (&$ran) : void{ $ran = true; }]],
+		]));
+		self::assertFalse($ran);
 	}
 
 	public function testDisconnectsWhenOnePacketIsTooLarge() : void{

@@ -46,6 +46,8 @@ use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
+use function array_keys;
+use function array_slice;
 use function count;
 use function implode;
 use function intdiv;
@@ -56,6 +58,7 @@ use function strrpos;
 use function substr;
 use function time;
 use function trim;
+use const PHP_INT_MAX;
 
 /**
  * Serves players over NetherNet through ext-bedwire. Its network thread does signaling, WebRTC, batching,
@@ -182,6 +185,15 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		$this->processEvents();
 		$this->publishStatus();
 		$this->flushDeferred();
+		$this->flushPendingDisconnects($bedwire);
+
+		$stats = $bedwire->getStatistics();
+		$this->network->getBandwidthTracker()->add($stats["bytes_sent"] - $this->bytesSent, $stats["bytes_received"] - $this->bytesReceived);
+		$this->bytesSent = $stats["bytes_sent"];
+		$this->bytesReceived = $stats["bytes_received"];
+	}
+
+	private function flushPendingDisconnects(BedwireServer $bedwire) : void{
 		foreach($this->pendingDisconnects as $sessionId => $_){
 			if(isset($this->deferred[$sessionId])){
 				continue;
@@ -193,11 +205,6 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			}
 			unset($this->pendingDisconnects[$sessionId]);
 		}
-
-		$stats = $bedwire->getStatistics();
-		$this->network->getBandwidthTracker()->add($stats["bytes_sent"] - $this->bytesSent, $stats["bytes_received"] - $this->bytesReceived);
-		$this->bytesSent = $stats["bytes_sent"];
-		$this->bytesReceived = $stats["bytes_received"];
 	}
 
 	private function processEvents() : void{
@@ -352,7 +359,8 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		try{
 			$this->sendRawBatch($this->bedwire, $sessionId, $batch, $offset);
 		}catch(\ValueError $e){
-			$this->sessions[$sessionId]->disconnectWithError("Failed to send packet: " . $e->getMessage());
+			//a split batch may already have dropped the session when its queue overflowed
+			($this->sessions[$sessionId] ?? null)?->disconnectWithError("Failed to send packet: " . $e->getMessage());
 		}
 	}
 
@@ -453,24 +461,35 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	 */
 	private function flushDeferred() : void{
 		$tick = $this->server->getTick();
-		foreach($this->deferred as $sessionId => $queue){
+		//sends can drop or queue for other sessions, so each queue is read fresh
+		foreach(array_keys($this->deferred) as $sessionId){
+			$queue = $this->deferred[$sessionId] ?? null;
+			if($queue === null){
+				continue;
+			}
 			$since = $this->deferredSince[$sessionId];
 			if($tick - $since > self::MAX_DEFERRED_TICKS){
 				$this->dropSession($sessionId, "Network send queue is stuck");
 				continue;
 			}
 			unset($this->deferred[$sessionId], $this->deferredSince[$sessionId]);
-			foreach($queue as [$bytes, $send]){
+			$progressed = false;
+			foreach($queue as $i => [$bytes, $send]){
 				$this->deferredBytes -= $bytes;
 				try{
 					$send();
 				}catch(\ValueError $e){
+					foreach(array_slice($queue, $i + 1) as [$unsent]){
+						$this->deferredBytes -= $unsent;
+					}
 					$this->dropSession($sessionId, "Failed to send packet: " . $e->getMessage());
-					break;
+					continue 2;
 				}
+				$progressed = $progressed || !isset($this->deferred[$sessionId]);
 			}
 			if(isset($this->deferred[$sessionId])){
-				$this->deferredSince[$sessionId] = $since;
+				//only a session that sent nothing this tick counts as stuck
+				$this->deferredSince[$sessionId] = $progressed ? $tick : $since;
 				break;
 			}
 		}
@@ -528,7 +547,11 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	public function sendUnreliablePacket(NetworkSession $session, string $payload) : void{
 		$sessionId = $this->sessionIds[spl_object_id($session)] ?? null;
 		if($sessionId !== null){
-			$this->bedwire?->sendUnreliable($sessionId, $payload);
+			try{
+				$this->bedwire?->sendUnreliable($sessionId, $payload);
+			}catch(BackpressureException){
+				//unreliable payloads may be lost anyway, so a full queue just drops this one
+			}
 		}
 	}
 
@@ -548,10 +571,15 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			$this->server->getTickSleeper()->removeNotifier($this->sleeperNotifierId);
 			$this->sleeperNotifierId = null;
 		}
-		if($this->bedwire !== null){
-			$this->bedwire->stop(2000);
-			//freeing the server closes its event signal, which ends the wakeup thread
+		$bedwire = $this->bedwire;
+		if($bedwire !== null){
+			//one last try at kick messages and disconnects that were waiting for room in the command ring
+			$this->flushDeferred();
+			$this->flushPendingDisconnects($bedwire);
+			$bedwire->stop(2000);
+			//freeing the server closes its event signal, which ends the wakeup thread, so no reference may outlive this
 			$this->bedwire = null;
+			unset($bedwire);
 		}
 		$this->wakeupThread?->quit();
 		$this->wakeupThread = null;
@@ -561,7 +589,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	 * NetherNet has no raw socket to filter, so blocked addresses are disconnected as soon as they connect.
 	 */
 	public function blockAddress(string $address, int $timeout = 300) : void{
-		$this->blockedAddresses[$address] = time() + $timeout;
+		$this->blockedAddresses[$address] = $timeout < 0 ? PHP_INT_MAX : time() + $timeout;
 	}
 
 	public function unblockAddress(string $address) : void{
