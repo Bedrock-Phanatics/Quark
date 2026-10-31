@@ -153,6 +153,22 @@ final class BedwireInterfaceTest extends TestCase{
 		self::assertFalse($ran);
 	}
 
+	public function testShutdownReleasesSendsStillQueued() : void{
+		$interface = $this->deferredInterface($this->createMock(NetworkSession::class));
+		$defer = new \ReflectionMethod(BedwireInterface::class, "defer");
+		//keeps finding the ring full, like a send during a mass kick at shutdown
+		$retry = function() use (&$retry, $interface, $defer) : void{
+			$defer->invoke($interface, self::SESSION, 4, $retry);
+		};
+		$defer->invoke($interface, self::SESSION, 4, $retry);
+
+		$interface->shutdown();
+
+		self::assertSame([], new \ReflectionProperty(BedwireInterface::class, "deferred")->getValue($interface));
+		self::assertSame(0, new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->getValue($interface));
+		self::assertNull(new \ReflectionProperty(BedwireInterface::class, "bedwire")->getValue($interface));
+	}
+
 	public function testDisconnectsWhenOnePacketIsTooLarge() : void{
 		$session = $this->createMock(NetworkSession::class);
 		$session->expects(self::once())->method("disconnectWithError");
