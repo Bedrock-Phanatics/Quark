@@ -146,12 +146,15 @@ class ExperienceOrb extends Entity{
 	}
 
 	/**
-	 * How many orbs were merged into this one, so it holds getXpValue() * getCount() experience in total.
+	 * How many orbs of getXpValue() were merged into this one. Use getTotalXpValue() for everything the orb holds.
 	 */
 	public function getCount() : int{
 		return $this->count;
 	}
 
+	/**
+	 * Sets how many orbs of getXpValue() this one holds, which changes getTotalXpValue().
+	 */
 	public function setCount(int $count) : void{
 		if($count < 1 || $count > Limits::INT32_MAX){
 			throw new \InvalidArgumentException("Orb count must be in range 1 - " . Limits::INT32_MAX . ", got $count");
@@ -200,8 +203,19 @@ class ExperienceOrb extends Entity{
 		$this->despawnDelay = $despawnDelay;
 	}
 
+	/**
+	 * Experience of a single orb. Merged orbs hold several of these, so plugins granting an orb's experience
+	 * themselves should use getTotalXpValue() instead.
+	 */
 	public function getXpValue() : int{
 		return $this->xpValue;
+	}
+
+	/**
+	 * All the experience this orb holds, counting the orbs merged into it.
+	 */
+	public function getTotalXpValue() : int{
+		return $this->xpValue * $this->count;
 	}
 
 	private static function validateXpValue(int $amount) : void{
@@ -210,6 +224,9 @@ class ExperienceOrb extends Entity{
 		}
 	}
 
+	/**
+	 * Sets the experience of a single orb. A merged orb holds getCount() of them.
+	 */
 	public function setXpValue(int $amount) : void{
 		self::validateXpValue($amount);
 		$this->xpValue = $amount;
@@ -242,10 +259,12 @@ class ExperienceOrb extends Entity{
 	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
-		$this->despawnDelay -= $tickDiff;
-		if($this->despawnDelay <= 0){
-			$this->flagForDespawn();
-			return true;
+		if($this->despawnDelay !== self::NEVER_DESPAWN){
+			$this->despawnDelay -= $tickDiff;
+			if($this->despawnDelay <= 0){
+				$this->flagForDespawn();
+				return true;
+			}
 		}
 
 		$currentTarget = $this->getTargetPlayer();

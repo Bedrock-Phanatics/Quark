@@ -578,6 +578,11 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			$this->flushPendingDisconnects($bedwire);
 			$bedwire->stop(2000);
 			//freeing the server closes its event signal, which ends the wakeup thread, so no reference may outlive this
+			//and sends still queued hold one in their closures
+			$this->deferred = [];
+			$this->deferredSince = [];
+			$this->deferredBytes = 0;
+			$this->pendingDisconnects = [];
 			$this->bedwire = null;
 			unset($bedwire);
 		}

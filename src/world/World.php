@@ -29,6 +29,7 @@ namespace quark\world;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\utils\Limits;
@@ -109,7 +110,6 @@ use quark\world\sound\Sound;
 use quark\world\utils\SubChunkExplorer;
 use quark\YmlServerProperties;
 use function abs;
-use function array_filter;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
@@ -1533,6 +1533,22 @@ class World implements ChunkManager{
 		return true;
 	}
 
+	/**
+	 * @param Entity[] $entities
+	 * @return CompoundTag[]
+	 * @phpstan-return list<CompoundTag>
+	 */
+	private static function saveChunkEntities(array $entities) : array{
+		$saved = [];
+		foreach($entities as $entity){
+			//anything flagged is gone next tick, and saving it too would duplicate whatever it merged into
+			if($entity->canSaveWithChunk() && !$entity->isFlaggedForDespawn()){
+				$saved[] = $entity->saveNBT();
+			}
+		}
+		return $saved;
+	}
+
 	public function saveChunks() : void{
 		$syncChunkSaveScope = $this->pulse->syncChunkSave->start();
 		try{
@@ -1541,7 +1557,7 @@ class World implements ChunkManager{
 				$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData(
 					$chunk->getSubChunks(),
 					$chunk->isPopulated(),
-					array_map(fn(Entity $e) => $e->saveNBT(), array_values(array_filter($this->getChunkEntities($chunkX, $chunkZ), fn(Entity $e) => $e->canSaveWithChunk()))),
+					self::saveChunkEntities($this->getChunkEntities($chunkX, $chunkZ)),
 					array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles())),
 				), $chunk->getTerrainDirtyFlags());
 				$chunk->clearTerrainDirtyFlags();
@@ -3254,7 +3270,7 @@ class World implements ChunkManager{
 					$this->provider->saveChunk($x, $z, new ChunkData(
 						$chunk->getSubChunks(),
 						$chunk->isPopulated(),
-						array_map(fn(Entity $e) => $e->saveNBT(), array_values(array_filter($this->getChunkEntities($x, $z), fn(Entity $e) => $e->canSaveWithChunk()))),
+						self::saveChunkEntities($this->getChunkEntities($x, $z)),
 						array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles())),
 					), $chunk->getTerrainDirtyFlags());
 				}finally{
