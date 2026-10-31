@@ -137,6 +137,7 @@ use function array_map;
 use function array_slice;
 use function array_values;
 use function bin2hex;
+use function chr;
 use function count;
 use function implode;
 use function in_array;
@@ -1093,8 +1094,21 @@ class NetworkSession{
 	private function sendEncoded(string $payload, bool $immediate, array $ackPromises) : void{
 		if($this->sender instanceof NativeBatchPacketSender){
 			//once compression is on, batches carry an algorithm byte, which a NativeCompressor leaves as NONE
-			if($this->enableCompression && ord($payload[0]) !== CompressionAlgorithm::NONE->value){
-				throw new AssumptionFailedError("Native transports must be given uncompressed batches");
+			if($this->enableCompression && ($algorithm = ord($payload[0])) !== CompressionAlgorithm::NONE->value){
+				//plugins may still compress batches themselves, but the transport compresses on its own
+				$compressor = $this->server->getNetworkCompressor();
+				try{
+					if($algorithm !== $compressor->getNetworkType()->value){
+						throw new DecompressionException("Unknown compression algorithm $algorithm");
+					}
+					$payload = chr(CompressionAlgorithm::NONE->value) . $compressor->decompress(substr($payload, 1));
+				}catch(DecompressionException $e){
+					$this->logger->error("Dropped a batch the transport can't send: " . $e->getMessage());
+					foreach($ackPromises as $promise){
+						$promise->reject();
+					}
+					return;
+				}
 			}
 			$this->sender->sendBatch($payload, $this->enableCompression ? 1 : 0);
 			//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
