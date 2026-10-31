@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\item\enchantment;
 
+use function strlen;
+
 /**
  * Represents an option on the enchanting table menu.
  * If selected, all the enchantments in the option will be applied to the item.
@@ -36,7 +38,21 @@ class EnchantingOption{
 		private int $requiredXpLevel,
 		private string $displayName,
 		private array $enchantments
-	){}
+	){
+		if($requiredXpLevel < 0 || $requiredXpLevel > 255){
+			throw new \InvalidArgumentException("Required XP level must be in range 0 - 255, got $requiredXpLevel");
+		}
+		$nameLength = strlen($displayName);
+		if($nameLength < 1 || $nameLength > 256){
+			throw new \InvalidArgumentException("Display name must be 1 - 256 bytes long, got $nameLength");
+		}
+		foreach($enchantments as $enchantment){
+			$level = $enchantment->getLevel();
+			if($level < 0 || $level > 255){
+				throw new \InvalidArgumentException("Enchantment levels must be in range 0 - 255, got $level");
+			}
+		}
+	}
 
 	/**
 	 * Returns the minimum amount of XP levels required to select this enchantment option.

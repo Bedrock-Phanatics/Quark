@@ -758,6 +758,9 @@ abstract class Living extends Entity{
 	 * Sets the number of air ticks left in the entity's air supply.
 	 */
 	public function setAirSupplyTicks(int $ticks) : void{
+		if($ticks < Limits::INT16_MIN || $ticks > Limits::INT16_MAX){
+			throw new \InvalidArgumentException("Air supply ticks must be in range " . Limits::INT16_MIN . " - " . Limits::INT16_MAX . ", got $ticks");
+		}
 		$this->breathTicks = $ticks;
 		$this->networkPropertiesDirty = true;
 	}
@@ -773,6 +776,9 @@ abstract class Living extends Entity{
 	 * Sets the maximum amount of air ticks the air supply can hold.
 	 */
 	public function setMaxAirSupplyTicks(int $ticks) : void{
+		if($ticks < Limits::INT16_MIN || $ticks > Limits::INT16_MAX){
+			throw new \InvalidArgumentException("Max air supply ticks must be in range " . Limits::INT16_MIN . " - " . Limits::INT16_MAX . ", got $ticks");
+		}
 		$this->maxBreathTicks = $ticks;
 		$this->networkPropertiesDirty = true;
 	}

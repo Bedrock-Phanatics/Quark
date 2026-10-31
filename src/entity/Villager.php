@@ -59,7 +59,7 @@ class Villager extends Living implements Ageable{
 		/** @var int $profession */
 		$profession = $nbt->getInt(self::TAG_PROFESSION, self::PROFESSION_FARMER);
 
-		if($profession > 4 || $profession < 0){
+		if($profession > self::PROFESSION_BUTCHER || $profession < self::PROFESSION_FARMER){
 			$profession = self::PROFESSION_FARMER;
 		}
 
@@ -77,7 +77,10 @@ class Villager extends Living implements Ageable{
 	 * Sets the villager profession
 	 */
 	public function setProfession(int $profession) : void{
-		$this->profession = $profession; //TODO: validation
+		if($profession < self::PROFESSION_FARMER || $profession > self::PROFESSION_BUTCHER){
+			throw new \InvalidArgumentException("Unknown villager profession $profession");
+		}
+		$this->profession = $profession;
 		$this->networkPropertiesDirty = true;
 	}
 

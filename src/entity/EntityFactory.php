@@ -114,10 +114,13 @@ final class EntityFactory{
 
 		$this->register(ExperienceOrb::class, function(World $world, CompoundTag $nbt) : ExperienceOrb{
 			$value = 1;
-			if(($valuePcTag = $nbt->getTag(ExperienceOrb::TAG_VALUE_PC)) instanceof ShortTag){ //PC
-				$value = $valuePcTag->getValue();
-			}elseif(($valuePeTag = $nbt->getTag(ExperienceOrb::TAG_VALUE_PE)) instanceof IntTag){ //PE save format
+			if(($valuePeTag = $nbt->getTag(ExperienceOrb::TAG_VALUE_PE)) instanceof IntTag){ //PE save format, the PC short is capped
 				$value = $valuePeTag->getValue();
+			}elseif(($valuePcTag = $nbt->getTag(ExperienceOrb::TAG_VALUE_PC)) instanceof ShortTag){ //PC
+				$value = $valuePcTag->getValue();
+			}
+			if($value <= 0){
+				throw new SavedDataLoadingException("Invalid XP orb value $value");
 			}
 
 			return new ExperienceOrb(Helper::parseLocation($nbt, $world), $value, $nbt);

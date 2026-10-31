@@ -40,7 +40,14 @@ class PlayerTransferEvent extends PlayerEvent implements Cancellable{
 		protected int $port,
 		protected Translatable|string $message
 	){
+		self::validatePort($port);
 		$this->player = $player;
+	}
+
+	private static function validatePort(int $port) : void{
+		if($port < 0 || $port > 65535){
+			throw new \InvalidArgumentException("Port must be in range 0 - 65535, got $port");
+		}
 	}
 
 	/**
@@ -68,6 +75,7 @@ class PlayerTransferEvent extends PlayerEvent implements Cancellable{
 	 * Sets the destination server port.
 	 */
 	public function setPort(int $port) : void{
+		self::validatePort($port);
 		$this->port = $port;
 	}
 

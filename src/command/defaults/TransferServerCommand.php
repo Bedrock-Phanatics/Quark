@@ -51,7 +51,11 @@ class TransferServerCommand extends VanillaCommand{
 			return false;
 		}
 
-		$sender->transfer($args[0], (int) ($args[1] ?? 19132));
+		$port = $this->getBoundedInt($sender, $args[1] ?? "19132", 0, 65535);
+		if($port === null){
+			return false;
+		}
+		$sender->transfer($args[0], $port);
 
 		return true;
 	}

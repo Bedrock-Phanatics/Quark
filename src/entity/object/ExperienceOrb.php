@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\entity\object;
 
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\utils\Limits;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
 use quark\entity\Human;
@@ -33,6 +34,7 @@ use quark\network\mcpe\protocol\types\entity\EntityIds;
 use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\player\Player;
 use function max;
+use function min;
 use function sqrt;
 
 class ExperienceOrb extends Entity{
@@ -95,6 +97,7 @@ class ExperienceOrb extends Entity{
 	private int $despawnDelay = self::DEFAULT_DESPAWN_DELAY;
 
 	public function __construct(Location $location, int $xpValue, ?CompoundTag $nbt = null){
+		self::validateXpValue($xpValue);
 		$this->xpValue = $xpValue;
 		parent::__construct($location, $nbt);
 	}
@@ -126,7 +129,7 @@ class ExperienceOrb extends Entity{
 		}
 		$nbt->setShort(self::TAG_AGE, $age);
 
-		$nbt->setShort(self::TAG_VALUE_PC, $this->getXpValue());
+		$nbt->setShort(self::TAG_VALUE_PC, min($this->getXpValue(), Limits::INT16_MAX));
 		$nbt->setInt(self::TAG_VALUE_PE, $this->getXpValue());
 
 		return $nbt;
@@ -145,10 +148,14 @@ class ExperienceOrb extends Entity{
 		return $this->xpValue;
 	}
 
-	public function setXpValue(int $amount) : void{
-		if($amount <= 0){
-			throw new \InvalidArgumentException("XP amount must be greater than 0, got $amount");
+	private static function validateXpValue(int $amount) : void{
+		if($amount <= 0 || $amount > Limits::INT32_MAX){
+			throw new \InvalidArgumentException("XP amount must be in range 1 - " . Limits::INT32_MAX . ", got $amount");
 		}
+	}
+
+	public function setXpValue(int $amount) : void{
+		self::validateXpValue($amount);
 		$this->xpValue = $amount;
 		$this->networkPropertiesDirty = true;
 	}
