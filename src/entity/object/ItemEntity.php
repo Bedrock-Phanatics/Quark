@@ -41,6 +41,7 @@ use quark\network\mcpe\protocol\packet\AddItemActorPacket;
 use quark\network\mcpe\protocol\types\entity\EntityIds;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
+use function intdiv;
 use function max;
 
 class ItemEntity extends Entity{
@@ -141,7 +142,11 @@ class ItemEntity extends Entity{
 				}
 			}
 
-			if($this->isMergeCandidate() && $this->despawnDelay % ($this->hasMovementUpdate() ? self::MERGE_CHECK_PERIOD : self::RESTING_MERGE_CHECK_PERIOD) === 0){
+			//counted on age and ID so a drop of many items spreads its checks, and an item that skipped ticks
+			//still checks once it has crossed a period
+			$period = $this->hasMovementUpdate() ? self::MERGE_CHECK_PERIOD : self::RESTING_MERGE_CHECK_PERIOD;
+			$age = $this->ticksLived + $this->id;
+			if($this->isMergeCandidate() && intdiv($age, $period) !== intdiv($age - $tickDiff, $period)){
 				$mergeable = [$this]; //in case the merge target ends up not being this
 				$mergeTarget = $this;
 				$radius = self::$mergeRadius;
@@ -217,7 +222,9 @@ class ItemEntity extends Entity{
 		$consumer->setStackSize($consumer->item->getCount() + $this->item->getCount());
 		$this->flagForDespawn();
 		$consumer->pickupDelay = max($consumer->pickupDelay, $this->pickupDelay);
-		$consumer->despawnDelay = max($consumer->despawnDelay, $this->despawnDelay);
+		$consumer->despawnDelay = $consumer->despawnDelay === self::NEVER_DESPAWN || $this->despawnDelay === self::NEVER_DESPAWN ?
+			self::NEVER_DESPAWN :
+			max($consumer->despawnDelay, $this->despawnDelay);
 
 		return true;
 	}
