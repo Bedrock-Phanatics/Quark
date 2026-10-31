@@ -343,7 +343,7 @@ class ItemStackRequestExecutor{
 			$this->builder->addAction(new DestroyItemAction($destroyed));
 
 		}elseif($action instanceof CraftCreativeStackRequestAction){
-			$item = $this->player->getCreativeInventory()->getItem($action->creativeItemNetId);
+			$item = $this->player->getCreativeInventory()->getItem($action->creativeItemNetId - 1);
 			if($item === null){
 				throw new ItemStackRequestProcessException("No such creative item index: " . $action->creativeItemNetId);
 			}

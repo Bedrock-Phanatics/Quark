@@ -98,7 +98,7 @@ final class CreativeInventoryCache{
 		$items = [];
 		foreach($inventory->getAllEntries() as $k => $entry){
 			$items[] = new CreativeItemEntryPayload(
-				creativeNetId: $k,
+				creativeNetId: $k + 1, //0 is not a valid net ID, the client can't request it back
 				itemInstance: Fields::itemInstance($typeConverter->coreItemStackToNet($entry->getItem())),
 				groupIndex: $itemGroupIndexes[$k],
 			);
