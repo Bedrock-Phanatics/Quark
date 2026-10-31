@@ -2783,6 +2783,7 @@ class World implements ChunkManager{
 	 * Sets the world spawn location
 	 */
 	public function setSpawnLocation(Vector3 $pos) : void{
+		Utils::checkBlockPositionFitsInt32($pos);
 		$previousSpawn = $this->getSpawnLocation();
 		$this->provider->getWorldData()->setSpawn($pos);
 		(new SpawnChangeEvent($this, $previousSpawn))->call();

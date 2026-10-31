@@ -75,8 +75,11 @@ use function array_key_exists;
 use function array_merge;
 use function array_values;
 use function min;
+use function strlen;
 
 class Human extends Living implements ProjectileSource, InventoryHolder{
+
+	public const MAX_EMOTE_ID_BYTES = 64;
 
 	private const TAG_INVENTORY = "Inventory"; //TAG_List<TAG_Compound>
 	private const TAG_OFF_HAND_ITEM = "OffHandItem"; //TAG_Compound
@@ -183,6 +186,9 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 	}
 
 	public function emote(string $emoteId) : void{
+		if(strlen($emoteId) > self::MAX_EMOTE_ID_BYTES){
+			throw new \InvalidArgumentException("Emote ID must be at most " . self::MAX_EMOTE_ID_BYTES . " bytes long");
+		}
 		NetworkBroadcastUtils::broadcastEntityEvent(
 			$this->getViewers(),
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onEmote($recipients, $this, $emoteId)

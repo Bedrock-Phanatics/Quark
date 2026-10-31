@@ -30,6 +30,7 @@ namespace quark\utils;
 use DaveRandom\CallbackValidator\CallbackType;
 use pocketmine\errorhandler\ErrorTypeToStringMap;
 use pocketmine\math\Vector3;
+use pocketmine\utils\Limits;
 use quark\entity\Location;
 use quark\thread\ThreadCrashInfoFrame;
 use Ramsey\Uuid\Uuid;
@@ -676,6 +677,17 @@ final class Utils{
 
 	public static function checkLocationNotInfOrNaN(Location $location) : void{
 		self::checkVector3NotInfOrNaN($location);
+	}
+
+	/**
+	 * Block positions are sent as 32-bit integers, so anything that floors outside that range cannot reach a client.
+	 */
+	public static function checkBlockPositionFitsInt32(Vector3 $vector3) : void{
+		foreach(["x" => $vector3->x, "y" => $vector3->y, "z" => $vector3->z] as $name => $value){
+			if(!($value >= Limits::INT32_MIN && $value < Limits::INT32_MAX + 1)){
+				throw new \InvalidArgumentException("$name must be in range " . Limits::INT32_MIN . " - " . Limits::INT32_MAX . ", got $value");
+			}
+		}
 	}
 
 	/**

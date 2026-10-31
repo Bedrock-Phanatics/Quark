@@ -37,6 +37,7 @@ use quark\network\mcpe\protocol\EntityMetadata;
 use quark\network\mcpe\protocol\types\entity\EntityIds;
 use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use quark\utils\Utils;
 use quark\world\Explosion;
 
 class EndCrystal extends Entity implements Explosive{
@@ -81,6 +82,9 @@ class EndCrystal extends Entity implements Explosive{
 	}
 
 	public function setBeamTarget(?Vector3 $beamTarget) : void{
+		if($beamTarget !== null){
+			Utils::checkBlockPositionFitsInt32($beamTarget);
+		}
 		$this->beamTarget = $beamTarget;
 		$this->networkPropertiesDirty = true;
 	}

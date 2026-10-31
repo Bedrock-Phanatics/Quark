@@ -23,9 +23,11 @@ declare(strict_types=1);
 
 namespace quark\event\player;
 
+use quark\entity\Human;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\player\Player;
+use function strlen;
 
 /**
  * Called when a player uses an emote.
@@ -45,6 +47,9 @@ class PlayerEmoteEvent extends PlayerEvent implements Cancellable{
 	}
 
 	public function setEmoteId(string $emoteId) : void{
+		if(strlen($emoteId) > Human::MAX_EMOTE_ID_BYTES){
+			throw new \InvalidArgumentException("Emote ID must be at most " . Human::MAX_EMOTE_ID_BYTES . " bytes long");
+		}
 		$this->emoteId = $emoteId;
 	}
 

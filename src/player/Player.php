@@ -130,6 +130,7 @@ use quark\Server;
 use quark\ServerProperties;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
+use quark\utils\Utils;
 use quark\world\ChunkListener;
 use quark\world\ChunkListenerNoOpTrait;
 use quark\world\ChunkLoader;
@@ -1145,6 +1146,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 */
 	public function setSpawn(?Vector3 $pos) : void{
 		if($pos !== null){
+			Utils::checkBlockPositionFitsInt32($pos);
 			if(!($pos instanceof Position)){
 				$world = $this->getWorld();
 			}else{
