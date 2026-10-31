@@ -80,7 +80,11 @@ final class Skin{
 			 * Not only that, they are pretty-printed.
 			 * TODO: find out what model crap can be safely dropped from the packet (unless it gets fixed first)
 			 */
-			$geometryData = json_encode($decodedGeometry, JSON_THROW_ON_ERROR);
+			try{
+				$geometryData = json_encode($decodedGeometry, JSON_THROW_ON_ERROR);
+			}catch(\JsonException $e){
+				throw new InvalidSkinException("Invalid geometry data: " . $e->getMessage(), 0, $e);
+			}
 		}
 
 		$this->skinId = $skinId;

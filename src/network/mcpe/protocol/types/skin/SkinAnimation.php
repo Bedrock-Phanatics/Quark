@@ -37,7 +37,11 @@ class SkinAnimation{
 		private int $type,
 		private float $frames,
 		private int $expressionType
-	){}
+	){
+		if($type < 0 || $type > 0xffffffff || $expressionType < 0 || $expressionType > 0xffffffff){
+			throw new \InvalidArgumentException("Animation type and expression must be in range 0 - " . 0xffffffff . ", got $type and $expressionType");
+		}
+	}
 
 	/**
 	 * Image of the animation.

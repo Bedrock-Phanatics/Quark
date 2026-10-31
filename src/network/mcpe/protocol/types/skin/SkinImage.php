@@ -26,13 +26,15 @@ namespace quark\network\mcpe\protocol\types\skin;
 use function strlen;
 
 class SkinImage{
+	public const MAX_SIZE = 4096;
+
 	public function __construct(
 		private int $height,
 		private int $width,
 		private string $data
 	){
-		if($height < 0 || $width < 0){
-			throw new \InvalidArgumentException("Height and width cannot be negative");
+		if($height < 0 || $width < 0 || $height > self::MAX_SIZE || $width > self::MAX_SIZE){
+			throw new \InvalidArgumentException("Height and width must be in range 0 - " . self::MAX_SIZE . ", got {$width}x$height");
 		}
 		if(($expected = $height * $width * 4) !== ($actual = strlen($data))){
 			throw new \InvalidArgumentException("Data should be exactly $expected bytes, got $actual bytes");

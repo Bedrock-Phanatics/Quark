@@ -26,6 +26,7 @@ namespace quark\network\mcpe\protocol\types\skin;
 use pocketmine\color\Color;
 use quark\network\mcpe\protocol\ProtocolInfo;
 use Ramsey\Uuid\Uuid;
+use function count;
 
 class SkinData{
 
@@ -34,6 +35,10 @@ class SkinData{
 	public const TRUSTED_SKIN_UNSET = "unset";
 	public const TRUSTED_SKIN_FALSE = "false";
 	public const TRUSTED_SKIN_TRUE = "true";
+
+	public const MAX_ANIMATIONS = 32;
+	public const MAX_PERSONA_PIECES = 64;
+	public const MAX_PIECE_TINT_COLORS = 16;
 
 	private Color $skinColor;
 	private SkinImage $capeImage;
@@ -71,6 +76,9 @@ class SkinData{
 		private bool $override = true,
 		private string $profileHash = ""
 	){
+		if(count($animations) > self::MAX_ANIMATIONS || count($personaPieces) > self::MAX_PERSONA_PIECES || count($pieceTintColors) > self::MAX_PIECE_TINT_COLORS){
+			throw new \InvalidArgumentException("Skins may have at most " . self::MAX_ANIMATIONS . " animations, " . self::MAX_PERSONA_PIECES . " persona pieces and " . self::MAX_PIECE_TINT_COLORS . " piece tints");
+		}
 		$this->skinColor = $skinColor ?? new Color(0, 0, 0, 0);
 		$this->capeImage = $capeImage ?? new SkinImage(0, 0, "");
 		//this has to be unique or the client will do stupid things

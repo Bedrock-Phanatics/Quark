@@ -1554,7 +1554,13 @@ abstract class Entity{
 			self::$spawnPackets = [];
 			self::$spawnPacketsTick = $tick;
 		}
-		$player->getNetworkSession()->sendDataPacket(self::$spawnPackets[$this->id] ??= EncodedPacket::of($this->spawnPacket()));
+		try{
+			$packet = self::$spawnPackets[$this->id] ??= EncodedPacket::of($this->spawnPacket());
+		}catch(\ValueError){
+			//the session's flush reports it and drops only that player, instead of failing the tick
+			$packet = $this->spawnPacket();
+		}
+		$player->getNetworkSession()->sendDataPacket($packet);
 	}
 
 	protected function spawnPacket() : AddActorPacket{

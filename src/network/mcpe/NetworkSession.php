@@ -90,6 +90,7 @@ use quark\network\mcpe\protocol\packet\ToastRequestPacket;
 use quark\network\mcpe\protocol\packet\TransferPacket;
 use quark\network\mcpe\protocol\packet\UpdateAbilitiesPacket;
 use quark\network\mcpe\protocol\packet\UpdateAdventureSettingsPacket;
+use quark\network\mcpe\protocol\PacketDecodeException;
 use quark\network\mcpe\protocol\Packets;
 use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\network\mcpe\protocol\TextPackets;
@@ -655,7 +656,7 @@ class NetworkSession{
 					break;
 				}
 			}
-		}catch(PacketException|DataDecodeException $e){
+		}catch(PacketException|DataDecodeException|PacketDecodeException $e){
 			$this->recordNetworkSecurityEvent("batch.malformed", "reject_batch");
 			$this->logger->logException($e);
 			throw PacketHandlingException::wrap($e, "Packet batch decode error");
@@ -1746,12 +1747,16 @@ class NetworkSession{
 		}
 	}
 
-	public function syncWorldTime(int $worldTime) : void{
+	public static function networkWorldTime(int $worldTime) : int{
 		if($worldTime < Limits::INT32_MIN || $worldTime > Limits::INT32_MAX){
 			//the client only takes 32 bits, so keep the time of day and moon phase
-			$worldTime %= World::TIME_FULL * 8;
+			return $worldTime % (World::TIME_FULL * 8);
 		}
-		$this->sendDataPacket(new SetTimePacket(time: $worldTime));
+		return $worldTime;
+	}
+
+	public function syncWorldTime(int $worldTime) : void{
+		$this->sendDataPacket(new SetTimePacket(time: self::networkWorldTime($worldTime)));
 	}
 
 	public function syncWorldDifficulty(int $worldDifficulty) : void{

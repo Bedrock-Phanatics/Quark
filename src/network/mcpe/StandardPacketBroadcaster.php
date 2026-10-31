@@ -57,8 +57,19 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			$packets = $ev->getPackets();
 		}
 
-		if(count($recipients) === 1){
-			//nothing to share, so leave encoding to the recipient's next flush
+		//nothing to share with one recipient, so leave encoding to its next flush
+		$encodedPackets = null;
+		if(count($recipients) > 1){
+			$encodeScope = PulseZones::$playerNetworkSendEncode->start();
+			try{
+				$encodedPackets = EncodedPacket::ofMany($packets);
+			}catch(\ValueError){
+				//each recipient's flush reports the bad packet and drops only that session, instead of failing the tick
+			}finally{
+				PulseZones::$playerNetworkSendEncode->stop($encodeScope);
+			}
+		}
+		if($encodedPackets === null){
 			foreach($recipients as $recipient){
 				$recipient->addToSendBuffer($packets);
 			}
@@ -74,13 +85,6 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			$compressors[spl_object_id($compressor)] = $compressor;
 
 			$targetsByCompressor[spl_object_id($compressor)][] = $recipient;
-		}
-
-		$encodeScope = PulseZones::$playerNetworkSendEncode->start();
-		try{
-			$encodedPackets = EncodedPacket::ofMany($packets);
-		}finally{
-			PulseZones::$playerNetworkSendEncode->stop($encodeScope);
 		}
 		//only a shared batch needs the batch size, so it is worked out the first time one might be built
 		$totalLength = 0;
