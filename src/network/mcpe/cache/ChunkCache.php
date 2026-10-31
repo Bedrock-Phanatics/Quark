@@ -23,15 +23,20 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
+use Bedwire\PacketId;
+use Bedwire\Protocol;
 use pocketmine\math\Vector3;
-use quark\network\mcpe\ChunkRequestTask;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\Compressor;
+use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\types\DimensionIds;
+use quark\network\mcpe\serializer\ChunkSerializer;
+use quark\utils\AssumptionFailedError;
 use quark\world\ChunkListener;
 use quark\world\ChunkListenerNoOpTrait;
 use quark\world\format\Chunk;
 use quark\world\World;
+use function array_keys;
 use function is_string;
 use function spl_object_id;
 use function strlen;
@@ -53,7 +58,9 @@ class ChunkCache implements ChunkListener{
 			self::$instances[$worldId] = [];
 			$world->addOnUnloadCallback(static function() use ($worldId) : void{
 				foreach(self::$instances[$worldId] as $cache){
-					$cache->caches = [];
+					foreach(array_keys($cache->caches) as $chunkHash){
+						$cache->drop($chunkHash);
+					}
 				}
 				unset(self::$instances[$worldId]);
 				\GlobalLogger::get()->debug("Destroyed chunk packet caches for world#$worldId");
@@ -84,6 +91,12 @@ class ChunkCache implements ChunkListener{
 	 * @phpstan-var array<int, CompressBatchPromise|string>
 	 */
 	private array $caches = [];
+	/**
+	 * Chunks changed while their batch was still being compressed
+	 * @var true[]
+	 * @phpstan-var array<int, true>
+	 */
+	private array $stale = [];
 
 	private int $hits = 0;
 	private int $misses = 0;
@@ -97,44 +110,33 @@ class ChunkCache implements ChunkListener{
 		private int $dimensionId = DimensionIds::OVERWORLD
 	){}
 
-	private function prepareChunkAsync(int $chunkX, int $chunkZ, int $chunkHash) : CompressBatchPromise{
-		$this->world->registerChunkListener($this, $chunkX, $chunkZ);
-		$chunk = $this->world->getChunk($chunkX, $chunkZ);
-		if($chunk === null){
-			throw new \InvalidArgumentException("Cannot request an unloaded chunk");
-		}
-		++$this->misses;
+	/**
+	 * Encoding here costs the main thread less than snapshotting the chunk for a worker, and the batch can't go stale
+	 * because later changes are broadcast after it.
+	 */
+	private function prepare(int $chunkX, int $chunkZ, ?bool $sync) : CompressBatchPromise|string{
+		$chunk = $this->world->getChunk($chunkX, $chunkZ) ?? throw new \InvalidArgumentException("Cannot request an unloaded chunk");
 
 		$syncChunkSendPrepareScope = $this->world->pulse->syncChunkSendPrepare->start();
 		try{
-			$promise = new CompressBatchPromise();
-
-			$this->world->getServer()->getAsyncPool()->submitTask(
-				new ChunkRequestTask(
-					$chunkX,
-					$chunkZ,
-					$this->dimensionId,
-					$chunk,
-					$promise,
-					$this->compressor
-				)
-			);
-			$this->caches[$chunkHash] = $promise;
-			$promise->onResolve(function(CompressBatchPromise $promise) use ($chunkHash) : void{
-				//the promise may have been discarded or replaced if the chunk was unloaded or modified in the meantime
-				if(($this->caches[$chunkHash] ?? null) === $promise){
-					$this->caches[$chunkHash] = $promise->getResult();
-				}
-			});
-
-			return $promise;
+			$subChunkCount = ChunkSerializer::getSubChunkCount($chunk, $this->dimensionId);
+			$batch = Protocol::encodeBatch([[PacketId::LEVEL_CHUNK, [
+				"chunk_position" => ["x" => $chunkX, "z" => $chunkZ],
+				"dimension_id" => $this->dimensionId,
+				"sub_chunks_count" => $subChunkCount,
+				"client_request_sub_chunk_limit" => null,
+				"cache_enabled" => false,
+				"cache_metadata" => [],
+				"serialized_chunk_data" => ChunkSerializer::serializeFullChunk($chunk, $this->dimensionId, TypeConverter::getInstance()->getBlockTranslator(), null, $subChunkCount),
+			]]]);
 		}finally{
 			$this->world->pulse->syncChunkSendPrepare->stop($syncChunkSendPrepareScope);
 		}
+		return $this->world->getServer()->prepareBatch($batch, $this->compressor, $sync);
 	}
 
 	/**
-	 * Requests asynchronous preparation of the chunk at the given coordinates.
+	 * Requests preparation of the chunk at the given coordinates.
 	 *
 	 * @return CompressBatchPromise|string Compressed chunk packet, or a promise for one to be resolved asynchronously.
 	 */
@@ -144,36 +146,52 @@ class ChunkCache implements ChunkListener{
 			++$this->hits;
 			return $this->caches[$chunkHash];
 		}
+		++$this->misses;
 
-		return $this->prepareChunkAsync($chunkX, $chunkZ, $chunkHash);
-	}
-
-	private function destroy(int $chunkX, int $chunkZ) : bool{
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
-		$existing = $this->caches[$chunkHash] ?? null;
-		unset($this->caches[$chunkHash]);
-
-		return $existing !== null;
-	}
-
-	/**
-	 * @throws \InvalidArgumentException
-	 */
-	private function destroyOrRestart(int $chunkX, int $chunkZ) : void{
-		$chunkPosHash = World::chunkHash($chunkX, $chunkZ);
-		$cache = $this->caches[$chunkPosHash] ?? null;
-		if($cache !== null){
-			if(!is_string($cache)){
-				//some requesters are waiting for this chunk, so their request needs to be fulfilled
-				$cache->cancel();
-				unset($this->caches[$chunkPosHash]);
-
-				$this->prepareChunkAsync($chunkX, $chunkZ, $chunkPosHash)->onResolve(...$cache->getResolveCallbacks());
-			}else{
-				//dump the cache, it'll be regenerated the next time it's requested
-				$this->destroy($chunkX, $chunkZ);
-			}
+		$this->world->registerChunkListener($this, $chunkX, $chunkZ);
+		$batch = $this->prepare($chunkX, $chunkZ, null);
+		if(is_string($batch)){
+			return $this->caches[$chunkHash] = $batch;
 		}
+
+		$promise = new CompressBatchPromise();
+		$this->caches[$chunkHash] = $promise;
+		$batch->onResolve(function(CompressBatchPromise $batch) use ($chunkX, $chunkZ, $chunkHash, $promise) : void{
+			if($promise->isCancelled()){
+				return;
+			}
+			$result = $batch->getResult();
+			if(isset($this->stale[$chunkHash])){
+				//an async retry could be outrun by changes forever, so the fresh batch is compressed right away
+				unset($this->stale[$chunkHash]);
+				$result = $this->prepare($chunkX, $chunkZ, true);
+				if(!is_string($result)){
+					throw new AssumptionFailedError("Synchronous batch preparation should never return a promise");
+				}
+			}
+			$this->caches[$chunkHash] = $result;
+			$promise->resolve($result);
+		});
+		return $promise;
+	}
+
+	private function invalidate(int $chunkX, int $chunkZ) : void{
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$cache = $this->caches[$chunkHash] ?? null;
+		if(is_string($cache)){
+			unset($this->caches[$chunkHash]);
+		}elseif($cache !== null){
+			$this->stale[$chunkHash] = true;
+		}
+	}
+
+	private function drop(int $chunkHash) : void{
+		$cache = $this->caches[$chunkHash] ?? null;
+		if($cache instanceof CompressBatchPromise){
+			//nobody can use the old chunk anymore, and a reloaded one gets a new request
+			$cache->cancel();
+		}
+		unset($this->caches[$chunkHash], $this->stale[$chunkHash]);
 	}
 
 	use ChunkListenerNoOpTrait {
@@ -187,23 +205,21 @@ class ChunkCache implements ChunkListener{
 	 * @see ChunkListener::onChunkChanged()
 	 */
 	public function onChunkChanged(int $chunkX, int $chunkZ, Chunk $chunk) : void{
-		$this->destroyOrRestart($chunkX, $chunkZ);
+		$this->invalidate($chunkX, $chunkZ);
 	}
 
 	/**
 	 * @see ChunkListener::onBlockChanged()
 	 */
 	public function onBlockChanged(Vector3 $block) : void{
-		//FIXME: requesters will still receive this chunk after it's been dropped, but we can't mark this for a simple
-		//sync here because it can spam the worker pool
-		$this->destroy($block->getFloorX() >> Chunk::COORD_BIT_SIZE, $block->getFloorZ() >> Chunk::COORD_BIT_SIZE);
+		$this->invalidate($block->getFloorX() >> Chunk::COORD_BIT_SIZE, $block->getFloorZ() >> Chunk::COORD_BIT_SIZE);
 	}
 
 	/**
 	 * @see ChunkListener::onChunkUnloaded()
 	 */
 	public function onChunkUnloaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
-		$this->destroy($chunkX, $chunkZ);
+		$this->drop(World::chunkHash($chunkX, $chunkZ));
 		$this->world->unregisterChunkListener($this, $chunkX, $chunkZ);
 	}
 
