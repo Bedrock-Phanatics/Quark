@@ -122,6 +122,7 @@ use function count;
 use function floor;
 use function get_class;
 use function gettype;
+use function implode;
 use function is_a;
 use function is_object;
 use function max;
@@ -133,6 +134,7 @@ use function morton3d_decode;
 use function morton3d_encode;
 use function mt_rand;
 use function preg_match;
+use function sort;
 use function spl_object_id;
 use function strtolower;
 use function trim;
@@ -201,6 +203,13 @@ class World implements ChunkManager{
 	 * @phpstan-var array<int, Entity>
 	 */
 	public array $updateEntities = [];
+
+	private bool $deferringEntityMovement = false;
+	/**
+	 * Entities holding movement packets until the end of the entity tick.
+	 * @phpstan-var array<int, Entity>
+	 */
+	private array $entitiesWithPendingMovement = [];
 
 	private bool $inDynamicStateRecalculation = false;
 	/**
@@ -1027,14 +1036,20 @@ class World implements ChunkManager{
 
 		$entityTickScope = $this->pulse->entityTick->start();
 		//Update entities that need update
-		foreach($this->updateEntities as $id => $entity){
-			if($entity->isClosed() || $entity->isFlaggedForDespawn() || !$entity->onUpdate($currentTick)){
-				unset($this->updateEntities[$id]);
+		$this->deferringEntityMovement = true;
+		try{
+			foreach($this->updateEntities as $id => $entity){
+				if($entity->isClosed() || $entity->isFlaggedForDespawn() || !$entity->onUpdate($currentTick)){
+					unset($this->updateEntities[$id]);
+				}
+				if($entity->isFlaggedForDespawn()){
+					$entity->close();
+				}
 			}
-			if($entity->isFlaggedForDespawn()){
-				$entity->close();
-			}
+		}finally{
+			$this->deferringEntityMovement = false;
 		}
+		$this->flushEntityMovement();
 		$this->pulse->entityTick->stop($entityTickScope);
 
 		$randomChunkUpdatesScope = $this->pulse->randomChunkUpdates->start();
@@ -1084,6 +1099,48 @@ class World implements ChunkManager{
 		}
 
 		$this->packetBuffersByChunk = [];
+	}
+
+	/**
+	 * @internal Holds the entity's movement packets until the end of the entity tick, if it is running.
+	 */
+	public function deferEntityMovement(Entity $entity) : bool{
+		if(!$this->deferringEntityMovement){
+			return false;
+		}
+		$this->entitiesWithPendingMovement[$entity->getId()] = $entity;
+		return true;
+	}
+
+	/**
+	 * Sends the movement held during the entity tick, one broadcast for each set of viewers.
+	 */
+	private function flushEntityMovement() : void{
+		if(count($this->entitiesWithPendingMovement) === 0){
+			return;
+		}
+		$groups = [];
+		foreach($this->entitiesWithPendingMovement as $entity){
+			$packets = $entity->takePendingMovement();
+			$viewers = $entity->getViewers();
+			if(count($packets) === 0 || count($viewers) === 0){
+				continue;
+			}
+			$viewerIds = array_keys($viewers);
+			sort($viewerIds);
+			$key = implode(",", $viewerIds);
+			if(!isset($groups[$key])){
+				$groups[$key] = [$viewers, $packets];
+			}else{
+				foreach($packets as $packet){
+					$groups[$key][1][] = $packet;
+				}
+			}
+		}
+		$this->entitiesWithPendingMovement = [];
+		foreach($groups as [$viewers, $packets]){
+			NetworkBroadcastUtils::broadcastPackets($viewers, $packets);
+		}
 	}
 
 	public function checkSleep() : void{

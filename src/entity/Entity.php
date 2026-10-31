@@ -113,6 +113,14 @@ abstract class Entity{
 	 */
 	protected array $hasSpawned = [];
 
+	/**
+	 * Movement and motion packets held until the end of the world's entity tick. They are always meant for exactly
+	 * the current viewers, so they are sent before the viewers change or anything about the entity is sent at once.
+	 *
+	 * @phpstan-var list<MoveActorAbsolutePacket|SetActorMotionPacket>
+	 */
+	private array $pendingMovement = [];
+
 	protected int $id;
 
 	private EntityMetadata $networkProperties;
@@ -812,8 +820,50 @@ abstract class Entity{
 			$packets[] = $this->motionPacket();
 		}
 
-		if(count($packets) > 0 && count($this->hasSpawned) > 0){
-			NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, $packets);
+		if(count($packets) > 0){
+			$this->sendMovementPackets($packets, $teleport);
+		}
+	}
+
+	/**
+	 * While the world ticks entities, the packets wait so every entity seen by the same players goes out in one
+	 * broadcast. Teleports go out at once, after anything still waiting, so each viewer sees the same order.
+	 *
+	 * @phpstan-param list<MoveActorAbsolutePacket|SetActorMotionPacket> $packets
+	 */
+	private function sendMovementPackets(array $packets, bool $immediate) : void{
+		if(count($this->hasSpawned) === 0){
+			return;
+		}
+		if(!$immediate && $this->location->isValid() && $this->getWorld()->deferEntityMovement($this)){
+			foreach($packets as $packet){
+				$this->pendingMovement[] = $packet;
+			}
+			return;
+		}
+		$this->flushMovement();
+		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, $packets);
+	}
+
+	/**
+	 * @internal Hands the world the movement packets waiting for the end of its entity tick.
+	 * @phpstan-return list<MoveActorAbsolutePacket|SetActorMotionPacket>
+	 */
+	public function takePendingMovement() : array{
+		$packets = $this->pendingMovement;
+		$this->pendingMovement = [];
+		return $packets;
+	}
+
+	/**
+	 * Sends waiting movement packets to the viewers they were meant for.
+	 */
+	private function flushMovement() : void{
+		if(count($this->pendingMovement) > 0){
+			$packets = $this->takePendingMovement();
+			if(count($this->hasSpawned) > 0){
+				NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, $packets);
+			}
 		}
 	}
 
@@ -822,11 +872,11 @@ abstract class Entity{
 	}
 
 	protected function broadcastMovement(bool $teleport = false) : void{
-		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [$this->movementPacket($teleport)]);
+		$this->sendMovementPackets([$this->movementPacket($teleport)], $teleport);
 	}
 
 	protected function broadcastMotion() : void{
-		NetworkBroadcastUtils::broadcastPackets($this->hasSpawned, [$this->motionPacket()]);
+		$this->sendMovementPackets([$this->motionPacket()], false);
 	}
 
 	protected function movementPacket(bool $teleport) : MoveActorAbsolutePacket{
@@ -1595,6 +1645,8 @@ abstract class Entity{
 		//created entity won't be visible until after the resend arrives. However, this is better than possibly crashing
 		//the player by sending them entities too early.
 		if(!isset($this->hasSpawned[$id]) && $player->getWorld() === $this->getWorld() && $player->hasReceivedChunk($this->location->getFloorX() >> Chunk::COORD_BIT_SIZE, $this->location->getFloorZ() >> Chunk::COORD_BIT_SIZE)){
+			//the spawn packet already has the latest position, so the new viewer must not get older moves after it
+			$this->flushMovement();
 			$this->hasSpawned[$id] = $player;
 
 			$this->sendSpawnPacket($player);
@@ -1611,6 +1663,7 @@ abstract class Entity{
 	}
 
 	public function respawnToAll() : void{
+		$this->flushMovement();
 		foreach($this->hasSpawned as $key => $player){
 			unset($this->hasSpawned[$key]);
 			$this->spawnTo($player);
@@ -1624,6 +1677,7 @@ abstract class Entity{
 	public function despawnFrom(Player $player, bool $send = true) : void{
 		$id = spl_object_id($player);
 		if(isset($this->hasSpawned[$id])){
+			$this->flushMovement();
 			if($send){
 				$player->getNetworkSession()->getEntityEventBroadcaster()->onEntityRemoved([$player->getNetworkSession()], $this);
 			}
@@ -1636,6 +1690,7 @@ abstract class Entity{
 	 * player moves, viewers will once again be able to see the entity.
 	 */
 	public function despawnFromAll() : void{
+		$this->flushMovement();
 		NetworkBroadcastUtils::broadcastEntityEvent(
 			$this->hasSpawned,
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onEntityRemoved($recipients, $this)
