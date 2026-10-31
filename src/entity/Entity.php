@@ -79,6 +79,7 @@ use function floatval;
 use function floor;
 use function fmod;
 use function get_class;
+use function max;
 use function min;
 use function sin;
 use function spl_object_id;
@@ -153,6 +154,7 @@ abstract class Entity{
 	public int $ticksLived = 0;
 	public int $lastUpdate;
 	protected int $fireTicks = 0;
+	private int $ignitionTick = 0;
 
 	private bool $savedWithChunk = true;
 
@@ -738,6 +740,9 @@ abstract class Entity{
 		$fireTicks = min($fireTicks, Limits::INT16_MAX);
 
 		if(!$this->isFireProof()){
+			if($this->fireTicks <= 0 && $fireTicks > 0){
+				$this->ignitionTick = $this->server->getTick();
+			}
 			$this->fireTicks = $fireTicks;
 			$this->networkPropertiesDirty = true;
 		}
@@ -761,9 +766,13 @@ abstract class Entity{
 			return false;
 		}
 
-		$this->fireTicks -= $tickDiff;
+		//an entity skipping ticks only burns for the ticks since it caught fire, and still takes damage on every
+		//multiple of 20 it passes
+		$burnt = min($tickDiff, max(1, $this->server->getTick() - $this->ignitionTick));
+		$before = $this->fireTicks;
+		$this->fireTicks -= $burnt;
 
-		if(($this->fireTicks % 20 === 0) || $tickDiff > 20){
+		if(floor(($before - 1) / 20) !== floor(($this->fireTicks - 1) / 20)){
 			$this->dealFireDamage();
 		}
 
