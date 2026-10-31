@@ -25,6 +25,7 @@ namespace quark\network\mcpe;
 
 use quark\event\server\DataPacketSendEvent;
 use quark\network\mcpe\protocol\EncodedPacket;
+use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\Packets;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
@@ -41,11 +42,7 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 
 	public function broadcastPackets(array $recipients, array $packets) : void{
 		$packets = array_values($packets);
-		foreach($packets as $packet){
-			if(!isset(Packets::CLIENTBOUND[$packet->getId()])){
-				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
-			}
-		}
+		self::checkClientbound($packets);
 		//TODO: this shouldn't really be called here, since the broadcaster might be replaced by an alternative
 		//implementation that doesn't fire events
 		if(DataPacketSendEvent::hasHandlers()){
@@ -55,6 +52,8 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 				return;
 			}
 			$packets = $ev->getPackets();
+			//recipients skip this check for already encoded packets, so it covers whatever a plugin swapped in
+			self::checkClientbound($packets);
 		}
 
 		//nothing to share with one recipient, so leave encoding to its next flush
@@ -86,24 +85,20 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 
 			$targetsByCompressor[spl_object_id($compressor)][] = $recipient;
 		}
-		//only a shared batch needs the batch size, so it is worked out the first time one might be built
 		$totalLength = 0;
-		$packetBuffers = null;
+		$packetBuffers = [];
+		foreach($encodedPackets as $encoded){
+			$buffer = $encoded->getBytes();
+			//varint length prefix + packet buffer
+			$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
+			$packetBuffers[] = $buffer;
+		}
 
 		foreach($targetsByCompressor as $compressorId => $compressorTargets){
 			$compressor = $compressors[$compressorId];
 
 			$threshold = $compressor->getCompressionThreshold();
 			if(count($compressorTargets) > 1 && $threshold !== null){
-				if($packetBuffers === null){
-					$packetBuffers = [];
-					foreach($encodedPackets as $encoded){
-						$buffer = $encoded->getBytes();
-						//varint length prefix + packet buffer
-						$totalLength += (((int) log(strlen($buffer), 128)) + 1) + strlen($buffer);
-						$packetBuffers[] = $buffer;
-					}
-				}
 				if($totalLength >= $threshold){
 					foreach($compressorTargets as $target){
 						$target->checkSendable($packets);
@@ -117,7 +112,19 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 				}
 			}
 			foreach($compressorTargets as $target){
-				$target->addToSendBuffer($encodedPackets);
+				$target->addEncodedToSendBuffer($encodedPackets, $packetBuffers);
+			}
+		}
+	}
+
+	/**
+	 * @param (Packet|EncodedPacket)[] $packets
+	 * @throws \InvalidArgumentException
+	 */
+	private static function checkClientbound(array $packets) : void{
+		foreach($packets as $packet){
+			if(!isset(Packets::CLIENTBOUND[$packet->getId()])){
+				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
 			}
 		}
 	}

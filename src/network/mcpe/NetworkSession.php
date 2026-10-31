@@ -831,10 +831,11 @@ class NetworkSession{
 				if($ev->isCancelled()){
 					return false;
 				}
-				$packets = $ev->getPackets();
+				//a plugin may have swapped the packets, so check them again
+				$this->addToSendBuffer($ev->getPackets());
+			}else{
+				$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : $packet;
 			}
-
-			$this->addToSendBuffer($packets);
 			if($ackReceiptResolver !== null){
 				$this->sendBufferAckPromises[] = $ackReceiptResolver;
 			}
@@ -894,12 +895,23 @@ class NetworkSession{
 	public function addToSendBuffer(array $packets) : void{
 		$this->checkSendable($packets);
 		foreach($packets as $packet){
-			$this->sendBuffer[] = self::batchEntry($packet);
+			$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : $packet;
 		}
 	}
 
-	private static function batchEntry(Packet|EncodedPacket $packet) : Packet|string{
-		return $packet instanceof EncodedPacket ? $packet->getBytes() : $packet;
+	/**
+	 * @internal Queues bytes the broadcaster already encoded and checked are clientbound.
+	 * @param EncodedPacket[] $packets
+	 * @param string[]        $buffers the bytes of $packets
+	 * @throws \InvalidArgumentException
+	 */
+	public function addEncodedToSendBuffer(array $packets, array $buffers) : void{
+		if(!$this->loggedIn){
+			$this->checkSendable($packets);
+		}
+		foreach($buffers as $buffer){
+			$this->sendBuffer[] = $buffer;
+		}
 	}
 
 	/**
