@@ -33,6 +33,7 @@ use quark\lang\Language;
 use quark\network\mcpe\protocol\packet\ContainerClosePacket;
 use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
 use quark\network\mcpe\protocol\packet\SetTimePacket;
+use quark\network\mcpe\protocol\types\inventory\ContainerIds;
 use quark\network\mcpe\protocol\types\inventory\WindowTypes;
 use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
@@ -198,9 +199,9 @@ final class NetworkSessionTest extends TestCase{
 	public function testNegativeWindowTypesEncode() : void{
 		$batch = NetworkSession::encodeBatch([
 			new ContainerOpenPacket(containerId: 1, containerType: WindowTypes::INVENTORY, position: new Vector3(0, 0, 0), targetActorId: 1),
-			new ContainerClosePacket(containerId: 1, containerType: WindowTypes::NONE, serverInitiatedClose: true),
+			new ContainerClosePacket(containerId: ContainerIds::NONE, containerType: WindowTypes::NONE, serverInitiatedClose: true),
 		]);
 		self::assertStringContainsString("\x01\xff", $batch);
-		self::assertStringContainsString("\x01\xf7", $batch);
+		self::assertStringContainsString("\xff\xf7", $batch);
 	}
 }

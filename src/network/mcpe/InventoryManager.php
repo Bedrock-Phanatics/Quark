@@ -25,7 +25,6 @@ namespace quark\network\mcpe;
 
 use pmmp\encoding\DataDecodeException;
 use pocketmine\math\Vector3;
-use pocketmine\utils\Binary;
 use pocketmine\utils\Limits;
 use quark\block\inventory\AnvilInventory;
 use quark\block\inventory\BlockInventory;
@@ -431,7 +430,7 @@ class InventoryManager{
 	}
 
 	public function onClientRemoveWindow(int $id) : void{
-		if(Binary::signByte($id) === ContainerIds::NONE){ //TODO: REMOVE signByte() once BedrockProtocol + ext-encoding are implemented
+		if($id === ContainerIds::NONE){
 			//TODO: HACK! Since 1.21.100 (and probably earlier), the client will send -1 to close windows that it can't
 			//view for some reason, e.g. if the chat window was already open. This is pretty awkward, since it means
 			//that we can only assume it refers to the most recently sent window, and if we don't handle it,
