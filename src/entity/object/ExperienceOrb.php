@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
+use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\utils\Limits;
 use quark\entity\Entity;
@@ -214,11 +215,25 @@ class ExperienceOrb extends Entity{
 		$this->setTargetPlayer($currentTarget);
 
 		if($currentTarget !== null){
-			$vector = $currentTarget->getPosition()->add(0, $currentTarget->getEyeHeight() / 2, 0)->subtractVector($this->location)->divide(self::MAX_TARGET_DISTANCE);
+			//Vector3 maths written out in the same order of operations, so the results are identical without the
+			//intermediate vectors, since this runs for every attracted orb every tick
+			$target = $currentTarget->getPosition();
+			$vx = ($target->x + 0 + -$this->location->x) / self::MAX_TARGET_DISTANCE;
+			$vy = ($target->y + $currentTarget->getEyeHeight() / 2 + -$this->location->y) / self::MAX_TARGET_DISTANCE;
+			$vz = ($target->z + 0 + -$this->location->z) / self::MAX_TARGET_DISTANCE;
 
-			$distance = $vector->lengthSquared();
+			$distance = $vx * $vx + $vy * $vy + $vz * $vz;
 			if($distance < 1){
-				$this->motion = $this->motion->addVector($vector->normalize()->multiply(0.2 * (1 - sqrt($distance)) ** 2));
+				$pull = 0.2 * (1 - sqrt($distance)) ** 2;
+				if($distance > 0){
+					$length = sqrt($distance);
+					$vx /= $length;
+					$vy /= $length;
+					$vz /= $length;
+				}else{
+					$vx = $vy = $vz = 0;
+				}
+				$this->motion = new Vector3($this->motion->x + $vx * $pull, $this->motion->y + $vy * $pull, $this->motion->z + $vz * $pull);
 			}
 
 			if($currentTarget->getXpManager()->canPickupXp() && $this->boundingBox->intersectsWith($currentTarget->getBoundingBox())){
