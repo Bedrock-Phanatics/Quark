@@ -61,6 +61,11 @@ final class YmlServerProperties{
 	public const CRASH_DUMPS_INCLUDE_SETTINGS = 'crash-dumps.include-settings';
 	public const DEBUG = 'debug';
 	public const DEBUG_LEVEL = 'debug.level';
+	public const ENTITIES = 'entities';
+	public const ENTITIES_ACTIVATION_RANGE = 'entities.activation-range';
+	public const ENTITIES_INACTIVE_TICK_INTERVAL = 'entities.inactive-tick-interval';
+	public const ENTITIES_ITEM_MERGE_RADIUS = 'entities.item-merge-radius';
+	public const ENTITIES_XP_ORB_MERGE_RADIUS = 'entities.xp-orb-merge-radius';
 	public const LEVEL_SETTINGS = 'level-settings';
 	public const LEVEL_SETTINGS_DEFAULT_FORMAT = 'level-settings.default-format';
 	public const MEMORY = 'memory';
