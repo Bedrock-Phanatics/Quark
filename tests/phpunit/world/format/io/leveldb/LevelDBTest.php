@@ -122,6 +122,34 @@ final class LevelDBTest extends TestCase{
 		$fresh->close();
 	}
 
+	public function testChunkReadsIgnoreNeighboursAndOtherDimensions() : void{
+		$expected = self::chunk();
+		$provider = $this->open();
+		$neighbour = new ChunkData((new Chunk([], false))->getSubChunks(), false, [], []);
+		foreach([[-1, -1], [-1, 0], [0, -1], [1, 0], [0, 1], [-2, -1]] as [$x, $z]){
+			$provider->saveChunk($x, $z, $neighbour, Chunk::DIRTY_FLAGS_ALL);
+		}
+		$provider->saveChunk(-1, -2, $expected, Chunk::DIRTY_FLAGS_ALL);
+
+		//records of the same coordinates in the nether, which must not be mistaken for overworld ones
+		$database = $provider->getDatabase();
+		foreach([[-1, -2], [5, 5]] as [$x, $z]){
+			$nether = LevelDB::chunkIndex($x, $z) . "\x01\x00\x00\x00";
+			$database->put($nether . ChunkDataKey::NEW_VERSION, chr(40));
+			$database->put($nether . ChunkDataKey::SUBCHUNK . chr(0), "garbage");
+			$database->put($nether . ChunkDataKey::FINALIZATION, "\x00");
+		}
+
+		$loaded = $provider->loadChunk(-1, -2);
+		self::assertNotNull($loaded);
+		self::assertSameChunk($expected, $loaded->getData());
+		self::assertTrue($loaded->getData()->isPopulated());
+		self::assertFalse($provider->loadChunk(-1, -1)?->getData()->isPopulated() ?? true);
+		self::assertNull($provider->loadChunk(5, 5), "only the nether has this chunk");
+		self::assertNull($provider->loadChunk(2, 2));
+		$provider->close();
+	}
+
 	public function testCorruptPaletteNbtIsReported() : void{
 		$provider = $this->open();
 		$provider->saveChunk(0, 0, self::chunk(), Chunk::DIRTY_FLAGS_ALL);
