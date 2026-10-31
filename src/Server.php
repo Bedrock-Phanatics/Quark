@@ -43,6 +43,8 @@ use quark\crash\CrashDumpRenderer;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\entity\EntityDataHelper;
 use quark\entity\Location;
+use quark\entity\object\ExperienceOrb;
+use quark\entity\object\ItemEntity;
 use quark\event\HandlerListManager;
 use quark\event\player\PlayerCreationEvent;
 use quark\event\player\PlayerDataSaveEvent;
@@ -166,6 +168,7 @@ use function ini_set;
 use function is_array;
 use function is_dir;
 use function is_link;
+use function is_numeric;
 use function is_resource;
 use function is_string;
 use function max;
@@ -449,6 +452,11 @@ class Server{
 
 	public function getPortV6() : int{
 		return $this->configGroup->getConfigInt(ServerProperties::SERVER_PORT_IPV6, self::DEFAULT_PORT_IPV6);
+	}
+
+	private function getConfiguredMergeRadius(string $key, float $max) : float{
+		$radius = $this->configGroup->getProperty($key, 0.5);
+		return is_numeric($radius) ? max(0.0, min($max, (float) $radius)) : 0.5;
 	}
 
 	public function getViewDistance() : int{
@@ -1181,6 +1189,8 @@ class Server{
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK, 24),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND, 20)
 			);
+			ItemEntity::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_ITEM_MERGE_RADIUS, ItemEntity::MAX_MERGE_RADIUS));
+			ExperienceOrb::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_XP_ORB_MERGE_RADIUS, ExperienceOrb::MAX_MERGE_RADIUS));
 			if($redstoneEnabled){
 				DispensableItemManager::init();
 				ComparatorWeightRegistry::init();

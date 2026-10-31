@@ -49,10 +49,14 @@ use quark\data\bedrock\block\BlockStateDeserializeException;
 use quark\data\SavedDataLoadingException;
 use quark\entity\Entity;
 use quark\entity\EntityFactory;
+use quark\entity\Human;
 use quark\entity\Location;
 use quark\entity\NeverSavedWithChunkEntity;
 use quark\entity\object\ExperienceOrb;
+use quark\entity\object\FallingBlock;
 use quark\entity\object\ItemEntity;
+use quark\entity\object\PrimedTNT;
+use quark\entity\projectile\Projectile;
 use quark\event\block\BlockBreakEvent;
 use quark\event\block\BlockPlaceEvent;
 use quark\event\block\BlockUpdateEvent;
@@ -123,6 +127,7 @@ use function floor;
 use function get_class;
 use function gettype;
 use function implode;
+use function intdiv;
 use function is_a;
 use function is_object;
 use function max;
@@ -368,6 +373,9 @@ class World implements ChunkManager{
 	private int $sleepTicks = 0;
 
 	private int $chunkTickRadius;
+	/** Chunks around players where entities tick every tick, 0 to tick everything. */
+	private int $activationChunkRadius = 0;
+	private int $inactiveTickInterval = 20;
 	private int $tickedBlocksPerSubchunkPerTick = self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK;
 	/**
 	 * @var true[]
@@ -564,6 +572,9 @@ class World implements ChunkManager{
 		}
 		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
 		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 2);
+		$activationRange = max(0, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0));
+		$this->activationChunkRadius = intdiv($activationRange + Chunk::EDGE_LENGTH - 1, Chunk::EDGE_LENGTH);
+		$this->inactiveTickInterval = max(1, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_INACTIVE_TICK_INTERVAL, 20));
 
 		$this->initRandomTickBlocksFromConfig($cfg);
 
@@ -1036,9 +1047,22 @@ class World implements ChunkManager{
 
 		$entityTickScope = $this->pulse->entityTick->start();
 		//Update entities that need update
+		$activeChunks = $this->activationChunkRadius > 0 ? $this->getEntityActivationChunks() : null;
 		$this->deferringEntityMovement = true;
 		try{
 			foreach($this->updateEntities as $id => $entity){
+				if(
+					$activeChunks !== null &&
+					($currentTick + $id) % $this->inactiveTickInterval !== 0 &&
+					!$entity->isClosed() &&
+					!$entity->isFlaggedForDespawn() &&
+					!self::isAlwaysActive($entity) &&
+					($pos = $this->entityLastKnownPositions[$id] ?? null) !== null &&
+					!isset($activeChunks[World::chunkHash($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE)])
+				){
+					//skipped ticks are made up for by the tick difference the entity gets next time
+					continue;
+				}
 				if($entity->isClosed() || $entity->isFlaggedForDespawn() || !$entity->onUpdate($currentTick)){
 					unset($this->updateEntities[$id]);
 				}
@@ -1099,6 +1123,34 @@ class World implements ChunkManager{
 		}
 
 		$this->packetBuffersByChunk = [];
+	}
+
+	/**
+	 * Chunks near enough to a player for entities in them to tick every tick.
+	 *
+	 * @phpstan-return array<ChunkPosHash, true>
+	 */
+	private function getEntityActivationChunks() : array{
+		$radius = $this->activationChunkRadius;
+		$chunks = [];
+		foreach($this->players as $player){
+			$pos = $this->entityLastKnownPositions[$player->getId()] ?? null;
+			if($pos === null){
+				continue;
+			}
+			$playerChunkX = $pos->getFloorX() >> Chunk::COORD_BIT_SIZE;
+			$playerChunkZ = $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE;
+			for($x = $playerChunkX - $radius; $x <= $playerChunkX + $radius; ++$x){
+				for($z = $playerChunkZ - $radius; $z <= $playerChunkZ + $radius; ++$z){
+					$chunks[World::chunkHash($x, $z)] = true;
+				}
+			}
+		}
+		return $chunks;
+	}
+
+	private static function isAlwaysActive(Entity $entity) : bool{
+		return $entity instanceof Human || $entity instanceof Projectile || $entity instanceof PrimedTNT || $entity instanceof FallingBlock;
 	}
 
 	/**
@@ -2238,7 +2290,8 @@ class World implements ChunkManager{
 
 	private function findOrbToMergeInto(Vector3 $pos, int $value) : ?ExperienceOrb{
 		$group = mt_rand(0, ExperienceOrb::MERGE_GROUPS - 1);
-		foreach($this->getNearbyEntities(new AxisAlignedBB($pos->x - 0.5, $pos->y - 0.5, $pos->z - 0.5, $pos->x + 0.5, $pos->y + 0.5, $pos->z + 0.5)) as $entity){
+		$radius = ExperienceOrb::getMergeRadius();
+		foreach($this->getNearbyEntities(new AxisAlignedBB($pos->x - $radius, $pos->y - 0.5, $pos->z - $radius, $pos->x + $radius, $pos->y + 0.5, $pos->z + $radius)) as $entity){
 			if(
 				$entity instanceof ExperienceOrb &&
 				!$entity->isFlaggedForDespawn() &&

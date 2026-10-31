@@ -55,9 +55,27 @@ class ItemEntity extends Entity{
 	public static function getNetworkTypeId() : string{ return EntityIds::ITEM; }
 
 	public const MERGE_CHECK_PERIOD = 2; //0.1 seconds
+	public const RESTING_MERGE_CHECK_PERIOD = 40; //like Java, so items that landed next to each other still merge
+	public const MAX_MERGE_RADIUS = 8.0;
 	public const DEFAULT_DESPAWN_DELAY = 6000; //5 minutes
 	public const NEVER_DESPAWN = -1;
 	public const MAX_DESPAWN_DELAY = 32767 + self::DEFAULT_DESPAWN_DELAY; //max value storable by mojang NBT :(
+
+	private static float $mergeRadius = 0.5;
+
+	public static function getMergeRadius() : float{
+		return self::$mergeRadius;
+	}
+
+	/**
+	 * Sets how close items have to be to merge, horizontally. 0.5 is vanilla.
+	 */
+	public static function setMergeRadius(float $radius) : void{
+		if($radius < 0 || $radius > self::MAX_MERGE_RADIUS){
+			throw new \InvalidArgumentException("Item merge radius must be in range 0 - " . self::MAX_MERGE_RADIUS . ", got $radius");
+		}
+		self::$mergeRadius = $radius;
+	}
 
 	protected string $owner = "";
 	protected string $thrower = "";
@@ -123,10 +141,11 @@ class ItemEntity extends Entity{
 				}
 			}
 
-			if($this->hasMovementUpdate() && $this->isMergeCandidate() && $this->despawnDelay % self::MERGE_CHECK_PERIOD === 0){
+			if($this->isMergeCandidate() && $this->despawnDelay % ($this->hasMovementUpdate() ? self::MERGE_CHECK_PERIOD : self::RESTING_MERGE_CHECK_PERIOD) === 0){
 				$mergeable = [$this]; //in case the merge target ends up not being this
 				$mergeTarget = $this;
-				foreach($this->getWorld()->getNearbyEntities($this->boundingBox->expandedCopy(0.5, 0.5, 0.5), $this) as $entity){
+				$radius = self::$mergeRadius;
+				foreach($this->getWorld()->getNearbyEntities($this->boundingBox->expandedCopy($radius, 0.5, $radius), $this) as $entity){
 					if(!$entity instanceof ItemEntity || $entity->isFlaggedForDespawn()){
 						continue;
 					}

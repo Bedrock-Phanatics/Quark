@@ -150,6 +150,16 @@ chunk-ticking:
     #- ice
     #- fire
 
+entities:
+  #How close dropped items have to be to merge, in blocks. 0.5 is vanilla, Paper uses 2.5. Up to 8.
+  item-merge-radius: 0.5
+  #Same for XP orbs. 0.5 matches Java Edition.
+  xp-orb-merge-radius: 0.5
+  #Entities with no player this many blocks away only tick every inactive-tick-interval ticks, like Spigot's
+  #activation range. Players, projectiles, primed TNT and falling blocks always tick. 0 ticks everything.
+  activation-range: 0
+  inactive-tick-interval: 20
+
 chunk-generation:
   #Max. amount of chunks in the waiting queue to be populated
   population-queue-size: 32

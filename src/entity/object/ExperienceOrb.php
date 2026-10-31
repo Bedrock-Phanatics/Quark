@@ -49,6 +49,23 @@ class ExperienceOrb extends Entity{
 
 	//orbs only merge within the same ID group, so a big drop still shows up as a cloud like it does in Java
 	public const MERGE_GROUPS = 40;
+	public const MAX_MERGE_RADIUS = 8.0;
+
+	private static float $mergeRadius = 0.5;
+
+	public static function getMergeRadius() : float{
+		return self::$mergeRadius;
+	}
+
+	/**
+	 * Sets how close orbs have to be to merge, horizontally. 0.5 matches Java Edition.
+	 */
+	public static function setMergeRadius(float $radius) : void{
+		if($radius < 0 || $radius > self::MAX_MERGE_RADIUS){
+			throw new \InvalidArgumentException("XP orb merge radius must be in range 0 - " . self::MAX_MERGE_RADIUS . ", got $radius");
+		}
+		self::$mergeRadius = $radius;
+	}
 
 	/** Max distance an orb will follow a player across. */
 	public const MAX_TARGET_DISTANCE = 8.0;
@@ -182,7 +199,7 @@ class ExperienceOrb extends Entity{
 	}
 
 	protected function mergeWithNearbyOrbs() : void{
-		foreach($this->getWorld()->getNearbyEntities($this->boundingBox->expandedCopy(0.5, 0.5, 0.5), $this) as $entity){
+		foreach($this->getWorld()->getNearbyEntities($this->boundingBox->expandedCopy(self::$mergeRadius, 0.5, self::$mergeRadius), $this) as $entity){
 			if(!$entity instanceof ExperienceOrb || !$this->canMergeWith($entity) || $this->count + $entity->count > Limits::INT32_MAX){
 				continue;
 			}
