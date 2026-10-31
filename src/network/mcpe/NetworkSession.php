@@ -141,6 +141,7 @@ use function implode;
 use function in_array;
 use function is_string;
 use function json_encode;
+use function mb_strcut;
 use function ord;
 use function random_bytes;
 use function str_split;
@@ -167,6 +168,7 @@ class NetworkSession{
 	 */
 	private const int MAX_DECODED_VALUES = 65536;
 	private const int PLAYER_LIST_ENTRIES_PER_PACKET = 100;
+	private const int MAX_COMMAND_TEXT_BYTES = 1000;
 
 	private const array PRE_LOGIN_PACKETS = [
 		PacketId::NETWORK_SETTINGS => true,
@@ -1570,7 +1572,7 @@ class NetworkSession{
 		$enums = [];
 		$commands = [];
 		foreach($this->server->getCommandMap()->getCommands() as $command){
-			if(isset($commands[$command->getLabel()]) || $command->getLabel() === "help" || !$command->testPermissionSilent($this->player)){
+			if(isset($commands[$command->getLabel()]) || $command->getLabel() === "help" || strlen($command->getLabel()) > self::MAX_COMMAND_TEXT_BYTES || !$command->testPermissionSilent($this->player)){
 				continue;
 			}
 
@@ -1595,9 +1597,12 @@ class NetworkSession{
 			}
 
 			$description = $command->getDescription();
+			if($description instanceof Translatable){
+				$description = $this->player->getLanguage()->translate($description);
+			}
 			$commands[$command->getLabel()] = new Command(
 				name: $lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
-				description: $description instanceof Translatable ? $this->player->getLanguage()->translate($description) : $description,
+				description: strlen($description) > self::MAX_COMMAND_TEXT_BYTES ? mb_strcut($description, 0, self::MAX_COMMAND_TEXT_BYTES, "UTF-8") : $description,
 				flags: 0,
 				permissionLevel: CommandPermissions::NORMAL->value,
 				aliasEnum: $aliasEnum,
@@ -1742,6 +1747,10 @@ class NetworkSession{
 	}
 
 	public function syncWorldTime(int $worldTime) : void{
+		if($worldTime < Limits::INT32_MIN || $worldTime > Limits::INT32_MAX){
+			//the client only takes 32 bits, so keep the time of day and moon phase
+			$worldTime %= World::TIME_FULL * 8;
+		}
 		$this->sendDataPacket(new SetTimePacket(time: $worldTime));
 	}
 

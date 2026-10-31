@@ -26,6 +26,7 @@ namespace quark\player;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use pocketmine\utils\Limits;
 use quark\block\BaseSign;
 use quark\block\Bed;
 use quark\block\BlockTypeTags;
@@ -774,7 +775,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$ticks = $ticks ?? $item->getCooldownTicks();
 		if($ticks > 0){
 			$this->usedItemsCooldown[$item->getCooldownTag() ?? $item->getStateId()] = $this->server->getTick() + $ticks;
-			$this->getNetworkSession()->onItemCooldownChanged($item, $ticks);
+			$this->getNetworkSession()->onItemCooldownChanged($item, min($ticks, Limits::INT32_MAX));
 		}
 	}
 
@@ -2252,7 +2253,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 */
 	public function setTitleDuration(int $fadeIn, int $stay, int $fadeOut) : void{
 		if($fadeIn >= 0 && $stay >= 0 && $fadeOut >= 0){
-			$this->getNetworkSession()->onTitleDuration($fadeIn, $stay, $fadeOut);
+			$this->getNetworkSession()->onTitleDuration(min($fadeIn, Limits::INT32_MAX), min($stay, Limits::INT32_MAX), min($fadeOut, Limits::INT32_MAX));
 		}
 	}
 

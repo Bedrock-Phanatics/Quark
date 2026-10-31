@@ -61,9 +61,13 @@ use quark\world\format\io\GlobalBlockStateHandlers;
 use quark\world\format\io\GlobalItemDataHandlers;
 use function get_class;
 use function hash;
+use function min;
 
 class TypeConverter{
 	use SingletonTrait;
+
+	//the client keeps stack counts in a byte, and stack responses send them as one
+	public const MAX_NETWORK_COUNT = 0xff;
 
 	private const PM_ID_TAG = "___Id___";
 	private const PM_FULL_NBT_HASH_TAG = "___FullNbtHash___";
@@ -323,7 +327,7 @@ class TypeConverter{
 		return new ItemStack(
 			$id,
 			$meta,
-			$itemStack->getCount(),
+			min($itemStack->getCount(), self::MAX_NETWORK_COUNT),
 			$blockRuntimeId ?? ItemTranslator::NO_BLOCK_RUNTIME_ID,
 			$extraData,
 		);

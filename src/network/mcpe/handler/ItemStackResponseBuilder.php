@@ -25,6 +25,7 @@ namespace quark\network\mcpe\handler;
 
 use quark\inventory\Inventory;
 use quark\item\Durable;
+use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\protocol\types\FullContainerName;
 use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
@@ -33,6 +34,7 @@ use quark\network\mcpe\protocol\types\ItemStackResponseInfo;
 use quark\network\mcpe\protocol\types\ItemStackResponseSlotInfo;
 use quark\network\mcpe\protocol\types\SafetyRedactableString;
 use quark\utils\AssumptionFailedError;
+use function min;
 
 final class ItemStackResponseBuilder{
 	public const RESULT_OK = 0;
@@ -97,7 +99,7 @@ final class ItemStackResponseBuilder{
 				$responseInfosByContainer[$containerInterfaceId][] = new ItemStackResponseSlotInfo(
 					requestedSlot: $slotId,
 					slot: $slotId,
-					amount: $item->getCount(),
+					amount: min($item->getCount(), TypeConverter::MAX_NETWORK_COUNT),
 					itemStackNetId: $itemStackInfo->getStackId(),
 					customName: new SafetyRedactableString($item->getCustomName(), $item->getCustomName()),
 					durabilityCorrection: $item instanceof Durable ? $item->getDamage() : 0,
