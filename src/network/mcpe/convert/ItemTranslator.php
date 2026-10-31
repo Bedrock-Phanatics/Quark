@@ -92,6 +92,10 @@ final class ItemTranslator{
 		$itemData = $this->itemSerializer->serializeType($item);
 
 		$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());
+		$meta = $itemData->getMeta();
+		if($meta < 0 || $meta > 0x7fff){
+			throw new ItemTypeSerializeException("Item meta $meta of " . $itemData->getName() . " does not fit the network's 0 - 32767");
+		}
 		$blockStateData = $itemData->getBlock();
 
 		if($blockStateData !== null){
@@ -103,7 +107,7 @@ final class ItemTranslator{
 			$blockRuntimeId = null;
 		}
 
-		return [$numericId, $itemData->getMeta(), $blockRuntimeId];
+		return [$numericId, $meta, $blockRuntimeId];
 	}
 
 	/**

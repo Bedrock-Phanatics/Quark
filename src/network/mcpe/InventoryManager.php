@@ -26,6 +26,7 @@ namespace quark\network\mcpe;
 use pmmp\encoding\DataDecodeException;
 use pocketmine\math\Vector3;
 use pocketmine\utils\Binary;
+use pocketmine\utils\Limits;
 use quark\block\inventory\AnvilInventory;
 use quark\block\inventory\BlockInventory;
 use quark\block\inventory\BrewingStandInventory;
@@ -770,7 +771,9 @@ class InventoryManager{
 	}
 
 	private function newItemStackId() : int{
-		return $this->nextItemStackId++;
+		$id = $this->nextItemStackId;
+		$this->nextItemStackId = $id === Limits::INT32_MAX ? 1 : $id + 1;
+		return $id;
 	}
 
 	public function getItemStackInfo(Inventory $inventory, int $slot) : ?ItemStackInfo{

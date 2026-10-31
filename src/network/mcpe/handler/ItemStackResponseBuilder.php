@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use pocketmine\utils\Limits;
 use quark\inventory\Inventory;
 use quark\item\Durable;
 use quark\network\mcpe\convert\TypeConverter;
@@ -102,7 +103,7 @@ final class ItemStackResponseBuilder{
 					amount: min($item->getCount(), TypeConverter::MAX_NETWORK_COUNT),
 					itemStackNetId: $itemStackInfo->getStackId(),
 					customName: new SafetyRedactableString($item->getCustomName(), $item->getCustomName()),
-					durabilityCorrection: $item instanceof Durable ? $item->getDamage() : 0,
+					durabilityCorrection: $item instanceof Durable ? min($item->getDamage(), Limits::INT16_MAX) : 0,
 				);
 			}
 		}

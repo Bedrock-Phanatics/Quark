@@ -211,6 +211,7 @@ class Server{
 	public const DEFAULT_PORT_IPV4 = 19132;
 	public const DEFAULT_PORT_IPV6 = 19133;
 	public const DEFAULT_MAX_VIEW_DISTANCE = 16;
+	public const MAX_VIEW_DISTANCE = 96; //the client's own render distance limit
 	private const MAX_ACTIVE_TRANSPORTS = 8;
 
 	/**
@@ -451,7 +452,7 @@ class Server{
 	}
 
 	public function getViewDistance() : int{
-		return max(2, $this->configGroup->getConfigInt(ServerProperties::VIEW_DISTANCE, self::DEFAULT_MAX_VIEW_DISTANCE));
+		return max(2, min($this->configGroup->getConfigInt(ServerProperties::VIEW_DISTANCE, self::DEFAULT_MAX_VIEW_DISTANCE), self::MAX_VIEW_DISTANCE));
 	}
 
 	/**
