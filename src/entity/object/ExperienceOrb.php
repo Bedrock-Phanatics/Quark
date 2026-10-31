@@ -242,10 +242,12 @@ class ExperienceOrb extends Entity{
 	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
-		$this->despawnDelay -= $tickDiff;
-		if($this->despawnDelay <= 0){
-			$this->flagForDespawn();
-			return true;
+		if($this->despawnDelay !== self::NEVER_DESPAWN){
+			$this->despawnDelay -= $tickDiff;
+			if($this->despawnDelay <= 0){
+				$this->flagForDespawn();
+				return true;
+			}
 		}
 
 		$currentTarget = $this->getTargetPlayer();

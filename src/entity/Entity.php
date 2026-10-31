@@ -1645,7 +1645,7 @@ abstract class Entity{
 		//created entity won't be visible until after the resend arrives. However, this is better than possibly crashing
 		//the player by sending them entities too early.
 		if(!isset($this->hasSpawned[$id]) && $player->getWorld() === $this->getWorld() && $player->hasReceivedChunk($this->location->getFloorX() >> Chunk::COORD_BIT_SIZE, $this->location->getFloorZ() >> Chunk::COORD_BIT_SIZE)){
-			//the spawn packet already has the latest position, so the new viewer must not get older moves after it
+			//moves queued so far were meant for the old viewers only
 			$this->flushMovement();
 			$this->hasSpawned[$id] = $player;
 
