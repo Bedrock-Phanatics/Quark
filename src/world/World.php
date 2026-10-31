@@ -2197,13 +2197,18 @@ class World implements ChunkManager{
 	/**
 	 * Drops XP orbs into the world for the specified amount, splitting the amount into several orbs if necessary.
 	 *
-	 * @return ExperienceOrb[]
+	 * @return ExperienceOrb[] new orbs only, drops that merged into an existing orb aren't included
 	 * @phpstan-return list<ExperienceOrb>
 	 */
 	public function dropExperience(Vector3 $pos, int $amount) : array{
 		$orbs = [];
 
 		foreach(ExperienceOrb::splitIntoOrbSizes($amount) as $split){
+			$existing = $this->findOrbToMergeInto($pos, $split);
+			if($existing !== null){
+				$existing->absorbNewOrb();
+				continue;
+			}
 			$orb = new ExperienceOrb(Location::fromObject($pos, $this, Utils::getRandomFloat() * 360, 0), $split);
 
 			$orb->setMotion(new Vector3((Utils::getRandomFloat() * 0.2 - 0.1) * 2, Utils::getRandomFloat() * 0.4, (Utils::getRandomFloat() * 0.2 - 0.1) * 2));
@@ -2213,6 +2218,22 @@ class World implements ChunkManager{
 		}
 
 		return $orbs;
+	}
+
+	private function findOrbToMergeInto(Vector3 $pos, int $value) : ?ExperienceOrb{
+		$group = mt_rand(0, ExperienceOrb::MERGE_GROUPS - 1);
+		foreach($this->getNearbyEntities(new AxisAlignedBB($pos->x - 0.5, $pos->y - 0.5, $pos->z - 0.5, $pos->x + 0.5, $pos->y + 0.5, $pos->z + 0.5)) as $entity){
+			if(
+				$entity instanceof ExperienceOrb &&
+				!$entity->isFlaggedForDespawn() &&
+				$entity->getXpValue() === $value &&
+				$entity->getCount() < Limits::INT32_MAX &&
+				$entity->getId() % ExperienceOrb::MERGE_GROUPS === $group
+			){
+				return $entity;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -2512,10 +2533,23 @@ class World implements ChunkManager{
 		$minZ = ((int) floor($bb->minZ - 2)) >> Chunk::COORD_BIT_SIZE;
 		$maxZ = ((int) floor($bb->maxZ + 2)) >> Chunk::COORD_BIT_SIZE;
 
+		//inlined intersectsWith() since this runs for every nearby entity
+		$bbMinX = $bb->minX;
+		$bbMinY = $bb->minY;
+		$bbMinZ = $bb->minZ;
+		$bbMaxX = $bb->maxX;
+		$bbMaxY = $bb->maxY;
+		$bbMaxZ = $bb->maxZ;
 		for($x = $minX; $x <= $maxX; ++$x){
 			for($z = $minZ; $z <= $maxZ; ++$z){
 				foreach($this->getChunkEntities($x, $z) as $ent){
-					if($ent !== $entity && $ent->boundingBox->intersectsWith($bb)){
+					$entBB = $ent->boundingBox;
+					if(
+						$ent !== $entity &&
+						$bbMaxX - $entBB->minX > 0.00001 && $entBB->maxX - $bbMinX > 0.00001 &&
+						$bbMaxY - $entBB->minY > 0.00001 && $entBB->maxY - $bbMinY > 0.00001 &&
+						$bbMaxZ - $entBB->minZ > 0.00001 && $entBB->maxZ - $bbMinZ > 0.00001
+					){
 						$nearby[] = $ent;
 					}
 				}
