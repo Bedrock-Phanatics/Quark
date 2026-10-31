@@ -50,10 +50,13 @@ use quark\data\SavedDataLoadingException;
 use quark\entity\Entity;
 use quark\entity\EntityFactory;
 use quark\entity\Human;
+use quark\entity\Living;
 use quark\entity\Location;
 use quark\entity\NeverSavedWithChunkEntity;
+use quark\entity\object\AreaEffectCloud;
 use quark\entity\object\ExperienceOrb;
 use quark\entity\object\FallingBlock;
+use quark\entity\object\FireworkRocket;
 use quark\entity\object\ItemEntity;
 use quark\entity\object\PrimedTNT;
 use quark\entity\projectile\Projectile;
@@ -169,6 +172,9 @@ class World implements ChunkManager{
 	public const TIME_SUNRISE = 23000;
 
 	public const TIME_FULL = 24000;
+
+	/** Past this the active chunk set built every tick gets expensive, and nothing that far is near a player anyway. */
+	public const MAX_ACTIVATION_RANGE = 256;
 
 	public const DIFFICULTY_PEACEFUL = 0;
 	public const DIFFICULTY_EASY = 1;
@@ -572,7 +578,7 @@ class World implements ChunkManager{
 		}
 		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
 		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 2);
-		$activationRange = max(0, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0));
+		$activationRange = max(0, min(self::MAX_ACTIVATION_RANGE, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0)));
 		$this->activationChunkRadius = intdiv($activationRange + Chunk::EDGE_LENGTH - 1, Chunk::EDGE_LENGTH);
 		$this->inactiveTickInterval = max(1, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_INACTIVE_TICK_INTERVAL, 20));
 
@@ -1149,8 +1155,22 @@ class World implements ChunkManager{
 		return $chunks;
 	}
 
+	/**
+	 * Fire, effects and clouds work on every-N-tick timers that skipped ticks would knock out of step, and a first
+	 * tick or death shouldn't wait.
+	 */
 	private static function isAlwaysActive(Entity $entity) : bool{
-		return $entity instanceof Human || $entity instanceof Projectile || $entity instanceof PrimedTNT || $entity instanceof FallingBlock;
+		return
+			$entity instanceof Human ||
+			$entity instanceof Projectile ||
+			$entity instanceof PrimedTNT ||
+			$entity instanceof FallingBlock ||
+			$entity instanceof FireworkRocket ||
+			$entity instanceof AreaEffectCloud ||
+			$entity->ticksLived === 0 ||
+			!$entity->isAlive() ||
+			$entity->isOnFire() ||
+			($entity instanceof Living && count($entity->getEffects()->all()) > 0);
 	}
 
 	/**

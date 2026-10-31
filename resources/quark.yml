@@ -152,11 +152,14 @@ chunk-ticking:
 
 entities:
   #How close dropped items have to be to merge, in blocks. 0.5 is vanilla, Paper uses 2.5. Up to 8.
+  #Merging ignores walls, so a big radius can pull items through them into the larger stack.
   item-merge-radius: 0.5
   #Same for XP orbs. 0.5 matches Java Edition.
   xp-orb-merge-radius: 0.5
   #Entities with no player this many blocks away only tick every inactive-tick-interval ticks, like Spigot's
-  #activation range. Players, projectiles, primed TNT and falling blocks always tick. 0 ticks everything.
+  #activation range. It's rounded up to whole chunks, up to 256. 0 ticks everything.
+  #Players, projectiles, TNT, falling blocks, fireworks, effect clouds, and anything burning, dying or with
+  #effects always tick. Far entities move slowly while skipping, which shows within view distance.
   activation-range: 0
   inactive-tick-interval: 20
 
