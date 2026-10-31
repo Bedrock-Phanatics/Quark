@@ -15,7 +15,7 @@ The compiler's `-P5` option and `bin/php7/bin/php` directory select the inherite
 
 CI builds PHP 8.4 ZTS from the pinned submodule on Linux x86_64 and Windows x64, extracts the package, and verifies its native extensions before installing Composer dependencies. Docker builds the same pinned sources, including checksum files. Other native packaging targets and PHP 8.5 remain disabled until verified.
 
-The runtime includes ext-bedwire ^0.3.12 with its pinned phpz/Zig dependencies and the patched libdatachannel from nethernet-zig, which serves the `nethernet` transport. Quark rejects missing or incompatible extensions and mismatched native/PHP protocol versions before starting the server.
+The runtime includes ext-bedwire ^0.3.13 with its pinned phpz/Zig dependencies and the patched libdatachannel from nethernet-zig, which serves the `nethernet` transport. Quark rejects missing or incompatible extensions and mismatched native/PHP protocol versions before starting the server.
 
 The optional `tests/plugins/DevTools` submodule is an inherited PocketMine-MP project. CI does not initialize it. The tracked [Quark 6 example plugin](examples/plugins/QuarkExample) can be built with `php -dphar.readonly=0 tests/build-plugin-phar.php examples/plugins/QuarkExample QuarkExample.phar`.
 
