@@ -28,8 +28,12 @@ use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
+use pocketmine\math\Vector3;
 use quark\lang\Language;
+use quark\network\mcpe\protocol\packet\ContainerClosePacket;
+use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
 use quark\network\mcpe\protocol\packet\SetTimePacket;
+use quark\network\mcpe\protocol\types\inventory\WindowTypes;
 use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
@@ -189,5 +193,14 @@ final class NetworkSessionTest extends TestCase{
 
 		self::assertFalse($session->isConnected());
 		self::assertSame(0, $sends);
+	}
+
+	public function testNegativeWindowTypesEncode() : void{
+		$batch = NetworkSession::encodeBatch([
+			new ContainerOpenPacket(containerId: 1, containerType: WindowTypes::INVENTORY, position: new Vector3(0, 0, 0), targetActorId: 1),
+			new ContainerClosePacket(containerId: 1, containerType: WindowTypes::NONE, serverInitiatedClose: true),
+		]);
+		self::assertStringContainsString("\x01\xff", $batch);
+		self::assertStringContainsString("\x01\xf7", $batch);
 	}
 }

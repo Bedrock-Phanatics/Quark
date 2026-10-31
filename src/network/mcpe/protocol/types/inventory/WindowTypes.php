@@ -29,9 +29,10 @@ final class WindowTypes{
 		//NOOP
 	}
 
-	public const NONE = -9;
+	//the wire field is an unsigned byte, so these are the -9 and -1 the client expects
+	public const NONE = 0xf7;
 
-	public const INVENTORY = -1;
+	public const INVENTORY = 0xff;
 	public const CONTAINER = 0;
 	public const WORKBENCH = 1;
 	public const FURNACE = 2;
