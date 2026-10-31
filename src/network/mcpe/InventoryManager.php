@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use pmmp\encoding\DataDecodeException;
 use pocketmine\math\Vector3;
 use pocketmine\utils\Binary;
 use quark\block\inventory\AnvilInventory;
@@ -54,6 +55,7 @@ use quark\network\mcpe\protocol\packet\InventoryContentPacket;
 use quark\network\mcpe\protocol\packet\InventorySlotPacket;
 use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
 use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
+use quark\network\mcpe\protocol\PacketDecodeException;
 use quark\network\mcpe\protocol\types\EnchantmentInstance as NetEnchantmentInstance;
 use quark\network\mcpe\protocol\types\FullContainerName;
 use quark\network\mcpe\protocol\types\inventory\ContainerIds;
@@ -473,8 +475,13 @@ class InventoryManager{
 		}
 
 		$typeConverter = $this->session->getTypeConverter();
-		$leftExtraData = $typeConverter->deserializeItemStackExtraData($left->getRawExtraData(), $left->getId());
-		$rightExtraData = $typeConverter->deserializeItemStackExtraData($right->getRawExtraData(), $right->getId());
+		try{
+			$leftExtraData = $typeConverter->deserializeItemStackExtraData($left->getRawExtraData(), $left->getId());
+			$rightExtraData = $typeConverter->deserializeItemStackExtraData($right->getRawExtraData(), $right->getId());
+		}catch(PacketDecodeException|DataDecodeException){
+			//one side is the client's prediction, and this can run outside packet handling, so a bad one is just a mismatch
+			return false;
+		}
 
 		$leftNbt = $leftExtraData->getNbt();
 		$rightNbt = $rightExtraData->getNbt();
