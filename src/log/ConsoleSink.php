@@ -47,9 +47,13 @@ final class ConsoleSink implements Sink{
 		if(!stream_set_blocking($this->socket, false)){ $this->close(); throw new \RuntimeException("Cannot make console transport nonblocking"); }
 	}
 
-	public function write(array $event) : void{
+	public function write(array $event) : bool{
+		if(Level::priority($event["level"]) <= 3 || $event["category"] === "diagnostic"){
+			$this->pump();
+			if($this->pending !== ""){ ++$this->dropped; ++$this->totalDropped; return false; }
+		}
 		$line = $this->formatter->format($event);
-		if(strlen($this->pending) + strlen($line) > 4194304){ ++$this->dropped; ++$this->totalDropped; return; }
+		if(strlen($this->pending) + strlen($line) > 4194304){ ++$this->dropped; ++$this->totalDropped; return false; }
 		if($this->dropped > 0){
 			$report = $event;
 			$report["level"] = "warning";
@@ -65,6 +69,7 @@ final class ConsoleSink implements Sink{
 			}
 		}
 		$this->pending .= $line;
+		return true;
 	}
 
 	private function pump() : void{

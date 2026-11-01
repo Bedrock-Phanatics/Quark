@@ -104,17 +104,27 @@ final class LogDispatcher extends Thread{
 				}
 				$priority = Level::priority($event["level"]);
 				$important = $priority <= 3 || $event["category"] === "diagnostic";
-				if($fileFailed && $important){ EmergencyWriter::write($emergency, $event, "Persistent sink unavailable"); }
+				$handled = $fileFailed && $important;
+				if($handled){ EmergencyWriter::write($emergency, $event, "Persistent sink unavailable"); }
 				foreach(\quark\utils\Utils::promoteKeys($sinks) as $name => $sink){
 					$name = (string) $name;
 					if($event["category"] === "diagnostic" && $name === "console"){ continue; }
 					$consoleOutput = $name === "console" && ($event["category"] === "output" || $event["category"] === "command");
 					if(!$consoleOutput && $event["category"] !== "diagnostic" && $priority > $thresholds[$name] && !($priority === 7 && ($event["force"] ?? false))){ continue; }
-					try{ $sink->write($event); if($important){ $sink->flush(); } }catch(\Throwable $error){
+					try{
+						if($sink->write($event)){
+							if($important){ $sink->flush(); }
+							$handled = true;
+						}
+					}catch(\Throwable $error){
 						$noSinks = $reportFailure($name, $error);
-						if($important || $noSinks){ EmergencyWriter::write($emergency, $event, "Sink write failed"); }
+						if($important || $noSinks){
+							EmergencyWriter::write($emergency, $event, "Sink write failed");
+							$handled = true;
+						}
 					}
 				}
+				if($important && !$handled){ EmergencyWriter::write($emergency, $event, "No sink accepted important event"); }
 			};
 			$flush = function() use (&$sinks, $reportFailure) : void{
 				foreach(\quark\utils\Utils::promoteKeys($sinks) as $name => $sink){

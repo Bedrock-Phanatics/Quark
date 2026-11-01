@@ -95,13 +95,14 @@ final class FileSink implements Sink{
 		if($this->retention > 0){ Filesystem::retainNewestFiles($archive, "$base.", ".$extension", $this->retention, $destination); }
 	}
 
-	public function write(array $event) : void{
+	public function write(array $event) : bool{
 		$line = $this->formatter->format($event);
 		$length = strlen($line);
 		if($this->archive !== null && $this->size > 0 && $this->size + $length > $this->maxSize){ $this->rotate(); }
 		$this->buffer .= $line;
 		$this->size += $length;
 		if(strlen($this->buffer) >= 65536){ $this->drain(); }
+		return true;
 	}
 
 	public function flush() : void{

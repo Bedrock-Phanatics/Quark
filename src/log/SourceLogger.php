@@ -10,19 +10,28 @@ use function is_string;
 class SourceLogger extends \PrefixedLogger{
 	public function __construct(private \Logger $delegate, string $source){ parent::__construct($delegate, $source); }
 
-	public function log($level, $message, ?string $source = null){
+	public function log($level, $message){
 		if(!is_string($level)){ throw new \InvalidArgumentException("Log level must be a string"); }
-		$source = $this->getPrefix() . ($source === null ? "" : " / " . $source);
+		$this->logWithSource($level, $message, $this->getPrefix());
+	}
+
+	protected function logWithSource(string $level, string $message, string $source) : void{
 		if($this->delegate instanceof self){
-			$this->delegate->log($level, $message, $source);
+			$this->delegate->logWithSource($level, $message, $this->delegate->getPrefix() . " / " . $source);
 		}elseif($this->delegate instanceof MainLogger){
 			$this->delegate->event($level, $message, $source);
 		}else{ $this->delegate->log($level, "[$source] $message"); }
 	}
 
-	public function logException(\Throwable $e, $trace = null, ?string $source = null){
-		$source = $this->getPrefix() . ($source === null ? "" : " / " . $source);
-		if($this->delegate instanceof self || $this->delegate instanceof MainLogger){
+	public function logException(\Throwable $e, $trace = null){
+		$this->logExceptionWithSource($e, $trace, $this->getPrefix());
+	}
+
+	/** @param list<array<string, mixed>>|null $trace */
+	protected function logExceptionWithSource(\Throwable $e, ?array $trace, string $source) : void{
+		if($this->delegate instanceof self){
+			$this->delegate->logExceptionWithSource($e, $trace, $this->delegate->getPrefix() . " / " . $source);
+		}elseif($this->delegate instanceof MainLogger){
 			$this->delegate->logException($e, $trace, $source);
 		}else{ parent::logException($e, $trace); }
 	}

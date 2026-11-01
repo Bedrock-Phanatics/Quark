@@ -287,12 +287,13 @@ final class LoggingPipelineTest extends TestCase{
 		self::assertSame(2, $queue->stats()["queued"]);
 	}
 
-	public function testBlockedConsoleCannotStopFileDiagnostics() : void{
-		$file = $this->root . "/blocked.log";
-		$done = $this->root . "/done.json";
-		$code = <<<'PHP'
+	public function testBlockedConsolePreservesErrorsWithAndWithoutFileLogging() : void{
+		foreach([true, false] as $fileEnabled){
+			$file = $this->root . "/blocked-" . ($fileEnabled ? "file" : "console") . ".log";
+			$done = $file . ".done.json";
+			$code = <<<'PHP'
 require $argv[1] . "/vendor/autoload.php";
-$logger = new \quark\utils\MainLogger($argv[2], false, "Test", new DateTimeZone("UTC"));
+$logger = new \quark\utils\MainLogger($argv[4] === "1" ? $argv[2] : null, false, "Test", new DateTimeZone("UTC"));
 for($i = 0; $i < 4000; ++$i){
  $logger->info("event $i " . str_repeat("x", 2048));
  if($i % 100 === 0){ $logger->syncFlushBuffer(); }
@@ -302,23 +303,28 @@ $logger->syncFlushBuffer();
 $logger->shutdownLogWriterThread();
 file_put_contents($argv[3], json_encode($logger->getDispatcher()->getQueue()->stats(), JSON_THROW_ON_ERROR));
 PHP;
-		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file, $done], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
-		self::assertIsResource($process);
-		fclose($pipes[0]);
-		try{
-			$deadline = hrtime(true) + 10000000000;
-			while(proc_get_status($process)["running"] && hrtime(true) < $deadline){ usleep(10000); }
-			self::assertFalse(proc_get_status($process)["running"], "Blocked output prevented shutdown");
-			self::assertFileExists($done);
-			self::assertStringContainsString("critical diagnostic after blocked output", Filesystem::fileGetContents($file));
-			$stats = json_decode(Filesystem::fileGetContents($done), true, 16, JSON_THROW_ON_ERROR);
-			self::assertIsArray($stats);
-			self::assertGreaterThan(0, $stats["console_dropped"]);
-			self::assertSame(0, $stats["dropped"]);
-			self::assertStringContainsString("Console dropped", Filesystem::fileGetContents($file));
-		}finally{
-			if(proc_get_status($process)["running"]){ proc_terminate($process); }
-			fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
+			$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file, $done, $fileEnabled ? "1" : "0"], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
+			self::assertIsResource($process);
+			fclose($pipes[0]);
+			try{
+				$deadline = hrtime(true) + 10000000000;
+				while(proc_get_status($process)["running"] && hrtime(true) < $deadline){ usleep(10000); }
+				self::assertFalse(proc_get_status($process)["running"], "Blocked output prevented shutdown");
+				self::assertFileExists($done);
+				$errors = stream_get_contents($pipes[2]);
+				self::assertStringContainsString("critical diagnostic after blocked output", $fileEnabled ? Filesystem::fileGetContents($file) : $errors);
+				$stats = json_decode(Filesystem::fileGetContents($done), true, 16, JSON_THROW_ON_ERROR);
+				self::assertIsArray($stats);
+				self::assertGreaterThan(0, $stats["console_dropped"]);
+				self::assertSame(0, $stats["dropped"]);
+				if($fileEnabled){
+					self::assertStringContainsString("Console dropped", Filesystem::fileGetContents($file));
+					self::assertFileDoesNotExist($file . ".emergency");
+				}
+			}finally{
+				if(proc_get_status($process)["running"]){ proc_terminate($process); }
+				fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
+			}
 		}
 	}
 
@@ -378,6 +384,38 @@ PHP;
 			if(proc_get_status($process)["running"]){ proc_terminate($process); }
 			fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
 		}
+	}
+
+	public function testStandardLoggerOverridesRemainCompatible() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+class CustomSourceLogger extends \quark\log\SourceLogger{
+ public function log($level, $message){ parent::log($level, $message); }
+ public function logException(\Throwable $e, $trace = null){ parent::logException($e, $trace); }
+}
+class CustomPluginLogger extends \quark\plugin\PluginLogger{
+ public function log($level, $message){ parent::log($level, $message); }
+ public function logException(\Throwable $e, $trace = null){ parent::logException($e, $trace); }
+}
+$logger = new \quark\utils\MainLogger($argv[2], false, "Test", new DateTimeZone("UTC"), configuration: ["console-level" => "emergency"]);
+$plugin = new CustomPluginLogger($logger, "Plugin");
+$source = new CustomSourceLogger($plugin, "Source");
+$source->info("custom subclass message");
+$source->logException(new RuntimeException("custom subclass exception"));
+$logger->shutdownLogWriterThread();
+PHP;
+		$file = $this->root . "/subclass.log";
+		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file], [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
+		self::assertIsResource($process);
+		fclose($pipes[0]);
+		$output = stream_get_contents($pipes[1]);
+		$errors = stream_get_contents($pipes[2]);
+		fclose($pipes[1]); fclose($pipes[2]);
+		self::assertSame(0, proc_close($process), $output . $errors);
+		$content = Filesystem::fileGetContents($file);
+		self::assertStringContainsString("Plugin / Source", $content);
+		self::assertStringContainsString("custom subclass message", $content);
+		self::assertStringContainsString("custom subclass exception", $content);
 	}
 
 	public function testNestedSourcesPreserveStructuredMessagesAndExceptions() : void{
