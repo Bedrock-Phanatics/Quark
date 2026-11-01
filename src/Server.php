@@ -171,6 +171,7 @@ use function is_link;
 use function is_numeric;
 use function is_resource;
 use function is_string;
+use function ltrim;
 use function max;
 use function microtime;
 use function min;
@@ -1141,7 +1142,7 @@ class Server{
 				$this->logger->info("Trusting " . count($this->trustedProxyKeys) . " proxy key(s) to vouch for player logins");
 			}
 
-			$this->authKeyProvider = new AuthKeyProvider(new \PrefixedLogger($this->logger, "Minecraft Auth Key Provider"), $this->asyncPool);
+			$this->authKeyProvider = new AuthKeyProvider(new log\SourceLogger($this->logger, "Minecraft Auth Key Provider"), $this->asyncPool);
 
 			if($this->configGroup->getConfigBool(ServerProperties::HARDCORE, false) && $this->getDifficulty() < World::DIFFICULTY_HARD){
 				$this->configGroup->setConfigInt(ServerProperties::DIFFICULTY, World::DIFFICULTY_HARD);
@@ -1435,7 +1436,7 @@ class Server{
 
 	private function startupPrepareQueryInterface(string $ip, int $port, bool $ipV6) : void{
 		if(!RakLibTransport::isListeningOn($this->network, $ip, $port, $ipV6)){
-			$this->network->registerInterface(new DedicatedQueryNetworkInterface($ip, $port, $ipV6, new \PrefixedLogger($this->logger, "Dedicated Query Interface")));
+			$this->network->registerInterface(new DedicatedQueryNetworkInterface($ip, $port, $ipV6, new log\SourceLogger($this->logger, "Dedicated Query Interface")));
 		}
 		$prettyIp = $ipV6 ? "[$ip]" : $ip;
 		$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_query_running($prettyIp, (string) $port)));
@@ -2091,6 +2092,11 @@ class Server{
 				$serverCommandScope = PulseZones::$serverCommand->start();
 				while(($line = $this->console->readLine()) !== null){
 					$this->consoleSender ??= new ConsoleCommandSender($this, $this->language);
+					if($this->logger instanceof MainLogger){
+						$name = explode(" ", ltrim($line, "/"), 2)[0];
+						$command = $this->commandMap->getCommand($name);
+						$this->logger->event("info", $command === null ? "/[unknown command]" : "/" . $command->getName(), "Console", category: "command");
+					}
 					$this->dispatchCommand($this->consoleSender, $line);
 				}
 				PulseZones::$serverCommand->stop($serverCommandScope);

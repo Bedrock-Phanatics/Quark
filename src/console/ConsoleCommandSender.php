@@ -30,9 +30,7 @@ use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
 use quark\permission\PermissibleDelegateTrait;
 use quark\Server;
-use quark\utils\Terminal;
-use quark\utils\TextFormat;
-use function explode;
+use quark\utils\MainLogger;
 use function trim;
 use const PHP_INT_MAX;
 
@@ -62,8 +60,11 @@ class ConsoleCommandSender implements CommandSender{
 			$message = $this->getLanguage()->translate($message);
 		}
 
-		foreach(explode("\n", trim($message), limit: PHP_INT_MAX) as $line){
-			Terminal::writeLine(TextFormat::GREEN . "Command output | " . TextFormat::addBase(TextFormat::WHITE, $line));
+		$logger = $this->server->getLogger();
+		if($logger instanceof MainLogger){
+			$logger->output(trim($message));
+		}else{
+			$logger->info(trim($message));
 		}
 	}
 

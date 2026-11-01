@@ -520,7 +520,7 @@ class World implements ChunkManager{
 		$this->worldId = self::$worldIdCounter++;
 
 		$this->displayName = $this->provider->getWorldData()->getName();
-		$this->logger = new \PrefixedLogger($server->getLogger(), "World: $this->displayName");
+		$this->logger = new \quark\log\SourceLogger($server->getLogger(), "World: $this->displayName");
 
 		$this->blockStateRegistry = RuntimeBlockStateRegistry::getInstance();
 		$this->minY = $this->provider->getWorldMinY();
@@ -3209,7 +3209,7 @@ class World implements ChunkManager{
 	}
 
 	private function initChunk(int $chunkX, int $chunkZ, ChunkData $chunkData, Chunk $chunk) : void{
-		$logger = new \PrefixedLogger($this->logger, "Loading chunk $chunkX $chunkZ");
+		$logger = new \quark\log\SourceLogger($this->logger, "Loading chunk $chunkX $chunkZ");
 
 		if(count($chunkData->getEntityNBT()) !== 0){
 			$syncChunkLoadEntitiesScope = $this->pulse->syncChunkLoadEntities->start();

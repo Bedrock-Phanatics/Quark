@@ -35,6 +35,14 @@ auto-updater.host = ''
 auto_on_startup = false
 
 [logging]
+console-level = 'info'
+file-level = 'info'
+json-level = 'info'
+color = 'auto'
+console-style = 'columns'
+json = false
+buffer-bytes = 8388608
+flush-ms = 200
 # Bytes per active log file. Zero archived files means no automatic deletion.
 max-file-size = 33554432
 max-archives = 0

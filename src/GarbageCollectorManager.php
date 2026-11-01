@@ -64,7 +64,7 @@ final class GarbageCollectorManager{
 		gc_disable();
 		$this->threshold = min(self::GC_THRESHOLD_MAX, max(0, $threshold));
 		$this->minimumThreshold = $this->threshold;
-		$this->logger = new \PrefixedLogger($logger, "Cyclic Garbage Collector");
+		$this->logger = new log\SourceLogger($logger, "Cyclic Garbage Collector");
 		$this->pulse = Pulse::zone("runtime.gc");
 	}
 

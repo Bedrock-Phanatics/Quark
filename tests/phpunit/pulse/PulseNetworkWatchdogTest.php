@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
+use quark\log\LogDispatcher;
 use quark\pulse\internal\PulseNetworkWatchdog;
 use quark\pulse\internal\PulseNetworkWork;
 use quark\pulse\internal\PulseRecorder;
@@ -31,11 +32,11 @@ use quark\scheduler\AsyncPool;
 use quark\thread\ThreadManager;
 use quark\thread\ThreadSafeClassLoader;
 use quark\utils\MainLogger;
-use quark\utils\MainLoggerThread;
 use function array_reverse;
 use function count;
 use function explode;
 use function file_get_contents;
+use function file_put_contents;
 use function hrtime;
 use function json_decode;
 use function ord;
@@ -55,7 +56,8 @@ final class PulseNetworkWatchdogTest extends TestCase{
 
 	public function testNestedWorkIsBoundedAndRestoresItsParents() : void{
 		$file = sys_get_temp_dir() . "/" . uniqid("pulse-work-", true);
-		$watchdog = new PulseNetworkWatchdog(new MainLoggerThread($file, null), 1);
+  file_put_contents($file, "");
+		$watchdog = new PulseNetworkWatchdog(new LogDispatcher($file, null), 1);
 		$work = new PulseNetworkWork((int) hrtime(true), $watchdog);
 		try{
 			$tokens = [];
@@ -85,13 +87,13 @@ final class PulseNetworkWatchdogTest extends TestCase{
 	}
 
 	/** @return list<array<string, mixed>> */
-	private function diagnostics(MainLoggerThread $writer, string $file) : array{
+	private function diagnostics(LogDispatcher $writer, string $file) : array{
 		$writer->syncFlushBuffer();
 		$contents = file_get_contents($file);
 		self::assertIsString($contents);
 		$result = [];
 		foreach(explode("\n", trim($contents), 64) as $line){
-			$parts = explode("[Pulse/NOTICE]: ", $line, 2);
+			$parts = explode("Pulse [Watchdog]  ", $line, 2);
 			if(count($parts) !== 2){ continue; }
 			$data = json_decode($parts[1], true, 16, JSON_THROW_ON_ERROR);
 			self::assertIsArray($data);
@@ -102,7 +104,7 @@ final class PulseNetworkWatchdogTest extends TestCase{
 	}
 
 	/** @return list<array<string, mixed>> */
-	private function waitForReports(PulseNetworkWatchdog $watchdog, MainLoggerThread $writer, string $file, int $count) : array{
+	private function waitForReports(PulseNetworkWatchdog $watchdog, LogDispatcher $writer, string $file, int $count) : array{
 		$watchdog->notify();
 		$deadline = (int) hrtime(true) + 2000000000;
 		do{

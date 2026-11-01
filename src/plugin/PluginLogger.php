@@ -23,45 +23,25 @@ declare(strict_types=1);
 
 namespace quark\plugin;
 
+use quark\log\SourceLogger;
 use function spl_object_id;
 
 /**
  * @phpstan-import-type LoggerAttachment from \AttachableLogger
  */
-class PluginLogger extends \PrefixedLogger implements \AttachableLogger{
-
-	/**
-	 * @var \Closure[]
-	 * @phpstan-var LoggerAttachment[]
-	 */
+class PluginLogger extends SourceLogger implements \AttachableLogger{
+	/** @var LoggerAttachment[] */
 	private array $attachments = [];
 
-	/**
-	 * @phpstan-param LoggerAttachment $attachment
-	 */
-	public function addAttachment(\Closure $attachment){
-		$this->attachments[spl_object_id($attachment)] = $attachment;
-	}
-
-	/**
-	 * @phpstan-param LoggerAttachment $attachment
-	 */
-	public function removeAttachment(\Closure $attachment){
-		unset($this->attachments[spl_object_id($attachment)]);
-	}
-
-	public function removeAttachments(){
-		$this->attachments = [];
-	}
-
-	public function getAttachments(){
-		return $this->attachments;
-	}
+	/** @param LoggerAttachment $attachment */
+	public function addAttachment(\Closure $attachment){ $this->attachments[spl_object_id($attachment)] = $attachment; }
+	/** @param LoggerAttachment $attachment */
+	public function removeAttachment(\Closure $attachment){ unset($this->attachments[spl_object_id($attachment)]); }
+	public function removeAttachments(){ $this->attachments = []; }
+	public function getAttachments(){ return $this->attachments; }
 
 	public function log($level, $message){
 		parent::log($level, $message);
-		foreach($this->attachments as $attachment){
-			$attachment($level, $message);
-		}
+		foreach($this->attachments as $attachment){ $attachment($level, $message); }
 	}
 }

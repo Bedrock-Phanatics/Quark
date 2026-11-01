@@ -101,7 +101,7 @@ final class CrashDumpRenderer{
 	}
 
 	public function addLine(string $line = "") : void{
-		$line .= PHP_EOL;
+		$line = \quark\log\Event::clean($line) . PHP_EOL;
 		for($offset = 0, $length = strlen($line); $offset < $length; $offset += $written){
 			$written = fwrite($this->fp, $offset === 0 ? $line : substr($line, $offset));
 			if($written === false || $written === 0){

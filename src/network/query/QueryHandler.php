@@ -51,7 +51,7 @@ class QueryHandler implements RawPacketHandler{
 	public function __construct(
 		private Server $server
 	){
-		$this->logger = new \PrefixedLogger($this->server->getLogger(), "Query Handler");
+		$this->logger = new \quark\log\SourceLogger($this->server->getLogger(), "Query Handler");
 
 		/*
 		The Query protocol is built on top of the existing Minecraft PE UDP network stack.

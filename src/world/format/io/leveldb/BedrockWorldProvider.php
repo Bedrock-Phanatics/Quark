@@ -441,7 +441,7 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Writabl
 
 		$subChunks = [];
 		for($yy = 0; $yy < 8; ++$yy){
-			$storages = [$this->palettizeLegacySubChunkFromColumn($fullIds, $fullData, $yy, new \PrefixedLogger($logger, "Subchunk y=$yy"))];
+			$storages = [$this->palettizeLegacySubChunkFromColumn($fullIds, $fullData, $yy, new \quark\log\SourceLogger($logger, "Subchunk y=$yy"))];
 			if(isset($convertedLegacyExtraData[$yy])){
 				$storages[] = $convertedLegacyExtraData[$yy];
 			}
@@ -575,7 +575,7 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Writabl
 				$subChunkVersion,
 				$convertedLegacyExtraData[$y] ?? null,
 				$biomeArrays[$y],
-				new \PrefixedLogger($logger, "Subchunk y=$y v$subChunkVersion")
+				new \quark\log\SourceLogger($logger, "Subchunk y=$y v$subChunkVersion")
 			);
 		}
 
@@ -640,7 +640,7 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Writabl
 
 		//TODO: read PM_DATA_VERSION - we'll need it to fix up old chunks
 
-		$logger = new \PrefixedLogger($this->logger, "Loading chunk x=$chunkX z=$chunkZ v$chunkVersion");
+		$logger = new \quark\log\SourceLogger($this->logger, "Loading chunk x=$chunkX z=$chunkZ v$chunkVersion");
 
 		$hasBeenUpgraded = $chunkVersion < self::CURRENT_LEVEL_CHUNK_VERSION;
 

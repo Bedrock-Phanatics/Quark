@@ -90,7 +90,7 @@ trait LegacyAnvilChunkTrait{
 		$subChunksTag = $chunk->getListTag("Sections", CompoundTag::class) ?? [];
 		foreach($subChunksTag as $subChunk){
 			$y = $subChunk->getByte("Y");
-			$subChunks[$y] = $this->deserializeSubChunk($subChunk, clone $biomes3d, new \PrefixedLogger($logger, "Subchunk y=$y"));
+			$subChunks[$y] = $this->deserializeSubChunk($subChunk, clone $biomes3d, new \quark\log\SourceLogger($logger, "Subchunk y=$y"));
 		}
 		for($y = Chunk::MIN_SUBCHUNK_INDEX; $y <= Chunk::MAX_SUBCHUNK_INDEX; ++$y){
 			if(!isset($subChunks[$y])){

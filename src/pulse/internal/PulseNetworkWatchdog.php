@@ -23,17 +23,15 @@ declare(strict_types=1);
 
 namespace quark\pulse\internal;
 
+use quark\log\LogDispatcher;
 use quark\thread\Thread;
-use quark\utils\MainLoggerThread;
 use function count;
-use function date;
 use function hrtime;
 use function json_encode;
 use function ord;
 use function substr;
 use function unpack;
 use const JSON_THROW_ON_ERROR;
-use const PHP_EOL;
 use const PHP_INT_MIN;
 
 /**
@@ -44,7 +42,7 @@ final class PulseNetworkWatchdog extends Thread{
 	public string $record = "";
 	private bool $stopped = false;
 
-	public function __construct(private MainLoggerThread $writer, private int $generation, private int $stallNs = 5000000000){
+	public function __construct(private LogDispatcher $writer, private int $generation, private int $stallNs = 5000000000){
 		if($stallNs < 1){ throw new \InvalidArgumentException("Invalid Pulse stall threshold"); }
 	}
 
@@ -72,7 +70,7 @@ final class PulseNetworkWatchdog extends Thread{
 						"report_limit" => self::MAX_REPORTS, "report_limit_reached" => count($reported) === self::MAX_REPORTS
 					];
 					// Bypass console callbacks and their locks while the main thread may be stuck.
-					$this->writer->write(date("Y-m-d H:i:s") . " [Pulse/NOTICE]: " . json_encode($diagnostic, JSON_THROW_ON_ERROR) . PHP_EOL);
+					$this->writer->submit(\quark\log\Event::create("notice", json_encode($diagnostic, JSON_THROW_ON_ERROR), "Pulse", "Watchdog", "diagnostic"), true);
 				}
 			}
 			$this->synchronized(function() : void{

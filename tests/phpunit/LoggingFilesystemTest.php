@@ -10,29 +10,33 @@ use quark\crash\CrashDump;
 use quark\crash\CrashDumpData;
 use quark\crash\CrashDumpDataGeneral;
 use quark\crash\CrashDumpRenderer;
+use quark\log\LogDispatcher;
 use quark\utils\Filesystem;
-use quark\utils\MainLoggerThread;
 use function bin2hex;
 use function clearstatcache;
+use function dirname;
 use function file_get_contents;
 use function file_put_contents;
 use function glob;
 use function microtime;
 use function mkdir;
+use function preg_match_all;
 use function random_bytes;
 use function rmdir;
 use function str_repeat;
 use function strlen;
+use function strpos;
 use function substr_count;
 use function sys_get_temp_dir;
 use const DIRECTORY_SEPARATOR;
 
 final class LoggingProducer extends Thread{
-	public function __construct(private MainLoggerThread $writer, private string $prefix){}
+	public function __construct(private LogDispatcher $writer, private string $prefix){}
 
 	public function run() : void{
+		require dirname(__DIR__, 2) . "/vendor/autoload.php";
 		for($i = 0; $i < 200; ++$i){
-			$this->writer->write("$this->prefix:$i\n");
+			$this->writer->submit(log\Event::create("info", "$this->prefix:$i", thread: $this->prefix), false);
 		}
 	}
 }
@@ -51,7 +55,7 @@ final class LoggingFilesystemTest extends TestCase{
 
 	public function testConcurrentWritesAndShutdownDrain() : void{
 		$file = $this->root . "/server.log";
-		$writer = new MainLoggerThread($file, null);
+		$writer = new LogDispatcher($file, null);
 		$writer->start(Thread::INHERIT_NONE);
 		$workers = [];
 		for($i = 0; $i < 4; ++$i){
@@ -69,17 +73,25 @@ final class LoggingFilesystemTest extends TestCase{
 		self::assertSame(800, substr_count($content, "\n"));
 		for($i = 0; $i < 4; ++$i){
 			self::assertStringContainsString("worker$i:199\n", $content);
+			$previous = -1;
+			for($sequence = 0; $sequence < 200; ++$sequence){
+				$position = strpos($content, "worker$i:$sequence\n");
+				self::assertIsInt($position);
+				self::assertGreaterThan($previous, $position);
+				$previous = $position;
+			}
 		}
 	}
 
 	public function testRotationRetentionAndUnrelatedFiles() : void{
 		$file = $this->root . "/server.log";
 		$archive = $this->root . "/archive";
-		$writer = new MainLoggerThread($file, $archive, 1024, 2);
+		$writer = new LogDispatcher($file, $archive, 1024, 2, configuration: ["console-level" => "emergency"], console: true);
+		mkdir($archive);
 		file_put_contents($archive . "/keep.txt", "untouched");
 		$writer->start(Thread::INHERIT_NONE);
 		for($i = 0; $i < 100; ++$i){
-			$writer->write("line $i " . str_repeat("x", 56) . "\n");
+			$writer->submit(log\Event::create("info", "line $i " . str_repeat("x", 56)), false);
 		}
 		$writer->syncFlushBuffer();
 		$writer->shutdown();
@@ -94,26 +106,29 @@ final class LoggingFilesystemTest extends TestCase{
 
 	public function testBufferIsBoundedAndReportsDroppedLines() : void{
 		$file = $this->root . "/server.log";
-		$writer = new MainLoggerThread($file, null);
-		$body = str_repeat("x", 1024 * 1024 - 32);
+		$writer = new LogDispatcher($file, null, configuration: ["buffer-bytes" => 262144]);
 		for($i = 0; $i < 12; ++$i){
-			$writer->write("line $i $body\n");
+			$writer->submit(log\Event::create("info", "line $i " . str_repeat("x", 60000)), false);
 		}
+		self::assertGreaterThan(0, $writer->getQueue()->stats()["dropped"]);
+		self::assertLessThanOrEqual(262144, $writer->getQueue()->stats()["bytes"]);
+		$writer->submit(log\Event::create("error", "important diagnostic"), true);
 		$writer->start(Thread::INHERIT_NONE);
 		$writer->syncFlushBuffer();
 		$writer->shutdown();
 		$content = file_get_contents($file);
 		self::assertIsString($content);
-		self::assertStringContainsString("dropped", $content);
-		self::assertStringContainsString("line 11 ", $content);
-		self::assertLessThanOrEqual(8 * 1024 * 1024 + 128, strlen($content));
+		self::assertStringContainsString("Dropped", $content);
+		self::assertStringContainsString("important diagnostic", $content);
+		self::assertStringContainsString("line 0 ", $content);
 	}
 
 	public function testWriterFailureUnblocksFlush() : void{
 		$file = $this->root . "/server.log";
 		$archive = $this->root . "/archive";
 		file_put_contents($file, str_repeat("x", 2048));
-		$writer = new MainLoggerThread($file, $archive, 1024);
+		$writer = new LogDispatcher($file, $archive, 1024);
+		mkdir($archive);
 		rmdir($archive);
 		file_put_contents($archive, "blocks rotation");
 		$writer->start(Thread::INHERIT_NONE);
@@ -164,7 +179,7 @@ final class LoggingFilesystemTest extends TestCase{
 		$data->trace = [];
 		$dump = $this->createMock(CrashDump::class);
 		$dump->method("getData")->willReturn($data);
-		$dump->method("encodeData")->willReturnCallback(static function(CrashDumpRenderer $renderer) : void{ $renderer->addLine("encoded data"); });
+		$dump->method("encodeData")->willReturnCallback(static function(CrashDumpRenderer $renderer) : void{ $renderer->addLine("\x1b[31mencoded data\x1b[0m"); });
 		$write = new \ReflectionMethod(Server::class, "writeCrashDumpFile");
 		$first = $write->invoke($server, $dump);
 		$second = $write->invoke($server, $dump);
@@ -177,6 +192,8 @@ final class LoggingFilesystemTest extends TestCase{
 		self::assertIsString($secondReport);
 		self::assertStringContainsString("encoded data", $firstReport);
 		self::assertStringContainsString("encoded data", $secondReport);
+		self::assertStringNotContainsString("\x1b", $firstReport);
+		self::assertStringNotContainsString("\x1b", $secondReport);
 		$failed = $this->createMock(CrashDump::class);
 		$failed->method("getData")->willReturn($data);
 		$failed->method("encodeData")->willThrowException(new \RuntimeException("render failed"));
@@ -191,4 +208,23 @@ final class LoggingFilesystemTest extends TestCase{
 		self::assertCount(2, $reports);
 		self::assertSame([], glob($this->root . "/diagnostics/crashes/*.tmp"));
 	}
+	public function testShutdownRacingActiveProducersAccountsForEveryEvent() : void{
+		$file = $this->root . "/shutdown.log";
+		$writer = new LogDispatcher($file, null);
+		$writer->start(Thread::INHERIT_NONE);
+		$workers = [];
+		for($i = 0; $i < 4; ++$i){
+			$worker = new LoggingProducer($writer, "worker$i");
+			$worker->start(Thread::INHERIT_NONE);
+			$workers[] = $worker;
+		}
+		$writer->shutdown();
+		foreach($workers as $worker){ $worker->join(); }
+		$stats = $writer->getQueue()->stats();
+		self::assertSame(800, $stats["accepted"] + $stats["dropped"]);
+		self::assertSame($stats["accepted"], preg_match_all("/worker[0-3]:[0-9]+/", Filesystem::fileGetContents($file)));
+		self::assertSame(0, $stats["queued"]);
+		$writer->shutdown();
+	}
+
 }

@@ -68,7 +68,7 @@ final class ConsoleReaderChildProcessDaemon{
 	public function __construct(
 		\Logger $logger
 	){
-		$this->logger = new \PrefixedLogger($logger, "Console Reader Daemon");
+		$this->logger = new \quark\log\SourceLogger($logger, "Console Reader Daemon");
 		$this->commandTokenSeed = mt_rand();
 		$this->prepareSubprocess();
 	}

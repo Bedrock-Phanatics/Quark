@@ -25,6 +25,7 @@ namespace quark\utils;
 
 use quark\thread\Thread;
 use function count;
+use function error_log;
 use function exec;
 use function fclose;
 use function file;
@@ -131,7 +132,9 @@ final class Process{
 	public static function kill(int $pid, bool $subprocesses = false) : void{
 		$logger = \GlobalLogger::get();
 		if($logger instanceof MainLogger){
-			$logger->syncFlushBuffer();
+			try{ $logger->syncFlushBuffer(); }catch(\RuntimeException $error){
+	error_log("Log flush failed before process termination: " . $error->getMessage());
+   }
 		}
 		switch(Utils::getOS()){
 			case Utils::OS_WINDOWS:

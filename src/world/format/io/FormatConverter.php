@@ -53,7 +53,7 @@ class FormatConverter{
 		\Logger $logger,
 		private int $chunksPerProgressUpdate = 256
 	){
-		$this->logger = new \PrefixedLogger($logger, "World Converter: " . $this->oldProvider->getWorldData()->getName());
+		$this->logger = new \quark\log\SourceLogger($logger, "World Converter: " . $this->oldProvider->getWorldData()->getName());
 
 		if(!file_exists($backupPath)){
 			@mkdir($backupPath, 0777, true);

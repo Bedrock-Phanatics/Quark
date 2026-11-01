@@ -41,7 +41,7 @@ class UpdateChecker{
 
 	public function __construct(Server $server, string $endpoint){
 		$this->server = $server;
-		$this->logger = new \PrefixedLogger($server->getLogger(), "Update Checker");
+		$this->logger = new \quark\log\SourceLogger($server->getLogger(), "Update Checker");
 		$this->endpoint = $endpoint !== "" ? "https://$endpoint/api/" : "";
 
 		if($this->endpoint !== "" && $server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_UPDATER_ENABLED, false)){

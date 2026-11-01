@@ -53,6 +53,14 @@ return array (
   ),
   'logging' =>
   array (
+    'console-level' => 'info',
+    'file-level' => 'info',
+    'json-level' => 'info',
+    'color' => 'auto',
+    'console-style' => 'columns',
+    'json' => false,
+    'buffer-bytes' => 8388608,
+    'flush-ms' => 200,
     'max-file-size' => 33554432,
     'max-archives' => 0,
   ),

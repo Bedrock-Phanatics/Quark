@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\pulse\internal;
 
+use quark\log\LogDispatcher;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
 use quark\pulse\Pulse;
@@ -32,7 +33,6 @@ use quark\scheduler\AsyncPool;
 use quark\scheduler\PulseControlTask;
 use quark\thread\ThreadManager;
 use quark\thread\ThreadSafeClassLoader;
-use quark\utils\MainLoggerThread;
 use function array_values;
 use function count;
 use function hrtime;
@@ -63,7 +63,7 @@ final class PulseRecorder{
 	private int $maxSpikes = 32;
 	private ?PulseNetworkWatchdog $watchdog = null;
 
-	public function __construct(private readonly AsyncPool $pool, private readonly ?MainLoggerThread $logWriter = null, private readonly ?ThreadSafeClassLoader $loader = null){
+	public function __construct(private readonly AsyncPool $pool, private readonly ?LogDispatcher $logWriter = null, private readonly ?ThreadSafeClassLoader $loader = null){
 		$pool->addWorkerStartHook(function(int $worker) : void{
 			if($this->isRecording()){
 				$this->control(PulseControlTask::START, $worker);

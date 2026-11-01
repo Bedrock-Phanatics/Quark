@@ -321,7 +321,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	public function __construct(Server $server, NetworkSession $session, PlayerInfo $playerInfo, bool $authenticated, Location $spawnLocation, ?CompoundTag $namedtag){
 		$username = TextFormat::clean($playerInfo->getUsername());
-		$this->logger = new \PrefixedLogger($server->getLogger(), "Player: $username");
+		$this->logger = new \quark\log\SourceLogger($server->getLogger(), "Player: $username");
 
 		$this->server = $server;
 		$this->networkSession = $session;
