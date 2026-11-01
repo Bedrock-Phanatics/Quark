@@ -197,7 +197,7 @@ class WorldManager{
 		$providerClass = array_shift($providers);
 
 		try{
-			$provider = $providerClass->fromPath($path, new \PrefixedLogger($this->server->getLogger(), "World Provider: $name"));
+			$provider = $providerClass->fromPath($path, new \quark\log\SourceLogger($this->server->getLogger(), "World Provider: $name"));
 		}catch(CorruptedWorldException $e){
 			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
@@ -248,7 +248,7 @@ class WorldManager{
 			$providerClass = $this->providerManager->getDefault();
 			$converter = new FormatConverter($provider, $providerClass, Path::join($this->server->getFilesystemPaths()->backups(), "worlds"), $this->server->getLogger());
 			$converter->execute();
-			$provider = $providerClass->fromPath($path, new \PrefixedLogger($this->server->getLogger(), "World Provider: $name"));
+			$provider = $providerClass->fromPath($path, new \quark\log\SourceLogger($this->server->getLogger(), "World Provider: $name"));
 
 			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_conversion_finish($name, $converter->getBackupPath())));
 		}
@@ -278,7 +278,7 @@ class WorldManager{
 		$path = $this->getWorldPath($name);
 		$providerEntry->generate($path, $name, $options);
 
-		$world = new World($this->server, $name, $providerEntry->fromPath($path, new \PrefixedLogger($this->server->getLogger(), "World Provider: $name")), $this->server->getAsyncPool());
+		$world = new World($this->server, $name, $providerEntry->fromPath($path, new \quark\log\SourceLogger($this->server->getLogger(), "World Provider: $name")), $this->server->getAsyncPool());
 		$this->worlds[$world->getId()] = $world;
 
 		$world->setAutoSave($this->autoSave);

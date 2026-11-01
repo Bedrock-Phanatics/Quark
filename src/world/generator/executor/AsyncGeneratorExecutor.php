@@ -50,7 +50,7 @@ final class AsyncGeneratorExecutor implements GeneratorExecutor{
 		private readonly GeneratorExecutorSetupParameters $setupParameters,
 		?int $asyncContextId = null
 	){
-		$this->logger = new \PrefixedLogger($logger, "AsyncGeneratorExecutor");
+		$this->logger = new \quark\log\SourceLogger($logger, "AsyncGeneratorExecutor");
 
 		$this->asyncContextId = $asyncContextId ?? self::$nextAsyncContextId++;
 

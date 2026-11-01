@@ -46,7 +46,7 @@ class DumpWorkerMemoryTask extends AsyncTask{
 			Path::join($this->outputFolder, "AsyncWorker#" . $worker->getAsyncWorkerId()),
 			$this->maxNesting,
 			$this->maxStringSize,
-			new \PrefixedLogger($worker->getLogger(), "Memory Dump")
+			new \quark\log\SourceLogger($worker->getLogger(), "Memory Dump")
 		);
 	}
 }

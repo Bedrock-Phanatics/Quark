@@ -94,7 +94,7 @@ class McRegion extends RegionWorldProvider{
 				$fullIds,
 				$fullData,
 				$y,
-				new \PrefixedLogger($logger, "Subchunk y=$y"),
+				new \quark\log\SourceLogger($logger, "Subchunk y=$y"),
 			)], clone $biomes3d);
 		}
 		for($y = Chunk::MIN_SUBCHUNK_INDEX; $y <= Chunk::MAX_SUBCHUNK_INDEX; ++$y){

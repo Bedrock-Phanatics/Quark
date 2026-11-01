@@ -404,13 +404,6 @@ JIT_WARNING
 		Timezone::init();
 
 		$opts = getopt("", [BootstrapOptions::NO_WIZARD, BootstrapOptions::ENABLE_ANSI, BootstrapOptions::DISABLE_ANSI, BootstrapOptions::NO_LOG_FILE]);
-		if(isset($opts[BootstrapOptions::ENABLE_ANSI])){
-			Terminal::init(true);
-		}elseif(isset($opts[BootstrapOptions::DISABLE_ANSI])){
-			Terminal::init(false);
-		}else{
-			Terminal::init();
-		}
 		$logFile = isset($opts[BootstrapOptions::NO_LOG_FILE]) ? null : Path::join($paths->logs(), "server.log");
 
 		try{
@@ -422,8 +415,15 @@ JIT_WARNING
 			exit(1);
 		}
 		$logging = $configuration["logging"] ?? [];
+		if(isset($opts[BootstrapOptions::DISABLE_ANSI])){
+			Terminal::init(false);
+		}elseif(isset($opts[BootstrapOptions::ENABLE_ANSI])){
+			Terminal::init(true);
+		}else{
+			Terminal::init();
+		}
 		try{
-			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), false, Path::join($paths->logs(), "archive"), $logging["max-file-size"] ?? 32 * 1024 * 1024, $logging["max-archives"] ?? 0);
+			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), Path::join($paths->logs(), "archive"), $logging["max-file-size"] ?? 32 * 1024 * 1024, $logging["max-archives"] ?? 0, $logging);
 		}catch(\Throwable $e){
 			critical_error($e->getMessage());
 			Filesystem::releaseLockFile($lockFilePath);

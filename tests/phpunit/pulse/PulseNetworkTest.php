@@ -35,6 +35,7 @@ use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
 use quark\event\server\DataPacketDecodeEvent;
 use quark\event\server\DataPacketReceiveEvent;
+use quark\log\LogDispatcher;
 use quark\network\AdvancedNetworkInterface;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
@@ -68,7 +69,6 @@ use quark\pulse\internal\PulseNetwork;
 use quark\pulse\internal\PulseNetworkWatchdog;
 use quark\pulse\internal\PulseNetworkWork;
 use quark\pulse\internal\PulseZones;
-use quark\utils\MainLoggerThread;
 use quark\utils\Utils;
 use raklib\server\ipc\UserToRakLibThreadMessageSender;
 use function array_column;
@@ -77,6 +77,7 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function count;
+use function file_put_contents;
 use function function_exists;
 use function gzencode;
 use function json_encode;
@@ -720,7 +721,8 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testActivePacketStagesRestoreNestedCallsAndClearFailures() : void{
 		$file = sys_get_temp_dir() . "/" . uniqid("pulse-packet-work-", true);
-		$watchdog = new PulseNetworkWatchdog(new MainLoggerThread($file, null), 1);
+		file_put_contents($file, "");
+		$watchdog = new PulseNetworkWatchdog(new LogDispatcher($file, null), 1);
 		Pulse::start();
 		$network = Pulse::getNetworkTelemetry();
 		self::assertNotNull($network);
@@ -788,7 +790,8 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testCaptureChangesInsidePacketCallbacksKeepNewWorkIntact() : void{
 		$file = sys_get_temp_dir() . "/" . uniqid("pulse-packet-reset-", true);
-		$writer = new MainLoggerThread($file, null);
+		file_put_contents($file, "");
+		$writer = new LogDispatcher($file, null);
 		$watchdog = new PulseNetworkWatchdog($writer, 1);
 		$newWatchdog = new PulseNetworkWatchdog($writer, 2);
 		Pulse::start();

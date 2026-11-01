@@ -80,11 +80,11 @@ class LevelDB extends BedrockWorldProvider{
 			$this->db = self::createDB($path);
 		}catch(\LevelDBException $e){
 			$message = trim($e->getMessage());
-			//LevelDB reports a held lock as "IO error: lock <path>/LOCK: ...", whichever process holds it
-			if(preg_match('/^IO error: lock .*[\/\\\\]LOCK: /', $message) === 1){
+			// Windows omits the "lock " prefix before the path
+			if(preg_match('/^IO error: (?:lock )?.*[\/\\\\]LOCK: /', $message) === 1){
 				throw new WorldInUseException($message, 0, $e);
 			}
-			//other than that, we can't tell the difference between errors caused by bad permissions and actual corruption :(
+			// Other I/O failures may be permissions errors rather than corruption
 			throw new CorruptedWorldException($message, 0, $e);
 		}
 	}

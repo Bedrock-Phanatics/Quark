@@ -165,10 +165,9 @@ final class CoreConfig{
 		if(!is_array($migration) || !is_bool($migration["auto_on_startup"] ?? false)){
 			throw new \InvalidArgumentException("Invalid migration.auto_on_startup: expected boolean");
 		}
-		$logging = $data["logging"] ?? [];
-		if(!is_array($logging) || isset($logging["max-file-size"]) && (!is_int($logging["max-file-size"]) || $logging["max-file-size"] < 1024 || $logging["max-file-size"] > 1_099_511_627_776)){
-			throw new \InvalidArgumentException("Invalid logging.max-file-size: expected integer from 1024 bytes to 1 TiB");
-		}
+		$logging = array_key_exists("logging", $data) ? $data["logging"] : [];
+		if(!is_array($logging)){ throw new \InvalidArgumentException("Invalid logging: expected table"); }
+		new log\LoggingConfig($logging);
 		$diagnostics = $data["diagnostics"] ?? [];
 		if(!is_array($diagnostics)){
 			throw new \InvalidArgumentException("Invalid diagnostics: expected table");

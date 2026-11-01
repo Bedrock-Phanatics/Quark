@@ -198,7 +198,7 @@ abstract class RegionWorldProvider extends BaseWorldProvider{
 
 		$chunkData = $this->loadRegion($regionX, $regionZ)->readChunk($chunkX & 0x1f, $chunkZ & 0x1f);
 		if($chunkData !== null){
-			return $this->deserializeChunk($chunkData, new \PrefixedLogger($this->logger, "Loading chunk x=$chunkX z=$chunkZ"));
+			return $this->deserializeChunk($chunkData, new \quark\log\SourceLogger($this->logger, "Loading chunk x=$chunkX z=$chunkZ"));
 		}
 
 		return null;

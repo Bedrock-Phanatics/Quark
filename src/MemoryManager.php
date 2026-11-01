@@ -70,7 +70,7 @@ class MemoryManager{
 	public function __construct(
 		private Server $server
 	){
-		$this->logger = new \PrefixedLogger($server->getLogger(), "Memory Manager");
+		$this->logger = new log\SourceLogger($server->getLogger(), "Memory Manager");
 		$gcThreshold = $server->getConfigGroup()->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD);
 		$this->cycleGcManager = new GarbageCollectorManager($this->logger, $gcThreshold);
 
@@ -226,7 +226,7 @@ class MemoryManager{
 	 * Dumps the server memory into the specified output folder.
 	 */
 	public function dumpServerMemory(string $outputFolder, int $maxNesting, int $maxStringSize) : void{
-		$logger = new \PrefixedLogger($this->server->getLogger(), "Memory Dump");
+		$logger = new log\SourceLogger($this->server->getLogger(), "Memory Dump");
 		$logger->notice("After the memory dump is done, the server might crash");
 		MemoryDump::dumpMemory($this->server, $outputFolder, $maxNesting, $maxStringSize, $logger);
 

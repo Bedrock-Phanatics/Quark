@@ -116,10 +116,6 @@ transport:
     #Deliver messages clients send on the unreliable channel to BedwireInterface::setUnreliablePacketHandler(). Off drops them natively.
     unreliable-events: false
 
-debug:
-  #If > 1, it will show debug messages in the console
-  level: 1
-
 player:
   #Choose whether to enable player data saving.
   save-player-data: true

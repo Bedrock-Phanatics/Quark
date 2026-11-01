@@ -291,7 +291,7 @@ class NetworkSession{
 		private ?TransportIdentityKey $transportIdentityKey = null,
 		private bool $transportEncrypted = false
 	){
-		$this->logger = new \PrefixedLogger($this->server->getLogger(), $this->getLogPrefix());
+		$this->logger = new \quark\log\SourceLogger($this->server->getLogger(), $this->getLogPrefix());
 
 		$this->compressedQueue = new \SplQueue();
 		$this->latencySensitiveFlushEnabled = $this->server->isLowLatencyCombatFeedbackEnabled();

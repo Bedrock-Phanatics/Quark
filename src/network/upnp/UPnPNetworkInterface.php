@@ -39,7 +39,7 @@ final class UPnPNetworkInterface implements NetworkInterface{
 			throw new \RuntimeException("Server is offline");
 		}
 
-		$this->logger = new \PrefixedLogger($logger, "UPnP Port Forwarder");
+		$this->logger = new \quark\log\SourceLogger($logger, "UPnP Port Forwarder");
 	}
 
 	public function start() : void{

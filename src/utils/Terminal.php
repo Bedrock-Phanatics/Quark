@@ -27,9 +27,7 @@ use function fclose;
 use function fopen;
 use function function_exists;
 use function getenv;
-use function is_string;
 use function sapi_windows_vt100_support;
-use function shell_exec;
 use function stream_isatty;
 use const PHP_EOL;
 
@@ -84,12 +82,8 @@ abstract class Terminal{
 	private static function detectFormattingCodesSupport() : bool{
 		$stdout = fopen("php://stdout", "w");
 		if($stdout === false) throw new AssumptionFailedError("Opening php://stdout should never fail");
-		$result = (
-			stream_isatty($stdout) && //STDOUT isn't being piped
-			(
-				getenv('TERM') !== false || //Console says it supports colours
-				(function_exists('sapi_windows_vt100_support') && sapi_windows_vt100_support($stdout)) //we're on windows and have vt100 support
-			)
+		$result = stream_isatty($stdout) && (
+			function_exists('sapi_windows_vt100_support') ? sapi_windows_vt100_support($stdout, true) : getenv('TERM') !== false
 		);
 		fclose($stdout);
 		return $result;
@@ -137,83 +131,48 @@ abstract class Terminal{
 		self::$COLOR_PARTY_BLUE = $color(111);
 	}
 
-	protected static function getEscapeCodes() : void{
-		$tput = fn(string $args) => is_string($result = shell_exec("tput $args")) ? $result : "";
-		$setaf = fn(int $code) => $tput("setaf $code");
-
-		self::$FORMAT_BOLD = $tput("bold");
-		self::$FORMAT_OBFUSCATED = $tput("smacs");
-		self::$FORMAT_ITALIC = $tput("sitm");
-		self::$FORMAT_UNDERLINE = $tput("smul");
-		self::$FORMAT_STRIKETHROUGH = "\x1b[9m"; //`tput `;
-
-		self::$FORMAT_RESET = $tput("sgr0");
-
-		$colors = (int) $tput("colors");
-		if($colors > 8){
-			self::$COLOR_BLACK = $colors >= 256 ? $setaf(16) : $setaf(0);
-			self::$COLOR_DARK_BLUE = $colors >= 256 ? $setaf(19) : $setaf(4);
-			self::$COLOR_DARK_GREEN = $colors >= 256 ? $setaf(34) : $setaf(2);
-			self::$COLOR_DARK_AQUA = $colors >= 256 ? $setaf(37) : $setaf(6);
-			self::$COLOR_DARK_RED = $colors >= 256 ? $setaf(124) : $setaf(1);
-			self::$COLOR_PURPLE = $colors >= 256 ? $setaf(127) : $setaf(5);
-			self::$COLOR_GOLD = $colors >= 256 ? $setaf(214) : $setaf(3);
-			self::$COLOR_GRAY = $colors >= 256 ? $setaf(145) : $setaf(7);
-			self::$COLOR_DARK_GRAY = $colors >= 256 ? $setaf(59) : $setaf(8);
-			self::$COLOR_BLUE = $colors >= 256 ? $setaf(63) : $setaf(12);
-			self::$COLOR_GREEN = $colors >= 256 ? $setaf(83) : $setaf(10);
-			self::$COLOR_AQUA = $colors >= 256 ? $setaf(87) : $setaf(14);
-			self::$COLOR_RED = $colors >= 256 ? $setaf(203) : $setaf(9);
-			self::$COLOR_LIGHT_PURPLE = $colors >= 256 ? $setaf(207) : $setaf(13);
-			self::$COLOR_YELLOW = $colors >= 256 ? $setaf(227) : $setaf(11);
-			self::$COLOR_WHITE = $colors >= 256 ? $setaf(231) : $setaf(15);
-			self::$COLOR_MINECOIN_GOLD = $colors >= 256 ? $setaf(184) : $setaf(11);
-			self::$COLOR_MATERIAL_QUARTZ = $colors >= 256 ? $setaf(188) : $setaf(7);
-			self::$COLOR_MATERIAL_IRON = $colors >= 256 ? $setaf(251) : $setaf(7);
-			self::$COLOR_MATERIAL_NETHERITE = $colors >= 256 ? $setaf(237) : $setaf(1);
-			self::$COLOR_MATERIAL_REDSTONE = $colors >= 256 ? $setaf(88) : $setaf(9);
-			self::$COLOR_MATERIAL_COPPER = $colors >= 256 ? $setaf(131) : $setaf(3);
-			self::$COLOR_MATERIAL_GOLD = $colors >= 256 ? $setaf(178) : $setaf(11);
-			self::$COLOR_MATERIAL_EMERALD = $colors >= 256 ? $setaf(35) : $setaf(2);
-			self::$COLOR_MATERIAL_DIAMOND = $colors >= 256 ? $setaf(37) : $setaf(14);
-			self::$COLOR_MATERIAL_LAPIS = $colors >= 256 ? $setaf(24) : $setaf(12);
-			self::$COLOR_MATERIAL_AMETHYST = $colors >= 256 ? $setaf(98) : $setaf(13);
-			self::$COLOR_MATERIAL_RESIN = $colors >= 256 ? $setaf(208) : $setaf(11);
-			self::$COLOR_PARTY_BLUE = $colors >= 256 ? $setaf(111) : $setaf(12);
-		}else{
-			self::$COLOR_BLACK = self::$COLOR_DARK_GRAY = self::$COLOR_MATERIAL_NETHERITE = $setaf(0);
-			self::$COLOR_RED = self::$COLOR_DARK_RED = self::$COLOR_MATERIAL_REDSTONE = self::$COLOR_MATERIAL_COPPER = $setaf(1);
-			self::$COLOR_GREEN = self::$COLOR_DARK_GREEN = self::$COLOR_MATERIAL_EMERALD = $setaf(2);
-			self::$COLOR_YELLOW = self::$COLOR_GOLD = self::$COLOR_MINECOIN_GOLD = self::$COLOR_MATERIAL_GOLD = self::$COLOR_MATERIAL_RESIN = $setaf(3);
-			self::$COLOR_BLUE = self::$COLOR_DARK_BLUE = self::$COLOR_MATERIAL_LAPIS = self::$COLOR_PARTY_BLUE = $setaf(4);
-			self::$COLOR_LIGHT_PURPLE = self::$COLOR_PURPLE = self::$COLOR_MATERIAL_AMETHYST = $setaf(5);
-			self::$COLOR_AQUA = self::$COLOR_DARK_AQUA = self::$COLOR_MATERIAL_DIAMOND = $setaf(6);
-			self::$COLOR_GRAY = self::$COLOR_WHITE = self::$COLOR_MATERIAL_QUARTZ = self::$COLOR_MATERIAL_IRON = $setaf(7);
-		}
-	}
-
 	public static function init(?bool $enableFormatting = null) : void{
-		self::$formattingCodes = $enableFormatting ?? self::detectFormattingCodesSupport();
-		if(!self::$formattingCodes){
+		self::$formattingCodes = $enableFormatting ?? (getenv("NO_COLOR") === false && getenv("TERM") !== "dumb" && self::detectFormattingCodesSupport());
+		self::getFallbackEscapeCodes();
+		if(self::$formattingCodes === false){
+			self::$FORMAT_BOLD = "";
+			self::$FORMAT_OBFUSCATED = "";
+			self::$FORMAT_ITALIC = "";
+			self::$FORMAT_UNDERLINE = "";
+			self::$FORMAT_STRIKETHROUGH = "";
+			self::$FORMAT_RESET = "";
+			self::$COLOR_BLACK = "";
+			self::$COLOR_DARK_BLUE = "";
+			self::$COLOR_DARK_GREEN = "";
+			self::$COLOR_DARK_AQUA = "";
+			self::$COLOR_DARK_RED = "";
+			self::$COLOR_PURPLE = "";
+			self::$COLOR_GOLD = "";
+			self::$COLOR_GRAY = "";
+			self::$COLOR_DARK_GRAY = "";
+			self::$COLOR_BLUE = "";
+			self::$COLOR_GREEN = "";
+			self::$COLOR_AQUA = "";
+			self::$COLOR_RED = "";
+			self::$COLOR_LIGHT_PURPLE = "";
+			self::$COLOR_YELLOW = "";
+			self::$COLOR_WHITE = "";
+			self::$COLOR_MINECOIN_GOLD = "";
+			self::$COLOR_MATERIAL_QUARTZ = "";
+			self::$COLOR_MATERIAL_IRON = "";
+			self::$COLOR_MATERIAL_NETHERITE = "";
+			self::$COLOR_MATERIAL_REDSTONE = "";
+			self::$COLOR_MATERIAL_COPPER = "";
+			self::$COLOR_MATERIAL_GOLD = "";
+			self::$COLOR_MATERIAL_EMERALD = "";
+			self::$COLOR_MATERIAL_DIAMOND = "";
+			self::$COLOR_MATERIAL_LAPIS = "";
+			self::$COLOR_MATERIAL_AMETHYST = "";
+			self::$COLOR_MATERIAL_RESIN = "";
+			self::$COLOR_PARTY_BLUE = "";
 			return;
 		}
 
-		switch(Utils::getOS()){
-			case Utils::OS_LINUX:
-			case Utils::OS_MACOS:
-			case Utils::OS_BSD:
-				if(getenv('TERM') !== false){
-					self::getEscapeCodes();
-					return;
-				}
-
-			case Utils::OS_WINDOWS:
-			case Utils::OS_ANDROID:
-				self::getFallbackEscapeCodes();
-				return;
-		}
-
-		//TODO: iOS
 	}
 
 	public static function isInit() : bool{

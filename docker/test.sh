@@ -13,7 +13,7 @@ run_server() {
 	printf 'stop\n' | timeout 120 docker run --rm -i --name "$CONTAINER" \
 		-e QUARK_ARGS="--settings.enable-dev-builds=1 --disable-ansi" \
 		"$@" "$IMAGE" 2>&1 | tee "$TEST_ROOT/server.log"
-	if grep -Eq 'CRITICAL|EMERGENCY|ERROR|axolotl-pm.org/docs|PocketMine-MP' "$TEST_ROOT/server.log"; then
+	if grep -Eq '^[^[:space:]]+[[:space:]]+(ERROR|CRIT|ALERT|EMERG)[[:space:]]|axolotl-pm.org/docs|PocketMine-MP' "$TEST_ROOT/server.log"; then
 		return 1
 	fi
 	grep -F 'This server is running Quark version 6.' "$TEST_ROOT/server.log"

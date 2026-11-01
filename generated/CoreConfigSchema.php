@@ -53,6 +53,13 @@ return array (
   ),
   'logging' =>
   array (
+    'console-level' => 'info',
+    'file-level' => 'info',
+    'json-level' => 'info',
+    'console-style' => 'columns',
+    'json' => false,
+    'buffer-bytes' => 8388608,
+    'flush-ms' => 200,
     'max-file-size' => 33554432,
     'max-archives' => 0,
   ),
@@ -107,10 +114,6 @@ return array (
     'trusted-proxy-keys' =>
     array (
     ),
-  ),
-  'debug' =>
-  array (
-    'level' => 1,
   ),
   'player' =>
   array (

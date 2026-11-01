@@ -18,7 +18,6 @@ use function copy;
 use function dirname;
 use function extension_loaded;
 use function fclose;
-use function fgets;
 use function file_get_contents;
 use function file_put_contents;
 use function flock;
@@ -32,12 +31,10 @@ use function is_link;
 use function json_decode;
 use function json_encode;
 use function mkdir;
-use function proc_close;
-use function proc_open;
-use function proc_terminate;
 use function random_bytes;
 use function rename;
 use function rmdir;
+use function str_contains;
 use function symlink;
 use function sys_get_temp_dir;
 use function unlink;
@@ -145,19 +142,13 @@ final class FilesystemMigrationTest extends TestCase{
 		$path = $this->paths->serverLock();
 		$autoload = dirname(__DIR__, 2) . "/vendor/autoload.php";
 		$script = "require " . var_export($autoload, true) . "; quark\\utils\\Filesystem::createLockFile(" . var_export($path, true) . "); echo getmypid(), PHP_EOL; fflush(STDOUT); fgets(STDIN);";
-		$process = proc_open([PHP_BINARY, "-r", $script], [["pipe", "r"], ["pipe", "w"], ["pipe", "w"]], $pipes);
-		self::assertIsResource($process);
-		try{
-			$pid = fgets($pipes[1]);
-			self::assertIsString($pid);
+		[, $output] = ProcessTestHelper::run([PHP_BINARY, "-r", $script], ready: static function(string $output, string $errors) use ($path) : bool{
+			if(!str_contains($output, "\n")){ return false; }
+			self::assertMatchesRegularExpression('/^[0-9]+\r?\n$/', $output, $errors);
 			self::assertSame(-1, Filesystem::createLockFile($path));
-		}finally{
-			proc_terminate($process);
-			foreach($pipes as $pipe){
-				fclose($pipe);
-			}
-			proc_close($process);
-		}
+			return true;
+		});
+		self::assertStringContainsString("\n", $output);
 		self::assertNull(Filesystem::createLockFile($path));
 		Filesystem::releaseLockFile($path);
 	}
@@ -171,6 +162,24 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertFileDoesNotExist($this->paths->migrationLock());
 		$this->expectExceptionMessage("--migrate-legacy");
 		$this->migration->prepare();
+	}
+
+	public function testLegacyDebugMigratesToNamedDestinationLevels() : void{
+		file_put_contents($this->root . "/quark.yml", "debug:\n  level: 2\n");
+		$this->migration->prepare(true);
+		$config = CoreConfig::load($this->paths->serverToml());
+		self::assertArrayNotHasKey("debug", $config);
+		$logging = self::table($config, "logging");
+		self::assertSame("debug", $logging["console-level"]);
+		self::assertSame("debug", $logging["file-level"]);
+	}
+
+	public function testLegacyDebugPreservesExplicitDestinationLevels() : void{
+		file_put_contents($this->root . "/quark.yml", "debug:\n  level: 2\nlogging:\n  console-level: warning\n");
+		$this->migration->prepare(true);
+		$logging = self::table(CoreConfig::load($this->paths->serverToml()), "logging");
+		self::assertSame("warning", $logging["console-level"]);
+		self::assertSame("debug", $logging["file-level"]);
 	}
 
 	public function testCompleteLegacyInstallationMigratesAndRestartsWithoutChangingData() : void{
