@@ -33,6 +33,7 @@ parameters:
 		- src/Quark.php
 		- tests/phpstan/stubs/bedwire.stub
 		- tests/phpstan/stubs/toml.stub
+		- tests/phpstan/stubs/zigritedb.stub
 	paths:
 		- build
 		- src

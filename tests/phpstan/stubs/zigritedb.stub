@@ -1,0 +1,44 @@
+<?php
+
+namespace Zigrite;
+
+class Exception extends \RuntimeException{}
+
+final class World{
+	/**
+	 * @param array<string, int|bool> $options
+	 */
+	public function __construct(string $path, array $options = []){}
+
+	public static function isSupported() : bool{}
+
+	/**
+	 * @return array<array-key, string>|null
+	 */
+	public function getChunk(int $dimension, int $chunkX, int $chunkZ) : ?array{}
+
+	/**
+	 * @param array<array-key, string|null> $records
+	 */
+	public function writeChunk(int $dimension, int $chunkX, int $chunkZ, array $records) : void{}
+
+	public function auxGet(string $key) : ?string{}
+
+	public function auxPut(string $key, string $value) : void{}
+
+	public function auxDelete(string $key) : void{}
+
+	/**
+	 * @return list<array{int, int}>
+	 */
+	public function listChunks(int $dimension) : array{}
+
+	public function flush() : void{}
+
+	public function close() : void{}
+
+	/**
+	 * @return array<string, int>
+	 */
+	public function getStatistics() : array{}
+}

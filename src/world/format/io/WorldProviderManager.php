@@ -28,6 +28,7 @@ use quark\world\format\io\leveldb\LevelDB;
 use quark\world\format\io\region\Anvil;
 use quark\world\format\io\region\McRegion;
 use quark\world\format\io\region\PMAnvil;
+use quark\world\format\io\zigrite\ZigriteDB;
 use function strtolower;
 use function trim;
 
@@ -44,6 +45,7 @@ final class WorldProviderManager{
 		$leveldb = new WritableWorldProviderManagerEntry(LevelDB::isValid(...), fn(string $path, \Logger $logger) => new LevelDB($path, $logger), LevelDB::generate(...));
 		$this->default = $leveldb;
 		$this->addProvider($leveldb, "leveldb");
+		$this->addProvider(new WritableWorldProviderManagerEntry(ZigriteDB::isValid(...), fn(string $path, \Logger $logger) => new ZigriteDB($path, $logger), ZigriteDB::generate(...)), "zigritedb");
 
 		$this->addProvider(new ReadOnlyWorldProviderManagerEntry(Anvil::isValid(...), fn(string $path, \Logger $logger) => new Anvil($path, $logger)), "anvil");
 		$this->addProvider(new ReadOnlyWorldProviderManagerEntry(McRegion::isValid(...), fn(string $path, \Logger $logger) => new McRegion($path, $logger)), "mcregion");
