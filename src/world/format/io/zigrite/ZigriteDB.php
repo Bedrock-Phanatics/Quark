@@ -37,6 +37,8 @@ use function count;
 use function extension_loaded;
 use function file_exists;
 use function mkdir;
+use function phpversion;
+use function version_compare;
 
 /**
  * Bedrock chunk records stored in ZigriteDB through ext-zigritedb. `zigrite import` turns a LevelDB world into one,
@@ -54,11 +56,12 @@ final class ZigriteDB extends BedrockWorldProvider{
 
 	/**
 	 * @return mixed[]
-	 * @phpstan-return array<string, int>
+	 * @phpstan-return array<string, int|bool>
 	 */
 	private static function options() : array{
-		//skip_unchanged would save most writes, but ZigriteDB 1.1.0 aborts when it drops a record ahead of others
 		return [
+			//a save rewrites every record of the chunk, and most of them haven't changed
+			"skip_unchanged" => true,
 			//chunks bigger than this are still saved, just without being atomic
 			"batch_buffer_size" => 16 * 1024 * 1024,
 			//an evicted region is synced and reopened later, which made random loads 15x slower at the default 64
@@ -69,6 +72,11 @@ final class ZigriteDB extends BedrockWorldProvider{
 	private static function checkForExtension() : void{
 		if(!extension_loaded("zigritedb")){
 			throw new UnsupportedWorldFormatException("The zigritedb PHP extension is required to use this world format");
+		}
+		//older builds link ZigriteDB versions whose skip_unchanged can abort the process
+		$version = phpversion("zigritedb");
+		if($version === false || version_compare($version, "0.2.0", "<")){
+			throw new UnsupportedWorldFormatException("ZigriteDB worlds need ext-zigritedb 0.2.0 or newer, found " . ($version === false ? "none" : $version));
 		}
 		if(!ZigriteWorld::isSupported()){
 			throw new UnsupportedWorldFormatException("ZigriteDB can't store worlds on this platform");
