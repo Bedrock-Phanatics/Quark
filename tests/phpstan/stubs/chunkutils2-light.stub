@@ -1,0 +1,49 @@
+<?php
+
+namespace pocketmine\world\format;
+
+final class LightEngine{
+    /**
+     * @param array<int, int>  $lightFilters
+     * @param array<int, int>  $lightEmitters
+     * @param array<int, true> $directSkyLightBlockers
+     */
+    public function __construct(array $lightFilters, array $lightEmitters, array $directSkyLightBlockers) {}
+
+    /**
+     * @param array<int, int>                     $emptyBlockIds
+     * @param array<int, PalettedBlockArray|null> $blocks
+     * @param array<int, LightArray>              $blockLight
+     * @param array<int, LightArray>              $skyLight
+     * @param list<int>                           $heightMap
+     */
+    public function setChunk(int $chunkX, int $chunkZ, array $emptyBlockIds, array $blocks, array $blockLight, array $skyLight, array $heightMap): void {}
+
+    public function hasChunk(int $chunkX, int $chunkZ): bool {}
+
+    public function removeChunk(int $chunkX, int $chunkZ): void {}
+
+    public function clear(): void {}
+
+    /**
+     * @return non-empty-list<int>
+     */
+    public function getHeightMap(int $chunkX, int $chunkZ): array {}
+
+    public function recalculateBlockNode(int $x, int $y, int $z): void {}
+
+    public function recalculateSkyNode(int $x, int $y, int $z): ?int {}
+
+    /**
+     * @param list<array{int, int, int, int, int}> $changes
+     */
+    public function applyChanges(array $changes): void {}
+
+    public function recalculateBlockChunk(int $chunkX, int $chunkZ): int {}
+
+    public function recalculateSkyChunk(int $chunkX, int $chunkZ): int {}
+
+    public function executeBlock(): int {}
+
+    public function executeSky(): int {}
+}

@@ -24,13 +24,9 @@ declare(strict_types=1);
 namespace quark\world\light;
 
 use pocketmine\world\format\LightArray;
-use quark\block\RuntimeBlockStateRegistry;
 use quark\scheduler\AsyncTask;
 use quark\world\format\Chunk;
 use quark\world\format\io\FastChunkSerializer;
-use quark\world\SimpleChunkManager;
-use quark\world\utils\SubChunkExplorer;
-use quark\world\World;
 use function igbinary_serialize;
 use function igbinary_unserialize;
 
@@ -54,27 +50,26 @@ class LightPopulationTask extends AsyncTask{
 	public function onRun() : void{
 		$chunk = FastChunkSerializer::deserializeTerrain($this->chunk);
 
-		$manager = new SimpleChunkManager(World::Y_MIN, World::Y_MAX);
-		$manager->setChunk(0, 0, $chunk);
-
-		$blockFactory = RuntimeBlockStateRegistry::getInstance();
-		foreach([
-			"Block" => new BlockLightUpdate(new SubChunkExplorer($manager), $blockFactory->lightFilter, $blockFactory->light),
-			"Sky" => new SkyLightUpdate(new SubChunkExplorer($manager), $blockFactory->lightFilter, $blockFactory->blocksDirectSkyLight),
-		] as $name => $update){
-			$update->recalculateChunk(0, 0);
-			$update->execute();
+		//same propagation as BlockLightUpdate and SkyLightUpdate, filling the chunk's light arrays in place
+		$engine = NativeLight::getEngine();
+		try{
+			NativeLight::setChunk($engine, 0, 0, $chunk);
+			$engine->recalculateBlockChunk(0, 0);
+			$engine->executeBlock();
+			$engine->recalculateSkyChunk(0, 0);
+			$engine->executeSky();
+			$heightMap = $engine->getHeightMap(0, 0);
+		}finally{
+			$engine->clear();
 		}
 
-		$chunk->setLightPopulated();
-
-		$this->resultHeightMap = igbinary_serialize($chunk->getHeightMapArray());
 		$skyLightArrays = [];
 		$blockLightArrays = [];
 		foreach($chunk->getSubChunks() as $y => $subChunk){
 			$skyLightArrays[$y] = $subChunk->getBlockSkyLightArray();
 			$blockLightArrays[$y] = $subChunk->getBlockLightArray();
 		}
+		$this->resultHeightMap = igbinary_serialize($heightMap);
 		$this->resultSkyLightArrays = igbinary_serialize($skyLightArrays);
 		$this->resultBlockLightArrays = igbinary_serialize($blockLightArrays);
 	}

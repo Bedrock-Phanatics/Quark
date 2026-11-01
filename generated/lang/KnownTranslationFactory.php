@@ -2331,6 +2331,12 @@ final class KnownTranslationFactory{
 		]);
 	}
 
+	public static function quark_level_inUse(Translatable|string $details) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_INUSE, [
+			"details" => $details,
+		]);
+	}
+
 	public static function quark_level_invalidGeneratorOptions(Translatable|string $preset, Translatable|string $generatorName, Translatable|string $details) : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_LEVEL_INVALIDGENERATOROPTIONS, [
 			"preset" => $preset,
