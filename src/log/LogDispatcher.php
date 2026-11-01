@@ -16,7 +16,6 @@ use function unserialize;
 final class LogDispatcher extends Thread{
 	private EventQueue $queue;
 	private string $configuration;
-	public bool $debug = false;
 
 	/** @param array<string, mixed> $configuration */
 	public function __construct(private ?string $file, private ?string $archive, int $maxSize = 33554432, int $retention = 0, array $configuration = [], private bool $console = false, private bool $ansi = false, private string $timezone = "UTC"){
@@ -67,7 +66,6 @@ final class LogDispatcher extends Thread{
 		/** @var array<string, Sink> $sinks */
 		$sinks = [];
 		$thresholds = [];
-		$legacyDebug = ["console" => !isset($configuration["console-level"]), "file" => !isset($configuration["file-level"]), "json" => !isset($configuration["json-level"])];
 		$emergency = $this->file === null ? null : $this->file . ".emergency";
 		$failure = null;
 		$fileFailed = false;
@@ -95,7 +93,7 @@ final class LogDispatcher extends Thread{
 					$thresholds["console"] = $config->consoleLevel;
 				}catch(\Throwable $error){ $reportFailure("console", $error); }
 			}
-			$dispatch = function(string $record) use (&$sinks, &$fileFailed, $thresholds, $legacyDebug, $reportFailure, $emergency) : void{
+			$dispatch = function(string $record) use (&$sinks, &$fileFailed, $thresholds, $reportFailure, $emergency) : void{
 				/** @var LogEvent $event */
 				$event = unserialize($record, ["allowed_classes" => false]);
 				$event = Event::cleanEvent($event);
@@ -106,7 +104,7 @@ final class LogDispatcher extends Thread{
 					$name = (string) $name;
 					if($event["category"] === "diagnostic" && $name === "console"){ continue; }
 					$consoleOutput = $name === "console" && ($event["category"] === "output" || $event["category"] === "command");
-					if(!$consoleOutput && $event["category"] !== "diagnostic" && $priority > $thresholds[$name] && !($priority === 7 && ($this->debug && $legacyDebug[$name] || ($event["force"] ?? false)))){ continue; }
+					if(!$consoleOutput && $event["category"] !== "diagnostic" && $priority > $thresholds[$name] && !($priority === 7 && ($event["force"] ?? false))){ continue; }
 					try{ $sink->write($event); if($important){ $sink->flush(); } }catch(\Throwable $error){
 						$reportFailure($name, $error);
 						if($important){ EmergencyWriter::write($emergency, $event, "Sink write failed"); }

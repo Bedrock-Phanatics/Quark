@@ -35,16 +35,25 @@ auto-updater.host = ''
 auto_on_startup = false
 
 [logging]
+# Minimum severity for each destination, from most to least verbose:
+# debug, info, notice, warning, error, critical, alert, emergency.
+# Set a destination to 'debug' when you need its detailed diagnostics.
 console-level = 'info'
 file-level = 'info'
+# Used only when JSONL logging is enabled below.
 json-level = 'info'
-color = 'auto'
+# 'columns' aligns labels, 'compact' leaves more message space in narrow terminals.
 console-style = 'columns'
+# Also write structured events to logs/server.log.jsonl.
 json = false
+# Queued payload limit in bytes (default 8 MiB), from 262144 (256 KiB) to 67108864 (64 MiB).
+# Overflow counts and drops routine events, errors use reserved space or an emergency log.
 buffer-bytes = 8388608
+# Routine file flush interval in milliseconds, from 1 to 5000. Errors flush immediately.
 flush-ms = 200
-# Bytes per active log file. Zero archived files means no automatic deletion.
+# Rotation size in bytes, from 1024 to 1099511627776 (1 TiB). The default is 32 MiB.
 max-file-size = 33554432
+# Archived files to retain per log, from 0 to 100000. Zero keeps every archive.
 max-archives = 0
 
 [diagnostics]
@@ -107,9 +116,6 @@ max-mtu-size = 1492
 enable-encryption = true
 # Base64 public keys of proxies you run, such as Bifrost. A listed proxy can log in as any player.
 trusted-proxy-keys = []
-
-[debug]
-level = 1
 
 [player]
 save-player-data = true

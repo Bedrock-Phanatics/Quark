@@ -420,10 +420,10 @@ JIT_WARNING
 		}elseif(isset($opts[BootstrapOptions::ENABLE_ANSI])){
 			Terminal::init(true);
 		}else{
-			Terminal::init(match($logging["color"] ?? "auto"){ "always" => true, "never" => false, default => null });
+			Terminal::init();
 		}
 		try{
-			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), false, Path::join($paths->logs(), "archive"), $logging["max-file-size"] ?? 32 * 1024 * 1024, $logging["max-archives"] ?? 0, $logging);
+			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), Path::join($paths->logs(), "archive"), $logging["max-file-size"] ?? 32 * 1024 * 1024, $logging["max-archives"] ?? 0, $logging);
 		}catch(\Throwable $e){
 			critical_error($e->getMessage());
 			Filesystem::releaseLockFile($lockFilePath);

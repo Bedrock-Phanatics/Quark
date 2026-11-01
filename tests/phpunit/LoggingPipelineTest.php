@@ -238,8 +238,7 @@ final class LoggingPipelineTest extends TestCase{
 			$sender = new ConsoleCommandSender($server, $this->createMock(Language::class));
 			$sender->sendMessage("§aThere are 0 players online\nNext line");
 			$logger->debug("disabled debug");
-			$logger->setLogDebug(true);
-			$logger->debug("enabled debug");
+			$logger->debug("enabled debug", true);
 			$logger->syncFlushBuffer();
 			self::assertSame(3, $attachment->calls);
 		}finally{ $logger->removeAttachments(); $logger->shutdownLogWriterThread(); }
@@ -254,7 +253,7 @@ final class LoggingPipelineTest extends TestCase{
 	}
 
 	public function testStrictConfigurationValidation() : void{
-		foreach([["color" => "rainbow"], ["file-level" => "warn"], ["buffer-bytes" => 0], ["flush-ms" => 5001], ["json" => 1], ["max-archives" => -1], ["max-file-size" => 1], ["unknown" => true], ["file-level" => null]] as $values){
+		foreach([["color" => "auto"], ["file-level" => "warn"], ["buffer-bytes" => 0], ["flush-ms" => 5001], ["json" => 1], ["max-archives" => -1], ["max-file-size" => 1], ["unknown" => true], ["file-level" => null]] as $values){
 			try{ new LoggingConfig($values); self::fail("Invalid configuration accepted"); }catch(\InvalidArgumentException $e){ self::assertStringContainsString("logging.", $e->getMessage()); }
 		}
 		CoreConfig::validateServer(["logging" => ["json" => true, "console-level" => "error"]]);
@@ -405,9 +404,9 @@ PHP;
 		self::assertLessThan(65536, strlen($formatted));
 	}
 
-	public function testConfiguredSinkThresholdsOverrideLegacyDebugFlag() : void{
+	public function testConfiguredSinkThresholdsFilterDebugUnlessForced() : void{
 		$file = $this->root . "/threshold.log";
-		$logger = new MainLogger($file, false, "Test", new \DateTimeZone("UTC"), true, configuration: ["console-level" => "error", "file-level" => "info"]);
+		$logger = new MainLogger($file, false, "Test", new \DateTimeZone("UTC"), configuration: ["console-level" => "error", "file-level" => "info"]);
 		try{
 			$logger->debug("filtered debug");
 			$logger->debug("explicitly forced debug", true);
@@ -415,6 +414,15 @@ PHP;
 		$content = Filesystem::fileGetContents($file);
 		self::assertStringNotContainsString("filtered debug", $content);
 		self::assertStringContainsString("explicitly forced debug", $content);
+	}
+
+	public function testFileDebugThresholdEnablesDebugBeforeTransport() : void{
+		$file = $this->root . "/debug.log";
+		$logger = new MainLogger($file, false, "Test", new \DateTimeZone("UTC"), configuration: ["console-level" => "error", "file-level" => "debug"]);
+		try{
+			$logger->debug("file debug diagnostics");
+		}finally{ $logger->shutdownLogWriterThread(); }
+		self::assertStringContainsString("file debug diagnostics", Filesystem::fileGetContents($file));
 	}
 
 	public function testConcurrentFlushRequestsCannotMoveAnActiveWatermark() : void{

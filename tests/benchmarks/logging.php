@@ -72,8 +72,9 @@ if($count < 100 || $count > 1000000 || $bytes < 32 || $bytes > 8192 || $producer
 $file = tempnam(sys_get_temp_dir(), "quark-log-bench-");
 if($file === false){ throw new RuntimeException("Cannot create benchmark log file"); }
 $start = hrtime(true);
-$config = ["json" => isset($options["json"])];
-$logger = new quark\utils\MainLogger($file, false, "Server", new DateTimeZone("UTC"), false, null, 33554432, 0, $config);
+$logger = isset($options["json"])
+ ? new quark\utils\MainLogger($file, false, "Server", new DateTimeZone("UTC"), configuration: ["json" => true])
+ : new quark\utils\MainLogger($file, false, "Server", new DateTimeZone("UTC"));
 $startupMs = (hrtime(true) - $start) / 1e6;
 $logger->info("Benchmark sink warm-up");
 $logger->syncFlushBuffer();

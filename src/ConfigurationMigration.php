@@ -187,6 +187,20 @@ final class ConfigurationMigration{
 			}
 			$this->merge($settings, $value, $name);
 		}
+		if(array_key_exists("debug", $settings)){
+			$debug = $settings["debug"];
+			if(!is_array($debug) || !is_int($debug["level"] ?? 1) || ($debug["level"] ?? 1) < 0){
+				throw new \RuntimeException("Invalid legacy setting debug.level: expected a nonnegative integer");
+			}
+			if(($debug["level"] ?? 1) > 1){
+				$logging = $settings["logging"] ?? [];
+				if(!is_array($logging)){
+					throw new \RuntimeException("Invalid legacy setting logging: expected a table");
+				}
+				$settings["logging"] = $logging + ["console-level" => "debug", "file-level" => "debug"];
+			}
+			unset($settings["debug"]);
+		}
 		$defaults = CoreConfig::parse(Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "server.toml")));
 		if(!is_array($defaults["server"] ?? null)){
 			throw new \RuntimeException("Invalid bundled server.toml defaults");

@@ -56,7 +56,6 @@ return array (
     'console-level' => 'info',
     'file-level' => 'info',
     'json-level' => 'info',
-    'color' => 'auto',
     'console-style' => 'columns',
     'json' => false,
     'buffer-bytes' => 8388608,
@@ -115,10 +114,6 @@ return array (
     'trusted-proxy-keys' =>
     array (
     ),
-  ),
-  'debug' =>
-  array (
-    'level' => 1,
   ),
   'player' =>
   array (

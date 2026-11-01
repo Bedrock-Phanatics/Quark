@@ -173,6 +173,24 @@ final class FilesystemMigrationTest extends TestCase{
 		$this->migration->prepare();
 	}
 
+	public function testLegacyDebugMigratesToNamedDestinationLevels() : void{
+		file_put_contents($this->root . "/quark.yml", "debug:\n  level: 2\n");
+		$this->migration->prepare(true);
+		$config = CoreConfig::load($this->paths->serverToml());
+		self::assertArrayNotHasKey("debug", $config);
+		$logging = self::table($config, "logging");
+		self::assertSame("debug", $logging["console-level"]);
+		self::assertSame("debug", $logging["file-level"]);
+	}
+
+	public function testLegacyDebugPreservesExplicitDestinationLevels() : void{
+		file_put_contents($this->root . "/quark.yml", "debug:\n  level: 2\nlogging:\n  console-level: warning\n");
+		$this->migration->prepare(true);
+		$logging = self::table(CoreConfig::load($this->paths->serverToml()), "logging");
+		self::assertSame("warning", $logging["console-level"]);
+		self::assertSame("debug", $logging["file-level"]);
+	}
+
 	public function testCompleteLegacyInstallationMigratesAndRestartsWithoutChangingData() : void{
 		$originals = [
 			"pocketmine.yml" => "settings:\n  async-workers: 2\n",

@@ -59,8 +59,6 @@ final class YmlServerProperties{
 	public const CRASH_DUMPS_INCLUDE_CODE = 'crash-dumps.include-code';
 	public const CRASH_DUMPS_INCLUDE_PHPINFO = 'crash-dumps.include-phpinfo';
 	public const CRASH_DUMPS_INCLUDE_SETTINGS = 'crash-dumps.include-settings';
-	public const DEBUG = 'debug';
-	public const DEBUG_LEVEL = 'debug.level';
 	public const ENTITIES = 'entities';
 	public const ENTITIES_ACTIVATION_RANGE = 'entities.activation-range';
 	public const ENTITIES_INACTIVE_TICK_INTERVAL = 'entities.inactive-tick-interval';

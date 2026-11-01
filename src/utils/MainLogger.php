@@ -46,8 +46,6 @@ use function substr;
  * @phpstan-import-type ExceptionInfo from Event
  */
 class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
-	private bool $logDebug;
-	private bool $legacyDebug;
 	private int $threshold;
 	private ?LogDispatcher $dispatcher = null;
 	private string $timezone;
@@ -60,15 +58,13 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 	private static int $bufferedBytes = 0;
 
 	/** @param array<string, mixed> $configuration */
-	public function __construct(?string $logFile, bool $useFormattingCodes, private string $mainThreadName, \DateTimeZone $timezone, bool $logDebug = false, ?string $logArchiveDir = null, int $maxFileSize = 33554432, int $maxArchives = 0, array $configuration = []){
+	public function __construct(?string $logFile, bool $useFormattingCodes, private string $mainThreadName, \DateTimeZone $timezone, ?string $logArchiveDir = null, int $maxFileSize = 33554432, int $maxArchives = 0, array $configuration = []){
 		parent::__construct();
 		$config = new LoggingConfig($configuration);
 		$this->threshold = max($config->consoleLevel, $logFile === null ? 0 : $config->fileLevel, $logFile !== null && $config->json ? $config->jsonLevel : 0);
-		$this->legacyDebug = !isset($configuration["console-level"]) || $logFile !== null && (!isset($configuration["file-level"]) || $config->json && !isset($configuration["json-level"]));
 		$this->timezone = $timezone->getName();
 		$this->emergencyFile = $logFile === null ? null : $logFile . ".emergency";
 		$this->dispatcher = new LogDispatcher($logFile, $logArchiveDir, $maxFileSize, $maxArchives, $configuration, true, $useFormattingCodes, $this->timezone);
-		$this->setLogDebug($logDebug);
 		if(!$this->getDispatcher()->start(NativeThread::INHERIT_NONE)){
 			$this->dispatcher = null;
 			throw new \RuntimeException("Cannot start log dispatcher");
@@ -87,12 +83,7 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 	public function info($message){ $this->log("info", $message); }
 
 	public function debug($message, bool $force = false){
-		if($this->logDebug || $this->threshold === 7 || $force){ $this->event("debug", $message, force: $force); }
-	}
-
-	public function setLogDebug(bool $logDebug) : void{
-		$this->logDebug = $logDebug && $this->legacyDebug;
-		$this->getDispatcher()->debug = $this->logDebug;
+		if($this->threshold === 7 || $force){ $this->event("debug", $message, force: $force); }
 	}
 
 	public function log($level, $message){
@@ -105,7 +96,7 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 	 */
 	public function event(string $level, string $message, string $source = "Server", array $context = [], string $category = "log", array $exceptions = [], bool $force = false) : void{
 		$priority = Level::priority($level);
-		if(!$force && $priority > $this->threshold && !($priority === 7 && $this->logDebug) && $category !== "output" && $category !== "command"){ return; }
+		if(!$force && $priority > $this->threshold && $category !== "output" && $category !== "command"){ return; }
 		if(self::$threadName === null){
 			$thread = NativeThread::getCurrentThread();
 			self::$threadName = $thread === null ? $this->mainThreadName : (($thread instanceof Thread || $thread instanceof Worker) ? $thread->getThreadName() : substr($thread::class, strrpos($thread::class, "\\") === false ? 0 : strrpos($thread::class, "\\") + 1));
