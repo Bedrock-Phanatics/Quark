@@ -32,6 +32,7 @@ use function spl_object_id;
 class PluginLogger extends SourceLogger implements \AttachableLogger{
 	/** @var LoggerAttachment[] */
 	private array $attachments = [];
+	private bool $dispatchingAttachments = false;
 
 	/** @param LoggerAttachment $attachment */
 	public function addAttachment(\Closure $attachment){ $this->attachments[spl_object_id($attachment)] = $attachment; }
@@ -42,6 +43,10 @@ class PluginLogger extends SourceLogger implements \AttachableLogger{
 
 	protected function logWithSource(string $level, string $message, string $source) : void{
 		parent::logWithSource($level, $message, $source);
-		foreach($this->attachments as $attachment){ $attachment($level, $message); }
+		if($this->dispatchingAttachments){ return; }
+		$this->dispatchingAttachments = true;
+		try{
+			foreach($this->attachments as $attachment){ $attachment($level, $message); }
+		}finally{ $this->dispatchingAttachments = false; }
 	}
 }

@@ -15,7 +15,9 @@ use function fopen;
 use function ftruncate;
 use function hash_file;
 use function json_encode;
+use function memory_get_peak_usage;
 use function memory_get_usage;
+use function memory_reset_peak_usage;
 use function mkdir;
 use function random_bytes;
 use function rmdir;
@@ -97,12 +99,13 @@ final class ResourcePackFilesystemTest extends TestCase{
 		self::assertTrue(ftruncate($handle, 16 * 1024 * 1024));
 		fclose($handle);
 		$packPath = $this->createPack("large.zip", "481c7dcf-f147-4373-9cc5-afc6a651dc40", $payload);
-		$before = memory_get_usage(true);
+		$before = memory_get_usage();
+		memory_reset_peak_usage();
 		$pack = new ZippedResourcePack($packPath);
 		self::assertGreaterThan(16 * 1024 * 1024, $pack->getPackSize());
 		self::assertSame(hash_file("sha256", $packPath, true), $pack->getSha256());
 		self::assertSame(1024, strlen($pack->getPackChunk($pack->getPackSize() - 1024, 1024)));
-		self::assertLessThanOrEqual(8 * 1024 * 1024, memory_get_usage(true) - $before);
+		self::assertLessThanOrEqual(8 * 1024 * 1024, memory_get_peak_usage() - $before);
 		$this->expectException(\InvalidArgumentException::class);
 		$pack->getPackChunk($pack->getPackSize(), 1024);
 	}

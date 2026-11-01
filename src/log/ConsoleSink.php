@@ -48,7 +48,8 @@ final class ConsoleSink implements Sink{
 	}
 
 	public function write(array $event) : bool{
-		if(Level::priority($event["level"]) <= 3 || $event["category"] === "diagnostic"){
+		$important = Level::priority($event["level"]) <= 3 || $event["category"] === "diagnostic";
+		if($important){
 			$this->pump();
 			if($this->pending !== ""){ ++$this->dropped; ++$this->totalDropped; return false; }
 		}
@@ -69,6 +70,10 @@ final class ConsoleSink implements Sink{
 			}
 		}
 		$this->pending .= $line;
+		if($important){
+			$this->pump();
+			return $this->pending === "";
+		}
 		return true;
 	}
 

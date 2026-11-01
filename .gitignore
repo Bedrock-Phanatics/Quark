@@ -27,6 +27,7 @@ tests/phpunit/*
 !tests/phpunit/pulse/
 !tests/phpunit/FilesystemMigrationTest.php
 !tests/phpunit/LoggingPipelineTest.php
+!tests/phpunit/ProcessTestHelper.php
 
 # Common IDEs
 .idea/*

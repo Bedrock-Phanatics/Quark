@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use pmmp\thread\Thread;
 use quark\console\ConsoleCommandSender;
 use quark\lang\Language;
+use quark\log\ConsoleSink;
 use quark\log\Event;
 use quark\log\EventQueue;
 use quark\log\FileSink;
@@ -386,6 +387,69 @@ PHP;
 		}
 	}
 
+	public function testSubprocessDrainsBothStreamsAndBoundsWaits() : void{
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-r", 'fwrite(STDERR, str_repeat("e", 262144)); echo str_repeat("o", 262144);']);
+		self::assertSame(0, $exit);
+		self::assertSame(str_repeat("o", 262144), $output);
+		self::assertSame(str_repeat("e", 262144), $errors);
+		$start = hrtime(true);
+		try{ ProcessTestHelper::run([PHP_BINARY, "-r", 'sleep(30);'], 0.1); self::fail("Stalled child must time out"); }catch(\RuntimeException $e){
+			self::assertStringContainsString("Test subprocess timed out", $e->getMessage());
+			self::assertLessThan(2000000000, hrtime(true) - $start);
+		}
+	}
+
+	public function testImportantConsoleWriteReportsUnsentBytes() : void{
+		stream_wrapper_register("blockedlog", ShortLogStream::class);
+		ShortLogStream::$fail = true;
+		ShortLogStream::$data = "";
+		$sink = (new \ReflectionClass(ConsoleSink::class))->newInstanceWithoutConstructor();
+		(new \ReflectionProperty(ConsoleSink::class, "formatter"))->setValue($sink, new TextFormatter("UTC", true));
+		(new \ReflectionProperty(ConsoleSink::class, "socket"))->setValue($sink, fopen("blockedlog://output", "wb"));
+		$pending = new \ReflectionProperty(ConsoleSink::class, "pending");
+		try{
+			self::assertSame("", $pending->getValue($sink));
+			self::assertFalse($sink->write(Event::create("error", "first unsent error")));
+			self::assertStringContainsString("first unsent error", $pending->getValue($sink));
+			self::assertSame("", ShortLogStream::$data);
+			ShortLogStream::$fail = false;
+			$sink->flush();
+			self::assertSame("", $pending->getValue($sink));
+			self::assertStringContainsString("first unsent error", ShortLogStream::$data);
+		}finally{
+			ShortLogStream::$fail = false;
+			$sink->close();
+			stream_wrapper_unregister("blockedlog");
+		}
+	}
+
+	public function testPluginAttachmentsDoNotReenterAndRecoverAfterFailure() : void{
+		$file = $this->root . "/attachments.log";
+		$logger = new MainLogger($file, false, "Test", new \DateTimeZone("UTC"), configuration: ["console-level" => "emergency"]);
+		$plugin = new PluginLogger($logger, "Plugin");
+		$calls = 0;
+		$plugin->addAttachment(static function() use ($plugin, &$calls) : void{
+			if(++$calls <= 2){ $plugin->info("from plugin attachment"); }
+		});
+		try{
+			$plugin->info("original message");
+			self::assertSame(1, $calls);
+			$plugin->removeAttachments();
+			$plugin->addAttachment(static function() use (&$calls) : void{
+				if(++$calls === 2){ throw new \RuntimeException("attachment failed"); }
+			});
+			try{ $plugin->info("throwing attachment"); self::fail("Attachment failure must propagate"); }catch(\RuntimeException $e){
+				self::assertSame("attachment failed", $e->getMessage());
+			}
+			$plugin->info("after attachment failure");
+			self::assertSame(3, $calls);
+		}finally{ $logger->shutdownLogWriterThread(); }
+		$content = Filesystem::fileGetContents($file);
+		self::assertSame(1, substr_count($content, "original message"));
+		self::assertSame(1, substr_count($content, "from plugin attachment"));
+		self::assertStringContainsString("after attachment failure", $content);
+	}
+
 	public function testStandardLoggerOverridesRemainCompatible() : void{
 		$code = <<<'PHP'
 require $argv[1] . "/vendor/autoload.php";
@@ -394,8 +458,10 @@ class CustomSourceLogger extends \quark\log\SourceLogger{
  public function logException(\Throwable $e, $trace = null){ parent::logException($e, $trace); }
 }
 class CustomPluginLogger extends \quark\plugin\PluginLogger{
- public function log($level, $message){ parent::log($level, $message); }
- public function logException(\Throwable $e, $trace = null){ parent::logException($e, $trace); }
+ public int $messages = 0;
+ public int $exceptions = 0;
+ public function log($level, $message){ ++$this->messages; parent::log($level, "transformed " . $message); }
+ public function logException(\Throwable $e, $trace = null){ ++$this->exceptions; parent::logException($e, $trace); }
 }
 $logger = new \quark\utils\MainLogger($argv[2], false, "Test", new DateTimeZone("UTC"), configuration: ["console-level" => "emergency"]);
 $plugin = new CustomPluginLogger($logger, "Plugin");
@@ -403,18 +469,14 @@ $source = new CustomSourceLogger($plugin, "Source");
 $source->info("custom subclass message");
 $source->logException(new RuntimeException("custom subclass exception"));
 $logger->shutdownLogWriterThread();
+if($plugin->messages !== 1 || $plugin->exceptions !== 1){ exit(2); }
 PHP;
 		$file = $this->root . "/subclass.log";
-		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file], [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
-		self::assertIsResource($process);
-		fclose($pipes[0]);
-		$output = stream_get_contents($pipes[1]);
-		$errors = stream_get_contents($pipes[2]);
-		fclose($pipes[1]); fclose($pipes[2]);
-		self::assertSame(0, proc_close($process), $output . $errors);
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file]);
+		self::assertSame(0, $exit, $output . $errors);
 		$content = Filesystem::fileGetContents($file);
 		self::assertStringContainsString("Plugin / Source", $content);
-		self::assertStringContainsString("custom subclass message", $content);
+		self::assertStringContainsString("transformed custom subclass message", $content);
 		self::assertStringContainsString("custom subclass exception", $content);
 	}
 
@@ -452,13 +514,8 @@ $logger->error("error event survives");
 $logger->syncFlushBuffer();
 $logger->shutdownLogWriterThread();
 PHP;
-			$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-ddisable_functions=proc_open", "-derror_log=" . $this->root . "/php-errors.log", "-r", $code, dirname(__DIR__, 2), $file, $fileEnabled ? "1" : "0"], [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
-			self::assertIsResource($process);
-			fclose($pipes[0]);
-			$output = stream_get_contents($pipes[1]);
-			$errors = stream_get_contents($pipes[2]);
-			fclose($pipes[1]); fclose($pipes[2]);
-			self::assertSame(0, proc_close($process), $output . $errors);
+			[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-ddisable_functions=proc_open", "-derror_log=" . $this->root . "/php-errors.log", "-r", $code, dirname(__DIR__, 2), $file, $fileEnabled ? "1" : "0"]);
+			self::assertSame(0, $exit, $output . $errors);
 			$content = $fileEnabled ? Filesystem::fileGetContents($file) : $errors;
 			foreach(["routine event survives", "command response survives", "error event survives"] as $message){
 				self::assertStringContainsString($message, $content);
