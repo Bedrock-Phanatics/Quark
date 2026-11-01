@@ -39,6 +39,7 @@ use function proc_open;
 use function proc_terminate;
 use function putenv;
 use function random_bytes;
+use function str_pad;
 use function str_repeat;
 use function stream_get_contents;
 use function stream_set_blocking;
@@ -97,6 +98,28 @@ final class LoggingPipelineTest extends TestCase{
 		$event["source"] = "長い名前のプラグインVeryLongName";
 		self::assertSame(35, mb_strwidth(explode("first", (new TextFormatter("UTC", true))->format($event), 2)[0]));
 		self::assertStringNotContainsString("\x1b", (new TextFormatter("UTC", true, false, true))->format($event));
+	}
+
+	public function testConsoleSeverityPalettePreservesPlainOutput() : void{
+		$plain = new TextFormatter("UTC", true);
+		$ansi = new TextFormatter("UTC", true, true);
+		foreach([
+			["emergency", "log", "EMERG", "1;91"],
+			["alert", "log", "ALERT", "1;91"],
+			["critical", "log", "CRIT", "1;91"],
+			["error", "log", "ERROR", "31"],
+			["warning", "log", "WARN", "33"],
+			["notice", "log", "NOTE", "34"],
+			["info", "log", "INFO", "32"],
+			["debug", "log", "DEBUG", "90"],
+			["info", "command", "CMD", "35"],
+			["info", "output", "OUT", "36"]
+		] as [$level, $category, $label, $color]){
+			$event = Event::create($level, "First line\nSecond line", category: $category);
+			$rendered = $ansi->format($event);
+			self::assertStringContainsString("\x1b[" . $color . "m" . str_pad($label, 5) . "\x1b[0m", $rendered);
+			self::assertSame($plain->format($event), Event::clean($rendered));
+		}
 	}
 
 	public function testSafeTextAndStructuredRoundTrip() : void{

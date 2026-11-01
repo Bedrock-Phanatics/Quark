@@ -48,7 +48,16 @@ final class TextFormatter implements Formatter{
 		$prefix = $this->time . "  " . $level . "  " . $source . ($this->console ? "  " : " [" . $event["thread"] . "]  ");
 		$indent = str_repeat(" ", mb_strwidth($prefix, "UTF-8"));
 		if($this->ansi){
-			$color = match(true){ $priority <= 3 => "31", $priority === 4 => "33", $priority === 7 => "90", default => "36" };
+			$color = match(true){
+				$priority <= 2 => "1;91",
+				$priority === 3 => "31",
+				$priority === 4 => "33",
+				$event["category"] === "command" => "35",
+				$event["category"] === "output" => "36",
+				$priority === 5 => "34",
+				$priority === 6 => "32",
+				default => "90"
+			};
 			$prefix = "\x1b[90m" . $this->time . "\x1b[0m  \x1b[" . $color . "m" . $level . "\x1b[0m  " . $source . "  ";
 		}
 		$message = $event["message"];

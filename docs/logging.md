@@ -14,6 +14,8 @@ $logger->logException($exception);
 
 ## Console and configuration
 
+The palette uses green for INFO, blue for notices, yellow for warnings, red for errors, and bold bright red for critical events. CMD is purple, OUT is cyan, and debug messages use gray labels. Timestamps stay muted and message text keeps the terminal's default color.
+
 The default console uses aligned time, severity, source, and message columns. Only timestamps and severity labels receive ANSI colors. Multiline continuations share one prefix. `console-style = 'compact'` reduces padding for narrow terminals. File logs retain full source and thread names. Human-readable output caps continuations at 1,024 lines and marks truncation. JSON retains the bounded original message.
 
 Settings live in `[logging]` in `config/server.toml`. Defaults and validation come from `resources/server.toml`, `LoggingConfig`, and the generated config schema.
