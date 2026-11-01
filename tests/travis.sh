@@ -39,7 +39,6 @@ echo -e "stop\n" | php Quark.phar \
   --no-wizard \
   --disable-ansi \
   --disable-readline \
-  --debug.level=2 \
   --data="$DATA_DIR" \
   --plugins="$PLUGINS_DIR" \
   --settings.async-workers="$PM_WORKERS" \
@@ -47,7 +46,7 @@ echo -e "stop\n" | php Quark.phar \
   --auto-report.enabled=0
 
 LOG_FILE="$DATA_DIR/logs/server.log"
-output=$(grep '\[TesterPlugin\]' "$LOG_FILE" || true)
+output=$(awk '$3 == "TesterPlugin" && $4 ~ /^\[/ {print}' "$LOG_FILE")
 if [ "$output" == "" ]; then
 	echo TesterPlugin failed to run tests, check the logs
 	exit 1
@@ -62,7 +61,7 @@ if [ "$result" != "" ]; then
 	echo "$result"
 	echo Some tests did not complete successfully, changing build status to failed
 	exit 1
-elif [ "$(grep -c "ERROR\|CRITICAL\|EMERGENCY" "$LOG_FILE")" -ne 0 ]; then
+elif grep -Eq '^[^[:space:]]+[[:space:]]+(ERROR|CRIT|ALERT|EMERG)[[:space:]]' "$LOG_FILE"; then
 	echo Server log contains error messages, changing build status to failed
 	exit 1
 else

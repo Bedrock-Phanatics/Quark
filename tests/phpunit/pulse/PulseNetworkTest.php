@@ -77,6 +77,7 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function count;
+use function file_put_contents;
 use function function_exists;
 use function gzencode;
 use function json_encode;
@@ -720,6 +721,7 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testActivePacketStagesRestoreNestedCallsAndClearFailures() : void{
 		$file = sys_get_temp_dir() . "/" . uniqid("pulse-packet-work-", true);
+		file_put_contents($file, "");
 		$watchdog = new PulseNetworkWatchdog(new LogDispatcher($file, null), 1);
 		Pulse::start();
 		$network = Pulse::getNetworkTelemetry();
@@ -788,6 +790,7 @@ final class PulseNetworkTest extends TestCase{
 
 	public function testCaptureChangesInsidePacketCallbacksKeepNewWorkIntact() : void{
 		$file = sys_get_temp_dir() . "/" . uniqid("pulse-packet-reset-", true);
+		file_put_contents($file, "");
 		$writer = new LogDispatcher($file, null);
 		$watchdog = new PulseNetworkWatchdog($writer, 1);
 		$newWatchdog = new PulseNetworkWatchdog($writer, 2);
