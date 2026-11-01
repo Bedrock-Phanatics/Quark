@@ -69,13 +69,14 @@ final class LogDispatcher extends Thread{
 		$emergency = $this->file === null ? null : $this->file . ".emergency";
 		$failure = null;
 		$fileFailed = false;
-		$reportFailure = function(string $name, \Throwable $error) use (&$sinks, &$fileFailed, $emergency) : void{
+		$reportFailure = function(string $name, \Throwable $error) use (&$sinks, &$fileFailed, $emergency) : bool{
 			if($name !== "console"){
 				$fileFailed = true;
 				$this->queue->reportSinkFailure($error->getMessage());
 			}
 			unset($sinks[$name]);
 			EmergencyWriter::write($emergency, Event::create("error", "$name sink failed: " . $error->getMessage(), "Logger"), "Output sink failure");
+			return $sinks === [];
 		};
 		try{
 			if($this->file !== null){
@@ -97,6 +98,10 @@ final class LogDispatcher extends Thread{
 				/** @var LogEvent $event */
 				$event = unserialize($record, ["allowed_classes" => false]);
 				$event = Event::cleanEvent($event);
+				if($sinks === []){
+					EmergencyWriter::write($emergency, $event, "No output sink available");
+					return;
+				}
 				$priority = Level::priority($event["level"]);
 				$important = $priority <= 3 || $event["category"] === "diagnostic";
 				if($fileFailed && $important){ EmergencyWriter::write($emergency, $event, "Persistent sink unavailable"); }
@@ -106,8 +111,8 @@ final class LogDispatcher extends Thread{
 					$consoleOutput = $name === "console" && ($event["category"] === "output" || $event["category"] === "command");
 					if(!$consoleOutput && $event["category"] !== "diagnostic" && $priority > $thresholds[$name] && !($priority === 7 && ($event["force"] ?? false))){ continue; }
 					try{ $sink->write($event); if($important){ $sink->flush(); } }catch(\Throwable $error){
-						$reportFailure($name, $error);
-						if($important){ EmergencyWriter::write($emergency, $event, "Sink write failed"); }
+						$noSinks = $reportFailure($name, $error);
+						if($important || $noSinks){ EmergencyWriter::write($emergency, $event, "Sink write failed"); }
 					}
 				}
 			};

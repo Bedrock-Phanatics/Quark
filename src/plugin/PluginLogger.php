@@ -40,8 +40,8 @@ class PluginLogger extends SourceLogger implements \AttachableLogger{
 	public function removeAttachments(){ $this->attachments = []; }
 	public function getAttachments(){ return $this->attachments; }
 
-	public function log($level, $message){
-		parent::log($level, $message);
+	public function log($level, $message, ?string $source = null){
+		parent::log($level, $message, $source);
 		foreach($this->attachments as $attachment){ $attachment($level, $message); }
 	}
 }

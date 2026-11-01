@@ -24,6 +24,6 @@ final class EmergencyWriter{
 		$event["logging_failure"] = Event::clean(Event::limit($reason, 4096));
 		$line = json_encode($event, JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR) . "\n";
 		if($file !== null && !is_link($file) && @file_put_contents($file, $line, FILE_APPEND | LOCK_EX) === strlen($line)){ return; }
-		@error_log("Logging fallback: " . $line);
+		@error_log("Logging fallback: " . $line, 4);
 	}
 }

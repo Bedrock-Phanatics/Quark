@@ -14,6 +14,7 @@ use quark\log\FileSink;
 use quark\log\JsonFormatter;
 use quark\log\LogDispatcher;
 use quark\log\LoggingConfig;
+use quark\log\SourceLogger;
 use quark\log\TextFormatter;
 use quark\plugin\PluginLogger;
 use quark\thread\log\ThreadSafeLoggerAttachment;
@@ -373,6 +374,102 @@ PHP;
 			$emergency = Filesystem::fileGetContents($file . ".emergency");
 			self::assertStringContainsString("important error", $emergency);
 			self::assertStringContainsString("crash after file failure", $emergency);
+		}finally{
+			if(proc_get_status($process)["running"]){ proc_terminate($process); }
+			fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
+		}
+	}
+
+	public function testNestedSourcesPreserveStructuredMessagesAndExceptions() : void{
+		$file = $this->root . "/nested.log";
+		$logger = new MainLogger($file, false, "Test", new \DateTimeZone("UTC"), configuration: ["console-level" => "emergency", "json" => true]);
+		$plugin = new PluginLogger($logger, "Plugin");
+		$world = new SourceLogger($plugin, "World");
+		$chunk = new SourceLogger($world, "Chunk");
+		$attached = [];
+		$plugin->addAttachment(static function($level, $message) use (&$attached) : void{ $attached[] = [$level, $message]; });
+		try{
+			$chunk->info("chunk loaded");
+			$world->setPrefix("Renamed world");
+			$chunk->logException(new \RuntimeException("chunk failed"));
+		}finally{ $logger->shutdownLogWriterThread(); }
+		/** @var list<array{source: string, message: string, exceptions: list<array{message: string}>}> $events */
+		$events = array_map(static fn(string $line) => json_decode($line, true, 32, JSON_THROW_ON_ERROR), explode("\n", trim(Filesystem::fileGetContents($file . ".jsonl")), 32));
+		self::assertSame("Plugin / World / Chunk", $events[0]["source"]);
+		self::assertSame("chunk loaded", $events[0]["message"]);
+		self::assertSame("Plugin / Renamed world / Chunk", $events[1]["source"]);
+		self::assertSame("chunk failed", $events[1]["exceptions"][0]["message"]);
+		self::assertSame([["info", "chunk loaded"]], $attached);
+	}
+
+	public function testDisabledProcOpenRetainsEveryAcceptedEvent() : void{
+		foreach([false, true] as $fileEnabled){
+			$file = $this->root . "/disabled-" . ($fileEnabled ? "file" : "console") . ".log";
+			$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$logger = new \quark\utils\MainLogger($argv[3] === "1" ? $argv[2] : null, false, "Test", new DateTimeZone("UTC"));
+$logger->info("routine event survives");
+$logger->output("command response survives");
+$logger->error("error event survives");
+$logger->syncFlushBuffer();
+$logger->shutdownLogWriterThread();
+PHP;
+			$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-ddisable_functions=proc_open", "-derror_log=" . $this->root . "/php-errors.log", "-r", $code, dirname(__DIR__, 2), $file, $fileEnabled ? "1" : "0"], [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
+			self::assertIsResource($process);
+			fclose($pipes[0]);
+			$output = stream_get_contents($pipes[1]);
+			$errors = stream_get_contents($pipes[2]);
+			fclose($pipes[1]); fclose($pipes[2]);
+			self::assertSame(0, proc_close($process), $output . $errors);
+			$content = $fileEnabled ? Filesystem::fileGetContents($file) : $errors;
+			foreach(["routine event survives", "command response survives", "error event survives"] as $message){
+				self::assertStringContainsString($message, $content);
+			}
+			self::assertStringContainsString("console sink failed", $fileEnabled ? Filesystem::fileGetContents($file . ".emergency") : $errors);
+		}
+	}
+
+	public function testConsoleTransportDeliversOrderedOutputAndClosesHelper() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$sink = new \quark\log\ConsoleSink(new \quark\log\TextFormatter("UTC", true));
+$socket = new ReflectionProperty($sink, "socket");
+$process = new ReflectionProperty($sink, "process");
+if(stream_get_meta_data($socket->getValue($sink))["blocked"]){ exit(2); }
+for($i = 0; $i < 300; ++$i){
+ $event = \quark\log\Event::create("info", "event $i " . str_repeat("x", 1024), "Transport");
+ $event["time"] = 1704067200.0;
+ $sink->write($event);
+ if($i % 16 === 0){ $sink->flush(); }
+}
+$sink->close();
+if($process->getValue($sink) !== null || $socket->getValue($sink) !== null){ exit(3); }
+$sink->close();
+PHP;
+		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
+		self::assertIsResource($process);
+		fclose($pipes[0]);
+		stream_set_blocking($pipes[1], false);
+		$output = "";
+		try{
+			$deadline = hrtime(true) + 10000000000;
+			$status = proc_get_status($process);
+			while($status["running"] && hrtime(true) < $deadline){
+				$output .= stream_get_contents($pipes[1]);
+				usleep(1000);
+				$status = proc_get_status($process);
+			}
+			self::assertFalse($status["running"], "Console helper did not shut down");
+			$output .= stream_get_contents($pipes[1]);
+			self::assertSame(0, $status["exitcode"], stream_get_contents($pipes[2]));
+			$expected = "";
+			$formatter = new TextFormatter("UTC", true);
+			for($i = 0; $i < 300; ++$i){
+				$event = Event::create("info", "event $i " . str_repeat("x", 1024), "Transport");
+				$event["time"] = 1704067200.0;
+				$expected .= $formatter->format($event);
+			}
+			self::assertSame($expected, $output);
 		}finally{
 			if(proc_get_status($process)["running"]){ proc_terminate($process); }
 			fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
