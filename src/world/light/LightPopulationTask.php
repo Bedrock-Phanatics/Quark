@@ -24,22 +24,14 @@ declare(strict_types=1);
 namespace quark\world\light;
 
 use pocketmine\world\format\LightArray;
-use pocketmine\world\format\LightEngine;
-use quark\block\RuntimeBlockStateRegistry;
 use quark\scheduler\AsyncTask;
 use quark\world\format\Chunk;
 use quark\world\format\io\FastChunkSerializer;
-use quark\world\World;
-use function array_fill;
-use function count;
 use function igbinary_serialize;
 use function igbinary_unserialize;
 
 class LightPopulationTask extends AsyncTask{
 	private const TLS_KEY_COMPLETION_CALLBACK = "onCompletion";
-
-	private static ?LightEngine $lightEngine = null;
-	private static int $lightEngineStates = -1;
 
 	public string $chunk;
 
@@ -58,21 +50,10 @@ class LightPopulationTask extends AsyncTask{
 	public function onRun() : void{
 		$chunk = FastChunkSerializer::deserializeTerrain($this->chunk);
 
-		$emptyBlockIds = [];
-		$blocks = [];
-		$skyLightArrays = [];
-		$blockLightArrays = [];
-		foreach($chunk->getSubChunks() as $y => $subChunk){
-			$emptyBlockIds[$y] = $subChunk->getEmptyBlockId();
-			$blocks[$y] = $subChunk->getBlockLayers()[0] ?? null;
-			$skyLightArrays[$y] = $subChunk->getBlockSkyLightArray();
-			$blockLightArrays[$y] = $subChunk->getBlockLightArray();
-		}
-
-		//same propagation as BlockLightUpdate and SkyLightUpdate, filling the light arrays in place
-		$engine = self::getLightEngine();
-		$engine->setChunk(0, 0, $emptyBlockIds, $blocks, $blockLightArrays, $skyLightArrays, array_fill(0, Chunk::EDGE_LENGTH ** 2, World::Y_MIN));
+		//same propagation as BlockLightUpdate and SkyLightUpdate, filling the chunk's light arrays in place
+		$engine = NativeLight::getEngine();
 		try{
+			NativeLight::setChunk($engine, 0, 0, $chunk);
 			$engine->recalculateBlockChunk(0, 0);
 			$engine->executeBlock();
 			$engine->recalculateSkyChunk(0, 0);
@@ -82,20 +63,15 @@ class LightPopulationTask extends AsyncTask{
 			$engine->clear();
 		}
 
+		$skyLightArrays = [];
+		$blockLightArrays = [];
+		foreach($chunk->getSubChunks() as $y => $subChunk){
+			$skyLightArrays[$y] = $subChunk->getBlockSkyLightArray();
+			$blockLightArrays[$y] = $subChunk->getBlockLightArray();
+		}
 		$this->resultHeightMap = igbinary_serialize($heightMap);
 		$this->resultSkyLightArrays = igbinary_serialize($skyLightArrays);
 		$this->resultBlockLightArrays = igbinary_serialize($blockLightArrays);
-	}
-
-	private static function getLightEngine() : LightEngine{
-		$registry = RuntimeBlockStateRegistry::getInstance();
-		//states can be registered after this worker's first task, but never change once registered
-		$states = count($registry->lightFilter);
-		if(self::$lightEngine === null || self::$lightEngineStates !== $states){
-			self::$lightEngine = new LightEngine($registry->lightFilter, $registry->light, $registry->blocksDirectSkyLight);
-			self::$lightEngineStates = $states;
-		}
-		return self::$lightEngine;
 	}
 
 	public function onCompletion() : void{

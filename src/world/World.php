@@ -109,6 +109,7 @@ use quark\world\generator\GeneratorManager;
 use quark\world\generator\PopulationTask;
 use quark\world\light\BlockLightUpdate;
 use quark\world\light\LightPopulationTask;
+use quark\world\light\NativeLight;
 use quark\world\light\SkyLightUpdate;
 use quark\world\particle\BlockBreakParticle;
 use quark\world\particle\Particle;
@@ -402,8 +403,17 @@ class World implements ChunkManager{
 	 */
 	private array $unloadCallbacks = [];
 
+	private const NATIVE_LIGHT_CHANGE_THRESHOLD = 16;
+
 	private ?BlockLightUpdate $blockLightUpdate = null;
 	private ?SkyLightUpdate $skyLightUpdate = null;
+	private int $lightChangeCount = 0;
+	/**
+	 * Block changes waiting for the light engine, as x, y, z, previous state ID and new state ID
+	 * @var int[][]
+	 * @phpstan-var list<array{int, int, int, int, int}>
+	 */
+	private array $lightChanges = [];
 
 	private \Logger $logger;
 
@@ -2031,24 +2041,39 @@ class World implements ChunkManager{
 	}
 
 	public function updateAllLight(int $x, int $y, int $z) : void{
-		if(($chunk = $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)) === null || $chunk->isLightPopulated() !== true){
+		if(($chunk = $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)) !== null && $y >= $this->minY && $y < $this->maxY){
+			$stateId = $chunk->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+			$this->queueLightChange($chunk, $x, $y, $z, $stateId, $stateId);
+		}
+	}
+
+	/**
+	 * The first changes of a tick are recalculated right away like PocketMine does. Lending chunks to the light engine
+	 * costs more than that, so it only takes over once a tick makes enough changes, replaying the rest at the end of
+	 * the tick as if each had been recalculated right after it was made.
+	 */
+	private function queueLightChange(Chunk $chunk, int $x, int $y, int $z, int $previousStateId, int $stateId) : void{
+		if($chunk->isLightPopulated() !== true){
 			return;
 		}
+		if(++$this->lightChangeCount <= self::NATIVE_LIGHT_CHANGE_THRESHOLD){
+			$blockFactory = $this->blockStateRegistry;
+			$doBlockSkyLightUpdatesScope = $this->pulse->doBlockSkyLightUpdates->start();
+			$this->skyLightUpdate ??= new SkyLightUpdate(new SubChunkExplorer($this), $blockFactory->lightFilter, $blockFactory->blocksDirectSkyLight);
+			$this->skyLightUpdate->recalculateNode($x, $y, $z);
+			$this->pulse->doBlockSkyLightUpdates->stop($doBlockSkyLightUpdatesScope);
 
-		$blockFactory = $this->blockStateRegistry;
-		$doBlockSkyLightUpdatesScope = $this->pulse->doBlockSkyLightUpdates->start();
-		if($this->skyLightUpdate === null){
-			$this->skyLightUpdate = new SkyLightUpdate(new SubChunkExplorer($this), $blockFactory->lightFilter, $blockFactory->blocksDirectSkyLight);
+			$doBlockLightUpdatesScope = $this->pulse->doBlockLightUpdates->start();
+			$this->blockLightUpdate ??= new BlockLightUpdate(new SubChunkExplorer($this), $blockFactory->lightFilter, $blockFactory->light);
+			$this->blockLightUpdate->recalculateNode($x, $y, $z);
+			$this->pulse->doBlockLightUpdates->stop($doBlockLightUpdatesScope);
+			return;
 		}
-		$this->skyLightUpdate->recalculateNode($x, $y, $z);
-		$this->pulse->doBlockSkyLightUpdates->stop($doBlockSkyLightUpdatesScope);
-
-		$doBlockLightUpdatesScope = $this->pulse->doBlockLightUpdates->start();
-		if($this->blockLightUpdate === null){
-			$this->blockLightUpdate = new BlockLightUpdate(new SubChunkExplorer($this), $blockFactory->lightFilter, $blockFactory->light);
+		if(count($this->lightChanges) === 0){
+			//the replayed changes have to see the light the earlier ones left behind
+			$this->executeLightUpdates();
 		}
-		$this->blockLightUpdate->recalculateNode($x, $y, $z);
-		$this->pulse->doBlockLightUpdates->stop($doBlockLightUpdatesScope);
+		$this->lightChanges[] = [$x, $y, $z, $previousStateId, $stateId];
 	}
 
 	/**
@@ -2095,6 +2120,14 @@ class World implements ChunkManager{
 	}
 
 	private function executeQueuedLightUpdates() : void{
+		$this->lightChangeCount = 0;
+		$this->executeLightUpdates();
+		if(count($this->lightChanges) > 0){
+			$this->replayLightChanges();
+		}
+	}
+
+	private function executeLightUpdates() : void{
 		if($this->blockLightUpdate !== null){
 			$doBlockLightUpdatesScope = $this->pulse->doBlockLightUpdates->start();
 			$this->blockLightUpdate->execute();
@@ -2107,6 +2140,51 @@ class World implements ChunkManager{
 			$this->skyLightUpdate->execute();
 			$this->skyLightUpdate = null;
 			$this->pulse->doBlockSkyLightUpdates->stop($doBlockSkyLightUpdatesScope);
+		}
+	}
+
+	private function replayLightChanges() : void{
+		$changes = $this->lightChanges;
+		$this->lightChanges = [];
+
+		$doBlockLightUpdatesScope = $this->pulse->doBlockLightUpdates->start();
+		$engine = NativeLight::getEngine();
+		try{
+			$changedChunks = [];
+			foreach($changes as [$x, , $z]){
+				$changedChunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] = true;
+			}
+			//light rarely spreads past the neighbouring chunks, and beyond them it stops like it does at unloaded ones
+			$registered = [];
+			foreach($changedChunks as $chunkHash => $_){
+				World::getXZ($chunkHash, $chunkX, $chunkZ);
+				for($x = $chunkX - 1; $x <= $chunkX + 1; ++$x){
+					for($z = $chunkZ - 1; $z <= $chunkZ + 1; ++$z){
+						if(!isset($registered[$hash = World::chunkHash($x, $z)])){
+							$registered[$hash] = true;
+							if(($chunk = $this->chunks[$hash] ?? null) !== null){
+								NativeLight::setChunk($engine, $x, $z, $chunk);
+							}
+						}
+					}
+				}
+			}
+
+			$engine->applyChanges($changes);
+			$engine->executeBlock();
+			$this->pulse->doBlockLightUpdates->stop($doBlockLightUpdatesScope);
+
+			$doBlockSkyLightUpdatesScope = $this->pulse->doBlockSkyLightUpdates->start();
+			$engine->executeSky();
+			foreach($changedChunks as $chunkHash => $_){
+				if(($chunk = $this->chunks[$chunkHash] ?? null) !== null){
+					World::getXZ($chunkHash, $chunkX, $chunkZ);
+					$chunk->setHeightMapArray($engine->getHeightMap($chunkX, $chunkZ));
+				}
+			}
+			$this->pulse->doBlockSkyLightUpdates->stop($doBlockSkyLightUpdatesScope);
+		}finally{
+			$engine->clear();
 		}
 	}
 
@@ -2214,7 +2292,7 @@ class World implements ChunkManager{
 		}
 		$chunkX = $x >> Chunk::COORD_BIT_SIZE;
 		$chunkZ = $z >> Chunk::COORD_BIT_SIZE;
-		if($this->loadChunk($chunkX, $chunkZ) === null){ //current expected behaviour is to try to load the terrain synchronously
+		if(($chunk = $this->loadChunk($chunkX, $chunkZ)) === null){ //current expected behaviour is to try to load the terrain synchronously
 			throw new WorldException("Cannot set a block in un-generated terrain");
 		}
 
@@ -2234,6 +2312,7 @@ class World implements ChunkManager{
 		$block = clone $block;
 
 		$block->position($this, $x, $y, $z);
+		$previousStateId = $chunk->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
 		$block->writeStateToWorld();
 		$pos = new Vector3($x, $y, $z);
 
@@ -2261,7 +2340,7 @@ class World implements ChunkManager{
 		}
 
 		if($update){
-			$this->updateAllLight($x, $y, $z);
+			$this->queueLightChange($chunk, $x, $y, $z, $previousStateId, $stateId);
 			$this->internalNotifyNeighbourBlockUpdate($x, $y, $z);
 		}
 
