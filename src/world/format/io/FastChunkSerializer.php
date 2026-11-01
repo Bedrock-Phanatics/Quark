@@ -42,16 +42,18 @@ use function unpack;
  */
 final class FastChunkSerializer{
 	private const FLAG_POPULATED = 1 << 1;
+	/** Written in place of the bits per block when a subchunk's biomes match the previous subchunk's. */
+	private const REPEATED_BIOMES = 0xff;
 
 	private function __construct(){
 		//NOOP
 	}
 
-	private static function serializePalettedArray(ByteBufferWriter $stream, PalettedBlockArray $array) : void{
-		$wordArray = $array->getWordArray();
-		$palette = $array->getPalette();
-
-		Byte::writeUnsigned($stream, $array->getBitsPerBlock());
+	/**
+	 * @param int[] $palette
+	 */
+	private static function serializePalettedArray(ByteBufferWriter $stream, int $bitsPerBlock, string $wordArray, array $palette) : void{
+		Byte::writeUnsigned($stream, $bitsPerBlock);
 		$stream->writeByteArray($wordArray);
 		$serialPalette = pack("L*", ...$palette);
 		BE::writeUnsignedInt($stream, strlen($serialPalette));
@@ -71,6 +73,8 @@ final class FastChunkSerializer{
 		$count = count($subChunks);
 		Byte::writeUnsigned($stream, $count);
 
+		//most subchunks share their neighbour's biomes, especially the empty ones above the terrain
+		$previousBiomes = null;
 		foreach($subChunks as $y => $subChunk){
 			Byte::writeSigned($stream, $y);
 			BE::writeUnsignedInt($stream, $subChunk->getEmptyBlockId());
@@ -78,17 +82,23 @@ final class FastChunkSerializer{
 			$layers = $subChunk->getBlockLayers();
 			Byte::writeUnsigned($stream, count($layers));
 			foreach($layers as $blocks){
-				self::serializePalettedArray($stream, $blocks);
+				self::serializePalettedArray($stream, $blocks->getBitsPerBlock(), $blocks->getWordArray(), $blocks->getPalette());
 			}
-			self::serializePalettedArray($stream, $subChunk->getBiomeArray());
 
+			$biomeArray = $subChunk->getBiomeArray();
+			$biomes = [$biomeArray->getBitsPerBlock(), $biomeArray->getWordArray(), $biomeArray->getPalette()];
+			if($biomes === $previousBiomes){
+				Byte::writeUnsigned($stream, self::REPEATED_BIOMES);
+			}else{
+				self::serializePalettedArray($stream, ...$biomes);
+				$previousBiomes = $biomes;
+			}
 		}
 
 		return $stream->getData();
 	}
 
-	private static function deserializePalettedArray(ByteBufferReader $stream) : PalettedBlockArray{
-		$bitsPerBlock = Byte::readUnsigned($stream);
+	private static function deserializePalettedArray(ByteBufferReader $stream, int $bitsPerBlock) : PalettedBlockArray{
 		$words = $stream->readByteArray(PalettedBlockArray::getExpectedWordArraySize($bitsPerBlock));
 		$paletteSize = BE::readUnsignedInt($stream);
 		/** @var int[] $unpackedPalette */
@@ -109,6 +119,7 @@ final class FastChunkSerializer{
 
 		$subChunks = [];
 
+		$previousBiomes = null;
 		$count = Byte::readUnsigned($stream);
 		for($subCount = 0; $subCount < $count; ++$subCount){
 			$y = Byte::readSigned($stream);
@@ -117,9 +128,15 @@ final class FastChunkSerializer{
 
 			$layers = [];
 			for($i = 0, $layerCount = Byte::readUnsigned($stream); $i < $layerCount; ++$i){
-				$layers[] = self::deserializePalettedArray($stream);
+				$layers[] = self::deserializePalettedArray($stream, Byte::readUnsigned($stream));
 			}
-			$biomeArray = self::deserializePalettedArray($stream);
+			$biomeBitsPerBlock = Byte::readUnsigned($stream);
+			if($biomeBitsPerBlock === self::REPEATED_BIOMES){
+				//every subchunk needs its own copy, since biomes can be changed
+				$biomeArray = clone ($previousBiomes ?? throw new \InvalidArgumentException("Repeated biomes without a previous subchunk"));
+			}else{
+				$biomeArray = $previousBiomes = self::deserializePalettedArray($stream, $biomeBitsPerBlock);
+			}
 			$subChunks[$y] = new SubChunk($airBlockId, $layers, $biomeArray);
 		}
 
