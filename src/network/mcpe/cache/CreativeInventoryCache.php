@@ -28,19 +28,23 @@ use quark\inventory\CreativeInventory;
 use quark\lang\Translatable;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\packet\CreativeContentPacket;
 use quark\network\mcpe\protocol\types\CreativeGroup;
 use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
 use quark\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\utils\SingletonTrait;
+use function count;
 use function is_string;
 use function spl_object_id;
 use const PHP_INT_MIN;
 
 final class CreativeInventoryCache{
 	use SingletonTrait;
+
+	/** Encoded packets kept per inventory, one per language and protocol in practice. */
+	private const MAX_ENCODED_VARIANTS = 16;
 
 	/**
 	 * @var CreativeInventoryCacheEntry[]
@@ -107,12 +111,24 @@ final class CreativeInventoryCache{
 		return new CreativeInventoryCacheEntry($categories, $groups, $items);
 	}
 
-	public function buildPacket(CreativeInventory $inventory, NetworkSession $session) : Packet{
+	/**
+	 * Builds the cache entry ahead of time, so the first player to need it doesn't wait for it.
+	 */
+	public function prepare(CreativeInventory $inventory) : void{
+		$this->getCacheEntry($inventory);
+	}
+
+	public function buildPacket(CreativeInventory $inventory, NetworkSession $session) : EncodedPacket{
 		$player = $session->getPlayer() ?? throw new \LogicException("Cannot prepare creative data for a session without a player");
 		$language = $player->getLanguage();
 		$forceLanguage = $player->getServer()->isLanguageForced();
 		$typeConverter = $session->getTypeConverter();
 		$cachedEntry = $this->getCacheEntry($inventory);
+		//group names are all that differs between players: they come from the language, the rest from the converter
+		$key = spl_object_id($typeConverter) . ($forceLanguage ? ":forced:" : ":client:") . $language->getLang();
+		if(isset($cachedEntry->encoded[$key])){
+			return $cachedEntry->encoded[$key];
+		}
 		$translate = function(Translatable|string $translatable) use ($session, $language, $forceLanguage) : string{
 			if(is_string($translatable)){
 				$message = $translatable;
@@ -150,6 +166,11 @@ final class CreativeInventoryCache{
 			}
 		}
 
-		return new CreativeContentPacket(groups: $groupEntries, entries: $cachedEntry->items);
+		//1700+ items cost a few ms to encode, so players who would get the same packet share the encoded one
+		$encoded = EncodedPacket::of(new CreativeContentPacket(groups: $groupEntries, entries: $cachedEntry->items));
+		if(count($cachedEntry->encoded) < self::MAX_ENCODED_VARIANTS){
+			$cachedEntry->encoded[$key] = $encoded;
+		}
+		return $encoded;
 	}
 }

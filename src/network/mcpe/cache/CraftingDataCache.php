@@ -60,6 +60,13 @@ final class CraftingDataCache{
 	private array $caches = [];
 
 	/**
+	 * Managers whose callbacks already drop their cache, so rebuilding it doesn't add more of them
+	 * @var true[]
+	 * @phpstan-var array<int, true>
+	 */
+	private array $watched = [];
+
+	/**
 	 * The client doesn't like recipes with ID 0 (as of 1.21.100) and complains about them in the content log
 	 * This doesn't actually affect the function of the recipe, but it is annoying, so this offset fixes it
 	 */
@@ -67,15 +74,16 @@ final class CraftingDataCache{
 
 	public function getCache(CraftingManager $manager) : EncodedPacket{
 		$id = spl_object_id($manager);
-		if(!isset($this->caches[$id])){
+		if(!isset($this->watched[$id])){
+			$this->watched[$id] = true;
 			$manager->getDestructorCallbacks()->add(function() use ($id) : void{
-				unset($this->caches[$id]);
+				unset($this->caches[$id], $this->watched[$id]);
 			});
 			$manager->getRecipeRegisteredCallbacks()->add(function() use ($id) : void{
 				unset($this->caches[$id]);
 			});
-			$this->caches[$id] = $this->buildCraftingDataCache($manager);
 		}
+		$this->caches[$id] ??= $this->buildCraftingDataCache($manager);
 		return $this->caches[$id];
 	}
 

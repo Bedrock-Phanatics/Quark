@@ -25,9 +25,17 @@ namespace quark\network\mcpe\cache;
 
 use quark\inventory\CreativeCategory;
 use quark\inventory\CreativeGroup;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\types\CreativeItemEntryPayload;
 
 final class CreativeInventoryCacheEntry{
+
+	/**
+	 * Encoded packets for the type converter and language they were built for, which is all that differs between players
+	 * @var EncodedPacket[]
+	 * @phpstan-var array<string, EncodedPacket>
+	 */
+	public array $encoded = [];
 
 	/**
 	 * @param CreativeCategory[]         $categories

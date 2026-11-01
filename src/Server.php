@@ -51,12 +51,16 @@ use quark\event\player\PlayerDataSaveEvent;
 use quark\event\player\PlayerLoginEvent;
 use quark\event\server\CommandEvent;
 use quark\event\server\QueryRegenerateEvent;
+use quark\inventory\CreativeInventory;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\LanguageNotFoundException;
 use quark\lang\Translatable;
 use quark\network\mcpe\auth\AuthKeyProvider;
 use quark\network\mcpe\bedwire\BedwireTransport;
+use quark\network\mcpe\cache\CraftingDataCache;
+use quark\network\mcpe\cache\CreativeInventoryCache;
+use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\CompressBatchTask;
 use quark\network\mcpe\compression\Compressor;
@@ -1268,6 +1272,11 @@ class Server{
 				$this->forceShutdownExit();
 				return;
 			}
+
+			//the first player to join would otherwise build these mid-game, stalling the main thread for a few hundred ms
+			StaticPacketCache::getInstance();
+			CraftingDataCache::getInstance()->getCache($this->craftingManager);
+			CreativeInventoryCache::getInstance()->prepare(CreativeInventory::getInstance());
 
 			if(!$this->startupPrepareNetworkInterfaces()){
 				$this->forceShutdownExit();
