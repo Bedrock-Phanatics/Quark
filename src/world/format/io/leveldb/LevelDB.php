@@ -30,6 +30,7 @@ use quark\world\format\io\data\BedrockWorldData;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\exception\WorldInUseException;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function defined;
@@ -37,6 +38,7 @@ use function extension_loaded;
 use function file_exists;
 use function is_dir;
 use function mkdir;
+use function preg_match;
 use function str_starts_with;
 use function strlen;
 use function substr;
@@ -77,8 +79,13 @@ class LevelDB extends BedrockWorldProvider{
 		try{
 			$this->db = self::createDB($path);
 		}catch(\LevelDBException $e){
-			//we can't tell the difference between errors caused by bad permissions and actual corruption :(
-			throw new CorruptedWorldException(trim($e->getMessage()), 0, $e);
+			$message = trim($e->getMessage());
+			//LevelDB reports a held lock as "IO error: lock <path>/LOCK: ...", whichever process holds it
+			if(preg_match('/^IO error: lock .*[\/\\\\]LOCK: /', $message) === 1){
+				throw new WorldInUseException($message, 0, $e);
+			}
+			//other than that, we can't tell the difference between errors caused by bad permissions and actual corruption :(
+			throw new CorruptedWorldException($message, 0, $e);
 		}
 	}
 

@@ -27,6 +27,7 @@ use quark\world\format\io\data\BedrockWorldData;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\leveldb\BedrockWorldProvider;
 use quark\world\format\io\WorldData;
 use quark\world\WorldCreationOptions;
@@ -50,6 +51,7 @@ final class ZigriteDB extends BedrockWorldProvider{
 	private const OVERWORLD = 0;
 	/** ZigriteDB status codes, see zigritedb.h. */
 	private const STATUS_CORRUPTION = 6;
+	private const STATUS_BUSY = 9;
 	private const STATUS_NEEDS_MIGRATION = 16;
 
 	private ZigriteWorld $world;
@@ -90,10 +92,12 @@ final class ZigriteDB extends BedrockWorldProvider{
 		try{
 			$this->world = new ZigriteWorld($path, self::options());
 		}catch(ZigriteException $e){
-			if($e->getCode() === self::STATUS_NEEDS_MIGRATION){
-				throw new UnsupportedWorldFormatException($e->getMessage(), 0, $e);
-			}
-			throw new CorruptedWorldException($e->getMessage(), 0, $e);
+			throw match($e->getCode()){
+				self::STATUS_NEEDS_MIGRATION => new UnsupportedWorldFormatException($e->getMessage(), 0, $e),
+				//another server, or a zigrite command, has the world open
+				self::STATUS_BUSY => new WorldInUseException($e->getMessage(), 0, $e),
+				default => new CorruptedWorldException($e->getMessage(), 0, $e),
+			};
 		}
 	}
 

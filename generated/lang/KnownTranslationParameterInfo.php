@@ -513,6 +513,7 @@ final class KnownTranslationParameterInfo{
 		Keys::QUARK_LEVEL_CORRUPTED => ["details"],
 		Keys::QUARK_LEVEL_DEFAULTERROR => [],
 		Keys::QUARK_LEVEL_GENERATIONERROR => ["0", "1"],
+		Keys::QUARK_LEVEL_INUSE => ["details"],
 		Keys::QUARK_LEVEL_INVALIDGENERATOROPTIONS => ["preset", "generatorName", "details"],
 		Keys::QUARK_LEVEL_LOADERROR => ["0", "1"],
 		Keys::QUARK_LEVEL_PREPARING => ["0"],

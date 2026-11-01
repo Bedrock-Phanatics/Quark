@@ -33,6 +33,7 @@ use quark\Server;
 use quark\world\format\Chunk;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\FormatConverter;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WritableWorldProvider;
@@ -207,6 +208,12 @@ class WorldManager{
 			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
 				KnownTranslationFactory::quark_level_unsupportedFormat($e->getMessage())
+			)));
+			return false;
+		}catch(WorldInUseException $e){
+			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
+				$name,
+				KnownTranslationFactory::quark_level_inUse($e->getMessage())
 			)));
 			return false;
 		}

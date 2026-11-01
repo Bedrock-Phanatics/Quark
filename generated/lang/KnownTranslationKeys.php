@@ -510,6 +510,7 @@ final class KnownTranslationKeys{
 	public const QUARK_LEVEL_CORRUPTED = "quark.level.corrupted";
 	public const QUARK_LEVEL_DEFAULTERROR = "quark.level.defaultError";
 	public const QUARK_LEVEL_GENERATIONERROR = "quark.level.generationError";
+	public const QUARK_LEVEL_INUSE = "quark.level.inUse";
 	public const QUARK_LEVEL_INVALIDGENERATOROPTIONS = "quark.level.invalidGeneratorOptions";
 	public const QUARK_LEVEL_LOADERROR = "quark.level.loadError";
 	public const QUARK_LEVEL_PREPARING = "quark.level.preparing";

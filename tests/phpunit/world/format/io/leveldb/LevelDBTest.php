@@ -33,6 +33,7 @@ use quark\utils\Filesystem;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\exception\CorruptedChunkException;
+use quark\world\format\io\exception\WorldInUseException;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function bin2hex;
@@ -164,6 +165,16 @@ final class LevelDBTest extends TestCase{
 			$provider->loadChunk(0, 0);
 		}finally{
 			$provider->close();
+		}
+	}
+
+	public function testWorldOpenElsewhereIsReportedAsInUse() : void{
+		$first = $this->open();
+		try{
+			$this->expectException(WorldInUseException::class);
+			$this->open();
+		}finally{
+			$first->close();
 		}
 	}
 }

@@ -32,6 +32,7 @@ use quark\block\VanillaBlocks;
 use quark\utils\Filesystem;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
+use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\FastChunkSerializer;
 use quark\world\format\io\leveldb\LevelDB;
 use quark\world\format\io\LoadedChunkData;
@@ -161,5 +162,15 @@ final class ZigriteDBTest extends TestCase{
 		self::assertTrue(ZigriteDB::isValid($this->path));
 		self::assertFalse(LevelDB::isValid($this->path));
 		self::assertSame("test", $this->open()->getWorldData()->getName());
+	}
+
+	public function testWorldOpenElsewhereIsReportedAsInUse() : void{
+		$first = $this->open();
+		try{
+			$this->expectException(WorldInUseException::class);
+			$this->open();
+		}finally{
+			$first->close();
+		}
 	}
 }
