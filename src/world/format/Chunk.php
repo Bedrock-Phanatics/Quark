@@ -54,10 +54,11 @@ class Chunk{
 	protected bool $terrainPopulated = false;
 
 	/**
-	 * @var \SplFixedArray|SubChunk[]
-	 * @phpstan-var \SplFixedArray<SubChunk>
+	 * Keyed by subchunk Y, so getSubChunks() can hand out the array as it is
+	 * @var SubChunk[]
+	 * @phpstan-var array<int, SubChunk>
 	 */
-	protected \SplFixedArray $subChunks;
+	protected array $subChunks = [];
 
 	/**
 	 * @var Tile[]
@@ -71,11 +72,9 @@ class Chunk{
 	 * @param SubChunk[] $subChunks
 	 */
 	public function __construct(array $subChunks, bool $terrainPopulated){
-		$this->subChunks = new \SplFixedArray(Chunk::MAX_SUBCHUNKS);
-
-		foreach($this->subChunks as $y => $null){
+		for($y = self::MIN_SUBCHUNK_INDEX; $y <= self::MAX_SUBCHUNK_INDEX; ++$y){
 			//TODO: we should probably require all subchunks to be provided here
-			$this->subChunks[$y] = $subChunks[$y + self::MIN_SUBCHUNK_INDEX] ?? new SubChunk(Block::EMPTY_STATE_ID, [], new PalettedBlockArray(BiomeIds::OCEAN));
+			$this->subChunks[$y] = $subChunks[$y] ?? new SubChunk(Block::EMPTY_STATE_ID, [], new PalettedBlockArray(BiomeIds::OCEAN));
 		}
 
 		$val = (self::MAX_SUBCHUNK_INDEX + 1) * SubChunk::EDGE_LENGTH;
@@ -88,7 +87,7 @@ class Chunk{
 	 * Returns the chunk height in count of subchunks.
 	 */
 	public function getHeight() : int{
-		return $this->subChunks->getSize();
+		return self::MAX_SUBCHUNKS;
 	}
 
 	/**
@@ -289,7 +288,7 @@ class Chunk{
 		if($y < self::MIN_SUBCHUNK_INDEX || $y > self::MAX_SUBCHUNK_INDEX){
 			throw new \InvalidArgumentException("Invalid subchunk Y coordinate $y");
 		}
-		return $this->subChunks[$y - self::MIN_SUBCHUNK_INDEX];
+		return $this->subChunks[$y];
 	}
 
 	/**
@@ -300,7 +299,7 @@ class Chunk{
 			throw new \InvalidArgumentException("Invalid subchunk Y coordinate $y");
 		}
 
-		$this->subChunks[$y - self::MIN_SUBCHUNK_INDEX] = $subChunk ?? new SubChunk(Block::EMPTY_STATE_ID, [], new PalettedBlockArray(BiomeIds::OCEAN));
+		$this->subChunks[$y] = $subChunk ?? new SubChunk(Block::EMPTY_STATE_ID, [], new PalettedBlockArray(BiomeIds::OCEAN));
 		$this->terrainDirtyFlags |= self::DIRTY_FLAG_BLOCKS;
 	}
 
@@ -309,11 +308,7 @@ class Chunk{
 	 * @phpstan-return array<int, SubChunk>
 	 */
 	public function getSubChunks() : array{
-		$result = [];
-		foreach($this->subChunks as $yOffset => $subChunk){
-			$result[$yOffset + self::MIN_SUBCHUNK_INDEX] = $subChunk;
-		}
-		return $result;
+		return $this->subChunks;
 	}
 
 	/**
@@ -327,9 +322,7 @@ class Chunk{
 
 	public function __clone(){
 		//we don't bother cloning entities or tiles since it's impractical to do so (too many dependencies)
-		$this->subChunks = \SplFixedArray::fromArray(array_map(function(SubChunk $subChunk) : SubChunk{
-			return clone $subChunk;
-		}, $this->subChunks->toArray()));
+		$this->subChunks = array_map(fn(SubChunk $subChunk) : SubChunk => clone $subChunk, $this->subChunks);
 		$this->heightMap = clone $this->heightMap;
 	}
 

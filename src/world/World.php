@@ -1564,25 +1564,38 @@ class World implements ChunkManager{
 
 		$blockFactory = $this->blockStateRegistry;
 		foreach($chunk->getSubChunks() as $Y => $subChunk){
-			if(!$subChunk->isEmptyFast()){
-				$k = 0;
-				for($i = 0; $i < $this->tickedBlocksPerSubchunkPerTick; ++$i){
-					if(($i % 5) === 0){
-						//60 bits will be used by 5 blocks (12 bits each)
-						$k = mt_rand(0, (1 << 60) - 1);
-					}
-					$x = $k & SubChunk::COORD_MASK;
-					$y = ($k >> SubChunk::COORD_BIT_SIZE) & SubChunk::COORD_MASK;
-					$z = ($k >> (SubChunk::COORD_BIT_SIZE * 2)) & SubChunk::COORD_MASK;
-					$k >>= (SubChunk::COORD_BIT_SIZE * 3);
+			$blocks = $subChunk->getBlockLayers()[0] ?? null;
+			if($blocks === null){
+				continue;
+			}
+			//most subchunks hold nothing that ticks randomly, which their palette tells without sampling
+			$ticks = false;
+			foreach($blocks->getPalette() as $state){
+				if(isset($this->randomTickBlocks[$state])){
+					$ticks = true;
+					break;
+				}
+			}
+			if(!$ticks){
+				continue;
+			}
+			$k = 0;
+			for($i = 0; $i < $this->tickedBlocksPerSubchunkPerTick; ++$i){
+				if(($i % 5) === 0){
+					//60 bits will be used by 5 blocks (12 bits each)
+					$k = mt_rand(0, (1 << 60) - 1);
+				}
+				$x = $k & SubChunk::COORD_MASK;
+				$y = ($k >> SubChunk::COORD_BIT_SIZE) & SubChunk::COORD_MASK;
+				$z = ($k >> (SubChunk::COORD_BIT_SIZE * 2)) & SubChunk::COORD_MASK;
+				$k >>= (SubChunk::COORD_BIT_SIZE * 3);
 
-					$state = $subChunk->getBlockStateId($x, $y, $z);
+				$state = $blocks->get($x, $y, $z);
 
-					if(isset($this->randomTickBlocks[$state])){
-						$block = $blockFactory->fromStateId($state);
-						$block->position($this, $chunkX * Chunk::EDGE_LENGTH + $x, ($Y << SubChunk::COORD_BIT_SIZE) + $y, $chunkZ * Chunk::EDGE_LENGTH + $z);
-						$block->onRandomTick();
-					}
+				if(isset($this->randomTickBlocks[$state])){
+					$block = $blockFactory->fromStateId($state);
+					$block->position($this, $chunkX * Chunk::EDGE_LENGTH + $x, ($Y << SubChunk::COORD_BIT_SIZE) + $y, $chunkZ * Chunk::EDGE_LENGTH + $z);
+					$block->onRandomTick();
 				}
 			}
 		}
