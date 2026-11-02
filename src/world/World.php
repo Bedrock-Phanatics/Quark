@@ -26,12 +26,14 @@ declare(strict_types=1);
  */
 namespace quark\world;
 
+use Bedwire\Nbt as NativeNbt;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\nbt\TreeRoot;
 use pocketmine\utils\Limits;
 use pocketmine\world\format\LightArray;
 use quark\block\Air;
@@ -130,6 +132,7 @@ use function count;
 use function floor;
 use function get_class;
 use function gettype;
+use function hash;
 use function implode;
 use function intdiv;
 use function is_a;
@@ -309,6 +312,13 @@ class World implements ChunkManager{
 	 * @phpstan-var array<ChunkPosHash, Chunk>
 	 */
 	private array $chunks = [];
+
+	/**
+	 * Each loaded chunk's populated state, entities and tiles as storage last held them, see chunkSaveState()
+	 * @var string[]
+	 * @phpstan-var array<ChunkPosHash, string>
+	 */
+	private array $savedChunkStates = [];
 
 	/**
 	 * @var true[]
@@ -1644,17 +1654,40 @@ class World implements ChunkManager{
 		return $saved;
 	}
 
+	/**
+	 * Identifies what storage holds for a chunk besides its terrain. With clean terrain, this is all a save would write
+	 * differently, so a chunk whose state matches what was last stored needs no save.
+	 *
+	 * @param CompoundTag[] $entities
+	 * @param CompoundTag[] $tiles
+	 */
+	private static function chunkSaveState(bool $populated, array $entities, array $tiles) : string{
+		$state = $populated ? "populated" : "unpopulated";
+		if(count($entities) === 0 && count($tiles) === 0){
+			return $state;
+		}
+		//entity and tile data can come from players, so the hash has to resist crafted collisions
+		$tags = array_map(fn(CompoundTag $tag) => new TreeRoot($tag), [...$entities, ...$tiles]);
+		return $state . ":" . count($entities) . ":" . hash("sha256", NativeNbt::writeMultiple($tags, NativeNbt::BEDROCK), true);
+	}
+
+	private function saveChunk(int $chunkX, int $chunkZ, int $chunkHash, Chunk $chunk) : void{
+		$entities = self::saveChunkEntities($this->getChunkEntities($chunkX, $chunkZ));
+		$tiles = array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles()));
+		$state = self::chunkSaveState($chunk->isPopulated(), $entities, $tiles);
+		if($chunk->getTerrainDirtyFlags() === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state){
+			return;
+		}
+		$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData($chunk->getSubChunks(), $chunk->isPopulated(), $entities, $tiles), $chunk->getTerrainDirtyFlags());
+		$this->savedChunkStates[$chunkHash] = $state;
+	}
+
 	public function saveChunks() : void{
 		$syncChunkSaveScope = $this->pulse->syncChunkSave->start();
 		try{
 			foreach($this->chunks as $chunkHash => $chunk){
 				self::getXZ($chunkHash, $chunkX, $chunkZ);
-				$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData(
-					$chunk->getSubChunks(),
-					$chunk->isPopulated(),
-					self::saveChunkEntities($this->getChunkEntities($chunkX, $chunkZ)),
-					array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles())),
-				), $chunk->getTerrainDirtyFlags());
+				$this->saveChunk($chunkX, $chunkZ, $chunkHash, $chunk);
 				$chunk->clearTerrainDirtyFlags();
 			}
 		}finally{
@@ -2975,7 +3008,7 @@ class World implements ChunkManager{
 		}
 
 		$this->chunks[$chunkHash] = $chunk;
-		unset($this->knownUngeneratedChunks[$chunkHash]);
+		unset($this->knownUngeneratedChunks[$chunkHash], $this->savedChunkStates[$chunkHash]);
 
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
@@ -3271,6 +3304,7 @@ class World implements ChunkManager{
 		$chunk = new Chunk($chunkData->getSubChunks(), $chunkData->isPopulated());
 		if(!$loadedChunkData->isUpgraded()){
 			$chunk->clearTerrainDirtyFlags();
+			$this->savedChunkStates[$chunkHash] = self::chunkSaveState($chunkData->isPopulated(), $chunkData->getEntityNBT(), $chunkData->getTileNBT());
 		}else{
 			$this->logger->debug("Chunk $x $z has been upgraded, will be saved at the next autosave opportunity");
 		}
@@ -3432,12 +3466,7 @@ class World implements ChunkManager{
 			if($trySave && $this->getAutoSave()){
 				$syncChunkSaveScope = $this->pulse->syncChunkSave->start();
 				try{
-					$this->provider->saveChunk($x, $z, new ChunkData(
-						$chunk->getSubChunks(),
-						$chunk->isPopulated(),
-						self::saveChunkEntities($this->getChunkEntities($x, $z)),
-						array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles())),
-					), $chunk->getTerrainDirtyFlags());
+					$this->saveChunk($x, $z, $chunkHash, $chunk);
 				}finally{
 					$this->pulse->syncChunkSave->stop($syncChunkSaveScope);
 				}
@@ -3457,7 +3486,7 @@ class World implements ChunkManager{
 			$chunk->onUnload();
 		}
 
-		unset($this->chunks[$chunkHash]);
+		unset($this->chunks[$chunkHash], $this->savedChunkStates[$chunkHash]);
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
 		unset($this->blockCollisionBoxCache[$chunkHash]);
