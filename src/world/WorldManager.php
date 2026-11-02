@@ -53,8 +53,10 @@ use function floor;
 use function implode;
 use function intdiv;
 use function is_dir;
+use function is_link;
 use function iterator_to_array;
 use function microtime;
+use function preg_match;
 use function round;
 use function scandir;
 use function sort;
@@ -171,7 +173,7 @@ class WorldManager{
 		foreach($this->worldsByName as $world){
 			$names[$world->getFolderName()] = true;
 		}
-		$entries = scandir($this->dataPath, SCANDIR_SORT_NONE);
+		$entries = is_dir($this->dataPath) ? @scandir($this->dataPath, SCANDIR_SORT_NONE) : false;
 		foreach($entries === false ? [] : $entries as $name){
 			if(
 				!isset($names[$name]) && $this->isValidWorldName($name) &&
@@ -237,6 +239,50 @@ class WorldManager{
 	public function deleteWorld(string $name) : Promise{
 		$path = $this->checkUnloadedWorld($name);
 		return $this->runFilesTask(fn(\Closure $onDone) => new WorldFilesTask($path, null, $onDone), "delete world \"$name\"", [$name]);
+	}
+
+	/**
+	 * Removes the hidden folders left behind by copies and deletes that were interrupted, such as by a crash, off the
+	 * main thread. Returns how many were found.
+	 *
+	 * @throws \LogicException if a copy or delete is running, since its folder would be removed under it
+	 */
+	public function removeInterruptedWorldFiles() : int{
+		if(count($this->busyNames) > 0){
+			throw new \LogicException("Cannot clean up interrupted world files while a copy or delete is running");
+		}
+		$found = [];
+		$this->findStagingFolders($this->dataPath, 0, $found);
+		foreach($found as $path){
+			$this->server->getAsyncPool()->submitTask(new WorldFilesTask($path, null, function(?string $error) use ($path) : void{
+				if($error !== null){
+					$this->server->getLogger()->warning("Failed to remove interrupted world files in $path: $error");
+				}
+			}));
+		}
+		if(count($found) > 0){
+			$this->server->getLogger()->info("Removing " . count($found) . " folder(s) left by interrupted world copies or deletes");
+		}
+		return count($found);
+	}
+
+	/**
+	 * @phpstan-param list<string> $found
+	 * @phpstan-param-out list<string> $found
+	 */
+	private function findStagingFolders(string $dir, int $depth, array &$found) : void{
+		$entries = is_dir($dir) ? @scandir($dir, SCANDIR_SORT_NONE) : false;
+		foreach($entries === false ? [] : $entries as $entry){
+			if($entry === "." || $entry === ".." || is_link($path = Path::join($dir, $entry)) || !is_dir($path)){
+				continue;
+			}
+			if(preg_match('/^\..+\.(?:copying|deleting)-[0-9a-f]{8}$/D', $entry) === 1){
+				$found[] = $path;
+			}elseif($depth < 8 && $entry[0] !== "." && count($this->providerManager->getMatchingProviders($path . "/")) === 0){
+				//staging folders sit next to their world, so only folders that are not worlds themselves can hold more
+				$this->findStagingFolders($path, $depth + 1, $found);
+			}
+		}
 	}
 
 	private function checkUnloadedWorld(string $name) : string{

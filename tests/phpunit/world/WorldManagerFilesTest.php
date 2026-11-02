@@ -168,6 +168,36 @@ final class WorldManagerFilesTest extends TestCase{
 		Filesystem::recursiveUnlink($outside);
 	}
 
+	public function testRemovesInterruptedWorldFiles() : void{
+		$this->makeWorld("keep");
+		$this->makeWorld("maps/arena");
+		$leftovers = [
+			Path::join($this->root, ".copy.copying-0123abcd"),
+			Path::join($this->root, ".old.deleting-89abcdef"),
+			Path::join($this->root, "maps", ".pvp.copying-deadbeef"),
+		];
+		foreach($leftovers as $path){
+			mkdir(Path::join($path, "db"), 0777, true);
+			file_put_contents(Path::join($path, "level.dat"), "x");
+		}
+		$untouched = [Path::join($this->root, ".mine"), Path::join($this->root, "keep", "db", ".x.copying-0123abcd")];
+		foreach($untouched as $path){
+			mkdir($path, 0777, true);
+		}
+
+		self::assertSame(3, $this->manager->removeInterruptedWorldFiles());
+		$this->runTasks();
+		foreach($leftovers as $path){
+			self::assertFalse(is_dir($path), $path);
+		}
+		foreach($untouched as $path){
+			self::assertTrue(is_dir($path), $path);
+		}
+		self::assertSame(["keep"], $this->manager->getWorldNames());
+		self::assertSame([".", "..", "arena"], scandir(Path::join($this->root, "maps"), SCANDIR_SORT_ASCENDING));
+		self::assertSame(0, $this->manager->removeInterruptedWorldFiles());
+	}
+
 	public function testFailedCopyCleansUpAndRejects() : void{
 		$this->makeWorld("src");
 		$rejected = false;

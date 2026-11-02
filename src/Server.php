@@ -1237,6 +1237,7 @@ class Server{
 			}
 
 			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
+			$this->worldManager->removeInterruptedWorldFiles();
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
