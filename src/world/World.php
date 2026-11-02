@@ -45,6 +45,7 @@ use quark\block\tile\Spawnable;
 use quark\block\tile\Tile;
 use quark\block\tile\TileFactory;
 use quark\block\UnknownBlock;
+use quark\block\utils\SupportType;
 use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
 use quark\data\bedrock\block\BlockStateData;
@@ -66,10 +67,12 @@ use quark\entity\projectile\Projectile;
 use quark\event\block\BlockBreakEvent;
 use quark\event\block\BlockPlaceEvent;
 use quark\event\block\BlockUpdateEvent;
+use quark\event\entity\EntityDamageEvent;
 use quark\event\player\PlayerInteractEvent;
 use quark\event\world\ChunkLoadEvent;
 use quark\event\world\ChunkPopulateEvent;
 use quark\event\world\ChunkUnloadEvent;
+use quark\event\world\LightningStrikeEvent;
 use quark\event\world\SpawnChangeEvent;
 use quark\event\world\WorldDifficultyChangeEvent;
 use quark\event\world\WorldDisplayNameChangeEvent;
@@ -314,6 +317,7 @@ class World implements ChunkManager{
 	private int $weatherDuration;
 	private bool $weatherCycle;
 	private int $lightningChance;
+	private bool $lightningFire;
 	/**
 	 * Runtime IDs of client-side lightning bolts mapped to the server tick they are removed at, in strike order.
 	 * @phpstan-var array<int, int>
@@ -619,6 +623,7 @@ class World implements ChunkManager{
 		$cfg = $this->server->getConfigGroup();
 		$this->weatherCycle = $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
+		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
 		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 4)));
 		if($cfg->getPropertyInt("chunk-ticking.per-tick", 40) <= 0){
 			//TODO: this needs l10n
@@ -3791,12 +3796,82 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * Shows a lightning bolt with thunder to players viewing the position. This is purely visual.
+	 * Strikes lightning at the position. A harmful strike damages and ignites nearby entities, and sets fire to
+	 * blocks around it on normal or hard difficulty when lightning fire is enabled. Returns false if a plugin
+	 * cancelled the strike.
 	 */
-	public function strikeLightning(Vector3 $pos) : void{
-		if(count($this->players) === 0){
+	public function strikeLightning(Vector3 $pos, bool $harmful = true) : bool{
+		$ev = new LightningStrikeEvent($this, $pos, $harmful, $harmful && $this->lightningFire && $this->getDifficulty() >= self::DIFFICULTY_NORMAL);
+		$ev->call();
+		if($ev->isCancelled()){
+			return false;
+		}
+
+		if(count($this->players) > 0){
+			$this->showLightning($pos);
+		}
+		if(!$ev->isHarmful()){
+			return true;
+		}
+
+		foreach($this->getNearbyEntities(new AxisAlignedBB($pos->x - 3, $pos->y - 3, $pos->z - 3, $pos->x + 3, $pos->y + 9, $pos->z + 3)) as $entity){
+			if(!$entity->isAlive() || $entity->isFlaggedForDespawn()){
+				continue;
+			}
+			$damage = new EntityDamageEvent($entity, EntityDamageEvent::CAUSE_LIGHTNING, 5);
+			$entity->attack($damage);
+			if(!$damage->isCancelled() && $entity->isAlive()){
+				$entity->setOnFire(8);
+			}
+		}
+
+		if($ev->isFire()){
+			$x = (int) floor($pos->x);
+			$y = (int) floor($pos->y);
+			$z = (int) floor($pos->z);
+			$this->igniteLightningFire($x, $y, $z);
+			for($i = 0; $i < 4; ++$i){
+				$this->igniteLightningFire($x + mt_rand(-1, 1), $y + mt_rand(-1, 1), $z + mt_rand(-1, 1));
+			}
+		}
+		return true;
+	}
+
+	private function igniteLightningFire(int $x, int $y, int $z) : void{
+		if(
+			!$this->isInWorld($x, $y, $z) ||
+			!$this->isChunkLoaded($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE) ||
+			$this->getBlockAt($x, $y, $z)->getTypeId() !== BlockTypeIds::AIR ||
+			$this->getBlockAt($x, $y - 1, $z)->getSupportType(Facing::UP) !== SupportType::FULL
+		){
 			return;
 		}
+		$this->setBlockAt($x, $y, $z, VanillaBlocks::FIRE());
+	}
+
+	/**
+	 * Whether rain falls on the position, which needs a storm, open sky above and a biome where it rains.
+	 */
+	public function isRainingAt(int $x, int $y, int $z) : bool{
+		if($this->weather === Weather::CLEAR || ($chunk = $this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null) === null){
+			return false;
+		}
+		$x &= Chunk::COORD_MASK;
+		$z &= Chunk::COORD_MASK;
+		$highest = $chunk->getHighestBlockAt($x, $z);
+		if($highest !== null && $highest > $y){
+			return false;
+		}
+		$biomeId = $chunk->getBiomeId($x, max($this->minY, min($y, $this->maxY - 1)), $z);
+		if($biomeId < 0 || $biomeId >= Biome::MAX_BIOMES){
+			return false;
+		}
+		$biome = BiomeRegistry::getInstance()->getBiome($biomeId);
+		//dry and snowy biomes get no rain
+		return $biome->getRainfall() > 0 && $biome->getTemperature() >= 0.15;
+	}
+
+	private function showLightning(Vector3 $pos) : void{
 		$id = Entity::nextRuntimeId();
 		$this->broadcastPacketToViewers($pos, new AddActorPacket(
 			targetActorId: $id,
@@ -3818,21 +3893,12 @@ class World implements ChunkManager{
 
 	private function strikeNaturalLightning(int $chunkX, int $chunkZ) : void{
 		$chunk = $this->chunks[World::chunkHash($chunkX, $chunkZ)] ?? null;
-		$x = mt_rand(0, Chunk::COORD_MASK);
-		$z = mt_rand(0, Chunk::COORD_MASK);
-		if($chunk === null || ($y = $chunk->getHighestBlockAt($x, $z)) === null){
+		$x = ($chunkX << Chunk::COORD_BIT_SIZE) + mt_rand(0, Chunk::COORD_MASK);
+		$z = ($chunkZ << Chunk::COORD_BIT_SIZE) + mt_rand(0, Chunk::COORD_MASK);
+		if($chunk === null || ($y = $chunk->getHighestBlockAt($x & Chunk::COORD_MASK, $z & Chunk::COORD_MASK)) === null || !$this->isRainingAt($x, ++$y, $z)){
 			return;
 		}
-		$biomeId = $chunk->getBiomeId($x, $y, $z);
-		if($biomeId < 0 || $biomeId >= Biome::MAX_BIOMES){
-			return;
-		}
-		$biome = BiomeRegistry::getInstance()->getBiome($biomeId);
-		//no rain falls in dry or snowy biomes, so there is no storm there either
-		if($biome->getRainfall() <= 0 || $biome->getTemperature() < 0.15){
-			return;
-		}
-		$this->strikeLightning(new Vector3(($chunkX << Chunk::COORD_BIT_SIZE) + $x + 0.5, $y + 1, ($chunkZ << Chunk::COORD_BIT_SIZE) + $z + 0.5));
+		$this->strikeLightning(new Vector3($x + 0.5, $y, $z + 0.5));
 	}
 
 	private function despawnLightning(int $currentTick) : void{

@@ -25,6 +25,7 @@ namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\utils\Limits;
+use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
 use quark\network\mcpe\protocol\LevelPackets;
 use quark\network\mcpe\protocol\types\LevelEvent;
@@ -98,6 +99,26 @@ final class WorldWeatherTest extends TestCase{
 
 		$this->expectException(\InvalidArgumentException::class);
 		$world->setBiomeId(1, World::Y_MAX, 1, BiomeIds::DESERT);
+	}
+
+	public function testRainOnlyFallsUnderOpenSkyInWetBiomes() : void{
+		$world = self::world();
+		(new \ReflectionProperty(World::class, "minY"))->setValue($world, World::Y_MIN);
+		(new \ReflectionProperty(World::class, "maxY"))->setValue($world, World::Y_MAX);
+		$chunk = new Chunk([], true);
+		$chunk->setBlockStateId(1, 64, 1, VanillaBlocks::STONE()->getStateId());
+		for($y = World::Y_MIN; $y < World::Y_MAX; ++$y){
+			$chunk->setBiomeId(2, $y, 2, BiomeIds::DESERT);
+		}
+		(new \ReflectionProperty(World::class, "chunks"))->setValue($world, [World::chunkHash(0, 0) => $chunk]);
+
+		self::assertFalse($world->isRainingAt(1, 65, 1));
+		$world->setWeather(Weather::RAIN, 100);
+		self::assertTrue($world->isRainingAt(1, 65, 1));
+		self::assertTrue($world->isRainingAt(1, 64, 1));
+		self::assertFalse($world->isRainingAt(1, 63, 1));
+		self::assertFalse($world->isRainingAt(2, 65, 2));
+		self::assertFalse($world->isRainingAt(40, 65, 40));
 	}
 
 	public function testExpiredLightningIsRemovedInOrder() : void{

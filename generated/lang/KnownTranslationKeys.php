@@ -150,6 +150,7 @@ final class KnownTranslationKeys{
 	public const DEATH_ATTACK_INFIRE = "death.attack.inFire";
 	public const DEATH_ATTACK_INWALL = "death.attack.inWall";
 	public const DEATH_ATTACK_LAVA = "death.attack.lava";
+	public const DEATH_ATTACK_LIGHTNINGBOLT = "death.attack.lightningBolt";
 	public const DEATH_ATTACK_MAGIC = "death.attack.magic";
 	public const DEATH_ATTACK_MOB = "death.attack.mob";
 	public const DEATH_ATTACK_ONFIRE = "death.attack.onFire";

@@ -180,6 +180,7 @@ return array (
   array (
     'cycle' => true,
     'lightning-chance' => 100000,
+    'lightning-fire' => true,
   ),
   'plugins' =>
   array (

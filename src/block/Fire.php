@@ -30,6 +30,7 @@ use quark\block\utils\BlockEventHelper;
 use quark\block\utils\SupportType;
 use quark\event\block\BlockBurnEvent;
 use quark\world\format\Chunk;
+use quark\world\Weather;
 use quark\world\World;
 use function intdiv;
 use function max;
@@ -67,6 +68,12 @@ class Fire extends BaseFire implements Ageable{
 
 	public function onRandomTick() : void{
 		$down = $this->getSide(Facing::DOWN);
+		$world = $this->position->getWorld();
+
+		if(!$down->burnsForever() && mt_rand(0, 99) < 20 + $this->age * 3 && $this->isNearRain($world)){
+			$world->setBlock($this->position, VanillaBlocks::AIR());
+			return;
+		}
 
 		$result = null;
 		if($this->age < self::MAX_AGE && mt_rand(0, 2) === 0){
@@ -76,7 +83,6 @@ class Fire extends BaseFire implements Ageable{
 		$canSpread = true;
 
 		if(!$down->burnsForever()){
-			//TODO: check rain
 			if($this->age === self::MAX_AGE){
 				if(!$down->isFlammable() && mt_rand(0, 3) === 3){ //1/4 chance to extinguish
 					$canSpread = false;
@@ -90,7 +96,6 @@ class Fire extends BaseFire implements Ageable{
 			}
 		}
 
-		$world = $this->position->getWorld();
 		if($result !== null){
 			$world->setBlock($this->position, $result);
 		}
@@ -105,6 +110,17 @@ class Fire extends BaseFire implements Ageable{
 
 	public function onScheduledUpdate() : void{
 		$this->onRandomTick();
+	}
+
+	private function isNearRain(World $world) : bool{
+		if($world->getWeather() === Weather::CLEAR){
+			return false;
+		}
+		$x = (int) $this->position->x;
+		$y = (int) $this->position->y;
+		$z = (int) $this->position->z;
+		return $world->isRainingAt($x, $y, $z) || $world->isRainingAt($x - 1, $y, $z) || $world->isRainingAt($x + 1, $y, $z) ||
+			$world->isRainingAt($x, $y, $z - 1) || $world->isRainingAt($x, $y, $z + 1);
 	}
 
 	private function hasAdjacentFlammableBlocks() : bool{

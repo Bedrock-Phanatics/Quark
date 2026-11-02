@@ -135,5 +135,6 @@ final class YmlServerProperties{
 	public const WEATHER = 'weather';
 	public const WEATHER_CYCLE = 'weather.cycle';
 	public const WEATHER_LIGHTNING_CHANCE = 'weather.lightning-chance';
+	public const WEATHER_LIGHTNING_FIRE = 'weather.lightning-fire';
 	public const WORLDS = 'worlds';
 }

@@ -69,6 +69,7 @@ use quark\VersionInfo;
 use quark\world\format\Chunk;
 use quark\world\Position;
 use quark\world\sound\Sound;
+use quark\world\Weather;
 use quark\world\World;
 use function abs;
 use function assert;
@@ -763,6 +764,11 @@ abstract class Entity{
 	protected function doOnFireTick(int $tickDiff = 1) : bool{
 		if($this->isFireProof() && $this->isOnFire()){
 			$this->extinguish(EntityExtinguishEvent::CAUSE_FIRE_PROOF);
+			return false;
+		}
+		$world = $this->getWorld();
+		if($world->getWeather() !== Weather::CLEAR && $world->isRainingAt((int) floor($this->location->x), (int) floor($this->location->y + $this->size->getHeight()), (int) floor($this->location->z))){
+			$this->extinguish(EntityExtinguishEvent::CAUSE_RAIN);
 			return false;
 		}
 

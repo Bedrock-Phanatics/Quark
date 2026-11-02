@@ -176,6 +176,9 @@ class PlayerDeathEvent extends EntityDeathEvent{
 			case EntityDamageEvent::CAUSE_MAGIC:
 				return KnownTranslationFactory::death_attack_magic($name);
 
+			case EntityDamageEvent::CAUSE_LIGHTNING:
+				return KnownTranslationFactory::death_attack_lightningBolt($name);
+
 			case EntityDamageEvent::CAUSE_FALLING_BLOCK:
 				if($deathCause instanceof EntityDamageByEntityEvent){
 					$e = $deathCause->getDamager();

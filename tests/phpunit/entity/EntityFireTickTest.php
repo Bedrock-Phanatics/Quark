@@ -25,6 +25,8 @@ namespace quark\entity;
 
 use PHPUnit\Framework\TestCase;
 use quark\Server;
+use quark\world\Weather;
+use quark\world\World;
 use function range;
 
 final class EntityFireTickTest extends TestCase{
@@ -36,6 +38,28 @@ final class EntityFireTickTest extends TestCase{
 		$server->method("getTick")->willReturnCallback(fn() => $this->tick);
 		$this->entity = new \ReflectionClass(FireTickTestEntity::class)->newInstanceWithoutConstructor();
 		new \ReflectionProperty(Entity::class, "server")->setValue($this->entity, $server);
+		$this->placeIn(Weather::CLEAR, false);
+	}
+
+	private function placeIn(Weather $weather, bool $rainingHere) : void{
+		$world = $this->createMock(World::class);
+		$world->method("isLoaded")->willReturn(true);
+		$world->method("getWeather")->willReturn($weather);
+		$world->method("isRainingAt")->willReturn($rainingHere);
+		new \ReflectionProperty(Entity::class, "location")->setValue($this->entity, new Location(0, 64, 0, $world, 0, 0));
+		new \ReflectionProperty(Entity::class, "size")->setValue($this->entity, new EntitySizeInfo(1.8, 0.6));
+	}
+
+	public function testRainPutsOutFire() : void{
+		$this->tick = 100;
+		$this->entity->setOnFire(8);
+		$this->placeIn(Weather::RAIN, false);
+		self::assertSame([120], $this->burn(100, range(101, 120)));
+		self::assertTrue($this->entity->isOnFire());
+
+		$this->placeIn(Weather::RAIN, true);
+		self::assertSame([], $this->burn(120, [121]));
+		self::assertFalse($this->entity->isOnFire());
 	}
 
 	/**

@@ -153,6 +153,7 @@ final class KnownTranslationParameterInfo{
 		Keys::DEATH_ATTACK_INFIRE => ["0"],
 		Keys::DEATH_ATTACK_INWALL => ["0"],
 		Keys::DEATH_ATTACK_LAVA => ["0"],
+		Keys::DEATH_ATTACK_LIGHTNINGBOLT => ["0"],
 		Keys::DEATH_ATTACK_MAGIC => ["0"],
 		Keys::DEATH_ATTACK_MOB => ["0", "1"],
 		Keys::DEATH_ATTACK_ONFIRE => ["0"],
