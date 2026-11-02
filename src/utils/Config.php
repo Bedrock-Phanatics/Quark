@@ -39,6 +39,7 @@ use function implode;
 use function in_array;
 use function is_array;
 use function is_bool;
+use function is_file;
 use function json_decode;
 use function json_encode;
 use function preg_match_all;
@@ -259,7 +260,7 @@ class Config{
 				$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
 				break;
 			case Config::TOML:
-				$content = \quark\CoreConfig::encode($this->config);
+				$content = is_file($this->file) ? \quark\CoreConfig::update(Filesystem::fileGetContents($this->file), $this->config) : \quark\CoreConfig::encode($this->config);
 				break;
 			case Config::SERIALIZED:
 				$content = serialize($this->config);
