@@ -944,6 +944,15 @@ class NetworkSession{
 		}
 	}
 
+	/**
+	 * @internal Sends queued packets now instead of on the next tick.
+	 */
+	public function flushSendBuffer() : void{
+		if($this->connected){
+			$this->flushGamePacketQueue();
+		}
+	}
+
 	private function flushGamePacketQueue() : void{
 		if(count($this->sendBuffer) > 0){
 			$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
@@ -1448,6 +1457,7 @@ class NetworkSession{
 		$this->player->doFirstSpawn();
 		$this->forceAsyncCompression = false;
 		$this->setHandler(new InGamePacketHandler($this->player, $this, $this->invManager));
+		$this->manager->markJoined($this);
 	}
 
 	public function onServerDeath(Translatable|string $deathMessage) : void{

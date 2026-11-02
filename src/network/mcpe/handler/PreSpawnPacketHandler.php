@@ -224,6 +224,8 @@ class PreSpawnPacketHandler extends PacketHandler{
 
 	public function handleRequestChunkRadius(RequestChunkRadiusPacket $packet) : bool{
 		$this->player->setViewDistance($packet->chunkRadius);
+		//spawn chunks are what the client waits for, so they are requested now rather than on the next tick
+		$this->player->doChunkRequests();
 
 		return true;
 	}

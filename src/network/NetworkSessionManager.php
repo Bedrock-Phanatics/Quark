@@ -43,12 +43,37 @@ class NetworkSessionManager{
 	private array $pendingLoginSessions = [];
 
 	/**
+	 * Sessions that have not spawned yet, see flushJoiningSessions()
+	 * @var NetworkSession[]
+	 * @phpstan-var array<int, NetworkSession>
+	 */
+	private array $joiningSessions = [];
+
+	/**
 	 * Adds a network session to the manager. This should only be called on session creation.
 	 */
 	public function add(NetworkSession $session) : void{
 		$idx = spl_object_id($session);
 		$this->sessions[$idx] = $session;
 		$this->pendingLoginSessions[$idx] = $session;
+		$this->joiningSessions[$idx] = $session;
+	}
+
+	/**
+	 * Marks the session as spawned, after which its output waits for the next tick like everyone else's.
+	 */
+	public function markJoined(NetworkSession $session) : void{
+		unset($this->joiningSessions[spl_object_id($session)]);
+	}
+
+	/**
+	 * Sends what joining sessions have queued. The join is a chain of round trips, each of which would otherwise wait
+	 * up to a tick for its reply to be flushed.
+	 */
+	public function flushJoiningSessions() : void{
+		foreach($this->joiningSessions as $session){
+			$session->flushSendBuffer();
+		}
 	}
 
 	/**
@@ -66,8 +91,7 @@ class NetworkSessionManager{
 	 */
 	public function remove(NetworkSession $session) : void{
 		$idx = spl_object_id($session);
-		unset($this->sessions[$idx]);
-		unset($this->pendingLoginSessions[$idx]);
+		unset($this->sessions[$idx], $this->pendingLoginSessions[$idx], $this->joiningSessions[$idx]);
 	}
 
 	/**
@@ -95,7 +119,7 @@ class NetworkSessionManager{
 		foreach($this->sessions as $k => $session){
 			$session->tick();
 			if(!$session->isConnected()){
-				unset($this->sessions[$k], $this->pendingLoginSessions[$k]);
+				unset($this->sessions[$k], $this->pendingLoginSessions[$k], $this->joiningSessions[$k]);
 			}
 		}
 	}
@@ -112,5 +136,6 @@ class NetworkSessionManager{
 		}
 		$this->sessions = [];
 		$this->pendingLoginSessions = [];
+		$this->joiningSessions = [];
 	}
 }

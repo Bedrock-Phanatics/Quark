@@ -38,8 +38,12 @@ final class TimeTrackingSleeperHandler extends SleeperHandler{
 
 	private int $notificationProcessingTimeNs = 0;
 
+	/**
+	 * @phpstan-param (\Closure() : void)|null $afterNotifications called once the woken handlers have run
+	 */
 	public function __construct(
-		private PulseZone $pulse
+		private PulseZone $pulse,
+		private ?\Closure $afterNotifications = null
 	){
 		parent::__construct();
 	}
@@ -73,6 +77,9 @@ final class TimeTrackingSleeperHandler extends SleeperHandler{
 		$scope = $this->pulse->start();
 		try{
 			parent::processNotifications();
+			if($this->afterNotifications !== null){
+				($this->afterNotifications)();
+			}
 		}finally{
 			$this->notificationProcessingTimeNs += hrtime(true) - $startTime;
 			$this->pulse->stop($scope);

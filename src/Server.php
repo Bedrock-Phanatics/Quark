@@ -983,7 +983,11 @@ class Server{
 		$this->useAverage = array_fill(0, self::TARGET_TICKS_PER_SECOND, 0);
 
 		PulseZones::init();
-		$this->tickSleeper = new TimeTrackingSleeperHandler(PulseZones::$serverInterrupts);
+		$this->tickSleeper = new TimeTrackingSleeperHandler(PulseZones::$serverInterrupts, function() : void{
+			if(isset($this->network)){
+				$this->network->getSessionManager()->flushJoiningSessions();
+			}
+		});
 
 		$this->signalHandler = new SignalHandler(function() : void{
 			$this->logger->info("Received signal interrupt, stopping the server");
