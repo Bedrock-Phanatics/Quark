@@ -25,7 +25,16 @@ namespace quark\world;
 
 use quark\scheduler\AsyncTask;
 use quark\utils\Filesystem;
+use function basename;
+use function bin2hex;
+use function dirname;
+use function file_exists;
+use function is_dir;
 use function is_string;
+use function mkdir;
+use function random_bytes;
+use function rename;
+use function rtrim;
 
 /**
  * Copies or deletes a world folder off the main thread.
@@ -48,21 +57,51 @@ final class WorldFilesTask extends AsyncTask{
 	public function onRun() : void{
 		try{
 			if($this->copyTarget === null){
-				Filesystem::recursiveUnlink($this->source);
+				$trash = self::hiddenSibling($this->source, "deleting");
+				if(!@rename(rtrim($this->source, "/\\"), $trash)){
+					throw new \RuntimeException("Failed to move " . $this->source . " aside for deletion");
+				}
+				Filesystem::recursiveUnlink($trash);
 			}else{
-				Filesystem::recursiveCopy($this->source, $this->copyTarget);
+				$this->copy($this->copyTarget);
 			}
 			$this->setResult(null);
 		}catch(\Throwable $e){
-			if($this->copyTarget !== null){
-				try{
-					Filesystem::recursiveUnlink($this->copyTarget);
-				}catch(\Throwable){
-					//the copy error is the one worth reporting
-				}
-			}
 			$this->setResult($e->getMessage());
 		}
+	}
+
+	private function copy(string $target) : void{
+		$target = rtrim($target, "/\\");
+		$parent = dirname($target);
+		if(!is_dir($parent) && !@mkdir($parent, 0777, true) && !is_dir($parent)){
+			throw new \RuntimeException("Failed to create directory $parent");
+		}
+		$staging = self::hiddenSibling($target, "copying");
+		if(!@mkdir($staging)){
+			throw new \RuntimeException("Failed to create directory $staging");
+		}
+		try{
+			Filesystem::recursiveCopy($this->source, $staging);
+			if(file_exists($target) || !@rename($staging, $target)){
+				throw new \RuntimeException("Failed to move the copy to $target, it may already exist");
+			}
+		}catch(\Throwable $e){
+			try{
+				Filesystem::recursiveUnlink($staging);
+			}catch(\Throwable){
+				//the copy error is the one worth reporting
+			}
+			throw $e;
+		}
+	}
+
+	/**
+	 * Hidden names are never valid world names, so a half finished copy or delete is never seen as a world.
+	 */
+	private static function hiddenSibling(string $path, string $purpose) : string{
+		$path = rtrim($path, "/\\");
+		return dirname($path) . "/." . basename($path) . ".$purpose-" . bin2hex(random_bytes(4));
 	}
 
 	public function onCompletion() : void{

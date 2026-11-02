@@ -32,7 +32,6 @@ use quark\player\ChunkSelector;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
 use quark\Server;
-use quark\utils\Utils;
 use quark\world\format\Chunk;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
@@ -48,6 +47,7 @@ use function array_map;
 use function array_shift;
 use function assert;
 use function count;
+use function explode;
 use function file_exists;
 use function floor;
 use function implode;
@@ -59,7 +59,11 @@ use function round;
 use function scandir;
 use function sort;
 use function sprintf;
-use function str_contains;
+use function str_ends_with;
+use function str_starts_with;
+use function strlen;
+use function strpbrk;
+use function strtolower;
 use function strval;
 use function trim;
 use const SCANDIR_SORT_NONE;
@@ -79,11 +83,11 @@ class WorldManager{
 	 */
 	private array $worldsByName = [];
 	/**
-	 * Folder names being copied or deleted, which cannot be loaded or generated until that finishes. Copy targets are
-	 * marked true and hidden from getWorldNames() since they are still incomplete.
-	 * @phpstan-var array<string, bool>
+	 * Folder names reserved by each running copy or delete. They cannot be loaded or generated until it finishes.
+	 * @phpstan-var array<int, list<string>>
 	 */
 	private array $busyNames = [];
+	private int $nextBusyId = 0;
 	private ?World $defaultWorld = null;
 
 	private bool $autoSave = true;
@@ -139,18 +143,25 @@ class WorldManager{
 	}
 
 	/**
-	 * Whether the name can be used as a world folder name. It must not be empty or lead outside the worlds directory.
+	 * Whether the name can be used as a world folder name. Names are relative paths split by "/" whose parts are not
+	 * empty, do not start with a dot and have no surrounding spaces, so each folder has exactly one name and cannot
+	 * lead outside the worlds directory.
 	 */
 	public function isValidWorldName(string $name) : bool{
-		if(trim($name) === "" || str_contains($name, "\0")){
+		if($name === "" || strlen($name) > 255 || strpbrk($name, "\\:\0") !== false){
 			return false;
 		}
-		$path = Path::join($this->dataPath, $name);
-		return Path::isBasePath($this->dataPath, $path) && Path::canonicalize($path) !== Path::canonicalize($this->dataPath);
+		foreach(explode("/", $name, 256) as $part){
+			if($part === "" || $part[0] === "." || trim($part) !== $part || str_ends_with($part, ".")){
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
-	 * Returns the folder names of every generated world in the worlds directory, loaded or not, in sorted order.
+	 * Returns the folder names of every loaded world and every generated world directly in the worlds directory,
+	 * in sorted order.
 	 *
 	 * @return string[]
 	 * @phpstan-return list<string>
@@ -163,7 +174,7 @@ class WorldManager{
 		$entries = scandir($this->dataPath, SCANDIR_SORT_NONE);
 		foreach($entries === false ? [] : $entries as $name){
 			if(
-				$name !== "." && $name !== ".." && !isset($names[$name]) && !($this->busyNames[$name] ?? false) &&
+				!isset($names[$name]) && $this->isValidWorldName($name) &&
 				is_dir($path = Path::join($this->dataPath, $name)) && count($this->providerManager->getMatchingProviders($path . "/")) > 0
 			){
 				$names[$name] = true;
@@ -175,24 +186,24 @@ class WorldManager{
 	}
 
 	/**
-	 * Copies an unloaded world to a new folder off the main thread. Both names stay reserved until the copy is done,
-	 * and a failed copy leaves nothing behind.
+	 * Copies an unloaded world to a new folder off the main thread. The copy is written to a hidden folder and moved
+	 * into place once complete, so a failed or interrupted copy never shows up as a world.
 	 *
 	 * @phpstan-return Promise<null>
-	 * @throws \InvalidArgumentException if the source is loaded or missing, or the target exists
+	 * @throws \InvalidArgumentException if the source is loaded, busy or missing, or the target is taken
 	 */
 	public function copyWorld(string $source, string $target) : Promise{
 		$sourcePath = $this->checkUnloadedWorld($source);
 		if(
-			!$this->isValidWorldName($target) || isset($this->busyNames[$target]) || isset($this->worldsByName[$target]) ||
-			file_exists($targetPath = $this->getWorldPath($target)) || Path::isBasePath($sourcePath, $targetPath)
+			!$this->isValidWorldName($target) || $this->isNameInUse($target, true) ||
+			str_starts_with(strtolower($target) . "/", strtolower($source) . "/") || file_exists($targetPath = $this->getWorldPath($target))
 		){
-			throw new \InvalidArgumentException("Cannot copy world \"$source\" to \"$target\": the target is invalid or already exists");
+			throw new \InvalidArgumentException("Cannot copy world \"$source\" to \"$target\": the target is invalid, in use or already exists");
 		}
 		return $this->runFilesTask(
 			fn(\Closure $onDone) => new WorldFilesTask($sourcePath, $targetPath, $onDone),
 			"copy world \"$source\" to \"$target\"",
-			[$source => false, $target => true],
+			[$source, $target],
 			fn() => $this->renameCopiedWorld($target, $targetPath)
 		);
 	}
@@ -217,49 +228,71 @@ class WorldManager{
 	}
 
 	/**
-	 * Deletes an unloaded world off the main thread. The name stays reserved until the files are gone.
+	 * Deletes an unloaded world off the main thread. The folder is moved aside first, so the world is gone at once even
+	 * if removing its files is interrupted.
 	 *
 	 * @phpstan-return Promise<null>
-	 * @throws \InvalidArgumentException if the world is loaded or missing
+	 * @throws \InvalidArgumentException if the world is loaded, busy or missing
 	 */
 	public function deleteWorld(string $name) : Promise{
 		$path = $this->checkUnloadedWorld($name);
-		return $this->runFilesTask(fn(\Closure $onDone) => new WorldFilesTask($path, null, $onDone), "delete world \"$name\"", [$name => false]);
+		return $this->runFilesTask(fn(\Closure $onDone) => new WorldFilesTask($path, null, $onDone), "delete world \"$name\"", [$name]);
 	}
 
 	private function checkUnloadedWorld(string $name) : string{
-		if(!$this->isValidWorldName($name) || isset($this->busyNames[$name]) || !$this->isWorldGenerated($name)){
-			throw new \InvalidArgumentException("World \"$name\" does not exist or is busy");
+		if(!$this->isValidWorldName($name) || !$this->isWorldGenerated($name)){
+			throw new \InvalidArgumentException("World \"$name\" does not exist");
 		}
-		if(isset($this->worldsByName[$name])){
-			throw new \InvalidArgumentException("World \"$name\" must be unloaded first");
+		if($this->isNameInUse($name, true)){
+			throw new \InvalidArgumentException("World \"$name\" or a world inside it must be unloaded first, and nothing else may be copying or deleting it");
 		}
 		return $this->getWorldPath($name);
 	}
 
 	/**
+	 * Whether the name, a folder inside it or a folder containing it is reserved by a copy or delete, or optionally
+	 * loaded. Names are compared without case since some filesystems ignore it.
+	 */
+	private function isNameInUse(string $name, bool $checkLoaded) : bool{
+		$name = strtolower($name);
+		$overlaps = static function(string $other) use ($name) : bool{
+			$other = strtolower($other);
+			return $other === $name || str_starts_with($other, $name . "/") || str_starts_with($name, $other . "/");
+		};
+		foreach($this->busyNames as $names){
+			foreach($names as $other){
+				if($overlaps($other)){
+					return true;
+				}
+			}
+		}
+		if($checkLoaded){
+			foreach($this->worldsByName as $world){
+				if($overlaps($world->getFolderName())){
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * @phpstan-param \Closure(\Closure(?string) : void) : WorldFilesTask $createTask
-	 * @phpstan-param array<string, bool> $names names to reserve, mapped to whether they are hidden
+	 * @phpstan-param list<string> $names
 	 * @phpstan-param (\Closure() : void)|null $beforeResolve
 	 * @phpstan-return Promise<null>
 	 */
 	private function runFilesTask(\Closure $createTask, string $description, array $names, ?\Closure $beforeResolve = null) : Promise{
 		/** @phpstan-var PromiseResolver<null> $resolver */
 		$resolver = new PromiseResolver();
-		$release = function() use ($names) : void{
-			foreach(Utils::stringifyKeys($names) as $name => $_){
-				unset($this->busyNames[$name]);
-			}
-		};
-		foreach(Utils::stringifyKeys($names) as $name => $hidden){
-			$this->busyNames[$name] = $hidden;
-		}
+		$id = $this->nextBusyId++;
+		$this->busyNames[$id] = $names;
 		try{
-			$this->server->getAsyncPool()->submitTask($createTask(function(?string $error) use ($resolver, $description, $release, $beforeResolve) : void{
+			$this->server->getAsyncPool()->submitTask($createTask(function(?string $error) use ($resolver, $description, $id, $beforeResolve) : void{
 				if($error === null && $beforeResolve !== null){
 					$beforeResolve();
 				}
-				$release();
+				unset($this->busyNames[$id]);
 				if($error !== null){
 					$this->server->getLogger()->error("Failed to $description: $error");
 					$resolver->reject();
@@ -268,7 +301,7 @@ class WorldManager{
 				}
 			}));
 		}catch(\Throwable $e){
-			$release();
+			unset($this->busyNames[$id]);
 			throw $e;
 		}
 		return $resolver->getPromise();
@@ -333,7 +366,7 @@ class WorldManager{
 		}
 		if($this->isWorldLoaded($name)){
 			return true;
-		}elseif(isset($this->busyNames[$name]) || !$this->isWorldGenerated($name)){
+		}elseif($this->isNameInUse($name, false) || !$this->isWorldGenerated($name)){
 			return false;
 		}
 
@@ -425,7 +458,7 @@ class WorldManager{
 	 * @throws \InvalidArgumentException
 	 */
 	public function generateWorld(string $name, WorldCreationOptions $options, bool $backgroundGeneration = true) : bool{
-		if(!$this->isValidWorldName($name) || isset($this->busyNames[$name]) || $this->isWorldGenerated($name)){
+		if(!$this->isValidWorldName($name) || $this->isNameInUse($name, false) || $this->isWorldGenerated($name)){
 			return false;
 		}
 

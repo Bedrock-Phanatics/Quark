@@ -35,9 +35,11 @@ use function file_put_contents;
 use function is_dir;
 use function is_file;
 use function mkdir;
+use function scandir;
 use function symlink;
 use function sys_get_temp_dir;
 use function uniqid;
+use const SCANDIR_SORT_ASCENDING;
 
 final class WorldManagerFilesTest extends TestCase{
 	private string $root;
@@ -90,7 +92,7 @@ final class WorldManagerFilesTest extends TestCase{
 		foreach(["world", "maps/arena", "Lobby 2"] as $name){
 			self::assertTrue($this->manager->isValidWorldName($name), $name);
 		}
-		foreach(["", " ", ".", "..", "../outside", "maps/../../outside", "maps/..", "a\0b"] as $name){
+		foreach(["", " ", ".", "..", "../outside", "maps/../../outside", "maps/..", "a\0b", "./world", "world/", "maps//arena", "/world", "C:/world", "maps\\arena", " world", "world.", ".hidden"] as $name){
 			self::assertFalse($this->manager->isValidWorldName($name), $name);
 			self::assertFalse($this->manager->isWorldGenerated($name), $name);
 			self::assertFalse($this->manager->generateWorld($name, WorldCreationOptions::create()), $name);
@@ -114,7 +116,9 @@ final class WorldManagerFilesTest extends TestCase{
 
 		self::assertSame(["template"], $this->manager->getWorldNames());
 		self::assertFalse($this->manager->loadWorld("template"));
-		self::assertFalse($this->manager->generateWorld("arena", WorldCreationOptions::create()));
+		foreach(["arena", "ARENA", "arena/inner", "template/inner"] as $name){
+			self::assertFalse($this->manager->generateWorld($name, WorldCreationOptions::create()), $name);
+		}
 		try{
 			$this->manager->deleteWorld("template");
 			self::fail("A busy world was deleted");
@@ -156,6 +160,7 @@ final class WorldManagerFilesTest extends TestCase{
 
 		self::assertFalse($failed);
 		self::assertFalse(is_dir(Path::join($this->root, "doomed")));
+		self::assertSame([".", ".."], scandir($this->root, SCANDIR_SORT_ASCENDING));
 		self::assertSame([], $this->manager->getWorldNames());
 		if($linked){
 			self::assertTrue(is_file(Path::join($outside, "keep.txt")));
@@ -173,6 +178,7 @@ final class WorldManagerFilesTest extends TestCase{
 
 		self::assertTrue($rejected);
 		self::assertFalse(is_dir(Path::join($this->root, "dst")));
+		self::assertSame([".", ".."], scandir($this->root, SCANDIR_SORT_ASCENDING));
 		self::assertFalse($this->manager->isWorldGenerated("dst"));
 		$this->makeWorld("src");
 		$this->manager->copyWorld("src", "dst");
