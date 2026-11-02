@@ -1350,8 +1350,19 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		return false; //currently has no server-side movement
 	}
 
+	/**
+	 * Player classes that react to being touched by a player, which the base classes don't
+	 * @var bool[]
+	 * @phpstan-var array<class-string<Player>, bool>
+	 */
+	private static array $collidesWithPlayers = [];
+
 	protected function checkNearEntities() : void{
 		foreach($this->getWorld()->getNearbyEntities($this->boundingBox->expandedCopy(1, 0.5, 1), $this) as $entity){
+			//players always tick and ignore one another, and in crowds they are most of what's nearby
+			if($entity instanceof Player && !(self::$collidesWithPlayers[$entity::class] ??= (new \ReflectionMethod($entity, "onCollideWithPlayer"))->getDeclaringClass()->getName() !== Entity::class)){
+				continue;
+			}
 			$entity->scheduleUpdate();
 
 			if(!$entity->isAlive() || $entity->isFlaggedForDespawn()){
