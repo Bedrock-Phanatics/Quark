@@ -1353,6 +1353,11 @@ class Server{
 				//TODO: this probably should be an error
 				continue;
 			}
+			if(!$this->worldManager->isValidWorldName($name)){
+				$this->logger->error("Invalid world name \"$name\" in config/server.toml");
+				$anyWorldFailedToLoad = true;
+				continue;
+			}
 			if(!$this->worldManager->loadWorld($name, true)){
 				if($this->worldManager->isWorldGenerated($name)){
 					//allow checking if other worlds are loadable, so the user gets all the errors in one go
@@ -1396,8 +1401,8 @@ class Server{
 
 		if($this->worldManager->getDefaultWorld() === null){
 			$default = $this->configGroup->getConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
-			if(trim($default) === ""){
-				$this->logger->warning("level-name cannot be null, using default");
+			if(!$this->worldManager->isValidWorldName($default)){
+				$this->logger->warning("level-name \"$default\" is not a valid world name, using default");
 				$default = "world";
 				$this->configGroup->setConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
 			}

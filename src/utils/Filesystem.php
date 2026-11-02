@@ -108,22 +108,29 @@ final class Filesystem{
 		}
 	}
 
+	/**
+	 * Deletes a file or a directory with everything in it. Links are removed without touching what they point to.
+	 *
+	 * @throws \RuntimeException if anything could not be deleted
+	 */
 	public static function recursiveUnlink(string $dir) : void{
-		if(is_dir($dir)){
+		if(is_link($dir)){
+			//directory links on Windows can only be removed with rmdir()
+			if(!@unlink($dir) && !@rmdir($dir)){
+				throw new \RuntimeException("Failed to remove link $dir");
+			}
+		}elseif(is_dir($dir)){
 			$objects = Utils::assumeNotFalse(scandir($dir, SCANDIR_SORT_NONE), "scandir() shouldn't return false when is_dir() returns true");
 			foreach($objects as $object){
 				if($object !== "." && $object !== ".."){
-					$fullObject = Path::join($dir, $object);
-					if(is_dir($fullObject)){
-						self::recursiveUnlink($fullObject);
-					}else{
-						unlink($fullObject);
-					}
+					self::recursiveUnlink(Path::join($dir, $object));
 				}
 			}
-			rmdir($dir);
-		}elseif(is_file($dir)){
-			unlink($dir);
+			if(!@rmdir($dir)){
+				throw new \RuntimeException("Failed to remove directory $dir");
+			}
+		}elseif(is_file($dir) && !@unlink($dir)){
+			throw new \RuntimeException("Failed to remove file $dir");
 		}
 	}
 
@@ -154,12 +161,18 @@ final class Filesystem{
 	}
 
 	private static function recursiveCopyInternal(string $origin, string $destination) : void{
+		if(is_link($origin)){
+			//following links could copy files from elsewhere or loop forever
+			return;
+		}
 		if(is_dir($origin)){
 			if(!is_dir($destination)){
 				if(file_exists($destination)){
 					throw new \RuntimeException("Path $destination does not exist, or is not a directory");
 				}
-				mkdir($destination); //TODO: access permissions?
+				if(!@mkdir($destination)){
+					throw new \RuntimeException("Failed to create directory $destination");
+				}
 			}
 			$objects = Utils::assumeNotFalse(scandir($origin, SCANDIR_SORT_NONE));
 			foreach($objects as $object){
@@ -173,7 +186,9 @@ final class Filesystem{
 			if(!is_dir($dirName)){ //the destination folder should already exist
 				throw new AssumptionFailedError("The destination folder should have been created in the parent call");
 			}
-			copy($origin, $destination);
+			if(!@copy($origin, $destination)){
+				throw new \RuntimeException("Failed to copy $origin to $destination");
+			}
 		}
 	}
 

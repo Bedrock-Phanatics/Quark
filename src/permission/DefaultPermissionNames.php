@@ -79,6 +79,7 @@ final class DefaultPermissionNames{
 	public const COMMAND_UNBAN_PLAYER = "quark.command.unban.player";
 	public const COMMAND_VERSION = "quark.command.version";
 	public const COMMAND_WEATHER = "quark.command.weather";
+	public const COMMAND_WORLD = "quark.command.world";
 	public const COMMAND_WHITELIST_ADD = "quark.command.whitelist.add";
 	public const COMMAND_WHITELIST_DISABLE = "quark.command.whitelist.disable";
 	public const COMMAND_WHITELIST_ENABLE = "quark.command.whitelist.enable";

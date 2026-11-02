@@ -76,6 +76,7 @@ abstract class DefaultPermissions{
 		self::registerNoArgsDesc(Names::COMMAND_DUMPMEMORY, [$consoleRoot]);
 		self::registerPermission(new Permission(Names::COMMAND_PULSE, "Allows recording and reporting server performance"), [$operatorRoot]);
 		self::registerPermission(new Permission(Names::COMMAND_WEATHER, "Allows the user to change the weather"), [$operatorRoot]);
+		self::registerPermission(new Permission(Names::COMMAND_WORLD, "Allows the user to list, load, unload, create, copy, delete and teleport between worlds"), [$operatorRoot]);
 
 		foreach([
 			Names::BROADCAST_ADMIN,
