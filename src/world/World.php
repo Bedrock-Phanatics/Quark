@@ -29,6 +29,7 @@ namespace quark\world;
 use Bedwire\Nbt as NativeNbt;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -75,6 +76,7 @@ use quark\event\world\WorldDisplayNameChangeEvent;
 use quark\event\world\WorldParticleEvent;
 use quark\event\world\WorldSaveEvent;
 use quark\event\world\WorldSoundEvent;
+use quark\event\world\WorldWeatherChangeEvent;
 use quark\item\Item;
 use quark\item\ItemUseResult;
 use quark\item\LegacyStringToItemParser;
@@ -83,9 +85,16 @@ use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
+use quark\network\mcpe\protocol\LevelPackets;
 use quark\network\mcpe\protocol\Packet;
+use quark\network\mcpe\protocol\packet\AddActorPacket;
 use quark\network\mcpe\protocol\packet\BlockActorDataPacket;
+use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
+use quark\network\mcpe\protocol\packet\RemoveActorPacket;
 use quark\network\mcpe\protocol\packet\UpdateBlockPacket;
+use quark\network\mcpe\protocol\types\entity\EntityIds;
+use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\network\mcpe\protocol\types\PropertySyncData;
 use quark\player\Player;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
@@ -300,6 +309,16 @@ class World implements ChunkManager{
 
 	private int $time;
 	public bool $stopTime = false;
+
+	private Weather $weather = Weather::CLEAR;
+	private int $weatherDuration;
+	private bool $weatherCycle;
+	private int $lightningChance;
+	/**
+	 * Runtime IDs of client-side lightning bolts mapped to the server tick they are removed at, in strike order.
+	 * @phpstan-var array<int, int>
+	 */
+	private array $lightningBolts = [];
 
 	private float $sunAnglePercentage = 0.0;
 	private int $skyLightReduction = 0;
@@ -587,9 +606,19 @@ class World implements ChunkManager{
 
 		$this->neighbourBlockUpdateQueue = new \SplQueue();
 
-		$this->time = $this->provider->getWorldData()->getTime();
+		$worldData = $this->provider->getWorldData();
+		$this->time = $worldData->getTime();
+		if($worldData->getRainLevel() > 0){
+			$this->weather = $worldData->getLightningLevel() > 0 ? Weather::THUNDER : Weather::RAIN;
+		}
+		$this->weatherDuration = $this->weather === Weather::THUNDER ? $worldData->getLightningTime() : $worldData->getRainTime();
+		if($this->weatherDuration <= 0){
+			$this->weatherDuration = $this->weather->randomDuration();
+		}
 
 		$cfg = $this->server->getConfigGroup();
+		$this->weatherCycle = $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
+		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 4)));
 		if($cfg->getPropertyInt("chunk-ticking.per-tick", 40) <= 0){
 			//TODO: this needs l10n
@@ -1014,6 +1043,16 @@ class World implements ChunkManager{
 			}else{
 				$this->time++;
 			}
+		}
+
+		if($this->weatherCycle && --$this->weatherDuration <= 0){
+			$next = $this->weather !== Weather::CLEAR ? Weather::CLEAR : (mt_rand(0, 3) === 0 ? Weather::THUNDER : Weather::RAIN);
+			if(!$this->setWeather($next)){
+				$this->weatherDuration = $this->weather->randomDuration();
+			}
+		}
+		if(count($this->lightningBolts) > 0){
+			$this->despawnLightning($currentTick);
 		}
 
 		$this->sunAnglePercentage = $this->computeSunAnglePercentage(); //Sun angle depends on the current time
@@ -1456,9 +1495,13 @@ class World implements ChunkManager{
 			$this->pulse->randomChunkUpdatesChunkSelection->stop($randomChunkUpdatesChunkSelectionScope);
 		}
 
+		$lightningChance = $this->weather === Weather::THUNDER ? $this->lightningChance : 0;
 		foreach($this->validTickingChunks as $index => $_){
 			World::getXZ($index, $chunkX, $chunkZ);
 
+			if($lightningChance > 0 && mt_rand(1, $lightningChance) === 1){
+				$this->strikeNaturalLightning($chunkX, $chunkZ);
+			}
 			$this->tickChunk($chunkX, $chunkZ);
 		}
 	}
@@ -1629,7 +1672,12 @@ class World implements ChunkManager{
 		$pulse = $this->pulse->syncDataSave;
 		$scope = $pulse->start();
 
-		$this->provider->getWorldData()->setTime($this->time);
+		$worldData = $this->provider->getWorldData();
+		$worldData->setTime($this->time);
+		$worldData->setRainLevel($this->weather === Weather::CLEAR ? 0.0 : 1.0);
+		$worldData->setLightningLevel($this->weather === Weather::THUNDER ? 1.0 : 0.0);
+		$worldData->setRainTime($this->weatherDuration);
+		$worldData->setLightningTime($this->weatherDuration);
 		$this->saveChunks();
 		$this->provider->getWorldData()->save();
 
@@ -1973,8 +2021,10 @@ class World implements ChunkManager{
 	 */
 	public function computeSkyLightReduction() : int{
 		$percentage = max(0, min(1, -(cos($this->getSunAngleRadians()) * 2 - 0.5)));
-
-		//TODO: check rain and thunder level
+		if($this->weather !== Weather::CLEAR){
+			//rain and thunder each dim the remaining daylight by 5/16
+			$percentage = 1 - (1 - $percentage) * ($this->weather === Weather::THUNDER ? 121 / 256 : 11 / 16);
+		}
 
 		return (int) ($percentage * 11);
 	}
@@ -3684,6 +3734,111 @@ class World implements ChunkManager{
 
 		foreach($this->players as $player){
 			$player->getNetworkSession()->syncWorldDifficulty($this->getDifficulty());
+		}
+	}
+
+	public function getWeather() : Weather{
+		return $this->weather;
+	}
+
+	/**
+	 * Returns how many ticks are left until the weather changes naturally.
+	 */
+	public function getWeatherDuration() : int{
+		return $this->weatherDuration;
+	}
+
+	/**
+	 * Changes the weather for the given number of ticks, or a random vanilla-like duration if null.
+	 * Returns false if a plugin cancelled the change.
+	 */
+	public function setWeather(Weather $weather, ?int $duration = null) : bool{
+		if($duration !== null && ($duration < 1 || $duration > Limits::INT32_MAX)){
+			throw new \InvalidArgumentException("Weather duration must be between 1 and " . Limits::INT32_MAX . " ticks, got $duration");
+		}
+		$duration ??= $weather->randomDuration();
+		$ev = new WorldWeatherChangeEvent($this, $this->weather, $weather, $duration);
+		$ev->call();
+		if($ev->isCancelled()){
+			return false;
+		}
+
+		$changed = $this->weather !== $weather;
+		$this->weather = $weather;
+		$this->weatherDuration = $duration;
+		if($changed){
+			$this->skyLightReduction = $this->computeSkyLightReduction();
+			if(count($this->players) > 0){
+				NetworkBroadcastUtils::broadcastPackets($this->players, LevelPackets::weather($weather));
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Whether the weather changes on its own. When disabled the current weather stays until it is set again.
+	 */
+	public function isWeatherCycleEnabled() : bool{
+		return $this->weatherCycle;
+	}
+
+	public function setWeatherCycleEnabled(bool $enabled) : void{
+		$this->weatherCycle = $enabled;
+	}
+
+	/**
+	 * Shows a lightning bolt with thunder to players viewing the position. This is purely visual.
+	 */
+	public function strikeLightning(Vector3 $pos) : void{
+		$id = Entity::nextRuntimeId();
+		$this->broadcastPacketToViewers($pos, new AddActorPacket(
+			targetActorId: $id,
+			targetRuntimeId: $id,
+			actorType: EntityIds::LIGHTNING_BOLT,
+			position: $pos,
+			velocity: Vector3::zero(),
+			rotation: new Vector2(0.0, 0.0),
+			yHeadRotation: 0.0,
+			yBodyRotation: 0.0,
+			attributesList: [],
+			actorData: [],
+			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
+			actorLinks: [],
+		));
+		$this->broadcastPacketToViewers($pos, new LevelSoundEventPacket(LevelSoundEvent::THUNDER, $pos, -1, EntityIds::LIGHTNING_BOLT, false, false, -1));
+		$this->lightningBolts[$id] = $this->server->getTick() + 20;
+	}
+
+	private function strikeNaturalLightning(int $chunkX, int $chunkZ) : void{
+		$chunk = $this->chunks[World::chunkHash($chunkX, $chunkZ)] ?? null;
+		$x = mt_rand(0, Chunk::COORD_MASK);
+		$z = mt_rand(0, Chunk::COORD_MASK);
+		if($chunk === null || ($y = $chunk->getHighestBlockAt($x, $z)) === null){
+			return;
+		}
+		$biomeId = $chunk->getBiomeId($x, $y, $z);
+		if($biomeId < 0 || $biomeId >= Biome::MAX_BIOMES){
+			return;
+		}
+		$biome = BiomeRegistry::getInstance()->getBiome($biomeId);
+		//no rain falls in dry or snowy biomes, so there is no storm there either
+		if($biome->getRainfall() <= 0 || $biome->getTemperature() < 0.15){
+			return;
+		}
+		$this->strikeLightning(new Vector3(($chunkX << Chunk::COORD_BIT_SIZE) + $x + 0.5, $y + 1, ($chunkZ << Chunk::COORD_BIT_SIZE) + $z + 0.5));
+	}
+
+	private function despawnLightning(int $currentTick) : void{
+		$packets = [];
+		foreach($this->lightningBolts as $id => $removeTick){
+			if($removeTick > $currentTick){
+				break;
+			}
+			$packets[] = new RemoveActorPacket(targetActorId: $id);
+			unset($this->lightningBolts[$id]);
+		}
+		if(count($packets) > 0 && count($this->players) > 0){
+			NetworkBroadcastUtils::broadcastPackets($this->players, $packets);
 		}
 	}
 

@@ -176,6 +176,11 @@ return array (
     'max-ignitions-per-chunk-per-tick' => 24,
     'max-dispenser-ignitions-per-second' => 20,
   ),
+  'weather' =>
+  array (
+    'cycle' => true,
+    'lightning-chance' => 100000,
+  ),
   'plugins' =>
   array (
     'legacy-data-dir' => false,

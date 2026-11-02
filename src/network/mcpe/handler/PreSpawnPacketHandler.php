@@ -51,6 +51,7 @@ use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\VersionInfo;
+use quark\world\Weather;
 use Ramsey\Uuid\Uuid;
 use function sprintf;
 
@@ -75,6 +76,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 		try{
 			$location = $this->player->getLocation();
 			$world = $location->getWorld();
+			$weather = $world->getWeather();
 
 			$typeConverter = $this->session->getTypeConverter();
 
@@ -108,8 +110,8 @@ class PreSpawnPacketHandler extends PacketHandler{
 					educationEditionOffer: 0,
 					educationFeaturesEnabled: true,
 					educationProductId: "",
-					rainLevel: 0.0, //TODO: implement these properly
-					lightningLevel: 0.0,
+					rainLevel: $weather === Weather::CLEAR ? 0.0 : 1.0,
+					lightningLevel: $weather === Weather::THUNDER ? 1.0 : 0.0,
 					hasConfirmedPlatformLockedContent: false,
 					multiplayerGameIntent: true,
 					lanBroadcastIntent: true,
@@ -167,6 +169,9 @@ class PreSpawnPacketHandler extends PacketHandler{
 				serverConfigurationJoinInfo: null,
 				serverTelemetryData: new EventsServerTelemetryData(serverId: "", scenarioId: "", worldId: "", ownerId: ""),
 			));
+			if($weather !== Weather::CLEAR){
+				$this->session->syncWorldWeather($weather);
+			}
 
 			$this->session->getLogger()->debug("Sending items");
 			$items = [];

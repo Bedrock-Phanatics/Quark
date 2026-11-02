@@ -170,6 +170,12 @@ max-active-nearby = 192
 max-ignitions-per-chunk-per-tick = 24
 max-dispenser-ignitions-per-second = 20
 
+[weather]
+# With cycle off, each world keeps its weather until a command or plugin changes it.
+cycle = true
+# Thunderstorms strike lightning in each ticking chunk with a 1 in N chance per tick. 0 disables lightning.
+lightning-chance = 100000
+
 [plugins]
 # Colocated plugin data is unsupported in layout version 2.
 legacy-data-dir = false

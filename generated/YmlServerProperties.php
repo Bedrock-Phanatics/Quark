@@ -132,5 +132,8 @@ final class YmlServerProperties{
 	public const TRANSPORT_NETHERNET_LAN_DISCOVERY = 'transport.nethernet.lan-discovery';
 	public const TRANSPORT_NETHERNET_PORT_RANGE = 'transport.nethernet.port-range';
 	public const TRANSPORT_NETHERNET_UNRELIABLE_EVENTS = 'transport.nethernet.unreliable-events';
+	public const WEATHER = 'weather';
+	public const WEATHER_CYCLE = 'weather.cycle';
+	public const WEATHER_LIGHTNING_CHANCE = 'weather.lightning-chance';
 	public const WORLDS = 'worlds';
 }

@@ -68,6 +68,7 @@ use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\handler\SpawnResponsePacketHandler;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\Fields;
+use quark\network\mcpe\protocol\LevelPackets;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\packet\AvailableCommandsPacket;
 use quark\network\mcpe\protocol\packet\ChunkRadiusUpdatedPacket;
@@ -130,6 +131,7 @@ use quark\utils\TextFormat;
 use quark\utils\Utils;
 use quark\world\format\io\GlobalItemDataHandlers;
 use quark\world\Position;
+use quark\world\Weather;
 use quark\world\World;
 use quark\YmlServerProperties;
 use function array_chunk;
@@ -1779,7 +1781,13 @@ class NetworkSession{
 			$this->syncWorldTime($world->getTime());
 			$this->syncWorldDifficulty($world->getDifficulty());
 			$this->syncWorldSpawnPoint($world->getSpawnLocation());
-			//TODO: weather needs to be synced here (when implemented)
+			$this->syncWorldWeather($world->getWeather());
+		}
+	}
+
+	public function syncWorldWeather(Weather $weather) : void{
+		foreach(LevelPackets::weather($weather) as $packet){
+			$this->sendDataPacket($packet);
 		}
 	}
 

@@ -43,6 +43,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 
 ## Gameplay and correctness
 
+- Added rain and thunderstorms with a natural weather cycle, lightning, sky darkening, saved world weather, and the `/weather` command.
 - Fixed absorption-heart client/server desynchronization.
 - Hardened enchanting, anvil, and crafting transaction validation.
 - Removed active Thorns and Frost Walker behavior and acquisition paths while retaining inert saved/network enchantment data.
@@ -58,6 +59,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.
 - Retained the existing `pmmpthread` native extension contract.
 - Added the redstone manager and runtime world/chunk override API.
+- Added the weather API: `World::getWeather()`, `setWeather()`, `strikeLightning()`, the weather cycle toggle and the cancellable `WorldWeatherChangeEvent`.
 - Replaced BedrockProtocol packet objects with generated classes in `quark\network\mcpe\protocol\packet`, which `ext-bedwire` decodes into and encodes from directly. Packet handlers and `DataPacketSendEvent`/`DataPacketReceiveEvent` listeners take these classes.
 - Dropped the BedrockProtocol dependency. The protocol constants and value objects Quark uses moved from `pocketmine\network\mcpe\protocol` to `quark\network\mcpe\protocol` under the same names, such as `types\LevelSoundEvent` and `types\skin\SkinData`, and packet constants such as `AnimatePacket::ACTION_SWING_ARM` are on the generated packet classes.
 - Changed `TNT::ignite()` to return activation success as `bool`.
@@ -76,6 +78,7 @@ Added or expanded settings for:
 - Adaptive and periodic garbage collection.
 - Redstone enablement, world policy, world list, component limits, piston limits, and dispenser limits.
 - TNT enablement and activation/entity limits.
+- Weather cycle and thunderstorm lightning chance.
 - Local crash reports, anonymous statistics, updater, timings, console behavior, memory limits, and plugin data placement.
 
 Review the new `resources/quark.yml` instead of copying an older configuration unchanged.

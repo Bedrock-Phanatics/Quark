@@ -28,6 +28,7 @@ use pocketmine\utils\Limits;
 use quark\network\mcpe\protocol\packet\LevelEventPacket;
 use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
 use quark\network\mcpe\protocol\types\LevelEvent;
+use quark\world\Weather;
 use function max;
 use function min;
 
@@ -62,6 +63,19 @@ final class LevelPackets{
 	 */
 	public static function data(int $data) : int{
 		return max(Limits::INT32_MIN, min($data, Limits::INT32_MAX));
+	}
+
+	/**
+	 * Both rain and thunder are always sent so a client switching worlds drops the old weather.
+	 *
+	 * @return LevelEventPacket[]
+	 * @phpstan-return list<LevelEventPacket>
+	 */
+	public static function weather(Weather $weather) : array{
+		return [
+			$weather === Weather::CLEAR ? self::event(LevelEvent::STOP_RAIN, 0, null) : self::event(LevelEvent::START_RAIN, 65535, null),
+			$weather === Weather::THUNDER ? self::event(LevelEvent::START_THUNDER, 65535, null) : self::event(LevelEvent::STOP_THUNDER, 0, null),
+		];
 	}
 
 	/**

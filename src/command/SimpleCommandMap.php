@@ -63,6 +63,7 @@ use quark\command\defaults\TitleCommand;
 use quark\command\defaults\TransferServerCommand;
 use quark\command\defaults\VanillaCommand;
 use quark\command\defaults\VersionCommand;
+use quark\command\defaults\WeatherCommand;
 use quark\command\defaults\WhitelistCommand;
 use quark\command\defaults\XpCommand;
 use quark\command\utils\CommandStringHelper;
@@ -133,6 +134,7 @@ class SimpleCommandMap implements CommandMap{
 			new TitleCommand(),
 			new TransferServerCommand(),
 			new VersionCommand(),
+			new WeatherCommand(),
 			new WhitelistCommand(),
 			new XpCommand(),
 		]);

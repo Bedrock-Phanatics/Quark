@@ -25,6 +25,11 @@ namespace quark\world\biome;
 
 class HellBiome extends Biome{
 
+	public function __construct(){
+		$this->temperature = 2;
+		$this->rainfall = 0;
+	}
+
 	public function getName() : string{
 		return "Hell";
 	}
