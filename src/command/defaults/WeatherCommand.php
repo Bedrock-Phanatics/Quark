@@ -28,6 +28,7 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\utils\TextFormat;
 use quark\world\Weather;
 use function count;
 use function preg_match;
@@ -52,7 +53,9 @@ final class WeatherCommand extends VanillaCommand{
 			if($world === null || count($args) !== 1){
 				throw new InvalidCommandSyntaxException();
 			}
-			$sender->sendMessage("The weather in " . $world->getFolderName() . " is " . strtolower($world->getWeather()->name) . " for " . $world->getWeatherDuration() . " more ticks");
+			$sender->sendMessage("The weather in " . $world->getFolderName() . " is " . strtolower($world->getWeather()->name) . (
+				$world->isWeatherCycleEnabled() ? " for " . $world->getWeatherDuration() . " more ticks" : " until it is changed"
+			));
 			return true;
 		}
 
@@ -70,8 +73,15 @@ final class WeatherCommand extends VanillaCommand{
 		}
 
 		$worlds = $sender instanceof Player ? [$sender->getWorld()] : $sender->getServer()->getWorldManager()->getWorlds();
+		$changed = 0;
 		foreach($worlds as $world){
-			$world->setWeather($weather, $duration);
+			if($world->setWeather($weather, $duration)){
+				++$changed;
+			}
+		}
+		if($changed === 0){
+			$sender->sendMessage(TextFormat::RED . "The weather change was cancelled");
+			return true;
 		}
 		Command::broadcastCommandMessage($sender, "Changed the weather to " . $mode);
 		return true;

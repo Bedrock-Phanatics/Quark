@@ -1047,7 +1047,8 @@ class World implements ChunkManager{
 
 		if($this->weatherCycle && --$this->weatherDuration <= 0){
 			$next = $this->weather !== Weather::CLEAR ? Weather::CLEAR : (mt_rand(0, 3) === 0 ? Weather::THUNDER : Weather::RAIN);
-			if(!$this->setWeather($next)){
+			//a cancelling listener may have set the weather itself, so only reroll if nothing did
+			if(!$this->setWeather($next) && $this->getWeatherDuration() <= 0){
 				$this->weatherDuration = $this->weather->randomDuration();
 			}
 		}
@@ -2897,7 +2898,7 @@ class World implements ChunkManager{
 
 	public function getBiomeId(int $x, int $y, int $z) : int{
 		if(($chunk = $this->loadChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)) !== null){
-			return $chunk->getBiomeId($x & Chunk::COORD_MASK, $y & Chunk::COORD_MASK, $z & Chunk::COORD_MASK);
+			return $chunk->getBiomeId($x & Chunk::COORD_MASK, max($this->minY, min($y, $this->maxY - 1)), $z & Chunk::COORD_MASK);
 		}
 		return BiomeIds::OCEAN; //TODO: this should probably throw instead (terrain not generated yet)
 	}
@@ -2907,11 +2908,14 @@ class World implements ChunkManager{
 	}
 
 	public function setBiomeId(int $x, int $y, int $z, int $biomeId) : void{
+		if($y < $this->minY || $y >= $this->maxY){
+			throw new \InvalidArgumentException("Y coordinate $y is outside of the world bounds");
+		}
 		$chunkX = $x >> Chunk::COORD_BIT_SIZE;
 		$chunkZ = $z >> Chunk::COORD_BIT_SIZE;
 		$this->unlockChunk($chunkX, $chunkZ, null);
 		if(($chunk = $this->loadChunk($chunkX, $chunkZ)) !== null){
-			$chunk->setBiomeId($x & Chunk::COORD_MASK, $y & Chunk::COORD_MASK, $z & Chunk::COORD_MASK, $biomeId);
+			$chunk->setBiomeId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK, $biomeId);
 		}else{
 			//if we allowed this, the modifications would be lost when the chunk is created
 			throw new WorldException("Cannot set biome in a non-generated chunk");
@@ -3790,6 +3794,9 @@ class World implements ChunkManager{
 	 * Shows a lightning bolt with thunder to players viewing the position. This is purely visual.
 	 */
 	public function strikeLightning(Vector3 $pos) : void{
+		if(count($this->players) === 0){
+			return;
+		}
 		$id = Entity::nextRuntimeId();
 		$this->broadcastPacketToViewers($pos, new AddActorPacket(
 			targetActorId: $id,

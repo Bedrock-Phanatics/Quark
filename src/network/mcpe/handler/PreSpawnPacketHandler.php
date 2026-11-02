@@ -169,9 +169,6 @@ class PreSpawnPacketHandler extends PacketHandler{
 				serverConfigurationJoinInfo: null,
 				serverTelemetryData: new EventsServerTelemetryData(serverId: "", scenarioId: "", worldId: "", ownerId: ""),
 			));
-			if($weather !== Weather::CLEAR){
-				$this->session->syncWorldWeather($weather);
-			}
 
 			$this->session->getLogger()->debug("Sending items");
 			$items = [];
@@ -222,6 +219,10 @@ class PreSpawnPacketHandler extends PacketHandler{
 
 			$this->session->getLogger()->debug("Sending player list");
 			$this->session->syncPlayerList($this->server->getOnlinePlayers());
+
+			if($weather !== Weather::CLEAR){
+				$this->session->syncWorldWeather($weather);
+			}
 		}finally{
 			PulseZones::$playerNetworkSendPreSpawnGameData->stop($playerNetworkSendPreSpawnGameDataScope);
 		}

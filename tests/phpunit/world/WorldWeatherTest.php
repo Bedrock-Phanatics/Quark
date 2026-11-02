@@ -25,8 +25,10 @@ namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\utils\Limits;
+use quark\data\bedrock\BiomeIds;
 use quark\network\mcpe\protocol\LevelPackets;
 use quark\network\mcpe\protocol\types\LevelEvent;
+use quark\world\format\Chunk;
 use function array_map;
 
 final class WorldWeatherTest extends TestCase{
@@ -80,6 +82,22 @@ final class WorldWeatherTest extends TestCase{
 		self::assertSame([[LevelEvent::STOP_RAIN, 0], [LevelEvent::STOP_THUNDER, 0]], $events(Weather::CLEAR));
 		self::assertSame([[LevelEvent::START_RAIN, 65535], [LevelEvent::STOP_THUNDER, 0]], $events(Weather::RAIN));
 		self::assertSame([[LevelEvent::START_RAIN, 65535], [LevelEvent::START_THUNDER, 65535]], $events(Weather::THUNDER));
+	}
+
+	public function testBiomesAreReadAtTheirHeight() : void{
+		$world = self::world();
+		(new \ReflectionProperty(World::class, "minY"))->setValue($world, World::Y_MIN);
+		(new \ReflectionProperty(World::class, "maxY"))->setValue($world, World::Y_MAX);
+		$chunk = new Chunk([], true);
+		$chunk->setBiomeId(1, 100, 1, BiomeIds::DESERT);
+		(new \ReflectionProperty(World::class, "chunks"))->setValue($world, [World::chunkHash(0, 0) => $chunk]);
+
+		self::assertSame(BiomeIds::DESERT, $world->getBiomeId(1, 100, 1));
+		self::assertNotSame(BiomeIds::DESERT, $world->getBiomeId(1, 4, 1));
+		self::assertSame($world->getBiomeId(1, World::Y_MAX - 1, 1), $world->getBiomeId(1, World::Y_MAX + 50, 1));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$world->setBiomeId(1, World::Y_MAX, 1, BiomeIds::DESERT);
 	}
 
 	public function testExpiredLightningIsRemovedInOrder() : void{
