@@ -27,10 +27,12 @@ use quark\command\Command;
 use quark\command\CommandExecutor;
 use quark\command\CommandSender;
 use quark\command\PluginCommand;
+use quark\ConfigurationMigration;
 use quark\lang\KnownTranslationFactory;
 use quark\scheduler\TaskScheduler;
 use quark\Server;
 use quark\utils\Config;
+use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function copy;
@@ -68,7 +70,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		$this->file = rtrim($file, "/" . DIRECTORY_SEPARATOR) . "/";
 		$this->resourceFolder = Path::join($this->file, "resources") . "/";
 
-		$this->configFile = Path::join($this->dataFolder, "config.yml");
+		$this->configFile = Path::join($this->dataFolder, $this->description->isYamlManifest() ? "config.yml" : "config.toml");
 
 		$prefix = $this->description->getPrefix();
 		$this->logger = new PluginLogger($server->getLogger(), $prefix !== "" ? $prefix : $this->getName());
@@ -76,7 +78,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 
 		$this->onLoad();
 
-		$this->registerYamlCommands();
+		$this->registerManifestCommands();
 	}
 
 	/**
@@ -142,7 +144,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 	/**
 	 * Registers commands declared in the plugin manifest
 	 */
-	private function registerYamlCommands() : void{
+	private function registerManifestCommands() : void{
 		$pluginCmds = [];
 
 		foreach(Utils::stringifyKeys($this->description->getCommands()) as $key => $data){
@@ -287,10 +289,29 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 	}
 
 	public function saveDefaultConfig() : bool{
-		if(!file_exists($this->configFile)){
+		if(file_exists($this->configFile)){
+			return false;
+		}
+		if($this->description->isYamlManifest()){
 			return $this->saveResource("config.yml", false);
 		}
-		return false;
+		//a config.yml left from before the plugin moved to TOML keeps its values, and a bundled one is converted
+		if(ConfigurationMigration::convertYamlFile(Path::join($this->dataFolder, "config.yml"), $this->configFile, $this->server->getFilesystemPaths()->backups())){
+			$this->logger->notice("Converted config.yml to config.toml, the original is in backups");
+			return true;
+		}
+		if($this->saveResource("config.toml", false)){
+			return true;
+		}
+		$bundled = Path::join($this->resourceFolder, "config.yml");
+		if(!file_exists($bundled)){
+			return false;
+		}
+		if(!file_exists($this->dataFolder)){
+			mkdir($this->dataFolder, 0755, true);
+		}
+		Filesystem::safeFilePutContents($this->configFile, ConfigurationMigration::yamlToToml(Filesystem::fileGetContents($bundled), $bundled));
+		return true;
 	}
 
 	public function reloadConfig() : void{

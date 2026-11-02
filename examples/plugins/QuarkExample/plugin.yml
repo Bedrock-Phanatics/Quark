@@ -1,6 +1,0 @@
-name: QuarkExample
-main: QuarkExample\Main
-src-namespace-prefix: QuarkExample
-version: 1.0.0
-api: 6.0.0
-description: Minimal Quark 6 folder plugin

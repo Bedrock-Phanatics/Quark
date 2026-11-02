@@ -101,6 +101,30 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertDirectoryExists($this->paths->runtimeTmp());
 	}
 
+	public function testModernResourcePackYamlConvertsWithoutOptIn() : void{
+		self::assertSame("empty", $this->migration->prepare());
+		$yaml = "#packs\nforce_resources: true\nresource_stack:\n  - natural.zip\n  - vanilla.zip\n";
+		file_put_contents($this->paths->resourcePacks() . "/resource_packs.yml", $yaml);
+		self::assertSame("modern", $this->migration->diagnose()["state"]);
+		self::assertStringContainsString("CONVERT", $this->migration->prepare(false, true));
+		self::assertFileExists($this->paths->resourcePacks() . "/resource_packs.yml");
+
+		self::assertSame("modern", $this->migration->prepare());
+		$converted = CoreConfig::load($this->paths->resourcePacks() . "/resource_packs.toml");
+		self::assertTrue($converted["force_resources"]);
+		self::assertSame(["natural.zip", "vanilla.zip"], $converted["resource_stack"]);
+		self::assertStringNotContainsString("__quark_nulls", (string) file_get_contents($this->paths->resourcePacks() . "/resource_packs.toml"));
+		self::assertFileDoesNotExist($this->paths->resourcePacks() . "/resource_packs.yml");
+		$snapshots = glob($this->paths->backups() . "/yaml-*/resource_packs.yml");
+		self::assertIsArray($snapshots);
+		self::assertSame($yaml, file_get_contents($snapshots[0]));
+
+		//an edited TOML file is never replaced by a stale YAML one
+		file_put_contents($this->paths->resourcePacks() . "/resource_packs.yml", "force_resources: false\n");
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertTrue(CoreConfig::load($this->paths->resourcePacks() . "/resource_packs.toml")["force_resources"]);
+	}
+
 	public function testVersionThreeRequiresUpgradeAndPreservesRestoreData() : void{
 		$this->migration->prepare();
 		file_put_contents($this->paths->layoutFile(), json_encode(["version" => 3]));
@@ -195,7 +219,7 @@ final class FilesystemMigrationTest extends TestCase{
 			"plugin_data/Example/config.yml" => "enabled: true\n",
 			"plugin_data/unknown.bin" => "unknown plugin data",
 			"resource_packs/Example.mcpack" => random_bytes(4096),
-			"resource_packs/resource_packs.yml" => "resource_stack: []\n",
+			"resource_packs/resource_packs.yml" => "force_resources: false\nresource_stack:\n  # - vanilla.zip\n",
 			"server.log" => "old log\n",
 			"log_archive/old.log" => "old archive\n",
 			"crashdumps/old.txt" => "old crash\n",
@@ -247,6 +271,8 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("enabled: true\n", file_get_contents($this->paths->pluginData() . "/Example/config.yml"));
 		self::assertSame("unknown plugin data", file_get_contents($this->paths->pluginData() . "/unknown.bin"));
 		self::assertSame($originals["resource_packs/Example.mcpack"], file_get_contents($this->paths->resourcePacks() . "/Example.mcpack"));
+		self::assertSame(file_get_contents(RESOURCE_PATH . "/resource_packs.toml"), file_get_contents($this->paths->resourcePacks() . "/resource_packs.toml"), "default settings keep the commented template");
+		self::assertFileDoesNotExist($this->paths->resourcePacks() . "/resource_packs.yml");
 		self::assertSame("old log\n", file_get_contents($this->paths->logs() . "/server.log"));
 		self::assertSame("old archive\n", file_get_contents($this->paths->logs() . "/archive/old.log"));
 		self::assertSame("old crash\n", file_get_contents($this->paths->crashes() . "/old.txt"));
@@ -360,7 +386,7 @@ final class FilesystemMigrationTest extends TestCase{
 		file_put_contents($this->root . "/resource_packs/Example.mcpack.key", "12345678901234567890123456789012");
 		$before = hash_file("sha256", $this->root . "/resource_packs/Example.mcpack");
 		self::assertSame("legacy", $this->migration->diagnose()["state"]);
-		self::assertStringContainsString("resource_packs", $this->migration->prepare(false, true));
+		self::assertStringContainsString("CONVERT " . $this->root . "/resource_packs/resource_packs.yml", $this->migration->prepare(false, true));
 		try{
 			$this->migration->prepare();
 			self::fail("Legacy resource packs must require migration");
@@ -370,7 +396,12 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("legacy", $this->migration->prepare(true));
 		self::assertSame("modern", $this->migration->prepare());
 		self::assertSame($before, hash_file("sha256", $this->paths->resourcePacks() . "/Example.mcpack"));
-		self::assertSame("resource_stack:\n  - Example.mcpack\n", file_get_contents($this->paths->resourcePacks() . "/resource_packs.yml"));
+		self::assertSame(["Example.mcpack"], CoreConfig::load($this->paths->resourcePacks() . "/resource_packs.toml")["resource_stack"]);
+		self::assertFileDoesNotExist($this->paths->resourcePacks() . "/resource_packs.yml");
+		$snapshots = glob($this->paths->backups() . "/yaml-*/resource_packs.yml");
+		self::assertIsArray($snapshots);
+		self::assertCount(1, $snapshots);
+		self::assertSame("resource_stack:\n  - Example.mcpack\n", file_get_contents($snapshots[0]));
 		self::assertFileExists($this->paths->resourcePacks() . "/Example.mcpack.key");
 		self::assertDirectoryDoesNotExist($this->root . "/resource_packs");
 	}

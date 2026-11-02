@@ -29,7 +29,7 @@ use quark\plugin\PluginBase;
 use quark\plugin\PluginOwned;
 
 /**
- * @internal Only used to route plugin.yml commands to {@link PluginBase::onCommand()}.
+ * @internal Only used to route plugin manifest commands to {@link PluginBase::onCommand()}.
  * Use {@link Command} instead of this class.
  */
 final class PluginCommand extends Command implements PluginOwned{

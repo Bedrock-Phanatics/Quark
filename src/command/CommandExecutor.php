@@ -30,7 +30,7 @@ use quark\plugin\PluginBase;
  *
  * Interface implemented by things that want to execute commands via {@link PluginCommand}.
  * This is implemented by {@link PluginBase} by default to allow automagically registering
- * {@link PluginBase::onCommand()} to receive commands defined in `plugin.yml`.
+ * {@link PluginBase::onCommand()} to receive commands defined in `plugin.toml`.
  */
 interface CommandExecutor{
 

@@ -86,16 +86,20 @@ class ResourcePackManager{
 			throw new \InvalidArgumentException("Resource packs path $path exists and is not a directory");
 		}
 
-		$resourcePacksYml = Path::join($this->path, "resource_packs.yml");
-		if(!file_exists($resourcePacksYml)){
-			if(is_link($resourcePacksYml) || !copy(Path::join(\quark\RESOURCE_PATH, "resource_packs.yml"), $resourcePacksYml)){
-				throw new \InvalidArgumentException("Cannot create resource pack configuration $resourcePacksYml");
+		$resourcePacksToml = Path::join($this->path, "resource_packs.toml");
+		if(!file_exists($resourcePacksToml)){
+			//startup migration converts it, so one left over means that didn't run and its settings would be lost
+			if(file_exists(Path::join($this->path, "resource_packs.yml"))){
+				throw new \InvalidArgumentException("Resource pack configuration resource_packs.yml must be converted to resource_packs.toml");
 			}
-		}elseif(is_link($resourcePacksYml)){
-			throw new \InvalidArgumentException("Resource pack configuration must not be a symbolic link: $resourcePacksYml");
+			if(is_link($resourcePacksToml) || !copy(Path::join(\quark\RESOURCE_PATH, "resource_packs.toml"), $resourcePacksToml)){
+				throw new \InvalidArgumentException("Cannot create resource pack configuration $resourcePacksToml");
+			}
+		}elseif(is_link($resourcePacksToml)){
+			throw new \InvalidArgumentException("Resource pack configuration must not be a symbolic link: $resourcePacksToml");
 		}
 
-		$resourcePacksConfig = new Config($resourcePacksYml, Config::YAML, []);
+		$resourcePacksConfig = new Config($resourcePacksToml, Config::TOML, []);
 
 		$this->serverForceResources = (bool) $resourcePacksConfig->get("force_resources", false);
 

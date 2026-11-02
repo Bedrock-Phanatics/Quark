@@ -2867,6 +2867,12 @@ final class KnownTranslationFactory{
 		]);
 	}
 
+	public static function quark_plugin_yamlManifestDeprecated(Translatable|string $param0) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_PLUGIN_YAMLMANIFESTDEPRECATED, [
+			0 => $param0,
+		]);
+	}
+
 	public static function quark_save_start() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_SAVE_START, []);
 	}

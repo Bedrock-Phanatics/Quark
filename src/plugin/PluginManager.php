@@ -324,6 +324,9 @@ class PluginManager{
 				if(str_contains($name, " ")){
 					$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_spacesDiscouraged($name)));
 				}
+				if($description->isYamlManifest()){
+					$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_yamlManifestDeprecated($name)));
+				}
 
 				$triage->plugins[$name] = new PluginLoadTriageEntry($file, $loader, $description);
 				$this->dataDirectoryNames[strtolower($name)] = true;

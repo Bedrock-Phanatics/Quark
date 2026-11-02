@@ -621,6 +621,7 @@ final class KnownTranslationKeys{
 	public const QUARK_PLUGIN_SPACESDISCOURAGED = "quark.plugin.spacesDiscouraged";
 	public const QUARK_PLUGIN_SUICIDE = "quark.plugin.suicide";
 	public const QUARK_PLUGIN_UNKNOWNDEPENDENCY = "quark.plugin.unknownDependency";
+	public const QUARK_PLUGIN_YAMLMANIFESTDEPRECATED = "quark.plugin.yamlManifestDeprecated";
 	public const QUARK_SAVE_START = "quark.save.start";
 	public const QUARK_SAVE_SUCCESS = "quark.save.success";
 	public const QUARK_SERVER_AUTH_DISABLED = "quark.server.auth.disabled";

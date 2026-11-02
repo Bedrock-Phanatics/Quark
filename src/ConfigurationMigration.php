@@ -42,6 +42,7 @@ use function random_bytes;
 use function rename;
 use function str_starts_with;
 use function strlen;
+use function trim;
 use function unlink;
 use function yaml_parse;
 use const INI_SCANNER_TYPED;
@@ -52,6 +53,54 @@ use const JSON_THROW_ON_ERROR;
  */
 final class ConfigurationMigration{
 	public function __construct(private FilesystemPaths $paths){}
+
+	/**
+	 * Converts a YAML configuration document to TOML.
+	 *
+	 * @phpstan-param (\Closure(array<string, mixed>) : string)|null $render writes the parsed values as TOML, encoding them as they are by default
+	 * @throws \RuntimeException if the YAML is malformed or can't be expressed as TOML
+	 */
+	public static function yamlToToml(string $yaml, string $origin, ?\Closure $render = null) : string{
+		$value = trim($yaml) === "" ? [] : @yaml_parse(Config::fixYAMLIndexes($yaml));
+		if(!is_array($value)){
+			throw new \RuntimeException("Invalid YAML configuration: $origin");
+		}
+		try{
+			/** @phpstan-var array<string, mixed> $value */
+			$toml = $render !== null ? $render($value) : CoreConfig::encode($value);
+			CoreConfig::parse($toml);
+		}catch(\InvalidArgumentException|\TomlException $e){
+			throw new \RuntimeException("Cannot convert $origin to TOML: " . $e->getMessage(), 0, $e);
+		}
+		return $toml;
+	}
+
+	/**
+	 * Replaces a YAML configuration file with its TOML equivalent. The original is snapshotted in $backups first,
+	 * since its comments don't survive the conversion.
+	 *
+	 * @phpstan-param (\Closure(array<string, mixed>) : string)|null $render see yamlToToml()
+	 * @return bool whether a file was converted
+	 */
+	public static function convertYamlFile(string $yamlFile, string $tomlFile, string $backups, ?\Closure $render = null) : bool{
+		if(!is_file($yamlFile) || file_exists($tomlFile) || is_link($tomlFile)){
+			return false;
+		}
+		if(is_link($yamlFile)){
+			throw new \RuntimeException("Configuration migration refuses symbolic link: $yamlFile");
+		}
+		$content = Filesystem::fileGetContents($yamlFile);
+		$toml = self::yamlToToml($content, $yamlFile, $render);
+		$backup = Path::join($backups, "yaml-" . gmdate("Ymd-His") . "-" . bin2hex(random_bytes(4)));
+		if(!@mkdir($backup, 0777, true) || @file_put_contents(Path::join($backup, basename($yamlFile)), $content) !== strlen($content)){
+			throw new \RuntimeException("Cannot snapshot $yamlFile to $backup");
+		}
+		Filesystem::safeFilePutContents($tomlFile, $toml);
+		if(!@unlink($yamlFile)){
+			throw new \RuntimeException("Cannot retire $yamlFile after converting it to $tomlFile");
+		}
+		return true;
+	}
 
 	private function journalPath() : string{
 		return Path::join($this->paths->root, ".quark-config-migration.json");

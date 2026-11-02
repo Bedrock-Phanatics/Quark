@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace quark;
 
+use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_push;
@@ -35,6 +36,7 @@ use function is_link;
 use function is_string;
 use function json_decode;
 use function json_encode;
+use function ksort;
 use function mkdir;
 use function rename;
 use function rmdir;
@@ -81,6 +83,26 @@ final class FilesystemMigration{
 			Path::join($root, "timings") => Path::join($this->paths->profiles(), "timings"),
 			Path::join($root, "memory_dumps") => Path::join($this->paths->profiles(), "memory_dumps")
 		];
+	}
+
+	private function resourcePacksToml() : string{
+		return Path::join($this->paths->resourcePacks(), "resource_packs.toml");
+	}
+
+	/**
+	 * Server files Quark used to keep as YAML convert on any startup, since they need no opt-in like moving data does.
+	 */
+	private function convertYamlConfigs() : void{
+		ConfigurationMigration::convertYamlFile(Path::join($this->paths->resourcePacks(), "resource_packs.yml"), $this->resourcePacksToml(), $this->paths->backups(), function(array $settings) : string{
+			//the old default left resource_stack empty with only comments under it, which YAML reads as null
+			$settings["resource_stack"] ??= [];
+			ksort($settings);
+			$template = Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "resource_packs.toml"));
+			$defaults = CoreConfig::parse($template);
+			ksort($defaults);
+			//untouched settings keep the commented default rather than a bare conversion
+			return $settings === $defaults ? $template : CoreConfig::encode($settings);
+		});
 	}
 
 	private function exists(string $path) : bool{
@@ -175,6 +197,12 @@ final class FilesystemMigration{
 			}
 			array_push($lines, ...(new ConfigurationMigration($this->paths))->dryRun());
 			array_push($lines, ...(new AccessMigration($this->paths))->dryRun());
+			foreach([$this->paths->resourcePacks(), Path::join($this->paths->root, "resource_packs")] as $directory){
+				if(is_file(Path::join($directory, "resource_packs.yml")) && !$this->exists($this->resourcePacksToml())){
+					$lines[] = "CONVERT " . Path::join($directory, "resource_packs.yml") . " -> " . $this->resourcePacksToml();
+					break;
+				}
+			}
 			return implode("\n", $lines);
 		}
 		$this->assertSafe($this->paths->migrationLock());
@@ -189,6 +217,7 @@ final class FilesystemMigration{
 		try{
 			$state = $this->diagnose()["state"];
 			if($state === "modern"){
+				$this->convertYamlConfigs();
 				return $state;
 			}
 			if(!$allowMigration && $state !== "empty"){
@@ -207,6 +236,7 @@ final class FilesystemMigration{
 			$this->createDirectories();
 			$configMigration->finish();
 			(new AccessMigration($this->paths))->run();
+			$this->convertYamlConfigs();
 			$this->writeJson($this->paths->layoutFile(), ["version" => self::VERSION]);
 			if($this->exists($this->paths->migrationJournal()) && !@unlink($this->paths->migrationJournal())){
 				throw new \RuntimeException("Unable to remove completed migration journal");

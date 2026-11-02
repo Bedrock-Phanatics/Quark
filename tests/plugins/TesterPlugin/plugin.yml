@@ -1,8 +1,0 @@
-name: TesterPlugin
-main: quarktests\TesterPlugin\Main
-src-namespace-prefix: quarktests\TesterPlugin
-version: 0.1.0
-api: [6.0.0]
-load: POSTWORLD
-author: Quark Team
-description: Plugin used to run integration tests on Quark

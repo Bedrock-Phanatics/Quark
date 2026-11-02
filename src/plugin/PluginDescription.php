@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\plugin;
 
+use quark\CoreConfig;
 use quark\permission\Permission;
 use quark\permission\PermissionParser;
 use quark\permission\PermissionParserException;
@@ -119,22 +120,45 @@ class PluginDescription{
 	 */
 	private array $permissions = [];
 
+	private bool $yamlManifest = false;
+
 	/**
-	 * @param string|mixed[] $yamlString
+	 * @param string|mixed[] $manifest the contents of plugin.toml, or the manifest already parsed
+	 * @throws PluginDescriptionParseException
 	 */
-	public function __construct(array|string $yamlString){
-		if(is_string($yamlString)){
-			$map = yaml_parse($yamlString);
-			if($map === false){
-				throw new PluginDescriptionParseException("YAML parsing error in plugin manifest");
+	public function __construct(array|string $manifest){
+		if(is_string($manifest)){
+			try{
+				$manifest = CoreConfig::parse($manifest);
+			}catch(\TomlException $e){
+				throw new PluginDescriptionParseException("TOML parsing error in plugin manifest: " . $e->getMessage(), 0, $e);
 			}
-			if(!is_array($map)){
-				throw new PluginDescriptionParseException("Invalid structure of plugin manifest, expected array but have " . get_debug_type($map));
-			}
-		}else{
-			$map = $yamlString;
 		}
-		$this->loadMap($map);
+		$this->loadMap($manifest);
+	}
+
+	/**
+	 * @deprecated plugin.yml is still read so older plugins load, but new plugins should ship plugin.toml.
+	 * @throws PluginDescriptionParseException
+	 */
+	public static function fromYaml(string $yaml) : self{
+		$map = yaml_parse($yaml);
+		if($map === false){
+			throw new PluginDescriptionParseException("YAML parsing error in plugin manifest");
+		}
+		if(!is_array($map)){
+			throw new PluginDescriptionParseException("Invalid structure of plugin manifest, expected array but have " . get_debug_type($map));
+		}
+		$description = new self($map);
+		$description->yamlManifest = true;
+		return $description;
+	}
+
+	/**
+	 * Returns whether the plugin ships the deprecated plugin.yml, which also keeps its default config in config.yml.
+	 */
+	public function isYamlManifest() : bool{
+		return $this->yamlManifest;
 	}
 
 	/**

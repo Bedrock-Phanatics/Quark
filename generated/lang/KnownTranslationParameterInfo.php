@@ -624,6 +624,7 @@ final class KnownTranslationParameterInfo{
 		Keys::QUARK_PLUGIN_SPACESDISCOURAGED => ["0"],
 		Keys::QUARK_PLUGIN_SUICIDE => [],
 		Keys::QUARK_PLUGIN_UNKNOWNDEPENDENCY => ["0"],
+		Keys::QUARK_PLUGIN_YAMLMANIFESTDEPRECATED => ["0"],
 		Keys::QUARK_SAVE_START => [],
 		Keys::QUARK_SAVE_SUCCESS => ["0"],
 		Keys::QUARK_SERVER_AUTH_DISABLED => [],
