@@ -4,21 +4,32 @@ declare(strict_types=1);
 
 namespace quark;
 
-use Internal\Toml\Toml;
 use quark\plugin\PluginGraylist;
 use quark\utils\Utils;
 use function array_is_list;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function get_debug_type;
+use function implode;
 use function is_array;
 use function is_bool;
+use function is_float;
+use function is_infinite;
 use function is_int;
+use function is_nan;
 use function is_string;
 use function json_decode;
 use function json_encode;
+use function ltrim;
+use function mb_check_encoding;
+use function ord;
+use function preg_match;
+use function preg_replace_callback;
+use function sprintf;
 use function toml_parse;
 use function toml_parse_file;
+use function var_export;
 use const JSON_THROW_ON_ERROR;
 
 final class CoreConfig{
@@ -84,7 +95,7 @@ final class CoreConfig{
 		return $data;
 	}
 
-	/** @param array<string, mixed> $data */
+	/** @param array<array-key, mixed> $data */
 	public static function encode(array $data) : string{
 		if(array_key_exists("__quark_nulls", $data)){
 			throw new \InvalidArgumentException("Reserved configuration key: __quark_nulls");
@@ -94,7 +105,103 @@ final class CoreConfig{
 		if($nulls !== []){
 			$data["__quark_nulls"] = $nulls;
 		}
-		return (string) Toml::encode($data);
+		$out = "";
+		self::encodeTable($data, [], $out);
+		return ltrim($out, "\n");
+	}
+
+	/**
+	 * Writes a table's own keys, then its subtables under headers, since TOML assigns keys to the last header seen.
+	 *
+	 * @phpstan-param array<array-key, mixed> $table
+	 * @phpstan-param list<string> $path the encoded keys leading to this table
+	 */
+	private static function encodeTable(array $table, array $path, string &$out) : void{
+		$subtables = [];
+		foreach(Utils::promoteKeys($table) as $key => $value){
+			if(is_array($value) && $value !== [] && (!array_is_list($value) || self::isTableList($value))){
+				$subtables[$key] = $value;
+			}else{
+				$out .= self::encodeKey($key) . " = " . self::encodeValue($value) . "\n";
+			}
+		}
+		foreach(Utils::promoteKeys($subtables) as $key => $value){
+			$subpath = [...$path, self::encodeKey($key)];
+			$header = implode(".", $subpath);
+			if(array_is_list($value)){
+				foreach($value as $element){
+					$out .= "\n[[$header]]\n";
+					self::encodeTable($element, $subpath, $out);
+				}
+			}else{
+				$out .= "\n[$header]\n";
+				self::encodeTable($value, $subpath, $out);
+			}
+		}
+	}
+
+	/** @phpstan-param list<mixed> $list */
+	private static function isTableList(array $list) : bool{
+		foreach($list as $element){
+			if(!is_array($element) || $element === [] || array_is_list($element)){
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Integer keys are written as strings, which PHP turns back into integer keys when the file is read.
+	 */
+	private static function encodeKey(int|string $key) : string{
+		$key = (string) $key;
+		return preg_match('/^[A-Za-z0-9_-]+$/D', $key) === 1 ? $key : self::encodeString($key);
+	}
+
+	private static function encodeValue(mixed $value) : string{
+		if(is_bool($value)){
+			return $value ? "true" : "false";
+		}
+		if(is_int($value)){
+			return (string) $value;
+		}
+		if(is_float($value)){
+			return match(true){
+				is_nan($value) => "nan",
+				is_infinite($value) => $value > 0 ? "inf" : "-inf",
+				default => var_export($value, true)
+			};
+		}
+		if(is_string($value)){
+			return self::encodeString($value);
+		}
+		if(is_array($value)){
+			if(array_is_list($value)){
+				return "[" . implode(", ", array_map(self::encodeValue(...), $value)) . "]";
+			}
+			$entries = [];
+			foreach(Utils::promoteKeys($value) as $key => $element){
+				$entries[] = self::encodeKey($key) . " = " . self::encodeValue($element);
+			}
+			return "{ " . implode(", ", $entries) . " }";
+		}
+		throw new \InvalidArgumentException("Cannot write " . get_debug_type($value) . " to TOML");
+	}
+
+	private static function encodeString(string $value) : string{
+		if(!mb_check_encoding($value, "UTF-8")){
+			throw new \InvalidArgumentException("TOML strings must be valid UTF-8");
+		}
+		return '"' . preg_replace_callback('/[\x00-\x1f\x7f"\\\\]/', static fn(array $match) : string => match($match[0]){
+			'"' => '\\"',
+			'\\' => '\\\\',
+			"\n" => '\\n',
+			"\r" => '\\r',
+			"\t" => '\\t',
+			"\x08" => '\\b',
+			"\x0c" => '\\f',
+			default => sprintf('\\u%04X', ord($match[0]))
+		}, $value) . '"';
 	}
 
 	/**

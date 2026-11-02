@@ -195,6 +195,16 @@ final class PluginFilesystemTest extends TestCase{
 		new PluginDescription("name = ");
 	}
 
+	public function testUnquotedDottedPermissionTablesKeepTheirNames() : void{
+		$manifest = "name = \"Example\"\nmain = \"Example\\\\Main\"\nversion = \"1.0.0\"\napi = \"6.0.0\"\n";
+		$description = new PluginDescription($manifest . "[permissions.example]\ndefault = \"op\"\n[permissions.example.hello]\ndefault = true\n");
+		$names = fn(string $default) => array_map(fn(Permission $permission) => $permission->getName(), $description->getPermissions()[$default] ?? []);
+		self::assertSame(["example.hello"], $names("true"));
+		self::assertSame(["example"], $names("op"));
+		$this->expectExceptionMessage("declared twice");
+		new PluginDescription($manifest . "[permissions.\"a.b\"]\ndefault = true\n[permissions.a.b]\ndefault = false\n");
+	}
+
 	public function testPluginConfigYamlConvertsToToml() : void{
 		$this->script("alpha.php", "Alpha");
 		mkdir($this->paths->pluginData() . "/Alpha");

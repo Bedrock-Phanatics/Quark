@@ -31,6 +31,7 @@ use quark\utils\Utils;
 use function array_map;
 use function array_values;
 use function get_debug_type;
+use function in_array;
 use function is_array;
 use function is_string;
 use function preg_match;
@@ -133,8 +134,49 @@ class PluginDescription{
 			}catch(\TomlException $e){
 				throw new PluginDescriptionParseException("TOML parsing error in plugin manifest: " . $e->getMessage(), 0, $e);
 			}
+			if(isset($manifest[self::KEY_PERMISSIONS]) && is_array($manifest[self::KEY_PERMISSIONS])){
+				$manifest[self::KEY_PERMISSIONS] = self::flattenPermissions($manifest[self::KEY_PERMISSIONS]);
+			}
 		}
 		$this->loadMap($manifest);
+	}
+
+	/**
+	 * TOML nests unquoted dotted keys, so [permissions.example.hello] is read back as the permission it spells.
+	 *
+	 * @phpstan-param array<array-key, mixed> $permissions
+	 * @phpstan-return array<string, mixed>
+	 * @throws PluginDescriptionParseException
+	 */
+	private static function flattenPermissions(array $permissions, string $prefix = "") : array{
+		$flat = [];
+		foreach(Utils::promoteKeys($permissions) as $name => $properties){
+			$name = $prefix . $name;
+			$own = $properties;
+			if(is_array($properties)){
+				$own = [];
+				foreach(Utils::promoteKeys($properties) as $key => $value){
+					if(is_array($value) && !in_array($key, ["default", "description", "children"], true)){
+						foreach(Utils::stringifyKeys(self::flattenPermissions([$key => $value], "$name.")) as $subName => $subProperties){
+							if(isset($flat[$subName])){
+								throw new PluginDescriptionParseException("Permission $subName is declared twice");
+							}
+							$flat[$subName] = $subProperties;
+						}
+					}else{
+						$own[$key] = $value;
+					}
+				}
+				if($own === [] && $properties !== []){
+					continue;
+				}
+			}
+			if(isset($flat[$name])){
+				throw new PluginDescriptionParseException("Permission $name is declared twice");
+			}
+			$flat[$name] = $own;
+		}
+		return $flat;
 	}
 
 	/**
