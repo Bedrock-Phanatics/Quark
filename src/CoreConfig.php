@@ -25,7 +25,6 @@ use function is_string;
 use function json_decode;
 use function json_encode;
 use function ksort;
-use function ltrim;
 use function mb_check_encoding;
 use function ord;
 use function preg_match;
@@ -41,6 +40,7 @@ use function strrev;
 use function strspn;
 use function substr;
 use function substr_replace;
+use function toml_encode;
 use function toml_parse;
 use function toml_parse_file;
 use function usort;
@@ -121,9 +121,11 @@ final class CoreConfig{
 		if($nulls !== []){
 			$data["__quark_nulls"] = $nulls;
 		}
-		$out = "";
-		self::encodeTable($data, [], $out);
-		return ltrim($out, "\n");
+		try{
+			return toml_encode($data);
+		}catch(\TomlException $e){
+			throw new \InvalidArgumentException($e->getMessage(), 0, $e);
+		}
 	}
 
 	/**
@@ -530,46 +532,6 @@ final class CoreConfig{
 			ksort($value, SORT_STRING);
 		}
 		return $value;
-	}
-
-	/**
-	 * Writes a table's own keys, then its subtables under headers, since TOML assigns keys to the last header seen.
-	 *
-	 * @phpstan-param array<array-key, mixed> $table
-	 * @phpstan-param list<string> $path the encoded keys leading to this table
-	 */
-	private static function encodeTable(array $table, array $path, string &$out) : void{
-		$subtables = [];
-		foreach(Utils::promoteKeys($table) as $key => $value){
-			if(is_array($value) && $value !== [] && (!array_is_list($value) || self::isTableList($value))){
-				$subtables[$key] = $value;
-			}else{
-				$out .= self::encodeKey($key) . " = " . self::encodeValue($value) . "\n";
-			}
-		}
-		foreach(Utils::promoteKeys($subtables) as $key => $value){
-			$subpath = [...$path, self::encodeKey($key)];
-			$header = implode(".", $subpath);
-			if(array_is_list($value)){
-				foreach($value as $element){
-					$out .= "\n[[$header]]\n";
-					self::encodeTable($element, $subpath, $out);
-				}
-			}else{
-				$out .= "\n[$header]\n";
-				self::encodeTable($value, $subpath, $out);
-			}
-		}
-	}
-
-	/** @phpstan-param list<mixed> $list */
-	private static function isTableList(array $list) : bool{
-		foreach($list as $element){
-			if(!is_array($element) || $element === [] || array_is_list($element)){
-				return false;
-			}
-		}
-		return true;
 	}
 
 	/**

@@ -6,6 +6,9 @@ function toml_parse(string $source) : array{}
 /** @return array<string, mixed> */
 function toml_parse_file(string $path) : array{}
 
+/** @param array<array-key, mixed> $data */
+function toml_encode(array $data) : string{}
+
 class TomlException extends Exception{}
 
 final class TomlParseException extends TomlException{
