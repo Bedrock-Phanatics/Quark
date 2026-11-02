@@ -873,7 +873,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$count = 0;
 		$world = $this->getWorld();
 
-		$limit = $this->chunksPerTick - count($this->activeChunkGenerationRequests);
+		//until the spawn area arrives the client sits on the loading screen, so pacing it over a dozen ticks only delays the join
+		$limit = ($this->spawnChunkLoadCount !== -1 ? max($this->chunksPerTick, $this->spawnThreshold + 1) : $this->chunksPerTick) - count($this->activeChunkGenerationRequests);
 		foreach($this->loadQueue as $index => $distance){
 			if($count >= $limit){
 				break;
