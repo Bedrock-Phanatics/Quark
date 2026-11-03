@@ -118,38 +118,6 @@ Server properties are derived automatically. Use `ItemComponents` for client con
 
 Projectile identifiers must match the entity created by the server subclass. Use duration and swing animation do not change server consumption or attack timing. Repair hints do not implement material repairs in anvils; that requires a plugin handler. Kinetic/piercing combat, scripting and storage components are not supported.
 
-## Resource packs
-
-Add a zipped `.mcpack` / `.zip` to `resource-packs/resource_packs.toml`. Its `manifest.json` needs a resources module and a compatible `min_engine_version`. No behavior pack or experiment toggle is required.
-
-For an icon, include:
-
-```text
-manifest.json
-textures/item_texture.json
-textures/items/ruby_sword.png
-```
-
-```json
-{
-  "resource_pack_name": "suko",
-  "texture_name": "atlas.items",
-  "texture_data": {
-    "suko:ruby_sword": {"textures": "textures/items/ruby_sword"}
-  }
-}
-```
-
-The atlas key must match `icon()`, which defaults to the full item identifier.
-
-For equipped armor, also include:
-
-- `attachables/ruby_helmet.attachable.json`, with `minecraft:attachable.description.identifier` set to `suko:ruby_helmet`.
-- Referenced geometry in `models/entity/` and textures in `textures/models/armor/`.
-- Referenced render controllers in `render_controllers/`, unless using built-in controllers.
-
-Provide a matching attachable for each armor piece, with the appropriate bone bindings and dye material support. Start from the target client's vanilla armor attachables and test rendering in-game.
-
 ## Equipment callbacks and persistence
 
 ```php
