@@ -23,6 +23,8 @@ final class UnknownCustomItem extends Item{
 
 	public function getSavedMeta() : int{ return $this->savedMeta; }
 
+	public function getMaxStackSize() : int{ return 1; }
+
 	protected function deserializeCompoundTag(CompoundTag $tag) : void{}
 
 	protected function serializeCompoundTag(CompoundTag $tag) : void{

@@ -20,6 +20,7 @@ use quark\data\bedrock\item\SavedItemData;
 use quark\data\bedrock\item\SavedItemStackData;
 use quark\inventory\ArmorInventory;
 use quark\inventory\CreativeInventory;
+use quark\inventory\SimpleInventory;
 use quark\item\custom\CustomSword;
 use quark\item\custom\ItemComponents;
 use quark\item\custom\ItemDefinition;
@@ -273,6 +274,38 @@ final class CustomItemTest extends TestCase{
 		$savedTag = $this->serializer->serializeStack($item)->getTypeData()->getTag();
 		self::assertNotNull($savedTag);
 		self::assertTrue($tag->equals($savedTag));
+	}
+
+	public function testMissingWeaponsCannotMergeBeforeTheirDefinitionReturns() : void{
+		$tag = CompoundTag::create()->setInt("Damage", 12)->setString("custom", "keep");
+		$data = new SavedItemStackData(new SavedItemData("removed:sword", 0, null, $tag), 1, null, null, [], []);
+		$inventory = new SimpleInventory(2);
+		self::assertSame([], $inventory->addItem($this->deserializer->deserializeStack($data), $this->deserializer->deserializeStack($data)));
+		self::assertCount(2, $inventory->getContents());
+		self::assertFalse($inventory->canAddItem($this->deserializer->deserializeStack($data)));
+		$saved = [];
+		foreach($inventory->getContents() as $item){
+			self::assertSame(1, $item->getCount());
+			$saved[] = $this->serializer->serializeStack($item);
+		}
+		$this->registry->register(ItemDefinition::sword("removed:sword", "Sword", 9, 100), $this->owner);
+		foreach($saved as $stack){
+			$restored = $this->deserializer->deserializeStack($stack);
+			self::assertInstanceOf(CustomSword::class, $restored);
+			self::assertSame(1, $restored->getCount());
+			self::assertSame(12, $restored->getDamage());
+			self::assertSame("keep", $restored->getNamedTag()->getString("custom"));
+		}
+	}
+
+	public function testMissingStackableItemPreservesItsSavedCount() : void{
+		$data = new SavedItemStackData(new SavedItemData("removed:gem"), 32, null, null, [], []);
+		$item = $this->deserializer->deserializeStack($data);
+		self::assertSame(32, $item->getCount());
+		$saved = $this->serializer->serializeStack($item);
+		self::assertSame(32, $saved->getCount());
+		$this->registry->register(ItemDefinition::item("removed:gem", "Gem"), $this->owner);
+		self::assertTrue($this->registry->create("removed:gem", 32)->equalsExact($this->deserializer->deserializeStack($saved)));
 	}
 
 	public function testFoodToolAndComponentsUseServerProperties() : void{
