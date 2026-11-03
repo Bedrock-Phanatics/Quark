@@ -23,10 +23,6 @@ $cases = [
 		quark\CoreConfig::validateServer(quark\CoreConfig::load($resources . 'server.toml'));
 		quark\CoreConfig::forget($resources . 'plugins.toml');
 		quark\CoreConfig::validatePlugins(quark\CoreConfig::load($resources . 'plugins.toml'));
-	},
-	'toml-php' => static function() use ($resources) : void{
-		quark\CoreConfig::validateServer(Internal\Toml\Toml::parseToArray(Filesystem::fileGetContents($resources . 'server.toml')));
-		quark\CoreConfig::validatePlugins(Internal\Toml\Toml::parseToArray(Filesystem::fileGetContents($resources . 'plugins.toml')));
 	}
 ];
 foreach($cases as $name => $run){

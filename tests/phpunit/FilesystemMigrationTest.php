@@ -12,6 +12,7 @@ use quark\utils\Filesystem;
 use quark\world\format\io\data\BedrockWorldData;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\WorldCreationOptions;
+use Symfony\Component\Filesystem\Path;
 use function assert;
 use function bin2hex;
 use function copy;
@@ -386,7 +387,7 @@ final class FilesystemMigrationTest extends TestCase{
 		file_put_contents($this->root . "/resource_packs/Example.mcpack.key", "12345678901234567890123456789012");
 		$before = hash_file("sha256", $this->root . "/resource_packs/Example.mcpack");
 		self::assertSame("legacy", $this->migration->diagnose()["state"]);
-		self::assertStringContainsString("CONVERT " . $this->root . "/resource_packs/resource_packs.yml", $this->migration->prepare(false, true));
+		self::assertStringContainsString("CONVERT " . Path::join($this->root, "resource_packs/resource_packs.yml"), $this->migration->prepare(false, true));
 		try{
 			$this->migration->prepare();
 			self::fail("Legacy resource packs must require migration");
