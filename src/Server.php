@@ -1274,6 +1274,11 @@ class Server{
 				return;
 			}
 
+			item\custom\ItemRegistry::getInstance()->finalize(TypeConverter::getInstance(), CreativeInventory::getInstance());
+			if(item\custom\ItemRegistry::getInstance()->getIdentifiers() !== [] && $this->resourceManager->getResourceStack() === []){
+				$this->logger->warning("Custom items are registered without a resource pack. Item icons and equipped armor models require a compatible resource pack");
+			}
+
 			//the first player to join would otherwise build these mid-game, stalling the main thread for a few hundred ms
 			StaticPacketCache::getInstance();
 			CraftingDataCache::getInstance()->getCache($this->craftingManager);

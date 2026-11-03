@@ -30,7 +30,6 @@ use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
 use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
 use quark\network\mcpe\protocol\packet\StartGamePacket;
 use quark\network\mcpe\protocol\ProtocolInfo;
@@ -41,7 +40,6 @@ use quark\network\mcpe\protocol\types\EventsServerTelemetryData;
 use quark\network\mcpe\protocol\types\Experiments;
 use quark\network\mcpe\protocol\types\GameRule;
 use quark\network\mcpe\protocol\types\GeneratorType;
-use quark\network\mcpe\protocol\types\ItemData;
 use quark\network\mcpe\protocol\types\LevelSettings;
 use quark\network\mcpe\protocol\types\MultiplayerGameVisibility;
 use quark\network\mcpe\protocol\types\PlayerMovementSettings;
@@ -171,17 +169,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 			));
 
 			$this->session->getLogger()->debug("Sending items");
-			$items = [];
-			foreach($typeConverter->getItemTypeDictionary()->getEntries() as $entry){
-				$items[] = new ItemData(
-					itemName: $entry->getStringId(),
-					itemId: $entry->getNumericId(),
-					isComponentBased: $entry->isComponentBased(),
-					itemVersion: $entry->getVersion(),
-					itemComponentData: $entry->getComponentNbt()->getEncodedNbt(),
-				);
-			}
-			$this->session->sendDataPacket(new ItemRegistryPacket(itemData: $items));
+			$this->session->sendDataPacket($typeConverter->getItemRegistryPacket());
 
 			$this->session->getLogger()->debug("Sending actor identifiers");
 			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getAvailableActorIdentifiers());

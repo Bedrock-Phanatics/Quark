@@ -41,15 +41,21 @@ use quark\crafting\RecipeIngredient;
 use quark\crafting\TagWildcardRecipeIngredient;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\data\bedrock\item\BlockItemIdMap;
+use quark\data\bedrock\item\ItemDeserializer;
+use quark\data\bedrock\item\ItemSerializer;
 use quark\data\bedrock\item\ItemTypeNames;
 use quark\data\SavedDataLoadingException;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\network\mcpe\protocol\EncodedPacket;
+use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
 use quark\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\network\mcpe\protocol\types\GameMode as ProtocolGameMode;
 use quark\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\network\mcpe\protocol\types\inventory\ItemStackExtraData;
 use quark\network\mcpe\protocol\types\inventory\ItemStackExtraDataShield;
+use quark\network\mcpe\protocol\types\ItemData;
+use quark\network\mcpe\protocol\types\ItemTypeEntry;
 use quark\network\mcpe\protocol\types\recipe\RecipeIngredient as ProtocolRecipeIngredient;
 use quark\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use quark\network\mcpe\protocol\types\recipe\TagItemDescriptor;
@@ -62,6 +68,7 @@ use quark\world\format\io\GlobalItemDataHandlers;
 use function get_class;
 use function hash;
 use function min;
+use function strlen;
 
 class TypeConverter{
 	use SingletonTrait;
@@ -81,10 +88,15 @@ class TypeConverter{
 	private int $shieldRuntimeId;
 	private string $emptyExtraData;
 	private string $emptyShieldExtraData;
+	private ?EncodedPacket $itemRegistryPacket = null;
+	private readonly ItemSerializer $itemSerializer;
+	private readonly ItemDeserializer $itemDeserializer;
 
 	private SkinAdapter $skinAdapter;
 
-	public function __construct(){
+	public function __construct(?ItemSerializer $itemSerializer = null, ?ItemDeserializer $itemDeserializer = null){
+		$this->itemSerializer = $itemSerializer ?? GlobalItemDataHandlers::getSerializer();
+		$this->itemDeserializer = $itemDeserializer ?? GlobalItemDataHandlers::getDeserializer();
 		//TODO: inject stuff via constructor
 		$this->blockItemIdMap = BlockItemIdMap::getInstance();
 
@@ -103,8 +115,8 @@ class TypeConverter{
 		$this->itemTranslator = new ItemTranslator(
 			$this->itemTypeDictionary,
 			$this->blockTranslator->getBlockStateDictionary(),
-			GlobalItemDataHandlers::getSerializer(),
-			GlobalItemDataHandlers::getDeserializer(),
+			$this->itemSerializer,
+			$this->itemDeserializer,
 			$this->blockItemIdMap
 		);
 
@@ -116,6 +128,28 @@ class TypeConverter{
 	public function getItemTypeDictionary() : ItemTypeDictionary{ return $this->itemTypeDictionary; }
 
 	public function getItemTranslator() : ItemTranslator{ return $this->itemTranslator; }
+
+	/**
+	 * @internal Installs and encodes one immutable dictionary after all plugins have enabled.
+	 * @param list<ItemTypeEntry> $customEntries
+	 */
+	public function finalizeItemRegistry(array $customEntries) : void{
+		if($this->itemRegistryPacket !== null){ throw new \LogicException("The network item registry is already finalized"); }
+		$dictionary = new ItemTypeDictionary([...$this->itemTypeDictionary->getEntries(), ...$customEntries]);
+		$items = [];
+		foreach($dictionary->getEntries() as $entry){
+			$items[] = new ItemData($entry->getStringId(), $entry->getNumericId(), $entry->isComponentBased(), $entry->getVersion(), $entry->getComponentNbt()->getEncodedNbt());
+		}
+		$packet = EncodedPacket::of(new ItemRegistryPacket($items));
+		if(strlen($packet->getBytes()) > 8 * 1024 * 1024){ throw new \LengthException("Network item registry exceeds the 8 MiB limit"); }
+		$this->itemTypeDictionary = $dictionary;
+		$this->itemTranslator = new ItemTranslator($dictionary, $this->blockTranslator->getBlockStateDictionary(), $this->itemSerializer, $this->itemDeserializer, $this->blockItemIdMap);
+		$this->itemRegistryPacket = $packet;
+	}
+
+	public function getItemRegistryPacket() : EncodedPacket{
+		return $this->itemRegistryPacket ?? throw new \LogicException("Network item registration has not been finalized");
+	}
 
 	public function getSkinAdapter() : SkinAdapter{ return $this->skinAdapter; }
 
@@ -356,6 +390,7 @@ class TypeConverter{
 		$compound = $extraData->getNbt();
 
 		$itemResult = $this->itemTranslator->fromNetworkId($itemStack->getId(), $itemStack->getMeta(), $itemStack->getBlockRuntimeId());
+		$this->itemTranslator->validateStack($itemResult, $itemStack->getCount(), $compound);
 
 		if($compound !== null){
 			$compound = clone $compound;

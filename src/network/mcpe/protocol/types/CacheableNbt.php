@@ -38,13 +38,15 @@ final class CacheableNbt{
 	 */
 	public function __construct(
 		private Tag $nbtRoot
-	){}
+	){
+		$this->nbtRoot = clone $nbtRoot;
+	}
 
 	/**
 	 * @phpstan-return TTagType
 	 */
 	public function getRoot() : Tag{
-		return $this->nbtRoot;
+		return clone $this->nbtRoot;
 	}
 
 	public function getEncodedNbt() : string{

@@ -45,6 +45,12 @@ final class ItemTypeDictionary{
 	 */
 	public function __construct(private array $itemTypes){
 		foreach($this->itemTypes as $type){
+			if(isset($this->stringToIntMap[$type->getStringId()]) || isset($this->intToStringIdMap[$type->getNumericId()])){
+				throw new \InvalidArgumentException("Duplicate item dictionary name or numeric ID: " . $type->getStringId());
+			}
+			if($type->getNumericId() < -32768 || $type->getNumericId() > 32767){
+				throw new \InvalidArgumentException("Item dictionary numeric ID must fit a signed short");
+			}
 			$this->stringToIntMap[$type->getStringId()] = $type->getNumericId();
 			$this->intToStringIdMap[$type->getNumericId()] = $type->getStringId();
 		}
@@ -56,6 +62,10 @@ final class ItemTypeDictionary{
 	 */
 	public function getEntries() : array{
 		return $this->itemTypes;
+	}
+
+	public function hasStringId(string $stringId) : bool{
+		return isset($this->stringToIntMap[$stringId]);
 	}
 
 	public function fromStringId(string $stringId) : int{

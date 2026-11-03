@@ -164,7 +164,7 @@ use const ZEND_DEBUG_BUILD;
 			"leveldb" => ["0.2.1", "0.4.0"],
 			"morton" => ["0.1.0", "0.2.0"],
 			"pmmpthread" => ["6.1.0", "7.0.0"],
-			"toml" => ["0.1.1", "0.2.0"]
+			"toml" => ["0.2.0", "0.3.0"]
 		] as $ext => [$min, $max]){
 			$version = phpversion($ext);
 			if(extension_loaded($ext) && ($version === false || version_compare($version, $min, "<") || version_compare($version, $max . "-dev", ">="))){
@@ -296,7 +296,7 @@ JIT_WARNING
 			exit(1);
 		}
 
-		$composerGitHash = InstalledVersions::getReference('quark/quark');
+		$composerGitHash = InstalledVersions::getRootPackage()['reference'];
 		if($composerGitHash !== null){
 			//we can't verify dependency versions if we were installed without using git
 			$currentGitHash = explode("-", VersionInfo::GIT_HASH(), 2)[0];

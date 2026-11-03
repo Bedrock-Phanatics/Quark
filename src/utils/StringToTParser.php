@@ -44,6 +44,10 @@ abstract class StringToTParser{
 	 */
 	private array $callbackMap = [];
 
+	public function hasAlias(string $alias) : bool{
+		return isset($this->callbackMap[$this->reprocess($alias)]);
+	}
+
 	/** @phpstan-param \Closure(string $input) : T $callback */
 	public function register(string $alias, \Closure $callback) : void{
 		$key = $this->reprocess($alias);

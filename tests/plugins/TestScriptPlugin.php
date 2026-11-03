@@ -23,12 +23,17 @@ declare(strict_types=1);
 
 namespace quarktests\ScriptTest;
 
+use quark\item\custom\ItemDefinition;
+use quark\item\custom\ItemRegistry;
 use quark\plugin\PluginBase;
 
 /**
  * @main quarktests\ScriptTest\Main
  * @api 6.0.0
+ * @load STARTUP
  */
 class Main extends PluginBase{
-
+	public function onEnable() : void{
+		ItemRegistry::getInstance()->register(ItemDefinition::item("script_test:gem", "Test Gem")->withCreativeCategory(), $this);
+	}
 }

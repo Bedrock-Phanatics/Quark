@@ -90,6 +90,9 @@ final class ItemTranslator{
 	 */
 	private function serializeNetworkId(Item $item) : array{
 		$itemData = $this->itemSerializer->serializeType($item);
+		if(!$this->itemTypeDictionary->hasStringId($itemData->getName())){
+			throw new ItemTypeSerializeException("No network item registered for " . $itemData->getName());
+		}
 
 		$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());
 		$meta = $itemData->getMeta();
@@ -118,6 +121,15 @@ final class ItemTranslator{
 		//be true - if we stick on an older world version while updating network version, this could be a problem (and
 		//may be a problem for multi version implementations)
 		return $this->itemSerializer->serializeStack($item)->toNbt();
+	}
+
+	/** @internal */
+	public function validateStack(Item $item, int $count, ?CompoundTag $tag) : void{
+		try{
+			$this->itemDeserializer->validateStack($item, $count, $tag);
+		}catch(ItemTypeDeserializeException $e){
+			throw TypeConversionException::wrap($e, "Invalid custom itemstack");
+		}
 	}
 
 	/**

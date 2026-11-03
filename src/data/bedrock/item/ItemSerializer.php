@@ -29,6 +29,7 @@ use quark\data\bedrock\block\BlockStateSerializeException;
 use quark\data\bedrock\block\BlockStateSerializer;
 use quark\data\bedrock\item\SavedItemData as Data;
 use quark\item\CoralFan;
+use quark\item\custom\UnknownCustomItem;
 use quark\item\Item;
 use quark\item\ItemBlock;
 use quark\item\VanillaItems as Items;
@@ -92,6 +93,11 @@ final class ItemSerializer{
 	public function serializeType(Item $item) : Data{
 		if($item->isNull()){
 			throw new \InvalidArgumentException("Cannot serialize a null itemstack");
+		}
+		if($item instanceof UnknownCustomItem){
+			$tag = clone $item->getNamedTag();
+			$tag->removeTag(UnknownCustomItem::IDENTITY_TAG);
+			return new Data($item->getSavedIdentifier(), $item->getSavedMeta(), null, $tag);
 		}
 		if($item instanceof ItemBlock){
 			$data = $this->serializeBlockItem($item->getBlock());

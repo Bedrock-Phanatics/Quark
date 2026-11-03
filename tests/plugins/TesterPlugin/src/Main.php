@@ -25,6 +25,12 @@ namespace quarktests\TesterPlugin;
 
 use quark\event\Listener;
 use quark\event\server\CommandEvent;
+use quark\inventory\CreativeInventory;
+use quark\item\ArmorTypeInfo;
+use quark\item\custom\ItemDefinition;
+use quark\item\custom\ItemRegistry;
+use quark\item\Item;
+use quark\network\mcpe\convert\TypeConverter;
 use quark\plugin\PluginBase;
 use quark\plugin\ScriptPluginLoader;
 use quark\scheduler\CancelTaskException;
@@ -43,6 +49,8 @@ class Main extends PluginBase implements Listener{
 	protected $currentTestNumber = 0;
 
 	public function onEnable() : void{
+		$registry = ItemRegistry::getInstance();
+		$registry->register(ItemDefinition::armor("tester:helmet", "Test Helmet", new ArmorTypeInfo(3, 100, 0))->withCreativeCategory(), $this);
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
 		$this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function() : void{
 			if($this->currentTest === null){
@@ -58,6 +66,24 @@ class Main extends PluginBase implements Listener{
 		}), 10);
 
 		$this->waitingTests = [
+			new ClosureTest($this->getLogger(), "Native custom items", "STARTUP and POSTWORLD registration, frozen network dictionary, persistence and creative inventory", function() : void{
+				$registry = ItemRegistry::getInstance();
+				if(!$registry->isFinalized()){ throw new TestFailedException("Item registry was not finalized"); }
+				foreach(["script_test:gem", "tester:helmet"] as $id){
+					$item = $registry->create($id);
+					$item->setCustomName("Persistent custom item")->setLore(["Round trip"]);
+					$loaded = Item::nbtDeserialize($item->nbtSerialize());
+					$converter = TypeConverter::getInstance();
+					if(!$loaded->equalsExact($item) || !$converter->netItemStackToCore($converter->coreItemStackToNet($item))->equalsExact($item)){
+						throw new TestFailedException("Custom item round trip failed: $id");
+					}
+					if(!CreativeInventory::getInstance()->contains($registry->create($id))){ throw new TestFailedException("Custom creative item missing: $id"); }
+				}
+				try{
+					$registry->register(ItemDefinition::item("tester:late", "Late"), $this);
+				}catch(\LogicException){ return; }
+				throw new TestFailedException("Runtime item registration was accepted");
+			}),
 			//Add test objects here
 			new ClosureTest(
 				$this->getLogger(),
