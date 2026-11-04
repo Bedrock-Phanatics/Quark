@@ -65,6 +65,15 @@ final class BlockItemIdMap{
 		$this->itemToBlockId = array_flip($this->blockToItemId);
 	}
 
+	/** @internal Custom block items share their block's identifier. */
+	public function mapCustom(string $id) : void{
+		if(isset($this->blockToItemId[$id]) || isset($this->itemToBlockId[$id])){
+			throw new \InvalidArgumentException("Block item '$id' is already mapped");
+		}
+		$this->blockToItemId[$id] = $id;
+		$this->itemToBlockId[$id] = $id;
+	}
+
 	public function lookupItemId(string $blockId) : ?string{
 		return $this->blockToItemId[$blockId] ?? null;
 	}

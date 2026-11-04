@@ -1263,6 +1263,13 @@ class Server{
 				return;
 			}
 
+			//worlds decode chunks with the custom block palette, so it must be final before any world loads
+			$blockRegistry = block\custom\BlockRegistry::getInstance();
+			$blockRegistry->finalize(TypeConverter::getInstance(), CreativeInventory::getInstance(), $this->asyncPool);
+			if($blockRegistry->getIdentifiers() !== [] && $this->resourceManager->getResourceStack() === []){
+				$this->logger->warning("Custom blocks are registered without a resource pack. Their textures and models require a compatible resource pack");
+			}
+
 			if(!$this->startupPrepareWorlds()){
 				$this->forceShutdownExit();
 				return;
@@ -1274,7 +1281,7 @@ class Server{
 				return;
 			}
 
-			item\custom\ItemRegistry::getInstance()->finalize(TypeConverter::getInstance(), CreativeInventory::getInstance());
+			item\custom\ItemRegistry::getInstance()->finalize(TypeConverter::getInstance(), CreativeInventory::getInstance(), $blockRegistry->getItemTypeEntries());
 			if(item\custom\ItemRegistry::getInstance()->getIdentifiers() !== [] && $this->resourceManager->getResourceStack() === []){
 				$this->logger->warning("Custom items are registered without a resource pack. Item icons and equipped armor models require a compatible resource pack");
 			}

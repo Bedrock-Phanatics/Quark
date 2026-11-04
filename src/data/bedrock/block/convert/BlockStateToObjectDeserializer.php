@@ -60,8 +60,24 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		return $this->deserializeToStateId($stateData);
 	}
 
+	/** @phpstan-var (\Closure(BlockStateData) : ?int)|null */
+	private ?\Closure $customStateFallback = null;
+
+	/**
+	 * @internal Lets the custom block registry keep non-vanilla states it cannot load instead of losing them.
+	 * @phpstan-param \Closure(BlockStateData) : ?int $fallback
+	 */
+	public function setCustomStateFallback(\Closure $fallback) : void{
+		$this->customStateFallback = $fallback;
+		$this->simpleCache = [];
+	}
+
 	private function deserializeToStateId(BlockStateData $stateData) : int{
-		$stateId = $this->deserializeBlock($stateData)->getStateId();
+		try{
+			$stateId = $this->deserializeBlock($stateData)->getStateId();
+		}catch(BlockStateDeserializeException $e){
+			return ($this->customStateFallback === null ? null : ($this->customStateFallback)($stateData)) ?? throw $e;
+		}
 		//plugin devs seem to keep missing this and causing core crashes, so we need to verify this at the earliest
 		//available opportunity
 		if(!RuntimeBlockStateRegistry::getInstance()->hasStateId($stateId)){

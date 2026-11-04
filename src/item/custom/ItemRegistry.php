@@ -137,11 +137,14 @@ final class ItemRegistry{
 	/** @return list<string> */
 	public function getIdentifiers() : array{ return array_keys($this->items); }
 
-	/** @internal Called after POSTWORLD enable and before network listeners start. */
-	public function finalize(TypeConverter $converter, CreativeInventory $creative) : void{
+	/**
+	 * @internal Called after POSTWORLD enable and before network listeners start.
+	 * @param list<ItemTypeEntry> $blockItemEntries custom block items, which keep their block-derived IDs
+	 */
+	public function finalize(TypeConverter $converter, CreativeInventory $creative, array $blockItemEntries = []) : void{
 		if(\pmmp\thread\Thread::getCurrentThread() !== null){ throw new \LogicException("Custom items must be finalized on the main thread"); }
 		if($this->registering || $this->finalized){ throw new \LogicException("Item registry cannot be finalized in its current state"); }
-		$entries = [];
+		$entries = $blockItemEntries;
 		$runtimeId = 0;
 		foreach($converter->getItemTypeDictionary()->getEntries() as $entry){ $runtimeId = max($runtimeId, $entry->getNumericId()); }
 		$runtimeId = max(10000, $runtimeId + 1);

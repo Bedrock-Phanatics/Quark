@@ -40,6 +40,7 @@ use quark\crafting\MetaWildcardRecipeIngredient;
 use quark\crafting\RecipeIngredient;
 use quark\crafting\TagWildcardRecipeIngredient;
 use quark\data\bedrock\BedrockDataFiles;
+use quark\data\bedrock\block\BlockStateSerializer;
 use quark\data\bedrock\item\BlockItemIdMap;
 use quark\data\bedrock\item\ItemDeserializer;
 use quark\data\bedrock\item\ItemSerializer;
@@ -89,12 +90,13 @@ class TypeConverter{
 	private string $emptyExtraData;
 	private string $emptyShieldExtraData;
 	private ?EncodedPacket $itemRegistryPacket = null;
+	private bool $blocksFinalized = false;
 	private readonly ItemSerializer $itemSerializer;
 	private readonly ItemDeserializer $itemDeserializer;
 
 	private SkinAdapter $skinAdapter;
 
-	public function __construct(?ItemSerializer $itemSerializer = null, ?ItemDeserializer $itemDeserializer = null){
+	public function __construct(?ItemSerializer $itemSerializer = null, ?ItemDeserializer $itemDeserializer = null, ?BlockStateSerializer $blockStateSerializer = null){
 		$this->itemSerializer = $itemSerializer ?? GlobalItemDataHandlers::getSerializer();
 		$this->itemDeserializer = $itemDeserializer ?? GlobalItemDataHandlers::getDeserializer();
 		//TODO: inject stuff via constructor
@@ -104,7 +106,7 @@ class TypeConverter{
 		$metaMappingRaw = Filesystem::fileGetContents(BedrockDataFiles::BLOCK_STATE_META_MAP_JSON);
 		$this->blockTranslator = new BlockTranslator(
 			BlockStateDictionary::loadFromString($canonicalBlockStatesRaw, $metaMappingRaw),
-			GlobalBlockStateHandlers::getSerializer()
+			$blockStateSerializer ?? GlobalBlockStateHandlers::getSerializer()
 		);
 
 		$this->itemTypeDictionary = ItemTypeDictionaryFromDataHelper::loadFromString(Filesystem::fileGetContents(BedrockDataFiles::REQUIRED_ITEM_LIST_JSON));
@@ -128,6 +130,17 @@ class TypeConverter{
 	public function getItemTypeDictionary() : ItemTypeDictionary{ return $this->itemTypeDictionary; }
 
 	public function getItemTranslator() : ItemTranslator{ return $this->itemTranslator; }
+
+	/**
+	 * @internal Installs the block palette including custom states, once, before worlds load and items finalize.
+	 * @param list<BlockStateDictionaryEntry> $states
+	 */
+	public function finalizeBlockRegistry(array $states) : void{
+		if($this->blocksFinalized || $this->itemRegistryPacket !== null){ throw new \LogicException("The network block palette must be finalized once, before items"); }
+		$this->blocksFinalized = true;
+		$this->blockTranslator = $this->blockTranslator->withDictionary(new BlockStateDictionary($states));
+		$this->itemTranslator = new ItemTranslator($this->itemTypeDictionary, $this->blockTranslator->getBlockStateDictionary(), $this->itemSerializer, $this->itemDeserializer, $this->blockItemIdMap);
+	}
 
 	/**
 	 * @internal Installs and encodes one immutable dictionary after all plugins have enabled.

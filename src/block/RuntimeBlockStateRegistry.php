@@ -194,6 +194,25 @@ class RuntimeBlockStateRegistry{
 		}
 	}
 
+	/**
+	 * @internal Gives worker threads the light properties of states only registered on the main thread.
+	 * @param array<int, int>  $light
+	 * @param array<int, int>  $lightFilter
+	 * @param array<int, true> $blocksDirectSkyLight
+	 */
+	public function registerLightData(array $light, array $lightFilter, array $blocksDirectSkyLight) : void{
+		foreach($lightFilter as $stateId => $filter){
+			if(isset($this->fullList[$stateId]) || $filter < 0 || $filter > 15 || ($light[$stateId] ?? 0) < 0 || ($light[$stateId] ?? 0) > 15){
+				throw new \InvalidArgumentException("Invalid light data for state $stateId");
+			}
+			$this->light[$stateId] = $light[$stateId] ?? 0;
+			$this->lightFilter[$stateId] = $filter;
+			if(isset($blocksDirectSkyLight[$stateId])){
+				$this->blocksDirectSkyLight[$stateId] = true;
+			}
+		}
+	}
+
 	public function fromStateId(int $stateId) : Block{
 		if($stateId < 0){
 			throw new \InvalidArgumentException("Block state ID cannot be negative");

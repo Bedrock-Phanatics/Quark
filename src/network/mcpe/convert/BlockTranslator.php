@@ -28,6 +28,7 @@ use quark\data\bedrock\block\BlockStateSerializeException;
 use quark\data\bedrock\block\BlockStateSerializer;
 use quark\data\bedrock\block\BlockTypeNames;
 use quark\utils\AssumptionFailedError;
+use function str_starts_with;
 
 /**
  * @internal
@@ -62,6 +63,10 @@ final class BlockTranslator{
 
 			$networkId = $this->blockStateDictionary->lookupStateIdFromData($blockStateData);
 			if($networkId === null){
+				//preserved states of missing custom blocks are only known on disk
+				if(!str_starts_with($blockStateData->getName(), "minecraft:")){
+					return $this->networkIdCache[$internalStateId] = $this->fallbackStateId;
+				}
 				throw new AssumptionFailedError("Unmapped blockstate returned by blockstate serializer: " . $blockStateData->toNbt());
 			}
 		}catch(BlockStateSerializeException){
@@ -86,6 +91,10 @@ final class BlockTranslator{
 	}
 
 	public function getBlockStateDictionary() : BlockStateDictionary{ return $this->blockStateDictionary; }
+
+	public function withDictionary(BlockStateDictionary $dictionary) : self{
+		return new self($dictionary, $this->blockStateSerializer);
+	}
 
 	public function getFallbackStateData() : BlockStateData{ return $this->fallbackStateData; }
 }

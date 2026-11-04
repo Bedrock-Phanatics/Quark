@@ -28,6 +28,7 @@ use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\utils\Binary;
+use quark\block\custom\BlockRegistry;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\data\SavedDataLoadingException;
 use quark\network\mcpe\cache\model\VoxelShapesData;
@@ -190,7 +191,7 @@ class StaticPacketCache{
 			self::encoded(new AvailableActorIdentifiersPacket(identifierList: self::encodeCompound(self::loadCompoundFromFile(BedrockDataFiles::ENTITY_IDENTIFIERS_NBT)))),
 			self::encoded(new JigsawStructureDataPacket(jigsawStructureDataTag: self::encodeCompound(self::loadCompoundFromFile(BedrockDataFiles::JIGSAW_STRUCTURES_DATA_NBT)))),
 			self::buildVoxelShapes(BedrockDataFiles::VOXEL_SHAPES_JSON),
-			self::loadDataDrivenBlockPalette(BedrockDataFiles::DATA_DRIVEN_BLOCKS_NBT)
+			[...self::loadDataDrivenBlockPalette(BedrockDataFiles::DATA_DRIVEN_BLOCKS_NBT), ...BlockRegistry::getInstance()->getPaletteEntries()]
 		);
 	}
 
