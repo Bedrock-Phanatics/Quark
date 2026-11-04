@@ -44,6 +44,7 @@ use quark\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
 use quark\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
 use quark\network\mcpe\protocol\types\login\openid\XboxAuthJwtHeader;
 use quark\network\PacketHandlingException;
+use quark\network\TransportIdentityException;
 use quark\player\Player;
 use quark\player\PlayerInfo;
 use quark\player\XboxLivePlayerInfo;
@@ -375,6 +376,12 @@ class LoginPacketHandler extends PacketHandler{
 		}
 		$proxyKeyDer = is_string($header["x5u"] ?? null) ? base64_decode($header["x5u"], strict: true) : false;
 		if($proxyKeyDer === false || !$this->server->isTrustedProxyKey($proxyKeyDer)){
+			return null;
+		}
+		//one trusted proxy must not be able to speak for players with another trusted proxy's chains
+		try{
+			$transportKey->verify($proxyKeyDer);
+		}catch(TransportIdentityException){
 			return null;
 		}
 
