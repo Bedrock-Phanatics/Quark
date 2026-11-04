@@ -28,6 +28,8 @@ use pocketmine\nbt\tag\CompoundTag;
 use quark\block\custom\BlockDefinition;
 use quark\block\custom\BlockRegistry;
 use quark\block\custom\CustomBlock;
+use quark\block\Door;
+use quark\block\RuntimeBlockStateRegistry;
 use quark\block\Slab;
 use quark\block\utils\SlabType;
 use quark\block\VanillaBlocks;
@@ -156,6 +158,19 @@ class Main extends PluginBase implements Listener{
 					throw new TestFailedException("Custom block item round trip failed");
 				}
 				if(!CreativeInventory::getInstance()->contains($blocks->create("script_test:ruby_block")->asItem())){ throw new TestFailedException("Custom block missing from creative"); }
+				//redstone opens one door half, and custom clients need both halves saved open
+				$door = $blocks->create("script_test:door");
+				if(!$door instanceof Door){ throw new TestFailedException("Door family did not use Quark's Door"); }
+				$world->setBlockAt($x + 3, $y, $z, $door);
+				$world->setBlockAt($x + 3, $y + 1, $z, (clone $door)->setTop(true));
+				$bottom = $world->getBlockAt($x + 3, $y, $z);
+				if(!$bottom instanceof Door){ throw new TestFailedException("Door was not placed"); }
+				(fn() => $this->onReceivePower(15))->call($bottom);
+				$top = RuntimeBlockStateRegistry::getInstance()->fromStateId($world->getChunk(($x + 3) >> 4, $z >> 4)?->getBlockStateId(($x + 3) & 15, $y + 1, $z & 15) ?? 0);
+				if(!$top instanceof Door || !$top->isOpen() || !$world->getBlockAt($x + 3, $y, $z) instanceof Door){ throw new TestFailedException("Powered custom door left its other half closed"); }
+				$world->setBlockAt($x + 3, $y + 1, $z, VanillaBlocks::AIR());
+				$world->setBlockAt($x + 3, $y, $z, VanillaBlocks::AIR());
+
 				$world->setBlockAt($x, $y + 4, $z, $blocks->create("script_test:safe"));
 				$tile = $world->getTileAt($x, $y + 4, $z) ?? throw new TestFailedException("Custom block tile was not created");
 				$tile->readSaveData(CompoundTag::create()->setString("owner", "tester"));

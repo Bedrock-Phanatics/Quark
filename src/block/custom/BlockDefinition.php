@@ -163,7 +163,7 @@ final class BlockDefinition{
 	}
 
 	public static function door(string $identifier, string $name) : self{
-		return self::family($identifier, $name, static fn(BlockIdentifier $id, string $n, BlockTypeInfo $info) => new Door($id, $n, $info), [
+		return self::family($identifier, $name, static fn(BlockIdentifier $id, string $n, BlockTypeInfo $info) => new CustomDoor($id, $n, $info), [
 			self::facingProperty($identifier),
 			self::boolProperty($identifier, "upper", fn(Door $b) => $b->isTop(), fn(Door $b, bool $v) => $b->setTop($v)),
 			self::boolProperty($identifier, "hinge_right", fn(Door $b) => $b->isHingeRight(), fn(Door $b, bool $v) => $b->setHingeRight($v)),

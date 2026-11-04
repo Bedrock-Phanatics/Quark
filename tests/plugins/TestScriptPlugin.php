@@ -59,6 +59,7 @@ class Main extends PluginBase{
 		$blocks->register(BlockDefinition::cube("script_test:ruby_block", "Ruby Block", "ruby_block")->lightLevel(7)->hardness(0.5)->blastResistance(1)->creative(CreativeCategory::CONSTRUCTION), $this);
 		$blocks->register(BlockDefinition::cube("script_test:vault", "Vault", "vault")->hardness(50)->blastResistance(3600000), $this);
 		$blocks->register(BlockDefinition::cube("script_test:lamp", "Lamp", "lamp")->states(BlockState::bool("script_test:lit"))->creative(CreativeCategory::CONSTRUCTION), $this);
+		$blocks->register(BlockDefinition::door("script_test:door", "Ruby Door")->withComponents((new BlockComponents())->geometry("geometry.ruby_door")->texture("ruby_block")), $this);
 		TileFactory::getInstance()->register(SafeTile::class, ["script_test:safe"]);
 		$blocks->register(BlockDefinition::cube("script_test:safe", "Safe", "safe")->tile(SafeTile::class), $this);
 		$blocks->register(BlockDefinition::slab("script_test:ruby_slab", "Ruby")->withComponents((new BlockComponents())->geometry("geometry.ruby_slab")->texture("ruby_block")), $this);
