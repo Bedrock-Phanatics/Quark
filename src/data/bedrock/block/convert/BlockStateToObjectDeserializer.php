@@ -76,7 +76,8 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 		try{
 			$stateId = $this->deserializeBlock($stateData)->getStateId();
 		}catch(BlockStateDeserializeException $e){
-			return ($this->customStateFallback === null ? null : ($this->customStateFallback)($stateData)) ?? throw $e;
+			$fallback = $this->customStateFallback === null ? null : ($this->customStateFallback)($stateData);
+			return $fallback !== null && RuntimeBlockStateRegistry::getInstance()->hasStateId($fallback) ? $fallback : throw $e;
 		}
 		//plugin devs seem to keep missing this and causing core crashes, so we need to verify this at the earliest
 		//available opportunity

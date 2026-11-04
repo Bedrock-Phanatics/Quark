@@ -30,6 +30,8 @@ use quark\data\bedrock\block\BlockStateDeserializeException;
 use quark\data\bedrock\block\convert\BlockObjectToStateSerializer;
 use quark\data\bedrock\block\convert\BlockSerializerDeserializerRegistrar;
 use quark\data\bedrock\block\convert\BlockStateToObjectDeserializer;
+use quark\data\bedrock\block\convert\property\EnumFromRawStateMap;
+use quark\data\bedrock\block\convert\property\ValueFromStringProperty;
 use quark\data\bedrock\block\convert\VanillaBlockMappings;
 use quark\data\bedrock\item\BlockItemIdMap;
 use quark\data\bedrock\item\ItemDeserializer;
@@ -309,6 +311,32 @@ final class CustomBlockTest extends TestCase{
 		//an unpersisted state would collide on disk
 		$this->expectExceptionMessage("serialize identically");
 		$this->registry->register(BlockDefinition::fromFactory($this->id("lossy"), "Lossy", static fn(BlockIdentifier $id, string $n, BlockTypeInfo $info) => new Door($id, $n, $info)), $this->owner);
+	}
+
+	public function testCodecStringValuesMustBeSafeInConditions() : void{
+		$this->expectExceptionMessage("lowercase strings");
+		$this->registry->register(BlockDefinition::fromFactory($this->id("quote"), "Quote", static fn(BlockIdentifier $id, string $n, BlockTypeInfo $info) => new Slab($id, $n, $info), [
+			new ValueFromStringProperty($this->id("type"), EnumFromRawStateMap::string(SlabType::class, fn(SlabType $t) => match($t){
+				SlabType::BOTTOM => "bottom') || (true",
+				SlabType::TOP => "top",
+				SlabType::DOUBLE => "double"
+			}), fn(Slab $b) => $b->getSlabType(), fn(Slab $b, SlabType $v) => $b->setSlabType($v))
+		])->withComponents((new BlockComponents())->geometry("geometry.x")->texture("x")), $this->owner);
+	}
+
+	public function testCachedStateIdsFollowEveryChange() : void{
+		$this->registry->register(BlockDefinition::cube($this->id("cache"), "Cache", "cache")->states(BlockState::int($this->id("n"), 0, 9), BlockState::bool($this->id("b"))->persistsInItem()), $this->owner);
+		$block = $this->registry->create($this->id("cache"));
+		self::assertInstanceOf(CustomBlock::class, $block);
+		$runtime = RuntimeBlockStateRegistry::getInstance();
+		foreach([[3, true], [9, false], [0, true]] as [$n, $b]){
+			$id = $block->setState($this->id("n"), $n)->setState($this->id("b"), $b)->getStateId();
+			$fresh = $runtime->fromStateId($id);
+			self::assertInstanceOf(CustomBlock::class, $fresh);
+			self::assertSame([$n, $b], [$fresh->getState($this->id("n")), $fresh->getState($this->id("b"))]);
+			$item = $block->asItem()->getBlock();
+			self::assertSame($runtime->fromStateId($item->getStateId())->getStateId(), $item->getStateId());
+		}
 	}
 
 	public function testTilesMustBeRegisteredFirst() : void{

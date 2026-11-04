@@ -55,6 +55,7 @@ use function in_array;
 use function ksort;
 use function max;
 use function min;
+use function preg_match;
 use function sort;
 use function str_starts_with;
 use function strcmp;
@@ -267,8 +268,8 @@ final class BlockRegistry{
 		return match(true){
 			$tag instanceof ByteTag && ($tag->getValue() === 0 || $tag->getValue() === 1) => "b" . $tag->getValue(),
 			$tag instanceof IntTag => "i" . $tag->getValue(),
-			$tag instanceof StringTag && strlen($tag->getValue()) <= 64 => "s" . $tag->getValue(),
-			default => throw new \InvalidArgumentException("Block state values must be booleans, ints or short strings")
+			$tag instanceof StringTag && preg_match('/^[a-z0-9_]{1,64}$/D', $tag->getValue()) === 1 => "s" . $tag->getValue(),
+			default => throw new \InvalidArgumentException("Block state values must be booleans, ints or lowercase strings of letters, digits and underscores")
 		};
 	}
 
@@ -514,6 +515,12 @@ final class BlockRegistry{
 		}
 		$names = array_keys($this->pending);
 		usort($names, static fn(string $a, string $b) => strcmp(hash("fnv164", $a), hash("fnv164", $b)));
+		foreach($names as $i => $name){
+			if($i > 0 && hash("fnv164", $name) === hash("fnv164", $names[$i - 1])){
+				//the client could order these either way
+				throw new \InvalidArgumentException("Blocks '$name' and '" . $names[$i - 1] . "' have the same palette hash");
+			}
+		}
 
 		$custom = [];
 		foreach($names as $i => $name){
