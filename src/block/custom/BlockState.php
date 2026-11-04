@@ -24,6 +24,8 @@ use const SORT_REGULAR;
 final class BlockState implements Property{
 	public const int MAX_VALUES = 256;
 
+	private readonly int $maxIndex;
+
 	/** @param list<bool>|list<int>|list<string> $values */
 	private function __construct(
 		private readonly string $name,
@@ -32,6 +34,7 @@ final class BlockState implements Property{
 		private readonly bool $itemState
 	){
 		self::validateName($name);
+		$this->maxIndex = count($values) - 1;
 		if(count($values) < 2 || count($values) > self::MAX_VALUES || count(array_unique($values, SORT_REGULAR)) !== count($values)){
 			throw new \InvalidArgumentException("State '$name' must have 2 - " . self::MAX_VALUES . " distinct values");
 		}
@@ -84,6 +87,9 @@ final class BlockState implements Property{
 	public function getValues() : array{ return $this->values; }
 
 	public function getDefaultIndex() : int{ return $this->default; }
+
+	/** @internal */
+	public function getMaxIndex() : int{ return $this->maxIndex; }
 
 	public function isItemState() : bool{ return $this->itemState; }
 

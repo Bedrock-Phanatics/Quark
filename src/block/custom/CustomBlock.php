@@ -11,17 +11,19 @@ use quark\block\BlockIdentifier;
 use quark\block\BlockTypeInfo;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\data\runtime\RuntimeDataWriter;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
-use function count;
 
 /**
  * Data-driven block for the common presets. Subclass it for custom behavior, keeping the constructor signature.
+ * Its states are exactly the settings states, which lets the state ID be cached until a state changes.
  */
 class CustomBlock extends Block{
 	/** @var array<int, int> */
 	private array $stateValues = [];
+	private ?int $stateId = null;
 
 	public function __construct(BlockIdentifier $idInfo, string $name, BlockTypeInfo $typeInfo, private readonly CustomBlockSettings $settings){
 		foreach($settings->states as $state){
@@ -32,20 +34,28 @@ class CustomBlock extends Block{
 
 	public function getSettings() : CustomBlockSettings{ return $this->settings; }
 
-	public function describeBlockItemState(RuntimeDataDescriber $w) : void{
+	final public function describeBlockItemState(RuntimeDataDescriber $w) : void{
+		$this->describeStates($w, true);
+	}
+
+	final protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
+		$this->describeStates($w, false);
+	}
+
+	private function describeStates(RuntimeDataDescriber $w, bool $itemStates) : void{
+		if(!$w instanceof RuntimeDataWriter){
+			//readers decode new values into the block
+			$this->stateId = null;
+		}
 		foreach($this->settings->states as $i => $state){
-			if($state->isItemState()){
-				$w->boundedIntAuto(0, count($state->getValues()) - 1, $this->stateValues[$i]);
+			if($state->isItemState() === $itemStates){
+				$w->boundedIntAuto(0, $state->getMaxIndex(), $this->stateValues[$i]);
 			}
 		}
 	}
 
-	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
-		foreach($this->settings->states as $i => $state){
-			if(!$state->isItemState()){
-				$w->boundedIntAuto(0, count($state->getValues()) - 1, $this->stateValues[$i]);
-			}
-		}
+	public function getStateId() : int{
+		return $this->stateId ??= parent::getStateId();
 	}
 
 	public function getState(string $name) : bool|int|string{
@@ -58,6 +68,7 @@ class CustomBlock extends Block{
 		$i = $this->settings->stateIndexes[$name] ?? throw new \InvalidArgumentException("Unknown state '$name'");
 		$this->stateValues[$i] = $this->settings->states[$i]->indexOf($value) ?? throw new \InvalidArgumentException("Invalid value for state '$name'");
 		$this->collisionBoxes = null;
+		$this->stateId = null;
 		return $this;
 	}
 
@@ -69,11 +80,12 @@ class CustomBlock extends Block{
 	/** @internal */
 	public function setStateIndex(string $name, int $index) : void{
 		$i = $this->settings->stateIndexes[$name] ?? throw new \InvalidArgumentException("Unknown state '$name'");
-		if($index < 0 || $index >= count($this->settings->states[$i]->getValues())){
+		if($index < 0 || $index > $this->settings->states[$i]->getMaxIndex()){
 			throw new \InvalidArgumentException("Invalid index for state '$name'");
 		}
 		$this->stateValues[$i] = $index;
 		$this->collisionBoxes = null;
+		$this->stateId = null;
 	}
 
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
@@ -121,7 +133,6 @@ class CustomBlock extends Block{
 	public function canBeFlowedInto() : bool{ return $this->settings->collisionBoxes === [] && !$this->settings->solid; }
 
 	public function getSupportType(int $facing) : SupportType{
-		$boxes = $this->settings->collisionBoxes;
-		return count($boxes) === 1 && $boxes[0]->isCube() && $boxes[0]->getAverageEdgeLength() >= 1 ? SupportType::FULL : SupportType::NONE;
+		return $this->isFullCube() ? SupportType::FULL : SupportType::NONE;
 	}
 }
