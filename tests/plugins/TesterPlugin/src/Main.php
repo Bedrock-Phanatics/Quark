@@ -23,6 +23,14 @@ declare(strict_types=1);
 
 namespace quarktests\TesterPlugin;
 
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\nbt\tag\CompoundTag;
+use quark\block\custom\BlockDefinition;
+use quark\block\custom\BlockRegistry;
+use quark\block\custom\CustomBlock;
+use quark\block\Slab;
+use quark\block\utils\SlabType;
+use quark\block\VanillaBlocks;
 use quark\event\Listener;
 use quark\event\server\CommandEvent;
 use quark\inventory\CreativeInventory;
@@ -30,12 +38,16 @@ use quark\item\ArmorTypeInfo;
 use quark\item\custom\ItemDefinition;
 use quark\item\custom\ItemRegistry;
 use quark\item\Item;
+use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\plugin\PluginBase;
 use quark\plugin\ScriptPluginLoader;
 use quark\scheduler\CancelTaskException;
 use quark\scheduler\ClosureTask;
+use quark\world\Explosion;
+use quark\world\Position;
 use function array_shift;
+use function count;
 
 class Main extends PluginBase implements Listener{
 
@@ -83,6 +95,79 @@ class Main extends PluginBase implements Listener{
 					$registry->register(ItemDefinition::item("tester:late", "Late"), $this);
 				}catch(\LogicException){ return; }
 				throw new TestFailedException("Runtime item registration was accepted");
+			}),
+			new ClosureTest($this->getLogger(), "Native custom blocks", "STARTUP registration, world placement, collision, persistence, explosions, palette and block items", function() : void{
+				$blocks = BlockRegistry::getInstance();
+				if(!$blocks->isFinalized()){ throw new TestFailedException("Block registry was not finalized before POSTWORLD"); }
+				try{
+					$blocks->register(BlockDefinition::cube("tester:late", "Late", "late"), $this);
+					throw new TestFailedException("POSTWORLD block registration was accepted");
+				}catch(\LogicException){}
+
+				$world = $this->getServer()->getWorldManager()->getDefaultWorld() ?? throw new TestFailedException("No default world");
+				$spawn = $world->getSpawnLocation();
+				$x = $spawn->getFloorX() + 3;
+				$z = $spawn->getFloorZ() + 3;
+				$y = 250;
+				$world->loadChunk($x >> 4, $z >> 4);
+				$lamp = $blocks->create("script_test:lamp");
+				if(!$lamp instanceof CustomBlock){ throw new TestFailedException("Lamp is not a CustomBlock"); }
+				$lamp->setState("script_test:lit", true);
+				$slab = $blocks->create("script_test:ruby_slab");
+				if(!$slab instanceof Slab){ throw new TestFailedException("Slab family did not use Quark's Slab"); }
+				$world->setBlockAt($x, $y, $z, $lamp);
+				$world->setBlockAt($x + 1, $y, $z, $slab->setSlabType(SlabType::BOTTOM));
+				if(!$world->getBlockAt($x, $y, $z)->isSameState($lamp)){ throw new TestFailedException("Placed state was not kept"); }
+
+				$above = new AxisAlignedBB($x + 1.1, $y + 0.6, $z + 0.1, $x + 1.9, $y + 0.9, $z + 0.9);
+				if($world->getCollisionBlocks($above) !== []){ throw new TestFailedException("Bottom slab collides above its top"); }
+				if(count($world->getCollisionBlocks($above->offsetCopy(0, -0.3, 0))) !== 1){ throw new TestFailedException("Bottom slab has no collision"); }
+				if(count($world->getCollisionBlocks(new AxisAlignedBB($x + 0.2, $y + 0.2, $z + 0.2, $x + 0.8, $y + 0.8, $z + 0.8))) !== 1){ throw new TestFailedException("Cube has no collision"); }
+
+				$world->setBlockAt($x, $y + 2, $z, $blocks->create("script_test:ruby_block"));
+				$world->setBlockAt($x + 1, $y + 2, $z, $blocks->create("script_test:vault"));
+				(function(Explosion $explosion) : void{
+					$explosion->explodeA();
+					$explosion->explodeB();
+				})(new Explosion(new Position($x + 0.5, $y + 3.5, $z + 0.5, $world), 2));
+				if($world->getBlockAt($x, $y + 2, $z)->getTypeId() !== VanillaBlocks::AIR()->getTypeId()){ throw new TestFailedException("Weak custom block survived an explosion"); }
+				if($world->getBlockAt($x + 1, $y + 2, $z)->getTypeId() !== $blocks->create("script_test:vault")->getTypeId()){ throw new TestFailedException("Blast resistant custom block was destroyed"); }
+
+				if(!$world->unloadChunk($x >> 4, $z >> 4, false)){ throw new TestFailedException("Chunk did not unload"); }
+				$world->loadChunk($x >> 4, $z >> 4);
+				if(!$world->getBlockAt($x, $y, $z)->isSameState($lamp) || !$world->getBlockAt($x + 1, $y, $z)->isSameState($slab)){
+					throw new TestFailedException("Custom blocks did not survive a chunk save and reload");
+				}
+
+				$converter = TypeConverter::getInstance();
+				$translator = $converter->getBlockTranslator();
+				if(!$translator->internalIdToNetworkStateData($lamp->getStateId())->equals(\quark\world\format\io\GlobalBlockStateHandlers::getSerializer()->serialize($lamp->getStateId()))){
+					throw new TestFailedException("Network palette does not contain the lamp state");
+				}
+				$names = [];
+				foreach(StaticPacketCache::getInstance()->getBlockPaletteEntries() as $entry){
+					$names[$entry->blockName] = true;
+				}
+				foreach(["script_test:ruby_block", "script_test:vault", "script_test:lamp", "script_test:ruby_slab"] as $id){
+					if(!isset($names[$id])){ throw new TestFailedException("StartGame palette is missing $id"); }
+				}
+				$item = $lamp->asItem()->setCount(5);
+				if(!Item::nbtDeserialize($item->nbtSerialize())->equalsExact($item) || !$converter->netItemStackToCore($converter->coreItemStackToNet($item))->equalsExact($item)){
+					throw new TestFailedException("Custom block item round trip failed");
+				}
+				if(!CreativeInventory::getInstance()->contains($blocks->create("script_test:ruby_block")->asItem())){ throw new TestFailedException("Custom block missing from creative"); }
+				$world->setBlockAt($x, $y + 4, $z, $blocks->create("script_test:safe"));
+				$tile = $world->getTileAt($x, $y + 4, $z) ?? throw new TestFailedException("Custom block tile was not created");
+				$tile->readSaveData(CompoundTag::create()->setString("owner", "tester"));
+				$world->unloadChunk($x >> 4, $z >> 4, false);
+				$world->loadChunk($x >> 4, $z >> 4);
+				$tile = $world->getTileAt($x, $y + 4, $z) ?? throw new TestFailedException("Custom block tile did not survive a reload");
+				if($tile->saveNBT()->getString("owner", "") !== "tester"){ throw new TestFailedException("Custom block tile data was not saved"); }
+				$world->setBlockAt($x, $y + 4, $z, VanillaBlocks::AIR());
+				if($world->getTileAt($x, $y + 4, $z) !== null || !$tile->isClosed()){ throw new TestFailedException("Custom block tile outlived its block"); }
+				$world->setBlockAt($x, $y, $z, VanillaBlocks::AIR());
+				$world->setBlockAt($x + 1, $y, $z, VanillaBlocks::AIR());
+				$world->setBlockAt($x + 1, $y + 2, $z, VanillaBlocks::AIR());
 			}),
 			//Add test objects here
 			new ClosureTest(
