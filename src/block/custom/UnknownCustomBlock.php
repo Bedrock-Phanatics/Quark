@@ -26,5 +26,10 @@ final class UnknownCustomBlock extends Block{
 
 	public function getPickedItem(bool $addUserData = false) : Item{ return VanillaItems::AIR(); }
 
+	//worker threads never learn placeholder states and treat them as clear, so the main thread must agree
+	public function getLightFilter() : int{ return 0; }
+
+	public function blocksDirectSkyLight() : bool{ return false; }
+
 	public function getDropsForCompatibleTool(Item $item) : array{ return []; }
 }

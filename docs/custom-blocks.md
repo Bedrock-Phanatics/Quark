@@ -189,7 +189,7 @@ Block JSON definitions (`blocks.json` or behavior packs) aren't needed; the serv
 
 ## Missing plugins
 
-If a world contains custom blocks whose plugin isn't installed, or whose saved state the current definition no longer accepts (a removed value or renamed state), Quark loads them as inert, unbreakable `UnknownCustomBlock` placeholders that keep the original identifier and state. Saving writes them back unchanged, and restoring the plugin restores the blocks on the next load. Clients see them as `minecraft:info_update`. Placeholders are opaque and their light is not shared with worker threads. Back up worlds before renaming identifiers or states.
+If a world contains custom blocks whose plugin isn't installed, or whose saved state the current definition no longer accepts (a removed value or renamed state), Quark loads them as inert, unbreakable `UnknownCustomBlock` placeholders that keep the original identifier and state. Saving writes them back unchanged, and restoring the plugin restores the blocks on the next load. Clients see them as `minecraft:info_update`. Placeholders let light through, so main-thread and worker lighting agree. Back up worlds before renaming identifiers or states.
 
 ## Limits
 
