@@ -46,14 +46,17 @@ class ProcessProxyLoginTaskTest extends TestCase{
 	 *
 	 * @return array{string, string, string}
 	 */
-	private static function proxyLogin(\OpenSSLAsymmetricKey $signer, ?string $claimedKeyDer = null, int $expiry = 3600) : array{
+	private static function proxyLogin(\OpenSSLAsymmetricKey $signer, ?string $claimedKeyDer = null, ?int $expiry = 3600) : array{
 		$keyDer = JwtUtils::emitDerPublicKey($signer);
 		$header = ["alg" => "ES384", "x5u" => base64_encode($claimedKeyDer ?? $keyDer)];
-		$chain = JwtUtils::create($header, [
-			"exp" => time() + $expiry,
+		$claims = [
 			"identityPublicKey" => base64_encode($keyDer),
 			"extraData" => ["displayName" => "Steve", "identity" => "8b2e0a1c-3b6f-3c51-9d0e-4f2a1b6c7d8e", "XUID" => "2535400000000000"],
-		], $signer);
+		];
+		if($expiry !== null){
+			$claims["exp"] = time() + $expiry;
+		}
+		$chain = JwtUtils::create($header, $claims, $signer);
 		$clientData = JwtUtils::create($header, ["DeviceOS" => 7], $signer);
 		return [$chain, $keyDer, $clientData];
 	}
@@ -89,6 +92,13 @@ class ProcessProxyLoginTaskTest extends TestCase{
 	public function testRejectsExpiredChain() : void{
 		$proxy = self::newKey();
 		[$chain, $keyDer, $clientData] = self::proxyLogin($proxy, expiry: -86400);
+		$this->expectException(VerifyLoginException::class);
+		ProcessProxyLoginTask::verify($chain, $keyDer, $clientData);
+	}
+
+	public function testRejectsChainWithoutExpiry() : void{
+		$proxy = self::newKey();
+		[$chain, $keyDer, $clientData] = self::proxyLogin($proxy, expiry: null);
 		$this->expectException(VerifyLoginException::class);
 		ProcessProxyLoginTask::verify($chain, $keyDer, $clientData);
 	}

@@ -61,6 +61,10 @@ class ProcessProxyLoginTask extends AsyncTask{
 	 */
 	public static function verify(string $chainJwt, string $proxyKeyDer, string $clientDataJwt) : string{
 		$claims = AuthJwtHelper::validateLegacyAuthToken($chainJwt, $proxyKeyDer);
+		//without an expiry a leaked chain would vouch for the player forever
+		if(!isset($claims->exp)){
+			throw new VerifyLoginException("Missing exp in proxy chain link", KnownTranslationFactory::quark_disconnect_invalidSession_tooLate());
+		}
 		if(!isset($claims->identityPublicKey)){
 			throw new VerifyLoginException("Missing identityPublicKey in chain link", KnownTranslationFactory::quark_disconnect_invalidSession_missingKey());
 		}
