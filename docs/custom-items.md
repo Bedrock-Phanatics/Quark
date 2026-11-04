@@ -2,6 +2,8 @@
 
 Register items in your plugin's `onEnable()`. STARTUP and POSTWORLD plugins are supported. Registration closes after POSTWORLD enable; changing definitions requires a server restart.
 
+Placeable blocks get their items from the block registry instead; see [custom blocks](custom-blocks.md).
+
 ## Items, weapons and food
 
 ```php
