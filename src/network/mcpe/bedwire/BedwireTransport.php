@@ -30,6 +30,7 @@ use quark\network\mcpe\PacketBroadcaster;
 use quark\network\NetworkInterfaceStartException;
 use quark\network\Transport;
 use quark\Server;
+use quark\ServerProperties;
 use quark\utils\Utils;
 use quark\YmlServerProperties as Yml;
 use Symfony\Component\Filesystem\Path;
@@ -107,6 +108,10 @@ final class BedwireTransport implements Transport{
 			}
 			$options["port_range_begin"] = $portRange[0];
 			$options["port_range_end"] = $portRange[1];
+			//the query interface binds the server port, so the mux would have nowhere to listen
+			if($options["udp_mux"] && $portRange[0] === $this->server->getPort() && $portRange[1] === $portRange[0] && $config->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
+				throw new \InvalidArgumentException(Yml::TRANSPORT_NETHERNET_PORT_RANGE . " cannot be only the server port while " . ServerProperties::ENABLE_QUERY . " and " . Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX . " are enabled, the query interface already uses it");
+			}
 		}
 		return $options;
 	}
