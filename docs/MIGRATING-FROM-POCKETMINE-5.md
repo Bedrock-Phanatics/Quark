@@ -37,7 +37,7 @@ Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to name
 ### Events
 
 - `PlayerExhaustEvent` → `EntityExhaustEvent` (Replace `getPlayer()` with `getEntity()`, returning the affected `Human`).
-
+- `LegacyEnumShimTrait` Removed. Use native Enums.
 ### TNT
 
 - `TNT::ignite(int $fuse = 80)` now returns `bool`.

@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-
 /**
  * @phpstan-type TMetadata array{0: int, 1: int, 2: int, 3: int, 4: int}
  */
