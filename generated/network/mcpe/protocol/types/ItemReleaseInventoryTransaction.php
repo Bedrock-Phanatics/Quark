@@ -38,5 +38,6 @@ final class ItemReleaseInventoryTransaction{
 		public int $slot,
 		public NetworkItemStackDescriptor $item,
 		public Vector3 $fromPosition,
+		public int $hand,
 	){}
 }

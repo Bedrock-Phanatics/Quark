@@ -36,12 +36,15 @@ final class AnimatePacket extends Packet{
 	public const int ACTION_STOP_SLEEP = 3;
 	public const int ACTION_CRITICAL_HIT = 4;
 	public const int ACTION_MAGICAL_CRITICAL_HIT = 5;
+	public const int HAND_MAIN = 0;
+	public const int HAND_OFF = 1;
 
 	public function __construct(
 		public int $action,
 		public int $targetActorRuntimeId,
 		public float $data,
-		public ?string $swingSource = null,
+		public ?string $swingSource,
+		public int $hand,
 	){}
 
 	public function getId() : int{

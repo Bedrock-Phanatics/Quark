@@ -29,6 +29,7 @@ use pocketmine\math\Vector3;
 use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\types\DataItemEntry;
 use quark\network\mcpe\protocol\types\EntityLink;
+use quark\network\mcpe\protocol\types\PassengerOfBlockArguments;
 use quark\network\mcpe\protocol\types\PropertySyncData;
 use quark\network\mcpe\protocol\types\SyncedAttribute;
 
@@ -56,6 +57,7 @@ final class AddActorPacket extends Packet{
 		public array $actorData,
 		public PropertySyncData $synchedProperties,
 		public array $actorLinks,
+		public ?PassengerOfBlockArguments $passengerBlockData = null,
 	){}
 
 	public function getId() : int{

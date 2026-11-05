@@ -156,7 +156,6 @@ final class Fields{
 		}
 		return new NetSkinRef(
 			$skin->getSkinId(),
-			$skin->getPlayFabId(),
 			$skin->getResourcePatch(),
 			self::skinImage($skin->getSkinImage()),
 			$animations,
@@ -204,7 +203,7 @@ final class Fields{
 		}
 		return new SkinData(
 			$skin->id,
-			$skin->playFabId,
+			"", //PlayFab IDs moved to the player list in 1.26.60
 			$skin->resourcePatch,
 			self::toSkinImage($skin->imageData),
 			$animations,
@@ -235,6 +234,7 @@ final class Fields{
 			actorUniqueId: $actorUniqueId,
 			playerName: $username,
 			xblXuid: $xboxUserId,
+			playFabId: $skin->getPlayFabId(),
 			platformOnlineId: "",
 			buildPlatform: -1,
 			serializedSkin: self::skin($skin),

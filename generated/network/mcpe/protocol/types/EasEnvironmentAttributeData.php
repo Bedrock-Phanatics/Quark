@@ -27,16 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class EasEnvironmentAttributeData{
+	/**
+	 * @param array{constant: EnvironmentAttributeValue}|array{transition: TransitionEnvironmentAttribute}|array{noise_transition: NoiseTransitionEnvironmentAttribute} $payload
+	 */
 	public function __construct(
 		public string $attributeName,
-		public ?EnvironmentAttributeValue $fromAttribute,
-		public EnvironmentAttributeValue $attribute,
-		public ?EnvironmentAttributeValue $toAttribute,
-		public int $currentTransitionTicks,
-		public int $totalTransitionTicks,
-		public string $easing,
-		public int $localTransitionTicks,
-		public bool $noiseTransition,
-		public NoiseAlignment $noiseAlignment,
+		public array $payload,
 	){}
 }

@@ -34,7 +34,6 @@ final class SerializedSkinRef{
 	 */
 	public function __construct(
 		public string $id,
-		public string $playFabId,
 		public string $resourcePatch,
 		public SkinImage $imageData,
 		public array $animatedImageData,

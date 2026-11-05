@@ -37,23 +37,11 @@ final class ClientboundUpdateSoundDataPacket extends Packet{
 	public const int ID = PacketId::CLIENTBOUND_UPDATE_SOUND_DATA;
 
 	/**
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $stop
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $setVolume
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $setPitch
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $fade
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $seekTo
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $pause
-	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $resume
+	 * @param array{stop: SoundDataEventStop}|array{set_volume: float}|array{set_pitch: float}|array{fade: SoundDataEventFade}|array{seek_to: float}|array{pause: SoundDataEventPause}|array{resume: SoundDataEventResume} $event
 	 */
 	public function __construct(
 		public int $serverSoundHandle,
-		public array $stop,
-		public array $setVolume,
-		public array $setPitch,
-		public array $fade,
-		public array $seekTo,
-		public array $pause,
-		public array $resume,
+		public array $event,
 	){}
 
 	public function getId() : int{

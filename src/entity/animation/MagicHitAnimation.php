@@ -31,7 +31,7 @@ class MagicHitAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			new AnimatePacket(AnimatePacket::ACTION_MAGICAL_CRITICAL_HIT, $this->entity->getId(), $this->particleCount)
+			new AnimatePacket(AnimatePacket::ACTION_MAGICAL_CRITICAL_HIT, $this->entity->getId(), $this->particleCount, null, AnimatePacket::HAND_MAIN)
 		];
 	}
 }

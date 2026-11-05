@@ -33,6 +33,7 @@ final class PlayerListAddEntry implements PlayerListEntriesItem{
 		public int $actorUniqueId,
 		public string $playerName,
 		public string $xblXuid,
+		public string $playFabId,
 		public string $platformOnlineId,
 		public int $buildPlatform,
 		public SerializedSkinRef $serializedSkin,

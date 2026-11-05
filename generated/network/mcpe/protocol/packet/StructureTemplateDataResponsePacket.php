@@ -38,7 +38,7 @@ final class StructureTemplateDataResponsePacket extends Packet{
 
 	public function __construct(
 		public string $structureName,
-		public string $structuresNbt,
+		public ?string $structuresNbt,
 		public int $responseType,
 	){}
 

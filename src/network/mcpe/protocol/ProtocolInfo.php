@@ -27,11 +27,11 @@ namespace quark\network\mcpe\protocol;
  * The game version Quark speaks. Startup refuses an ext-bedwire built for any other protocol.
  */
 final class ProtocolInfo{
-	public const int CURRENT_PROTOCOL = 2193;
+	public const int CURRENT_PROTOCOL = 2225;
 	/** Display version shown in the server logs, as on the game's home screen. */
-	public const string MINECRAFT_VERSION = "v26.50";
+	public const string MINECRAFT_VERSION = "v26.60";
 	/** Version sent on the network for client side compatibility checks, which may differ from the display version. */
-	public const string MINECRAFT_VERSION_NETWORK = "1.26.50";
+	public const string MINECRAFT_VERSION_NETWORK = "1.26.60";
 
 	private function __construct(){
 		//NOOP

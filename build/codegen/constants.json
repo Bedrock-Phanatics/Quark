@@ -7,7 +7,9 @@
         "ACTION_SWING_ARM": 1,
         "ACTION_STOP_SLEEP": 3,
         "ACTION_CRITICAL_HIT": 4,
-        "ACTION_MAGICAL_CRITICAL_HIT": 5
+        "ACTION_MAGICAL_CRITICAL_HIT": 5,
+        "HAND_MAIN": 0,
+        "HAND_OFF": 1
     },
     "packet/AvailableCommandsPacket": {
         "ARG_FLAG_VALID": 1048576,

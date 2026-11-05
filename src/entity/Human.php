@@ -531,6 +531,7 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 				)
 			])),
 			actorLinks: [], //TODO: entity links
+			passengerBlockData: null,
 			deviceId: "", //we intentionally don't send this (secvuln)
 			buildPlatform: DeviceOS::UNKNOWN, //we intentionally don't send this (secvuln)
 		));

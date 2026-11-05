@@ -1203,7 +1203,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 			$this->getWorld()->setSleepTicks(0);
 
-			$this->getNetworkSession()->sendDataPacket(new AnimatePacket(action: AnimatePacket::ACTION_STOP_SLEEP, targetActorRuntimeId: $this->getId(), data: 0.0));
+			$this->getNetworkSession()->sendDataPacket(new AnimatePacket(action: AnimatePacket::ACTION_STOP_SLEEP, targetActorRuntimeId: $this->getId(), data: 0.0, swingSource: null, hand: AnimatePacket::HAND_MAIN));
 		}
 	}
 

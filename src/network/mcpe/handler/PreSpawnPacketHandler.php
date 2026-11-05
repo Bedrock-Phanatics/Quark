@@ -104,6 +104,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 					editorWorldType: EditorWorldType::NON_EDITOR,
 					isCreatedInEditor: false,
 					isExportedFromEditor: false,
+					editorLevelMigrationVersion: 0, //legacy
 					dayCycleStopTime: NetworkSession::networkWorldTime($world->getTime()),
 					educationEditionOffer: 0,
 					educationFeaturesEnabled: true,

@@ -30,7 +30,7 @@ use Bedwire\Protocol;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class ProtocolClasses{
-	public const string SCHEMA_HASH = "b28038026ff9cca49e5e68ea44b041e788bbe63acf02f08cd87ee930aba1b23c";
+	public const string SCHEMA_HASH = "de0515f57beb55f78b98e356df2ca56abd1c0ef81ca2df9c9788971b98ac3f33";
 
 	/** @phpstan-var array<string, class-string> */
 	public const array BINDINGS = [
@@ -265,6 +265,14 @@ final class ProtocolClasses{
 		"party_destination_cookie_response" => \quark\network\mcpe\protocol\packet\PartyDestinationCookieResponsePacket::class,
 		"set_player_furnace_options" => \quark\network\mcpe\protocol\packet\SetPlayerFurnaceOptionsPacket::class,
 		"record_started" => \quark\network\mcpe\protocol\packet\RecordStartedPacket::class,
+		"clientbound_matchmaking_state" => \quark\network\mcpe\protocol\packet\ClientboundMatchmakingStatePacket::class,
+		"serverbound_stonecutter_set_recipe" => \quark\network\mcpe\protocol\packet\ServerboundStonecutterSetRecipePacket::class,
+		"clientbound_stonecutter_set_recipe" => \quark\network\mcpe\protocol\packet\ClientboundStonecutterSetRecipePacket::class,
+		"serverbound_matchmaking_cancel" => \quark\network\mcpe\protocol\packet\ServerboundMatchmakingCancelPacket::class,
+		"set_passenger_of_block" => \quark\network\mcpe\protocol\packet\SetPassengerOfBlockPacket::class,
+		"serverbound_cursor_item_drag" => \quark\network\mcpe\protocol\packet\ServerboundCursorItemDragPacket::class,
+		"clientbound_play_audio_content" => \quark\network\mcpe\protocol\packet\ClientboundPlayAudioContentPacket::class,
+		"serverbound_register_audio_content" => \quark\network\mcpe\protocol\packet\ServerboundRegisterAudioContentPacket::class,
 		"DisconnectMessagesData" => \quark\network\mcpe\protocol\types\DisconnectMessagesData::class,
 		"PackIDVersionData" => \quark\network\mcpe\protocol\types\PackIDVersionData::class,
 		"PackInfoData" => \quark\network\mcpe\protocol\types\PackInfoData::class,
@@ -305,6 +313,7 @@ final class ProtocolClasses{
 		"AbilityData" => \quark\network\mcpe\protocol\types\AbilityData::class,
 		"SerializedAbilitiesDataSerializedLayer" => \quark\network\mcpe\protocol\types\SerializedAbilitiesDataSerializedLayer::class,
 		"EntityLink" => \quark\network\mcpe\protocol\types\EntityLink::class,
+		"PassengerOfBlockArguments" => \quark\network\mcpe\protocol\types\PassengerOfBlockArguments::class,
 		"SyncedAttribute" => \quark\network\mcpe\protocol\types\SyncedAttribute::class,
 		"MovePlayerTeleportData" => \quark\network\mcpe\protocol\types\MovePlayerTeleportData::class,
 		"AttributeData" => \quark\network\mcpe\protocol\types\AttributeData::class,
@@ -371,6 +380,7 @@ final class ProtocolClasses{
 		"CommandOutputData" => \quark\network\mcpe\protocol\types\CommandOutputData::class,
 		"CommandOutputMessage" => \quark\network\mcpe\protocol\types\CommandOutputMessage::class,
 		"StructureEditorData" => \quark\network\mcpe\protocol\types\StructureEditorData::class,
+		"SafetyRedactableString" => \quark\network\mcpe\protocol\types\SafetyRedactableString::class,
 		"StructureSettings" => \quark\network\mcpe\protocol\types\StructureSettings::class,
 		"BookEditActionReplacePage" => \quark\network\mcpe\protocol\types\BookEditActionReplacePage::class,
 		"BookEditActionAddPage" => \quark\network\mcpe\protocol\types\BookEditActionAddPage::class,
@@ -428,6 +438,7 @@ final class ProtocolClasses{
 		"CraftRecipeOptionalStackRequestAction" => \quark\network\mcpe\protocol\types\CraftRecipeOptionalStackRequestAction::class,
 		"CraftRepairAndDisenchantStackRequestAction" => \quark\network\mcpe\protocol\types\CraftRepairAndDisenchantStackRequestAction::class,
 		"CraftLoomStackRequestAction" => \quark\network\mcpe\protocol\types\CraftLoomStackRequestAction::class,
+		"CraftDiscPressStackRequestAction" => \quark\network\mcpe\protocol\types\CraftDiscPressStackRequestAction::class,
 		"CraftResultsDeprecatedStackRequestAction" => \quark\network\mcpe\protocol\types\CraftResultsDeprecatedStackRequestAction::class,
 		"ItemInstance" => \quark\network\mcpe\protocol\types\ItemInstance::class,
 		"PlayerBlockAction" => \quark\network\mcpe\protocol\types\PlayerBlockAction::class,
@@ -440,7 +451,6 @@ final class ProtocolClasses{
 		"ItemStackResponseInfo" => \quark\network\mcpe\protocol\types\ItemStackResponseInfo::class,
 		"ItemStackResponseContainerInfo" => \quark\network\mcpe\protocol\types\ItemStackResponseContainerInfo::class,
 		"ItemStackResponseSlotInfo" => \quark\network\mcpe\protocol\types\ItemStackResponseSlotInfo::class,
-		"SafetyRedactableString" => \quark\network\mcpe\protocol\types\SafetyRedactableString::class,
 		"PlayerArmourDamageEntry" => \quark\network\mcpe\protocol\types\PlayerArmourDamageEntry::class,
 		"ItemData" => \quark\network\mcpe\protocol\types\ItemData::class,
 		"ClientboundDebugRendererDebugMarkerData" => \quark\network\mcpe\protocol\types\ClientboundDebugRendererDebugMarkerData::class,
@@ -521,6 +531,10 @@ final class ProtocolClasses{
 		"EASBoolAttributeData" => \quark\network\mcpe\protocol\types\EASBoolAttributeData::class,
 		"EASFloatAttributeData" => \quark\network\mcpe\protocol\types\EASFloatAttributeData::class,
 		"EASColorAttributeData" => \quark\network\mcpe\protocol\types\EASColorAttributeData::class,
+		"TransitionEnvironmentAttribute" => \quark\network\mcpe\protocol\types\TransitionEnvironmentAttribute::class,
+		"EasTransitionSettingsData" => \quark\network\mcpe\protocol\types\EasTransitionSettingsData::class,
+		"NoiseTransitionEnvironmentAttribute" => \quark\network\mcpe\protocol\types\NoiseTransitionEnvironmentAttribute::class,
+		"EasNoiseTransitionSettingsData" => \quark\network\mcpe\protocol\types\EasNoiseTransitionSettingsData::class,
 		"NoiseAlignment" => \quark\network\mcpe\protocol\types\NoiseAlignment::class,
 		"AttributeLayerSettings" => \quark\network\mcpe\protocol\types\AttributeLayerSettings::class,
 		"EnvironmentAttributeData" => \quark\network\mcpe\protocol\types\EnvironmentAttributeData::class,
@@ -530,6 +544,9 @@ final class ProtocolClasses{
 		"SoundDataEventPause" => \quark\network\mcpe\protocol\types\SoundDataEventPause::class,
 		"SoundDataEventResume" => \quark\network\mcpe\protocol\types\SoundDataEventResume::class,
 		"FurnaceOptions" => \quark\network\mcpe\protocol\types\FurnaceOptions::class,
+		"MatchmakingStateOptions" => \quark\network\mcpe\protocol\types\MatchmakingStateOptions::class,
+		"AudioSound" => \quark\network\mcpe\protocol\types\AudioSound::class,
+		"AudioContentRegistrationEntry" => \quark\network\mcpe\protocol\types\AudioContentRegistrationEntry::class,
 	];
 
 	private static bool $bound = false;

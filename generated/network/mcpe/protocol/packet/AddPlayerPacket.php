@@ -31,6 +31,7 @@ use quark\network\mcpe\protocol\types\AbilityData;
 use quark\network\mcpe\protocol\types\DataItemEntry;
 use quark\network\mcpe\protocol\types\EntityLink;
 use quark\network\mcpe\protocol\types\NetworkItemStackDescriptor;
+use quark\network\mcpe\protocol\types\PassengerOfBlockArguments;
 use quark\network\mcpe\protocol\types\PropertySyncData;
 
 /**
@@ -58,6 +59,7 @@ final class AddPlayerPacket extends Packet{
 		public PropertySyncData $synchedProperties,
 		public AbilityData $abilitiesData,
 		public array $actorLinks,
+		public ?PassengerOfBlockArguments $passengerBlockData,
 		public string $deviceId,
 		public int $buildPlatform,
 	){}

@@ -34,5 +34,7 @@ final class DimensionDefinitionGroupDimensionDefinition{
 		public int $dimensionType,
 		public string $packId,
 		public string $defaultBiome,
+		public int $cloudHeight,
+		public bool $renderClouds,
 	){}
 }

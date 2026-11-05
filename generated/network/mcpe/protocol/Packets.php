@@ -26,12 +26,12 @@ namespace quark\network\mcpe\protocol;
 use Bedwire\PacketId;
 
 /**
- * Packet directions of protocol 2193 (Minecraft 1.26.51).
+ * Packet directions of protocol 2225 (Minecraft 1.26.60).
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-packets.php. Do not edit it manually.
  */
 final class Packets{
-	public const PROTOCOL = 2193;
-	public const SCHEMA_HASH = "b28038026ff9cca49e5e68ea44b041e788bbe63acf02f08cd87ee930aba1b23c";
+	public const PROTOCOL = 2225;
+	public const SCHEMA_HASH = "de0515f57beb55f78b98e356df2ca56abd1c0ef81ca2df9c9788971b98ac3f33";
 
 	/**
 	 * Handler methods for packets clients may send.
@@ -123,6 +123,10 @@ final class Packets{
 		PacketId::SERVER_BOUND_DATA_DRIVEN_SCREEN_CLOSED => "handleServerBoundDataDrivenScreenClosed",
 		PacketId::PARTY_DESTINATION_COOKIE_RESPONSE => "handlePartyDestinationCookieResponse",
 		PacketId::SET_PLAYER_FURNACE_OPTIONS => "handleSetPlayerFurnaceOptions",
+		PacketId::SERVERBOUND_STONECUTTER_SET_RECIPE => "handleServerboundStonecutterSetRecipe",
+		PacketId::SERVERBOUND_MATCHMAKING_CANCEL => "handleServerboundMatchmakingCancel",
+		PacketId::SERVERBOUND_CURSOR_ITEM_DRAG => "handleServerboundCursorItemDrag",
+		PacketId::SERVERBOUND_REGISTER_AUDIO_CONTENT => "handleServerboundRegisterAudioContent",
 	];
 
 	/**
@@ -308,6 +312,10 @@ final class Packets{
 		PacketId::CLIENTBOUND_UPDATE_SOUND_DATA => true,
 		PacketId::SEND_PARTY_DESTINATION_COOKIE => true,
 		PacketId::RECORD_STARTED => true,
+		PacketId::CLIENTBOUND_MATCHMAKING_STATE => true,
+		PacketId::CLIENTBOUND_STONECUTTER_SET_RECIPE => true,
+		PacketId::SET_PASSENGER_OF_BLOCK => true,
+		PacketId::CLIENTBOUND_PLAY_AUDIO_CONTENT => true,
 	];
 
 	private function __construct(){

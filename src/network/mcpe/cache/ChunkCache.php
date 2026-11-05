@@ -128,6 +128,7 @@ class ChunkCache implements ChunkListener{
 				"cache_enabled" => false,
 				"cache_metadata" => [],
 				"serialized_chunk_data" => ChunkSerializer::serializeFullChunk($chunk, $this->dimensionId, TypeConverter::getInstance()->getBlockTranslator(), null, $subChunkCount),
+				"is_client_biome_update" => false,
 			]]]);
 		}finally{
 			$this->world->pulse->syncChunkSendPrepare->stop($syncChunkSendPrepareScope);

@@ -32,18 +32,10 @@ class RecordStopSound implements Sound{
 	}
 
 	public function encode(Vector3 $pos) : array{
-		//the protocol repeats the event once for each kind of event
-		$stop = ["stop" => new SoundDataEventStop()];
 		return [
 			new ClientboundUpdateSoundDataPacket(
 				serverSoundHandle: $this->serverSoundHandleId,
-				stop: $stop,
-				setVolume: $stop,
-				setPitch: $stop,
-				fade: $stop,
-				seekTo: $stop,
-				pause: $stop,
-				resume: $stop,
+				event: ["stop" => new SoundDataEventStop()],
 			)
 		];
 	}

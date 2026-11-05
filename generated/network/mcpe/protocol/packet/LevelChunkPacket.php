@@ -44,6 +44,7 @@ final class LevelChunkPacket extends Packet{
 		public bool $cacheEnabled,
 		public array $cacheMetadata,
 		public string $serializedChunkData,
+		public bool $isClientBiomeUpdate,
 	){}
 
 	public function getId() : int{

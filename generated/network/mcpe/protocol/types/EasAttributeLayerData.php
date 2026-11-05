@@ -32,7 +32,6 @@ final class EasAttributeLayerData{
 	 */
 	public function __construct(
 		public string $name,
-		public ?string $noiseName,
 		public int $dimension,
 		public EasAttributeLayerSettings $settings,
 		public array $attributes,

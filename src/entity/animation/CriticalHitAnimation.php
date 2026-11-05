@@ -32,7 +32,7 @@ final class CriticalHitAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			new AnimatePacket(AnimatePacket::ACTION_CRITICAL_HIT, $this->entity->getId(), $this->particleCount),
+			new AnimatePacket(AnimatePacket::ACTION_CRITICAL_HIT, $this->entity->getId(), $this->particleCount, null, AnimatePacket::HAND_MAIN),
 		];
 	}
 }

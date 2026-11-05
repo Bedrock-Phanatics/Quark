@@ -44,6 +44,7 @@ final class LevelSettings{
 		public int $editorWorldType,
 		public bool $isCreatedInEditor,
 		public bool $isExportedFromEditor,
+		public int $editorLevelMigrationVersion,
 		public int $dayCycleStopTime,
 		public int $educationEditionOffer,
 		public bool $educationFeaturesEnabled,

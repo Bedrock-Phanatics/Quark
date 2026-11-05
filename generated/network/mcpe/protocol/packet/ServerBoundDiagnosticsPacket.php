@@ -41,7 +41,7 @@ final class ServerBoundDiagnosticsPacket extends Packet{
 	 * @param list<MemoryCategoryCounter> $memoryCategoryValues
 	 * @param list<EntityDiagnosticTimingInfo> $entityDiagnostics
 	 * @param list<SystemDiagnosticTimingInfo> $systemDiagnostics
-	 * @param list<SystemCategory> $systemCategories
+	 * @param list<SystemCategory>|null $systemCategories
 	 * @param list<WhiskerScopeDataSummary> $whiskerScopes
 	 */
 	public function __construct(
@@ -57,7 +57,7 @@ final class ServerBoundDiagnosticsPacket extends Packet{
 		public array $memoryCategoryValues,
 		public array $entityDiagnostics,
 		public array $systemDiagnostics,
-		public array $systemCategories,
+		public ?array $systemCategories,
 		public array $whiskerScopes,
 	){}
 

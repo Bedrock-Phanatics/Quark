@@ -37,6 +37,7 @@ final class ItemUseOnActorInventoryTransaction{
 		public int $runtimeId,
 		public int $actionType,
 		public int $slot,
+		public int $hand,
 		public NetworkItemStackDescriptor $item,
 		public Vector3 $fromPosition,
 		public Vector3 $hitPosition,

@@ -28,8 +28,7 @@ namespace quark\network\mcpe\protocol\types;
  */
 final class StructureEditorData{
 	public function __construct(
-		public string $structureName,
-		public string $filteredStructureName,
+		public SafetyRedactableString $structureName,
 		public string $dataField,
 		public bool $shouldIncludePlayers,
 		public bool $shouldShowBoundingBox,

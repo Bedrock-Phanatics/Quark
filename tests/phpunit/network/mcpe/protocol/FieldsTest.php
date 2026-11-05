@@ -140,7 +140,7 @@ final class FieldsTest extends TestCase{
 		$image = new SkinImage(64, 64, str_repeat("\x7f", 64 * 64 * 4));
 		$skin = new SkinData(
 			"skin id",
-			"playfab",
+			"", //the skin no longer carries a PlayFab ID on the wire
 			'{"geometry":{"default":"geometry.humanoid.custom"}}',
 			$image,
 			[new SkinAnimation(new SkinImage(32, 32, str_repeat("\x01", 32 * 32 * 4)), SkinAnimation::TYPE_HEAD, 2.5, SkinAnimation::EXPRESSION_BLINKING)],
