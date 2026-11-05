@@ -69,6 +69,10 @@ Plugins implementing their own redstone should disable Quark redstone for the af
 
 Protected- and final-damage access has been expanded, and selected `EntityDamageEvent` modifier constants use different raw integer values. Use named constants and public methods instead of persisted or hardcoded modifier integers.
 
+### Exhaustion events
+
+Replace `pocketmine\event\player\PlayerExhaustEvent` (or `quark\event\player\PlayerExhaustEvent`) with `quark\event\entity\EntityExhaustEvent` in listener signatures, imports, and exhaustion cause constants. Replace `getPlayer()` with `getEntity()`, which returns the affected `Human`. Check `instanceof quark\player\Player` before using player-only methods: non-player humans can also trigger this event. Cancellation, exhaustion amounts, and cause constant values are unchanged.
+
 ### Removed mechanics
 
 - Thorns and Frost Walker no longer execute or appear through normal acquisition paths.

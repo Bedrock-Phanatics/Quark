@@ -24,6 +24,10 @@ declare(strict_types=1);
 namespace quark\event;
 
 use PHPUnit\Framework\TestCase;
+use quark\entity\AttributeMap;
+use quark\entity\Human;
+use quark\entity\HungerManager;
+use quark\event\entity\EntityExhaustEvent;
 use quark\event\fixtures\TestChildEvent;
 use quark\event\fixtures\TestGrandchildEvent;
 use quark\event\fixtures\TestParentEvent;
@@ -76,4 +80,43 @@ final class EventTest extends TestCase{
 
 		self::assertSame($expectedOrder, $actualOrder, "Expected event handlers to be called from most specific to least specific");
 	}
+
+	public function testHumanExhaustionEvent() : void{
+		$human = new \ReflectionClass(ExhaustionTestHuman::class)->newInstanceWithoutConstructor();
+		$human->initializeAttributes();
+		$hunger = new HungerManager($human);
+		self::assertSame(0.5, $hunger->exhaust(0.5));
+
+		$calls = 0;
+		$this->pluginManager->registerEvent(
+			EntityExhaustEvent::class,
+			function(EntityExhaustEvent $event) use ($human, &$calls) : void{
+				self::assertSame($human, $event->getEntity());
+				self::assertSame(EntityExhaustEvent::CAUSE_CUSTOM, $event->getCause());
+				self::assertSame(1.0, $event->getAmount());
+				$event->setAmount(4.0);
+				if(++$calls === 2){
+					$event->cancel();
+				}
+			},
+			EventPriority::NORMAL,
+			$this->mockPlugin
+		);
+
+		self::assertSame(4.0, $hunger->exhaust(1.0));
+		self::assertSame(0.5, $hunger->getExhaustion());
+		self::assertSame(19.0, $hunger->getSaturation());
+		self::assertSame(0.0, $hunger->exhaust(1.0));
+		self::assertSame(0.5, $hunger->getExhaustion());
+		self::assertSame(19.0, $hunger->getSaturation());
+		self::assertSame(2, $calls);
+	}
+}
+
+final class ExhaustionTestHuman extends Human{
+	public function initializeAttributes() : void{
+		$this->attributeMap = new AttributeMap();
+	}
+
+	public function __destruct(){}
 }
