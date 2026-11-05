@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\event\entity;
 
-use quark\entity\Entity;
+use quark\entity\Human;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 
 /**
- * @phpstan-extends EntityEvent<Entity>
+ * @phpstan-extends EntityEvent<Human>
  */
 class EntityExhaustEvent extends EntityEvent implements Cancellable{
 	use CancellableTrait;
@@ -46,7 +46,7 @@ class EntityExhaustEvent extends EntityEvent implements Cancellable{
 	public const CAUSE_CUSTOM = 11;
 
 	public function __construct(
-		Entity $entity,
+		Human $entity,
 		private float $amount,
 		private int $cause
 	){

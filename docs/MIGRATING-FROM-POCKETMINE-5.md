@@ -1,89 +1,85 @@
 # Migrating from PocketMine-MP 5.47 to Quark 6
 
-Quark 6 is based on PocketMine-MP 5.47.0, but it is not a drop-in replacement. The project identity, PHP namespace, package coordinates, runtime files, and selected APIs have changed.
+Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to namespaces, dependencies, configuration, and APIs.
 
-## Required plugin changes
+## Plugin Migration
 
-### Namespace
+### Namespaces
 
-Replace imports and fully qualified names for server-core classes under `pocketmine\` with `quark\`. Keep external library namespaces such as `pocketmine\math` and `pocketmine\nbt` unchanged. BedrockProtocol is no longer a dependency: its constants and value objects that Quark uses moved to `quark\network\mcpe\protocol` under the same names, packets are the generated classes in `quark\network\mcpe\protocol\packet`, and packet constants such as `AnimatePacket::ACTION_SWING_ARM` are declared on them.
-
-```php
-// Before
-use pocketmine\plugin\PluginBase;
-
-// Quark 6
-use quark\plugin\PluginBase;
-```
-
-Update reflection strings, serialized class names, PHPStan configuration, test namespaces, and scripts that reference the old namespace. A text replacement is a starting point, not a substitute for testing.
+- Core namespace: `pocketmine\` → `quark\`
+- External libraries such as `pocketmine\math` and `pocketmine\nbt` remain unchanged.
+- BedrockProtocol types: moved to `quark\network\mcpe\protocol` under their existing names.
+- Packets: `quark\network\mcpe\protocol\packet`
+- Packet constants: defined directly on packet classes (e.g. `AnimatePacket::ACTION_SWING_ARM`).
+- Update reflection strings, serialized class names, PHPStan configuration, tests, and scripts referencing the old namespace.
 
 ### Composer
 
-Target `quark/quark` for the server. Quark continues to use the existing `axolotl-pm/*` and `pocketmine/*` library packages, so plugins may keep direct dependencies on those libraries where appropriate. Regenerate the lock file and autoloader after changing the root server dependency.
+- Server dependency: `pocketmine/pocketmine-mp` → `quark/quark`
+- Existing `axolotl-pm/*` and `pocketmine/*` library dependencies remain supported where applicable.
+- Quark no longer replaces `pocketmine/pocketmine-mp` through Composer.
+- Regenerate the lock file and autoloader after updating dependencies.
 
-Quark no longer declares that it replaces `pocketmine/pocketmine-mp`: API 6 and the `quark\` core namespace are incompatible with the PocketMine-MP 5 server API.
+### Files & Runtime
 
-### Runtime files
-
-| PocketMine-MP 5.47 | Quark 6 |
+| PocketMine-MP 5 | Quark 6 |
 |---|---|
 | `PocketMine-MP.phar` | `Quark.phar` |
 | `src/PocketMine.php` | `src/Quark.php` |
 | `pocketmine.yml` | `config/server.toml` |
-The `pmmpthread` extension name is unchanged.
+| `plugin.yml` | `plugin.toml` |
 
-Update deployment scripts, service units, containers, health checks, file paths, environment validation, and download automation.
+- `pmmpthread` retains its existing extension name.
+- Update deployment scripts, containers, service configurations, health checks, and file paths.
 
-## API and behavior changes
+## API & Behavior Changes
 
-### TNT ignition
+### Events
 
-`quark\block\TNT::ignite(int $fuse = 80)` returns `bool` in Quark 6.
+- `PlayerExhaustEvent` → `EntityExhaustEvent` (Replace `getPlayer()` with `getEntity()`, returning the affected `Human`).
 
-```php
-if(!$tnt->ignite()){
-    // Ignition was rejected by the configured TNT limiter.
-}
-```
+### TNT
 
-Do not consume an ignition item or assume that a primed entity exists unless the method returns `true`.
+- `TNT::ignite(int $fuse = 80)` now returns `bool`.
+- Returns `false` when ignition is rejected by the configured TNT limiter.
+- Only consume ignition items or assume TNT was primed after a successful return.
 
 ### Redstone
 
-Quark provides a native redstone manager:
+- Native redstone management is available through `$server->getRedstoneManager()`.
+- `setWorldEnabled($world, $enabled)` — Controls redstone per world.
+- `setChunkEnabled($world, $chunkX, $chunkZ, $enabled)` — Overrides redstone per chunk.
+- `clearChunkOverride($world, $chunkX, $chunkZ)` — Removes a chunk override.
+- `clearWorldOverride($world)` — Removes a world override.
+- Chunk overrides take precedence over world settings.
+- Runtime overrides are not persistent and world operations must run on the main thread.
+- Disable native redstone where plugins provide their own implementation.
 
-```php
-$redstone = $server->getRedstoneManager();
-$redstone->setWorldEnabled($world, false);
-$redstone->setChunkEnabled($world, $chunkX, $chunkZ, true);
-$redstone->clearChunkOverride($world, $chunkX, $chunkZ);
-$redstone->clearWorldOverride($world);
-```
+### Damage
 
-Chunk overrides take precedence over world policy. Runtime overrides are non-persistent and world access must remain on the main thread.
+- Expanded protected-damage and final-damage access in `EntityDamageEvent`.
+- Some damage modifier constants have changed integer values. Use named constants instead of hardcoded values.
 
-Plugins implementing their own redstone should disable Quark redstone for the affected worlds or chunks to avoid competing updates.
+### Removed Mechanics
 
-### Damage events
-
-Protected- and final-damage access has been expanded, and selected `EntityDamageEvent` modifier constants use different raw integer values. Use named constants and public methods instead of persisted or hardcoded modifier integers.
-
-### Removed mechanics
-
-- Thorns and Frost Walker no longer execute or appear through normal acquisition paths.
-- Worn armor no longer receives unconditional per-tick callbacks.
+- Thorns and Frost Walker no longer function or appear through normal acquisition.
+- Armor no longer receives unconditional per-tick callbacks.
 - Turtle Helmets no longer grant Water Breathing.
-
-Plugins depending on these mechanics must implement their own scheduled behavior.
+- Plugins relying on these mechanics must implement their own behavior.
 
 ### Compression
 
-Network compression is selected by configuration. Plugins should not assume zlib-only batches or bypass Quark's `Compressor` abstraction. Snappy requires `ext-snappy`; unavailable or invalid modes fall back to zlib.
+- Compression algorithm is configurable rather than fixed to zlib.
+- Plugins should use Quark's `Compressor` abstraction.
+- Snappy requires `ext-snappy`; invalid or unavailable compression modes fall back to zlib.
 
-## Configuration migration
+## Configuration Migration
 
-Run `--migration-dry-run`, then `--migrate-legacy` to convert supported configuration files with a recoverable snapshot. Review the generated [server.toml](../resources/server.toml) and [plugins.toml](../resources/plugins.toml). Important additions include:
+Use `--migration-dry-run` to preview migration, then `--migrate-legacy` to convert supported legacy configurations with a recoverable snapshot.
+
+Review the generated [server.toml](../resources/server.toml) and [plugins.toml](../resources/plugins.toml).
+
+### New Configuration Options
 
 - `network.compression-algorithm`
 - `network.async-compression`
@@ -94,14 +90,14 @@ Run `--migration-dry-run`, then `--migrate-legacy` to convert supported configur
 - `redstone.*`
 - `tnt-limits.*`
 
-Migration stops on conflicting or invalid values; resolve the reported key and resume with `--migrate-legacy`.
+Migration stops on invalid or conflicting values. Resolve the reported configuration key and rerun `--migrate-legacy`.
 
-## Migration checklist
+## Migration Checklist
 
-1. Back up worlds, player data, plugins, and configuration.
-2. Update every plugin namespace and Composer dependency.
-3. Review TNT, damage, redstone, armor, and compression assumptions.
-4. Install the Quark PHP runtime and required native extensions.
-5. Convert legacy configuration with `--migrate-legacy` and review both TOML files.
-6. Test on copies of production worlds with representative player and plugin load.
-7. Review logs for deprecated assumptions, missing classes, rejected TNT activation, and redstone limits before deployment.
+1. Back up worlds, player data, plugins, and configurations.
+2. Update plugin namespaces, metadata, and Composer dependencies.
+3. Review event, TNT, damage, redstone, armor, and compression compatibility.
+4. Install the required PHP runtime and native extensions.
+5. Migrate legacy configurations and review both TOML files.
+6. Test plugins and production world copies under representative load.
+7. Check logs for missing classes, compatibility issues, TNT rejections, and redstone limits before deployment.
