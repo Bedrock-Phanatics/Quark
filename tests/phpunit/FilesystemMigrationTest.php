@@ -555,7 +555,7 @@ final class FilesystemMigrationTest extends TestCase{
 		file_put_contents($this->root . "/server.properties", "motd=old");
 		mkdir($this->paths->config());
 		file_put_contents($this->paths->serverProperties(), "motd=wrong");
-		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 1, "completed" => [], "copying" => \Symfony\Component\Filesystem\Path::join($this->root, "server.properties")]));
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 1, "completed" => [], "copying" => Path::join($this->root, "server.properties")]));
 		try{
 			$this->migration->prepare(true);
 			self::fail("Expected verification failure");
@@ -577,7 +577,7 @@ final class FilesystemMigrationTest extends TestCase{
 		file_put_contents($this->paths->worlds() . "/remaining.dat", "data");
 		file_put_contents($this->paths->worlds() . "/already-retired.dat", "prior data");
 		$digest = (new \ReflectionMethod(FilesystemMigration::class, "fingerprint"))->invoke($this->migration, $this->paths->worlds());
-		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 1, "completed" => [], "copying" => \Symfony\Component\Filesystem\Path::join($this->root, "worlds"), "phase" => "retiring", "digest" => $digest]));
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 1, "completed" => [], "copying" => Path::join($this->root, "worlds"), "phase" => "retiring", "digest" => $digest]));
 		self::assertSame("partial", $this->migration->prepare(true));
 		self::assertFileDoesNotExist($this->root . "/worlds");
 		self::assertSame("prior data", file_get_contents($this->paths->worlds() . "/already-retired.dat"));
@@ -589,7 +589,7 @@ final class FilesystemMigrationTest extends TestCase{
 		mkdir($this->paths->worlds() . "/Lobby", 0777, true);
 		file_put_contents($this->paths->worlds() . "/Lobby/level.dat", "older data");
 		$digest = (new \ReflectionMethod(FilesystemMigration::class, "fingerprint"))->invoke($this->migration, $this->paths->worlds());
-		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 3, "completed" => [], "copying" => \Symfony\Component\Filesystem\Path::join($this->root, "worlds"), "phase" => "retiring", "digest" => $digest]));
+		file_put_contents($this->paths->migrationJournal(), json_encode(["version" => 3, "completed" => [], "copying" => Path::join($this->root, "worlds"), "phase" => "retiring", "digest" => $digest]));
 		try{
 			$this->migration->prepare(true);
 			self::fail("Changed source must not be retired");
