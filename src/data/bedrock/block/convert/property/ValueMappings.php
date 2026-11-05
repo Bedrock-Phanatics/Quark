@@ -34,6 +34,7 @@ use quark\block\utils\FroglightType;
 use quark\block\utils\LeverFacing;
 use quark\block\utils\MobHeadType;
 use quark\block\utils\MushroomBlockType;
+use quark\block\utils\RedstoneWireConnectionType;
 use quark\block\utils\StairShape;
 use quark\data\bedrock\block\BlockLegacyMetadata as LegacyMeta;
 use quark\data\bedrock\block\BlockStateStringValues as StringValues;
@@ -62,6 +63,8 @@ final class ValueMappings{
 	public readonly EnumFromRawStateMap $leverFacing;
 	/** @phpstan-var EnumFromRawStateMap<StairShape, string> */
 	public readonly EnumFromRawStateMap $stairCorner;
+	/** @phpstan-var EnumFromRawStateMap<RedstoneWireConnectionType, string> */
+	public readonly EnumFromRawStateMap $redstoneWireConnectionType;
 
 	/** @phpstan-var EnumFromRawStateMap<MushroomBlockType, int> */
 	public readonly EnumFromRawStateMap $mushroomBlockType;
@@ -177,6 +180,11 @@ final class ValueMappings{
 			StairShape::INNER_RIGHT => StringValues::MC_CORNER_INNER_RIGHT,
 			StairShape::OUTER_LEFT => StringValues::MC_CORNER_OUTER_LEFT,
 			StairShape::OUTER_RIGHT => StringValues::MC_CORNER_OUTER_RIGHT,
+		});
+		$this->redstoneWireConnectionType = EnumFromRawStateMap::string(RedstoneWireConnectionType::class, fn(RedstoneWireConnectionType $case) => match($case){
+			RedstoneWireConnectionType::NONE => StringValues::REDSTONE_EAST_NONE,
+			RedstoneWireConnectionType::SIDE => StringValues::REDSTONE_EAST_SIDE,
+			RedstoneWireConnectionType::UP => StringValues::REDSTONE_EAST_UP,
 		});
 
 		$this->mushroomBlockType = EnumFromRawStateMap::int(

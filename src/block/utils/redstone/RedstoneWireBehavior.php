@@ -49,11 +49,16 @@ trait RedstoneWireBehavior{
 	}
 
 	public function onNearbyBlockChange() : void{
-		if(!RedstoneManager::getInstance()->isEnabledAt($this->position)){ return; }
-		if(!RedstoneBlockUtils::getBlockAtSide($this->position, Facing::DOWN)->isSolid()){
+		$enabled = RedstoneManager::getInstance()->isEnabledAt($this->position);
+		if($enabled && !RedstoneBlockUtils::getBlockAtSide($this->position, Facing::DOWN)->isSolid()){
 			$this->position->getWorld()->useBreakOn($this->position);
 			return;
 		}
+		//connections are only visual, so keep them in sync even where redstone is disabled
+		if($this->recalculateConnections()){
+			$this->position->getWorld()->setBlock($this->position, $this);
+		}
+		if(!$enabled){ return; }
 		$diff = $this->recalculateBestPower() - $this->signalStrength;
 		if($diff !== 0){
 			$this->updatePowerLevels([$this]);
@@ -73,6 +78,7 @@ trait RedstoneWireBehavior{
 			foreach($this->getRelyingBlocks() as $block){
 				$block->power($this);
 			}
+			$this->updateDiagonalWires();
 			return true;
 		}
 

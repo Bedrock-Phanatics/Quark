@@ -79,6 +79,7 @@ use quark\block\RedMushroomBlock;
 use quark\block\RedstoneComparator;
 use quark\block\RedstoneRepeater;
 use quark\block\RedstoneTorch;
+use quark\block\RedstoneWire;
 use quark\block\RespawnAnchor;
 use quark\block\Sapling;
 use quark\block\SeaPickle;
@@ -105,6 +106,7 @@ use quark\block\utils\LeverFacing;
 use quark\block\utils\MobHeadType;
 use quark\block\utils\MushroomBlockType;
 use quark\block\utils\PoweredByRedstone;
+use quark\block\utils\RedstoneWireConnectionType;
 use quark\block\VanillaBlocks as Blocks;
 use quark\block\Vine;
 use quark\data\bedrock\block\BlockLegacyMetadata;
@@ -1493,7 +1495,19 @@ final class VanillaBlockMappings{
 		$reg->mapModel(Model::create(Blocks::RAIL(), Ids::RAIL)->properties([
 			new IntProperty(StateNames::RAIL_DIRECTION, 0, 9, fn(Rail $b) => $b->getShape(), fn(Rail $b, int $v) => $b->setShape($v))
 		]));
-		$reg->mapModel(Model::create(Blocks::REDSTONE_WIRE(), Ids::REDSTONE_WIRE)->properties([$commonProperties->analogRedstoneSignal]));
+		$redstoneWireConnection = fn(string $stateName, int $facing) => new ValueFromStringProperty(
+			$stateName,
+			ValueMappings::getInstance()->redstoneWireConnectionType,
+			fn(RedstoneWire $b) => $b->getConnection($facing),
+			fn(RedstoneWire $b, RedstoneWireConnectionType $v) => $b->setConnection($facing, $v)
+		);
+		$reg->mapModel(Model::create(Blocks::REDSTONE_WIRE(), Ids::REDSTONE_WIRE)->properties([
+			$commonProperties->analogRedstoneSignal,
+			$redstoneWireConnection(StateNames::REDSTONE_EAST, Facing::EAST),
+			$redstoneWireConnection(StateNames::REDSTONE_NORTH, Facing::NORTH),
+			$redstoneWireConnection(StateNames::REDSTONE_SOUTH, Facing::SOUTH),
+			$redstoneWireConnection(StateNames::REDSTONE_WEST, Facing::WEST),
+		]));
 		$reg->mapModel(Model::create(Blocks::RESPAWN_ANCHOR(), Ids::RESPAWN_ANCHOR)->properties([
 			new IntProperty(StateNames::RESPAWN_ANCHOR_CHARGE, 0, 4, fn(RespawnAnchor $b) => $b->getCharges(), fn(RespawnAnchor $b, int $v) => $b->setCharges($v))
 		]));
