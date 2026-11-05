@@ -53,6 +53,7 @@ use quark\entity\projectile\Arrow;
 use quark\entity\Skin;
 use quark\event\entity\EntityDamageByEntityEvent;
 use quark\event\entity\EntityDamageEvent;
+use quark\event\entity\EntityExhaustEvent;
 use quark\event\entity\EntityExtinguishEvent;
 use quark\event\inventory\InventoryCloseEvent;
 use quark\event\inventory\InventoryOpenEvent;
@@ -67,7 +68,6 @@ use quark\event\player\PlayerDropItemEvent;
 use quark\event\player\PlayerEmoteEvent;
 use quark\event\player\PlayerEntityInteractEvent;
 use quark\event\player\PlayerEntityPickEvent;
-use quark\event\player\PlayerExhaustEvent;
 use quark\event\player\PlayerGameModeChangeEvent;
 use quark\event\player\PlayerInteractEvent;
 use quark\event\player\PlayerItemConsumeEvent;
@@ -1480,9 +1480,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			if($horizontalDistanceTravelled > 0){
 				//TODO: check for swimming
 				if($this->isSprinting()){
-					$this->hungerManager->exhaust(0.01 * $horizontalDistanceTravelled, PlayerExhaustEvent::CAUSE_SPRINTING);
+					$this->hungerManager->exhaust(0.01 * $horizontalDistanceTravelled, EntityExhaustEvent::CAUSE_SPRINTING);
 				}else{
-					$this->hungerManager->exhaust(0.0, PlayerExhaustEvent::CAUSE_WALKING);
+					$this->hungerManager->exhaust(0.0, EntityExhaustEvent::CAUSE_WALKING);
 				}
 
 				if($this->nextChunkOrderRun > 20){
@@ -1958,7 +1958,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$returnedItems = [];
 			if($this->getWorld()->useBreakOn($pos, $item, $this, true, $returnedItems)){
 				$this->returnItemsFromAction($oldItem, $item, $returnedItems);
-				$this->hungerManager->exhaust(0.005, PlayerExhaustEvent::CAUSE_MINING);
+				$this->hungerManager->exhaust(0.005, EntityExhaustEvent::CAUSE_MINING);
 				return true;
 			}
 		}else{
@@ -2064,7 +2064,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$heldItem->onAttackEntity($entity, $returnedItems);
 			$this->returnItemsFromAction($oldItem, $heldItem, $returnedItems);
 
-			$this->hungerManager->exhaust(0.1, PlayerExhaustEvent::CAUSE_ATTACK);
+			$this->hungerManager->exhaust(0.1, EntityExhaustEvent::CAUSE_ATTACK);
 		}
 
 		if($ev->getFinalDamage() > 0){
@@ -2672,7 +2672,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	protected function applyPostDamageEffects(EntityDamageEvent $source) : void{
 		parent::applyPostDamageEffects($source);
 
-		$this->hungerManager->exhaust(0.1, PlayerExhaustEvent::CAUSE_DAMAGE);
+		$this->hungerManager->exhaust(0.1, EntityExhaustEvent::CAUSE_DAMAGE);
 	}
 
 	public function attack(EntityDamageEvent $source) : void{

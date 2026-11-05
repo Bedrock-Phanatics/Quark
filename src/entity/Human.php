@@ -37,7 +37,7 @@ use quark\entity\effect\EffectInstance;
 use quark\entity\effect\VanillaEffects;
 use quark\entity\projectile\ProjectileSource;
 use quark\event\entity\EntityDamageEvent;
-use quark\event\player\PlayerExhaustEvent;
+use quark\event\entity\EntityExhaustEvent;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\inventory\InventoryHolder;
@@ -179,9 +179,9 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 	public function jump() : void{
 		parent::jump();
 		if($this->isSprinting()){
-			$this->hungerManager->exhaust(0.2, PlayerExhaustEvent::CAUSE_SPRINT_JUMPING);
+			$this->hungerManager->exhaust(0.2, EntityExhaustEvent::CAUSE_SPRINT_JUMPING);
 		}else{
-			$this->hungerManager->exhaust(0.05, PlayerExhaustEvent::CAUSE_JUMPING);
+			$this->hungerManager->exhaust(0.05, EntityExhaustEvent::CAUSE_JUMPING);
 		}
 	}
 
