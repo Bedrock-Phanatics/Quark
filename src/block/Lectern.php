@@ -29,6 +29,7 @@ use pocketmine\math\Vector3;
 use quark\block\tile\Lectern as TileLectern;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
@@ -37,7 +38,7 @@ use quark\player\Player;
 use quark\world\sound\LecternPlaceBookSound;
 use function count;
 
-class Lectern extends Transparent implements HorizontalFacing{
+class Lectern extends Transparent implements HorizontalFacing, RedstoneSignalEmitter{
 	use FacesOppositePlacingPlayerTrait;
 
 	protected int $viewedPage = 0;

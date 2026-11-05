@@ -27,6 +27,7 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\AnyFacingTrait;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\player\Player;
@@ -34,7 +35,7 @@ use quark\world\BlockTransaction;
 use quark\world\sound\RedstonePowerOffSound;
 use quark\world\sound\RedstonePowerOnSound;
 
-abstract class Button extends Flowable implements AnyFacing{
+abstract class Button extends Flowable implements AnyFacing, RedstoneSignalEmitter{
 	use AnyFacingTrait;
 
 	protected bool $pressed = false;

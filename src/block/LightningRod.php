@@ -31,11 +31,12 @@ use quark\block\utils\AnyFacing;
 use quark\block\utils\AnyFacingTrait;
 use quark\block\utils\CopperMaterial;
 use quark\block\utils\CopperTrait;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 
-final class LightningRod extends Transparent implements AnyFacing, CopperMaterial{
+final class LightningRod extends Transparent implements AnyFacing, CopperMaterial, RedstoneSignalEmitter{
 	use CopperTrait;
 	use AnyFacingTrait;
 

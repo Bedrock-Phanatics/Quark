@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-interface AnalogRedstoneSignalEmitter{
+interface AnalogRedstoneSignalEmitter extends RedstoneSignalEmitter{
 
 	public function getOutputSignalStrength() : int;
 

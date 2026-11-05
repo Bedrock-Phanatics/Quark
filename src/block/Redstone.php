@@ -25,8 +25,9 @@ namespace quark\block;
 
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\RedstoneBehavior;
+use quark\block\utils\RedstoneSignalEmitter;
 
-class Redstone extends Opaque implements PowerSource{
+class Redstone extends Opaque implements PowerSource, RedstoneSignalEmitter{
 	use RedstoneBehavior;
 
 }

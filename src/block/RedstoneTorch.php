@@ -27,12 +27,13 @@ use quark\block\utils\Lightable;
 use quark\block\utils\LightableTrait;
 use quark\block\utils\redstone\RedstoneTorchBehavior;
 use quark\block\utils\redstone\ToggleablePowerSource;
-
 use quark\block\utils\redstone\Transmittable;
+
 use quark\block\utils\redstone\Waitable;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\data\runtime\RuntimeDataDescriber;
 
-class RedstoneTorch extends Torch implements Lightable, ToggleablePowerSource, Transmittable, Waitable{
+class RedstoneTorch extends Torch implements Lightable, ToggleablePowerSource, Transmittable, Waitable, RedstoneSignalEmitter{
 	use RedstoneTorchBehavior;
 	use LightableTrait;
 

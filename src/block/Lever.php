@@ -29,6 +29,7 @@ use pocketmine\math\Vector3;
 use quark\block\utils\LeverFacing;
 use quark\block\utils\redstone\LeverRedstoneTrait;
 use quark\block\utils\redstone\PowerSource;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\player\Player;
@@ -37,7 +38,7 @@ use quark\world\BlockTransaction;
 use quark\world\sound\RedstonePowerOffSound;
 use quark\world\sound\RedstonePowerOnSound;
 
-class Lever extends Flowable implements PowerSource{
+class Lever extends Flowable implements PowerSource, RedstoneSignalEmitter{
 	use LeverRedstoneTrait;
 	protected LeverFacing $facing = LeverFacing::UP_AXIS_X;
 	protected bool $activated = false;

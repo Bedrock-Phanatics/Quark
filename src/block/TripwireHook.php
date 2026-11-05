@@ -28,12 +28,13 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 
-class TripwireHook extends Flowable implements HorizontalFacing{
+class TripwireHook extends Flowable implements HorizontalFacing, RedstoneSignalEmitter{
 	use HorizontalFacingTrait;
 
 	protected bool $connected = false;

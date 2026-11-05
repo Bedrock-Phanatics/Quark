@@ -23,9 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\data\runtime\RuntimeDataDescriber;
 
-class DetectorRail extends StraightOnlyRail{
+class DetectorRail extends StraightOnlyRail implements RedstoneSignalEmitter{
 	protected bool $activated = false;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{

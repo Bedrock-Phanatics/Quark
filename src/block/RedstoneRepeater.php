@@ -27,20 +27,21 @@ use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\utils\HorizontalFacing;
-
 use quark\block\utils\HorizontalFacingTrait;
+
 use quark\block\utils\PoweredByRedstone;
 use quark\block\utils\PoweredByRedstoneTrait;
 use quark\block\utils\redstone\RedstoneRepeaterBehavior;
 use quark\block\utils\redstone\ToggleablePowerSource;
 use quark\block\utils\redstone\Transmittable;
 use quark\block\utils\redstone\Waitable;
+use quark\block\utils\RedstoneSignalEmitter;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 
-class RedstoneRepeater extends Flowable implements PoweredByRedstone, HorizontalFacing, ToggleablePowerSource, Transmittable, Waitable{
+class RedstoneRepeater extends Flowable implements PoweredByRedstone, HorizontalFacing, ToggleablePowerSource, Transmittable, Waitable, RedstoneSignalEmitter{
 	use RedstoneRepeaterBehavior;
 	use HorizontalFacingTrait;
 	use PoweredByRedstoneTrait;
