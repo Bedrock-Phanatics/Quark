@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\bedwire;
 
+use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use quark\network\mcpe\compression\NativeCompressor;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
@@ -87,6 +90,9 @@ final class BedwireTransport implements Transport{
 	private function options() : array{
 		$config = $this->server->getConfigGroup();
 		$options = [
+			"protocol_version" => ProtocolInfo::CURRENT_PROTOCOL,
+			"minecraft_version" => ProtocolInfo::MINECRAFT_VERSION_NETWORK,
+			"serverbound_packets" => self::serverboundPackets(),
 			//room for players still joining or being kicked, the player limit itself is enforced at login
 			"max_sessions" => min(65535, $this->server->getMaxPlayers() * 2 + 16),
 			"authentication" => $this->server->getOnlineMode(),
@@ -114,6 +120,21 @@ final class BedwireTransport implements Transport{
 			}
 		}
 		return $options;
+	}
+
+	/**
+	 * IDs of the packets clients may send, so the network thread drops anything else before it reaches PHP.
+	 *
+	 * @phpstan-return list<int>
+	 */
+	private static function serverboundPackets() : array{
+		$ids = [];
+		foreach(PacketPool::getInstance()->getAll() as $id => $packet){
+			if($packet instanceof ServerboundPacket){
+				$ids[] = $id;
+			}
+		}
+		return $ids;
 	}
 
 	/**

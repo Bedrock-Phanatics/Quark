@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\ParticleIds;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class AngryVillagerParticle implements Particle{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::particle(ParticleIds::VILLAGER_ANGRY, 0, $pos)];
+		return [LevelEventPacket::standardParticle(ParticleIds::VILLAGER_ANGRY, 0, $pos)];
 	}
 }

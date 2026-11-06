@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use quark\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use quark\player\InventoryWindow;
 
 final class InventoryManagerEntry{

@@ -29,6 +29,9 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\ShortTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\utils\Binary;
 use pocketmine\utils\Limits;
 use quark\block\Block;
@@ -54,9 +57,6 @@ use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\utils\Utils;
@@ -889,7 +889,7 @@ abstract class Living extends Entity{
 		$networkSession->getEntityEventBroadcaster()->onMobArmorChange([$networkSession], $this);
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$visibleEffects = [];

@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 class ShulkerBoxOpenSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::sound(LevelSoundEvent::SHULKERBOX_OPEN, $pos, false)];
+		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::SHULKERBOX_OPEN, $pos, false)];
 	}
 }

@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 
 interface Particle{
 
 	/**
-	 * @return Packet[]
+	 * @return ClientboundPacket[]
 	 */
 	public function encode(Vector3 $pos) : array;
 

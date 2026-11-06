@@ -25,6 +25,7 @@ namespace quark\block\tile;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\Furnace as BlockFurnace;
 use quark\block\inventory\window\FurnaceInventoryWindow;
 use quark\crafting\FurnaceRecipe;
@@ -35,7 +36,6 @@ use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
-use quark\network\mcpe\protocol\packet\ContainerSetDataPacket;
 use quark\player\Player;
 use quark\world\World;
 use function array_map;

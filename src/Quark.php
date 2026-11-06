@@ -25,7 +25,7 @@ namespace quark {
 
 	use Composer\InstalledVersions;
 	use pocketmine\errorhandler\ErrorToExceptionHandler;
-	use quark\network\mcpe\protocol\ProtocolInfo;
+	use pocketmine\network\mcpe\protocol\ProtocolInfo;
 	use quark\thread\ThreadManager;
 	use quark\thread\ThreadSafeClassLoader;
 	use quark\utils\Filesystem;
@@ -156,7 +156,7 @@ use const ZEND_DEBUG_BUILD;
 		}
 
 		foreach([
-			"bedwire" => ["0.4.0", "0.5.0"],
+			"bedwire" => ["0.5.0", "0.6.0"],
 			"chunkutils2" => ["0.3.7", "0.4.0"],
 			"crypto" => ["0.3.1", "0.4.0"],
 			"encoding" => ["1.0.0", "1.1.0"],
@@ -290,11 +290,6 @@ JIT_WARNING
 			exit(1);
 		}
 		require_once($bootstrap);
-
-		if(\Bedwire\Protocol::VERSION !== ProtocolInfo::CURRENT_PROTOCOL){
-			critical_error("ext-bedwire protocol " . \Bedwire\Protocol::VERSION . " does not match Quark protocol " . ProtocolInfo::CURRENT_PROTOCOL . ". Install the matching Quark PHP runtime.");
-			exit(1);
-		}
 
 		$composerGitHash = InstalledVersions::getRootPackage()['reference'];
 		if($composerGitHash !== null){

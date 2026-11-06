@@ -23,21 +23,25 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use Bedwire\PacketId;
-use quark\network\mcpe\protocol\packet\SetLocalPlayerAsInitialisedPacket;
+use pocketmine\network\mcpe\protocol\EmoteListPacket;
+use pocketmine\network\mcpe\protocol\InteractPacket;
+use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
+use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
+use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 
-#[SilentDiscard(PacketId::EMOTE_LIST, comment: "Probably not needed?")]
-#[SilentDiscard(PacketId::INTERACT, comment: "Player interacting with itself somehow")]
-#[SilentDiscard(PacketId::MOB_EQUIPMENT, comment: "Player equipping its held item on spawn, not needed")]
-#[SilentDiscard(PacketId::PLAYER_AUTH_INPUT, comment: "Spammed after StartGame even though player has no controls")]
-#[SilentDiscard(PacketId::SERVER_BOUND_LOADING_SCREEN, comment: "Not used, arrives with SetLocalPlayerAsInitialized")]
+#[SilentDiscard(EmoteListPacket::class, comment: "Probably not needed?")]
+#[SilentDiscard(InteractPacket::class, comment: "Player interacting with itself somehow")]
+#[SilentDiscard(MobEquipmentPacket::class, comment: "Player equipping its held item on spawn, not needed")]
+#[SilentDiscard(PlayerAuthInputPacket::class, comment: "Spammed after StartGame even though player has no controls")]
+#[SilentDiscard(ServerboundLoadingScreenPacket::class, comment: "Not used, arrives with SetLocalPlayerAsInitialized")]
 final class SpawnResponsePacketHandler extends PacketHandler{
 	/**
 	 * @phpstan-param \Closure() : void $responseCallback
 	 */
 	public function __construct(private \Closure $responseCallback){}
 
-	public function handleSetLocalPlayerAsInitialised(SetLocalPlayerAsInitialisedPacket $packet) : bool{
+	public function handleSetLocalPlayerAsInitialized(SetLocalPlayerAsInitializedPacket $packet) : bool{
 		($this->responseCallback)();
 		return true;
 	}

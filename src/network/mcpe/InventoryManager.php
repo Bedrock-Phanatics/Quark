@@ -24,7 +24,26 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use pmmp\encoding\DataDecodeException;
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\ContainerClosePacket;
+use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
+use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
+use pocketmine\network\mcpe\protocol\InventoryContentPacket;
+use pocketmine\network\mcpe\protocol\InventorySlotPacket;
+use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\PlayerEnchantOptionsPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\Enchant;
+use pocketmine\network\mcpe\protocol\types\EnchantOption as ProtocolEnchantOption;
+use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
+use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
+use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
+use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
+use pocketmine\utils\Binary;
 use pocketmine\utils\Limits;
 use quark\block\inventory\window\AnvilInventoryWindow;
 use quark\block\inventory\window\BlockInventoryWindow;
@@ -45,37 +64,18 @@ use quark\inventory\InventoryListener;
 use quark\inventory\transaction\action\SlotChangeAction;
 use quark\inventory\transaction\InventoryTransaction;
 use quark\item\enchantment\EnchantingOption;
+use quark\item\enchantment\EnchantmentInstance;
 use quark\item\Item;
 use quark\network\mcpe\cache\CreativeInventoryCache;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\ContainerClosePacket;
-use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
-use quark\network\mcpe\protocol\packet\ContainerSetDataPacket;
-use quark\network\mcpe\protocol\packet\InventoryContentPacket;
-use quark\network\mcpe\protocol\packet\InventorySlotPacket;
-use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
-use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
-use quark\network\mcpe\protocol\PacketDecodeException;
-use quark\network\mcpe\protocol\types\EnchantmentInstance as NetEnchantmentInstance;
-use quark\network\mcpe\protocol\types\FullContainerName;
-use quark\network\mcpe\protocol\types\inventory\ContainerIds;
-use quark\network\mcpe\protocol\types\inventory\ItemStack;
-use quark\network\mcpe\protocol\types\inventory\ItemStackWrapper;
-use quark\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
-use quark\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
-use quark\network\mcpe\protocol\types\inventory\WindowTypes;
-use quark\network\mcpe\protocol\types\InventoryAction;
-use quark\network\mcpe\protocol\types\ItemEnchantOption;
-use quark\network\mcpe\protocol\types\ItemEnchants;
 use quark\network\PacketHandlingException;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\player\PlayerInventoryType;
 use quark\utils\AssumptionFailedError;
 use quark\utils\ObjectSet;
-use function array_fill;
+use function array_fill_keys;
 use function array_keys;
+use function array_map;
 use function array_search;
 use function count;
 use function get_class;
@@ -85,7 +85,7 @@ use function max;
 use function spl_object_id;
 
 /**
- * @phpstan-type ContainerOpenClosure \Closure(int $id, InventoryWindow $window) : (list<Packet>|null)
+ * @phpstan-type ContainerOpenClosure \Closure(int $id, InventoryWindow $window) : (list<ClientboundPacket>|null)
  */
 class InventoryManager implements InventoryListener{
 	/**
@@ -302,34 +302,33 @@ class InventoryManager implements InventoryListener{
 	}
 
 	/**
-	 * @phpstan-param list<InventoryAction> $networkInventoryActions
+	 * @param NetworkInventoryAction[] $networkInventoryActions
 	 * @throws PacketHandlingException
 	 */
 	public function addRawPredictedSlotChanges(array $networkInventoryActions) : void{
 		foreach($networkInventoryActions as $action){
-			if($action->source->sourceType !== NetworkInventoryAction::SOURCE_CONTAINER){
+			if($action->sourceType !== NetworkInventoryAction::SOURCE_CONTAINER){
 				continue;
 			}
-			$windowId = $action->source->containerId;
-			if($windowId === null){
+			if($action->windowId === null){
 				throw new PacketHandlingException("Window ID should always be set for SOURCE_CONTAINER");
 			}
 
 			//legacy transactions should not modify or predict anything other than these inventories, since these are
 			//the only ones accessible when not in-game (ItemStackRequest is used for everything else)
-			if(match($windowId){
+			if(match($action->windowId){
 				ContainerIds::INVENTORY, ContainerIds::OFFHAND, ContainerIds::ARMOR => false,
 				default => true
 			}){
-				throw new PacketHandlingException("Legacy transactions cannot predict changes to inventory with ID " . $windowId);
+				throw new PacketHandlingException("Legacy transactions cannot predict changes to inventory with ID " . $action->windowId);
 			}
-			$info = $this->locateWindowAndSlot($windowId, $action->slot);
+			$info = $this->locateWindowAndSlot($action->windowId, $action->inventorySlot);
 			if($info === null){
 				continue;
 			}
 
 			[$window, $slot] = $info;
-			$this->addPredictedSlotChangeInternal($window, $slot, Fields::toItemStack($action->toItem));
+			$this->addPredictedSlotChangeInternal($window, $slot, $action->newItem->getItemStack());
 		}
 	}
 
@@ -402,7 +401,7 @@ class InventoryManager implements InventoryListener{
 					foreach($pks as $pk){
 						//Bedrock 1.21 requires ContainerClose packets to include the window type
 						if($pk instanceof ContainerOpenPacket){
-							$this->currentWindowType = $pk->containerType;
+							$this->currentWindowType = $pk->windowType;
 						}
 						$this->session->sendDataPacket($pk);
 						if($this->player->getCurrentWindow() !== $window){
@@ -421,13 +420,14 @@ class InventoryManager implements InventoryListener{
 	public function getContainerOpenCallbacks() : ObjectSet{ return $this->containerOpenCallbacks; }
 
 	/**
-	 * @return Packet[]|null
-	 * @phpstan-return list<Packet>|null
+	 * @return ClientboundPacket[]|null
+	 * @phpstan-return list<ClientboundPacket>|null
 	 */
 	protected static function createContainerOpen(int $id, InventoryWindow $window) : ?array{
 		//TODO: we should be using some kind of tagging system to identify the types. Instanceof is flaky especially
 		//if the class isn't final, not to mention being inflexible.
 		if($window instanceof BlockInventoryWindow){
+			$blockPosition = BlockPosition::fromVector3($window->getHolder());
 			$windowType = match(true){
 				$window instanceof LoomInventoryWindow => WindowTypes::LOOM,
 				$window instanceof FurnaceInventoryWindow => match($window->getFurnaceType()){
@@ -447,7 +447,7 @@ class InventoryManager implements InventoryListener{
 				$window instanceof SmithingTableInventoryWindow => WindowTypes::SMITHING_TABLE,
 				default => WindowTypes::CONTAINER
 			};
-			return [new ContainerOpenPacket(containerId: $id, containerType: $windowType, position: $window->getHolder()->floor(), targetActorId: -1)];
+			return [ContainerOpenPacket::blockInv($id, $windowType, $blockPosition)];
 		}
 		return null;
 	}
@@ -461,11 +461,10 @@ class InventoryManager implements InventoryListener{
 			$this->associateIdWithWindow($windowId, $window);
 			$this->currentWindowType = WindowTypes::INVENTORY;
 
-			$this->session->sendDataPacket(new ContainerOpenPacket(
-				containerId: $windowId,
-				containerType: $this->currentWindowType,
-				position: new Vector3(0, 0, 0),
-				targetActorId: $this->player->getId(),
+			$this->session->sendDataPacket(ContainerOpenPacket::entityInv(
+				$windowId,
+				$this->currentWindowType,
+				$this->player->getId()
 			));
 		});
 	}
@@ -478,12 +477,12 @@ class InventoryManager implements InventoryListener{
 			}
 			$this->pendingCloseWindowId = $this->lastInventoryNetworkId;
 			$this->enchantingTableOptions = [];
-			$this->session->sendDataPacket(new ContainerClosePacket(containerId: $this->lastInventoryNetworkId, containerType: $this->currentWindowType, serverInitiatedClose: true));
+			$this->session->sendDataPacket(ContainerClosePacket::create($this->lastInventoryNetworkId, $this->currentWindowType, true));
 		}
 	}
 
 	public function onClientRemoveWindow(int $id) : void{
-		if($id === ContainerIds::NONE){
+		if(Binary::signByte($id) === ContainerIds::NONE){ //TODO: REMOVE signByte() once BedrockProtocol + ext-encoding are implemented
 			//TODO: HACK! Since 1.21.100 (and probably earlier), the client will send -1 to close windows that it can't
 			//view for some reason, e.g. if the chat window was already open. This is pretty awkward, since it means
 			//that we can only assume it refers to the most recently sent window, and if we don't handle it,
@@ -503,7 +502,7 @@ class InventoryManager implements InventoryListener{
 
 		//Always send this, even if no window matches. If we told the client to close a window, it will behave as if it
 		//initiated the close and expect an ack.
-		$this->session->sendDataPacket(new ContainerClosePacket(containerId: $id, containerType: $this->currentWindowType, serverInitiatedClose: false));
+		$this->session->sendDataPacket(ContainerClosePacket::create($id, $this->currentWindowType, false));
 
 		if($this->pendingCloseWindowId === $id){
 			$this->pendingCloseWindowId = null;
@@ -594,21 +593,21 @@ class InventoryManager implements InventoryListener{
 		 * The network cost of doing this is fortunately minimal, as an air itemstack is only 1 byte.
 		 */
 		if($itemStackWrapper->getStackId() !== 0){
-			$this->session->sendDataPacket(new InventorySlotPacket(
-				containerId: $windowId,
-				slot: $netSlot,
-				fullContainerName: null,
-				storageItem: null,
-				item: Fields::itemStack(ItemStack::null()),
+			$this->session->sendDataPacket(InventorySlotPacket::create(
+				$windowId,
+				$netSlot,
+				null,
+				null,
+				new ItemStackWrapper(0, ItemStack::null())
 			));
 		}
 		//now send the real contents
-		$this->session->sendDataPacket(new InventorySlotPacket(
-			containerId: $windowId,
-			slot: $netSlot,
-			fullContainerName: null,
-			storageItem: null,
-			item: Fields::itemStackWrapper($itemStackWrapper),
+		$this->session->sendDataPacket(InventorySlotPacket::create(
+			$windowId,
+			$netSlot,
+			null,
+			null,
+			$itemStackWrapper
 		));
 	}
 
@@ -624,24 +623,14 @@ class InventoryManager implements InventoryListener{
 		 * cost performance. Instead, clear the slot(s) first, then send the new item(s).
 		 * The network cost of doing this is fortunately minimal, as an air itemstack is only 1 byte.
 		 */
-		$empty = Fields::itemStack(ItemStack::null());
-		$this->session->sendDataPacket(new InventoryContentPacket(
-			containerId: $windowId,
-			slots: array_fill(0, count($itemStackWrappers), $empty),
-			fullContainerName: new FullContainerName(containerName: 0),
-			storageItem: $empty,
+		$this->session->sendDataPacket(InventoryContentPacket::create(
+			$windowId,
+			array_fill_keys(array_keys($itemStackWrappers), new ItemStackWrapper(0, ItemStack::null())),
+			new FullContainerName(0, null),
+			new ItemStackWrapper(0, ItemStack::null())
 		));
 		//now send the real contents
-		$slots = [];
-		foreach($itemStackWrappers as $itemStackWrapper){
-			$slots[] = Fields::itemStackWrapper($itemStackWrapper);
-		}
-		$this->session->sendDataPacket(new InventoryContentPacket(
-			containerId: $windowId,
-			slots: $slots,
-			fullContainerName: new FullContainerName(containerName: 0),
-			storageItem: $empty,
-		));
+		$this->session->sendDataPacket(InventoryContentPacket::create($windowId, $itemStackWrappers, new FullContainerName(0, null), new ItemStackWrapper(0, ItemStack::null())));
 	}
 
 	public function onContentChange(Inventory $inventory, array $oldContents) : void{
@@ -767,7 +756,7 @@ class InventoryManager implements InventoryListener{
 		$window = $this->getInventoryWindow($inventory);
 		$windowId = $window !== null ? $this->getWindowId($window) : null;
 		if($windowId !== null){
-			$this->session->sendDataPacket(new ContainerSetDataPacket(containerId: $windowId, id: $propertyId, value: $value));
+			$this->session->sendDataPacket(ContainerSetDataPacket::create($windowId, $propertyId, $value));
 		}
 	}
 
@@ -787,12 +776,12 @@ class InventoryManager implements InventoryListener{
 				throw new AssumptionFailedError("Untracked player inventory slot $selected");
 			}
 
-			$this->session->sendDataPacket(new MobEquipmentPacket(
-				targetRuntimeId: $this->player->getId(),
-				item: Fields::itemStack($this->session->getTypeConverter()->coreItemStackToNet($this->player->getMainHandItem()), $itemStackInfo->getStackId()),
-				slot: $selected,
-				selectedSlot: $selected,
-				containerId: ContainerIds::INVENTORY,
+			$this->session->sendDataPacket(MobEquipmentPacket::create(
+				$this->player->getId(),
+				new ItemStackWrapper($itemStackInfo->getStackId(), $this->session->getTypeConverter()->coreItemStackToNet($this->player->getMainHandItem())),
+				$selected,
+				$selected,
+				ContainerIds::INVENTORY
 			));
 			$this->clientSelectedHotbarSlot = $selected;
 		}
@@ -814,21 +803,23 @@ class InventoryManager implements InventoryListener{
 			$optionId = $this->nextEnchantingTableOptionId++;
 			$this->enchantingTableOptions[$optionId] = $index;
 
-			$protocolEnchantments = [];
-			foreach($option->getEnchantments() as $enchantment){
-				$protocolEnchantments[] = new NetEnchantmentInstance(EnchantmentIdMap::getInstance()->toId($enchantment->getType()), $enchantment->getLevel());
-			}
-			// We don't pay attention to the slot flags, held activated enchantments and self activated enchantments
+			$protocolEnchantments = array_map(
+				fn(EnchantmentInstance $e) => new Enchant(EnchantmentIdMap::getInstance()->toId($e->getType()), $e->getLevel()),
+				$option->getEnchantments()
+			);
+			// We don't pay attention to the $slotFlags, $heldActivatedEnchantments and $selfActivatedEnchantments
 			// as everything works fine without them (perhaps these values are used somehow in the BDS).
-			$protocolOptions[] = new ItemEnchantOption(
-				cost: $option->getRequiredXpLevel(),
-				enchants: new ItemEnchants(slot: 0, itemEnchants: [$protocolEnchantments, [], []]),
-				enchantName: $option->getDisplayName(),
-				enchantNetId: $optionId,
+			$protocolOptions[] = new ProtocolEnchantOption(
+				$option->getRequiredXpLevel(),
+				0, $protocolEnchantments,
+				[],
+				[],
+				$option->getDisplayName(),
+				$optionId
 			);
 		}
 
-		$this->session->sendDataPacket(new PlayerEnchantOptionsPacket(options: $protocolOptions));
+		$this->session->sendDataPacket(PlayerEnchantOptionsPacket::create($protocolOptions));
 	}
 
 	public function getEnchantingTableOptionIndex(int $recipeId) : ?int{

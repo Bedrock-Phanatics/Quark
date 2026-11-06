@@ -14,6 +14,9 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
+use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use quark\block\Block;
 use quark\block\BlockIdentifier;
 use quark\block\BlockToolType;
@@ -36,9 +39,6 @@ use quark\item\StringToItemParser;
 use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\convert\BlockStateDictionaryEntry;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\types\CacheableNbt;
-use quark\network\mcpe\protocol\types\ItemTypeEntry;
-use quark\network\mcpe\protocol\types\ServerBlockProperty;
 use quark\plugin\Plugin;
 use quark\scheduler\AsyncPool;
 use quark\utils\Utils;
@@ -88,7 +88,7 @@ final class BlockRegistry{
 	private array $preserved = [];
 	/** @var array<string, array<string, array<string, true>>> */
 	private array $clientValues = [];
-	/** @var list<ServerBlockProperty> */
+	/** @var list<BlockPaletteEntry> */
 	private array $paletteEntries = [];
 	/** @var list<ItemTypeEntry> */
 	private array $itemEntries = [];
@@ -528,7 +528,7 @@ final class BlockRegistry{
 			[$nbt, $clientStates] = $this->pending[$name];
 			$nbt = clone $nbt;
 			$nbt->getCompoundTag("vanilla_block_data")?->setInt("block_id", $blockId);
-			$this->paletteEntries[] = new ServerBlockProperty(blockName: $name, blockDefinition: Nbt::write(new TreeRoot($nbt), Nbt::NETWORK));
+			$this->paletteEntries[] = new BlockPaletteEntry($name, new CacheableNbt($nbt));
 			$this->itemEntries[] = new ItemTypeEntry($name, 255 - $blockId, false, 2, new CacheableNbt(CompoundTag::create()));
 			foreach($clientStates as $meta => $states){
 				$custom[$name][] = new BlockStateDictionaryEntry($name, $states, $meta);
@@ -602,7 +602,7 @@ final class BlockRegistry{
 
 	/**
 	 * Block properties StartGame appends to the vanilla data-driven palette.
-	 * @return list<ServerBlockProperty>
+	 * @return list<BlockPaletteEntry>
 	 */
 	public function getPaletteEntries() : array{ return $this->paletteEntries; }
 

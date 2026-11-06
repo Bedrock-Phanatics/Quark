@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace quark\tools\benchmark_custom_items;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
 use quark\data\bedrock\item\ItemDeserializer;
 use quark\data\bedrock\item\ItemSerializer;
 use quark\inventory\CreativeInventory;
@@ -19,8 +20,6 @@ use quark\item\VanillaItems;
 use quark\network\mcpe\cache\CreativeInventoryCache;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
-use quark\network\mcpe\protocol\types\ItemData;
 use quark\plugin\Plugin;
 use quark\Server;
 use quark\world\format\io\GlobalBlockStateHandlers;
@@ -82,11 +81,7 @@ final class CustomItemBenchmark extends TestCase{
 		}
 		$results["registry_packet.cached"] = self::measure(static fn() => $converter->getItemRegistryPacket());
 		$results["registry_packet.rebuild_reference"] = self::measure(static function() use ($converter) : EncodedPacket{
-			$items = [];
-			foreach($converter->getItemTypeDictionary()->getEntries() as $entry){
-				$items[] = new ItemData($entry->getStringId(), $entry->getNumericId(), $entry->isComponentBased(), $entry->getVersion(), $entry->getComponentNbt()->getEncodedNbt());
-			}
-			return EncodedPacket::of(new ItemRegistryPacket($items));
+			return EncodedPacket::of(ItemRegistryPacket::create($converter->getItemTypeDictionary()->getEntries()));
 		}, 500);
 		$results["creative.prepare_cached"] = self::measure(static fn() => CreativeInventoryCache::getInstance()->prepare($creative));
 		$server = $this->createMock(Server::class);

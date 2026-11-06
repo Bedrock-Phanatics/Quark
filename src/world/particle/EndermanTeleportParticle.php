@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 
 class EndermanTeleportParticle implements Particle{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::event(LevelEvent::PARTICLE_ENDERMAN_TELEPORT, 0, $pos)];
+		return [LevelEventPacket::create(LevelEvent::PARTICLE_ENDERMAN_TELEPORT, 0, $pos)];
 	}
 }

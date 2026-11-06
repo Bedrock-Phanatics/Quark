@@ -23,28 +23,25 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use Bedwire\PacketId;
-use pocketmine\math\Vector2;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
+use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
+use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
+use pocketmine\network\mcpe\protocol\StartGamePacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\BoolGameRule;
+use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\protocol\types\Experiments;
+use pocketmine\network\mcpe\protocol\types\LevelSettings;
+use pocketmine\network\mcpe\protocol\types\NetworkPermissions;
+use pocketmine\network\mcpe\protocol\types\PlayerMovementSettings;
+use pocketmine\network\mcpe\protocol\types\ServerTelemetryData;
+use pocketmine\network\mcpe\protocol\types\SpawnSettings;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
-use quark\network\mcpe\protocol\packet\StartGamePacket;
-use quark\network\mcpe\protocol\ProtocolInfo;
-use quark\network\mcpe\protocol\types\DimensionIds;
-use quark\network\mcpe\protocol\types\EditorWorldType;
-use quark\network\mcpe\protocol\types\EducationSharedResourceURI;
-use quark\network\mcpe\protocol\types\EventsServerTelemetryData;
-use quark\network\mcpe\protocol\types\Experiments;
-use quark\network\mcpe\protocol\types\GameRule;
-use quark\network\mcpe\protocol\types\GeneratorType;
-use quark\network\mcpe\protocol\types\LevelSettings;
-use quark\network\mcpe\protocol\types\MultiplayerGameVisibility;
-use quark\network\mcpe\protocol\types\PlayerMovementSettings;
-use quark\network\mcpe\protocol\types\PlayerPermissions;
-use quark\network\mcpe\protocol\types\SpawnSettings;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
@@ -56,12 +53,9 @@ use function sprintf;
 /**
  * Handler used for the pre-spawn phase of the session.
  */
-#[SilentDiscard(PacketId::PLAYER_AUTH_INPUT, comment: "Spammed after StartGame even though player has no controls")]
-#[SilentDiscard(PacketId::SERVER_BOUND_LOADING_SCREEN, "Not needed")]
+#[SilentDiscard(PlayerAuthInputPacket::class, comment: "Spammed after StartGame even though player has no controls")]
+#[SilentDiscard(ServerboundLoadingScreenPacket::class, "Not needed")]
 class PreSpawnPacketHandler extends PacketHandler{
-	//an empty compound tag in the network NBT encoding
-	private const EMPTY_COMPOUND = "\x0a\x00\x00";
-
 	public function __construct(
 		private Server $server,
 		private Player $player,
@@ -85,88 +79,52 @@ class PreSpawnPacketHandler extends PacketHandler{
 			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getVoxelShapes());
 
 			$this->session->getLogger()->debug("Preparing StartGamePacket");
-			$disabledGameRule = fn(string $name) => new GameRule($name, false, ["bool" => false]);
-			$this->session->sendDataPacket(new StartGamePacket(
-				entityId: $this->player->getId(),
-				runtimeId: $this->player->getId(),
-				gameType: $typeConverter->coreGameModeToProtocol($this->player->getGamemode())->value,
-				position: $this->player->getOffsetPosition($location),
-				rotation: new Vector2($location->pitch, $location->yaw),
-				settings: new LevelSettings(
-					seed: -1,
-					spawnSettings: new SpawnSettings(spawnBiomeType: SpawnSettings::BIOME_TYPE_DEFAULT, userDefinedBiomeName: "", dimension: DimensionIds::OVERWORLD), //TODO: implement this properly
-					generatorType: GeneratorType::OVERWORLD,
-					gameType: $typeConverter->coreGameModeToProtocol($this->server->getGamemode())->value,
-					isHardcore: false,
-					gameDifficulty: $world->getDifficulty(),
-					defaultSpawnBlockPosition: $world->getSpawnLocation()->floor(),
-					achievementsDisabled: true,
-					editorWorldType: EditorWorldType::NON_EDITOR,
-					isCreatedInEditor: false,
-					isExportedFromEditor: false,
-					editorLevelMigrationVersion: 0, //legacy
-					dayCycleStopTime: NetworkSession::networkWorldTime($world->getTime()),
-					educationEditionOffer: 0,
-					educationFeaturesEnabled: true,
-					educationProductId: "",
-					rainLevel: $weather === Weather::CLEAR ? 0.0 : 1.0,
-					lightningLevel: $weather === Weather::THUNDER ? 1.0 : 0.0,
-					hasConfirmedPlatformLockedContent: false,
-					multiplayerGameIntent: true,
-					lanBroadcastIntent: true,
-					xboxLiveBroadcastSetting: MultiplayerGameVisibility::PUBLIC,
-					platformBroadcastSetting: MultiplayerGameVisibility::PUBLIC,
-					commandsEnabled: true,
-					texturePacksRequired: true,
-					ruleData: [
-						$disabledGameRule("naturalregeneration"), //Hack for client side regeneration
-						$disabledGameRule("locatorbar"), //Disable client-side tracking of nearby players
-					],
-					experiments: new Experiments(toggles: [], experimentsEverToggled: false),
-					hasBonusChestEnabled: false,
-					startWithMapEnabled: false,
-					playerPermissions: PlayerPermissions::MEMBER->value,
-					serverChunkTickRange: 4,
-					hasLockedBehaviorPack: false,
-					hasLockedResourcePack: false,
-					isFromLockedTemplate: false,
-					useMsaGamertagsOnly: false,
-					isFromWorldTemplate: false,
-					isWorldTemplateOptionLocked: false,
-					onlySpawnV1Villagers: false,
-					personaDisabled: false,
-					customSkinsDisabled: false,
-					emoteChatMuted: false,
-					baseGameVersion: ProtocolInfo::MINECRAFT_VERSION_NETWORK,
-					limitedWorldWidth: 0,
-					limitedWorldDepth: 0,
-					netherType: true,
-					eduSharedUriResource: new EducationSharedResourceURI(buttonName: "", linkUri: ""),
-					overrideForceExperimentalGameplay: null,
-					chatRestrictionLevel: 0,
-					disablePlayerInteractions: false,
-					serverEditorConnectionPolicy: 0,
-					allowAnonymousBlockDropsInEditorWorlds: false,
-				),
-				levelId: "",
-				levelName: $this->server->getMotd(),
-				templateContentIdentity: "",
-				isTrial: false,
-				movementSettings: new PlayerMovementSettings(rewindHistorySize: 0, serverAuthoritativeBlockBreaking: true),
-				levelCurrentTime: 0,
-				enchantmentSeed: 0,
-				blockProperties: StaticPacketCache::getInstance()->getBlockPaletteEntries(),
-				multiplayerCorrelationId: "",
-				enableItemStackNetManager: true,
-				serverVersion: sprintf("%s %s", VersionInfo::NAME, VersionInfo::VERSION()->getFullVersion(true)),
-				playerPropertyData: self::EMPTY_COMPOUND, //TODO: we don't care about this right now
-				serverBlockTypeRegistryChecksum: 0,
-				worldTemplateId: Fields::uuid(Uuid::fromString(Uuid::NIL)),
-				serverEnabledClientSideGeneration: false,
-				blockNetworkIdsAreHashes: false,
-				networkPermissions: true, //disables client sounds
-				serverConfigurationJoinInfo: null,
-				serverTelemetryData: new EventsServerTelemetryData(serverId: "", scenarioId: "", worldId: "", ownerId: ""),
+			$levelSettings = new LevelSettings();
+			$levelSettings->seed = -1;
+			$levelSettings->spawnSettings = new SpawnSettings(SpawnSettings::BIOME_TYPE_DEFAULT, "", DimensionIds::OVERWORLD); //TODO: implement this properly
+			$levelSettings->worldGamemode = $typeConverter->coreGameModeToProtocol($this->server->getGamemode());
+			$levelSettings->difficulty = $world->getDifficulty();
+			$levelSettings->spawnPosition = BlockPosition::fromVector3($world->getSpawnLocation());
+			$levelSettings->hasAchievementsDisabled = true;
+			$levelSettings->time = NetworkSession::networkWorldTime($world->getTime());
+			$levelSettings->eduEditionOffer = 0;
+			$levelSettings->hasEduFeaturesEnabled = true;
+			$levelSettings->rainLevel = $weather === Weather::CLEAR ? 0.0 : 1.0;
+			$levelSettings->lightningLevel = $weather === Weather::THUNDER ? 1.0 : 0.0;
+			$levelSettings->commandsEnabled = true;
+			$levelSettings->gameRules = [
+				"naturalregeneration" => new BoolGameRule(false, false), //Hack for client side regeneration
+				"locatorbar" => new BoolGameRule(false, false) //Disable client-side tracking of nearby players
+			];
+			$levelSettings->experiments = new Experiments([], false);
+
+			$this->session->sendDataPacket(StartGamePacket::create(
+				$this->player->getId(),
+				$this->player->getId(),
+				$typeConverter->coreGameModeToProtocol($this->player->getGamemode()),
+				$this->player->getOffsetPosition($location),
+				$location->pitch,
+				$location->yaw,
+				new CacheableNbt(CompoundTag::create()), //TODO: we don't care about this right now
+				$levelSettings,
+				"",
+				$this->server->getMotd(),
+				"",
+				false,
+				new PlayerMovementSettings(0, true),
+				0,
+				0,
+				"",
+				true,
+				sprintf("%s %s", VersionInfo::NAME, VersionInfo::VERSION()->getFullVersion(true)),
+				Uuid::fromString(Uuid::NIL),
+				false,
+				false,
+				new NetworkPermissions(disableClientSounds: true),
+				null,
+				new ServerTelemetryData("", "", "", ""),
+				StaticPacketCache::getInstance()->getBlockPaletteEntries(),
+				0,
 			));
 
 			$this->session->getLogger()->debug("Sending items");
@@ -218,7 +176,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 	}
 
 	public function handleRequestChunkRadius(RequestChunkRadiusPacket $packet) : bool{
-		$this->player->setViewDistance($packet->chunkRadius);
+		$this->player->setViewDistance($packet->radius);
 		//spawn chunks are what the client waits for, so they are requested now rather than on the next tick
 		$this->player->doChunkRequests();
 

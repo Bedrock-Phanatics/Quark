@@ -23,17 +23,57 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use Bedwire\PacketException;
-use Bedwire\PacketId;
-use Bedwire\Protocol;
-use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
+use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
+use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
+use pocketmine\network\mcpe\protocol\MovePlayerPacket;
+use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
+use pocketmine\network\mcpe\protocol\OpenSignPacket;
+use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\PacketPool;
+use pocketmine\network\mcpe\protocol\PlayerListPacket;
+use pocketmine\network\mcpe\protocol\PlayerStartItemCooldownPacket;
+use pocketmine\network\mcpe\protocol\PlayStatusPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketAssembler;
+use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
+use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
+use pocketmine\network\mcpe\protocol\SetDifficultyPacket;
+use pocketmine\network\mcpe\protocol\SetPlayerGameTypePacket;
+use pocketmine\network\mcpe\protocol\SetSpawnPositionPacket;
+use pocketmine\network\mcpe\protocol\SetTimePacket;
+use pocketmine\network\mcpe\protocol\SetTitlePacket;
+use pocketmine\network\mcpe\protocol\TextPacket;
+use pocketmine\network\mcpe\protocol\ToastRequestPacket;
+use pocketmine\network\mcpe\protocol\TransferPacket;
+use pocketmine\network\mcpe\protocol\types\AbilitiesData;
+use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\command\CommandData;
+use pocketmine\network\mcpe\protocol\types\command\CommandHardEnum;
+use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
+use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
+use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
+use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
+use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
+use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
 use pocketmine\utils\Limits;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
@@ -67,46 +107,6 @@ use quark\network\mcpe\handler\ResourcePacksPacketHandler;
 use quark\network\mcpe\handler\SessionStartPacketHandler;
 use quark\network\mcpe\handler\SpawnResponsePacketHandler;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\AvailableCommandsPacket;
-use quark\network\mcpe\protocol\packet\ChunkRadiusUpdatedPacket;
-use quark\network\mcpe\protocol\packet\ClientBoundCloseFormPacket;
-use quark\network\mcpe\protocol\packet\ClientStartItemCooldownPacket;
-use quark\network\mcpe\protocol\packet\DisconnectPacket;
-use quark\network\mcpe\protocol\packet\ModalFormRequestPacket;
-use quark\network\mcpe\protocol\packet\MovePlayerPacket;
-use quark\network\mcpe\protocol\packet\NetworkChunkPublisherUpdatePacket;
-use quark\network\mcpe\protocol\packet\OpenSignPacket;
-use quark\network\mcpe\protocol\packet\PlayerListPacket;
-use quark\network\mcpe\protocol\packet\PlayStatusPacket;
-use quark\network\mcpe\protocol\packet\ServerToClientHandshakePacket;
-use quark\network\mcpe\protocol\packet\SetDifficultyPacket;
-use quark\network\mcpe\protocol\packet\SetPlayerGameTypePacket;
-use quark\network\mcpe\protocol\packet\SetSpawnPositionPacket;
-use quark\network\mcpe\protocol\packet\SetTimePacket;
-use quark\network\mcpe\protocol\packet\SetTitlePacket;
-use quark\network\mcpe\protocol\packet\ToastRequestPacket;
-use quark\network\mcpe\protocol\packet\TransferPacket;
-use quark\network\mcpe\protocol\packet\UpdateAbilitiesPacket;
-use quark\network\mcpe\protocol\packet\UpdateAdventureSettingsPacket;
-use quark\network\mcpe\protocol\PacketDecodeException;
-use quark\network\mcpe\protocol\Packets;
-use quark\network\mcpe\protocol\ProtocolClasses;
-use quark\network\mcpe\protocol\TextPackets;
-use quark\network\mcpe\protocol\types\AbilitiesData;
-use quark\network\mcpe\protocol\types\AbilitiesLayer;
-use quark\network\mcpe\protocol\types\Command;
-use quark\network\mcpe\protocol\types\command\CommandPermissions;
-use quark\network\mcpe\protocol\types\CommandEnum;
-use quark\network\mcpe\protocol\types\CommandOverload;
-use quark\network\mcpe\protocol\types\CommandParameter;
-use quark\network\mcpe\protocol\types\CompressionAlgorithm;
-use quark\network\mcpe\protocol\types\DimensionIds;
-use quark\network\mcpe\protocol\types\DisconnectMessagesData;
-use quark\network\mcpe\protocol\types\MovePlayerTeleportData;
-use quark\network\mcpe\protocol\types\PlayerPermissions;
 use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
 use quark\network\TransportIdentityException;
@@ -166,20 +166,17 @@ class NetworkSession{
 
 	private const int INCOMING_PACKET_BATCH_HARD_LIMIT = 300;
 
-	/**
-	 * Array entries one received packet may decode into. Vanilla packets stay far below this, and it keeps a packet
-	 * full of tiny list elements from expanding into hundreds of megabytes of arrays.
-	 */
-	private const int MAX_DECODED_VALUES = 65536;
 	private const int PLAYER_LIST_ENTRIES_PER_PACKET = 100;
-	private const int MAX_COMMAND_TEXT_BYTES = 1000;
-
-	private const array PRE_LOGIN_PACKETS = [
-		PacketId::NETWORK_SETTINGS => true,
-		PacketId::PLAY_STATUS => true,
-		PacketId::SERVER_TO_CLIENT_HANDSHAKE => true,
-		PacketId::DISCONNECT => true,
+	/**
+	 * Packets that decode into trees or long lists before any handler can check them, capped so a small packet can't
+	 * expand into a lot of memory. Sign edits are a few strings in two compounds, the others stay far below their caps.
+	 */
+	private const array MAX_PACKET_BYTES = [
+		ProtocolInfo::BLOCK_ACTOR_DATA_PACKET => 16 * 1024,
+		ProtocolInfo::PLAYER_AUTH_INPUT_PACKET => 128 * 1024,
+		ProtocolInfo::ITEM_STACK_REQUEST_PACKET => 256 * 1024,
 	];
+	private const int MAX_COMMAND_TEXT_BYTES = 1000;
 
 	private PacketRateLimiter $packetBatchLimiter;
 	private PacketRateLimiter $gamePacketLimiter;
@@ -192,11 +189,9 @@ class NetworkSession{
 	private ?PacketHandler $handler = null;
 	/**
 	 * @var PacketHandlerAction[]|null
-	 * @phpstan-var array<int, PacketHandlerAction>|null
+	 * @phpstan-var array<class-string<Packet>, PacketHandlerAction>|null
 	 */
 	private ?array $handlerActions = null;
-	/** @phpstan-var array<int, \Closure(Packet) : bool> */
-	private array $handlerMethods = [];
 
 	private bool $connected = true;
 	private bool $disconnectGuard = false;
@@ -208,9 +203,9 @@ class NetworkSession{
 	private ?EncryptionContext $cipher = null;
 
 	/**
-	 * Packets waiting for the next flush, as Bedwire\Protocol::encodeBatch() takes them.
+	 * Encoded packets waiting for the next flush.
 	 *
-	 * @phpstan-var list<Packet|string>
+	 * @phpstan-var list<string>
 	 */
 	private array $sendBuffer = [];
 	/**
@@ -273,8 +268,8 @@ class NetworkSession{
 	private function recordRawPacketSecurityEvent(string $buffer, string $reason, ?int $observed = null, ?int $limit = null) : void{
 		if($this->getPulseNetwork() === null){ return; }
 		try{
-			$id = Protocol::packetId($buffer);
-		}catch(PacketException){
+			$id = EncodedPacket::idOf($buffer);
+		}catch(PacketDecodeException){
 			$id = null;
 		}
 		$this->recordNetworkSecurityEvent($reason, "reject_batch", $id, $observed, $limit);
@@ -474,12 +469,8 @@ class NetworkSession{
 			};
 			$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase);
 			$this->handler = $handler;
-			$this->handlerMethods = [];
 			if($this->handler !== null){
-				[$this->handlerActions, $methods] = PacketHandlerInspector::inspect($this->handler);
-				foreach($methods as $id => $method){
-					$this->handlerMethods[$id] = new \ReflectionMethod($this->handler, $method)->getClosure($this->handler);
-				}
+				$this->handlerActions = PacketHandlerInspector::getHandlerActions($this->handler);
 				$this->handler->setUp();
 			}else{
 				$this->handlerActions = null;
@@ -603,7 +594,7 @@ class NetworkSession{
 	private function handleBatchBuffers(iterable $buffers, ?PulseNetwork $network, ?int $window, ?int $packetLimit) : void{
 		$count = 0;
 		$recording = Pulse::isRecording();
-		ProtocolClasses::bind();
+		$pool = PacketPool::getInstance();
 		try{
 			foreach($buffers as $buffer){
 				if($packetLimit !== null && ++$count >= $packetLimit){
@@ -628,15 +619,16 @@ class NetworkSession{
 					throw $e;
 				}
 				try{
-					$packetId = Protocol::packetId($buffer);
-				}catch(PacketException $e){
+					$packetId = EncodedPacket::idOf($buffer);
+				}catch(PacketDecodeException $e){
 					if($network !== null && $window !== null){
 						$network->count($window, PulseNetwork::PACKETS);
 						$network->count($window, PulseNetwork::DECODE_FAILED);
 					}
 					throw $e;
 				}
-				if(!isset(Packets::HANDLERS[$packetId]) && Protocol::name($packetId) === null){
+				$packet = $pool->getPacketById($packetId);
+				if($packet === null){
 					if($network !== null && $window !== null){
 						$network->count($window, PulseNetwork::PACKETS);
 						$network->count($window, PulseNetwork::DECODE_FAILED);
@@ -646,10 +638,10 @@ class NetworkSession{
 					throw new PacketHandlingException("Unknown packet received");
 				}
 				try{
-					$this->handlePacket($packetId, $buffer, $network, $window, $recording);
+					$this->handlePacket($packet, $packetId, $buffer, $network, $window, $recording);
 				}catch(PacketHandlingException $e){
-					$this->unhandledPacketDebug($packetId, $buffer, "Packet processing error");
-					throw PacketHandlingException::wrap($e, "Error processing " . Protocol::name($packetId));
+					$this->unhandledPacketDebug($packet, $buffer, "Packet processing error");
+					throw PacketHandlingException::wrap($e, "Error processing " . $packet->getName());
 				}catch(FilterNoisyPacketException){
 					$this->noisyPacketBuffer = $buffer;
 				}
@@ -659,7 +651,7 @@ class NetworkSession{
 					break;
 				}
 			}
-		}catch(PacketException|DataDecodeException|PacketDecodeException $e){
+		}catch(DataDecodeException|PacketDecodeException $e){
 			$this->recordNetworkSecurityEvent("batch.malformed", "reject_batch");
 			$this->logger->logException($e);
 			throw PacketHandlingException::wrap($e, "Packet batch decode error");
@@ -691,27 +683,35 @@ class NetworkSession{
 		}
 	}
 
-	private function unhandledPacketDebug(int $packetId, string $buffer, string $label) : void{
-		$this->logger->debug($label . ": " . Protocol::name($packetId) . " (" . Utils::printablePacketBuffer($buffer) . ")");
+	private function unhandledPacketDebug(Packet $packet, string $buffer, string $label) : void{
+		$this->logger->debug($label . ": " . $packet->getName() . " (" . Utils::printablePacketBuffer($buffer) . ")");
 	}
 
 	/**
+	 * Handles one encoded packet outside of a batch.
+	 *
 	 * @throws PacketHandlingException
 	 * @throws FilterNoisyPacketException
 	 */
-	public function handleDataPacket(int $packetId, string $buffer) : void{
-		ProtocolClasses::bind();
+	public function handleDataPacket(string $buffer) : void{
+		try{
+			$packetId = EncodedPacket::idOf($buffer);
+		}catch(PacketDecodeException $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		$packet = PacketPool::getInstance()->getPacketById($packetId) ?? throw new PacketHandlingException("Unknown packet received");
 		$network = $this->getPulseNetwork();
-		$this->handlePacket($packetId, $buffer, $network, $network?->window($this->pulseSessionId), Pulse::isRecording());
+		$this->handlePacket($packet, $packetId, $buffer, $network, $network?->window($this->pulseSessionId), Pulse::isRecording());
 	}
 
 	/**
+	 * @param Packet $packet an undecoded packet of the buffer's type, which is decoded only if it is handled
 	 * @throws PacketHandlingException
 	 * @throws FilterNoisyPacketException
 	 */
-	private function handlePacket(int $packetId, string $buffer, ?PulseNetwork $network, ?int $window, bool $recording) : void{
+	private function handlePacket(Packet $packet, int $packetId, string $buffer, ?PulseNetwork $network, ?int $window, bool $recording) : void{
 		if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
-		if(!isset(Packets::HANDLERS[$packetId])){
+		if(!$packet instanceof ServerboundPacket){
 			$this->recordNetworkSecurityEvent("packet.direction", "reject_batch", $packetId);
 			throw new PacketHandlingException("Unexpected non-serverbound packet");
 		}
@@ -722,7 +722,7 @@ class NetworkSession{
 		$workToken = 0;
 
 		try{
-			$handlerAction = $this->handlerActions[$packetId] ?? PacketHandlerAction::DISCARD_WITH_DEBUG;
+			$handlerAction = $this->handlerActions[$packet::class] ?? PacketHandlerAction::DISCARD_WITH_DEBUG;
 			$hasDecodeHandlers = DataPacketDecodeEvent::hasHandlers();
 			$workToken = $work?->enter($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase, $packetId, Pulse::getNetworkTickId(), $hasDecodeHandlers ? PulseNetworkWork::DECODE_EVENT : ($handlerAction === PacketHandlerAction::HANDLED ? PulseNetworkWork::DECODE : PulseNetworkWork::PACKET_STATE)) ?? 0;
 			if($hasDecodeHandlers){
@@ -742,29 +742,37 @@ class NetworkSession{
 				}
 			}
 
-			if($handlerAction !== PacketHandlerAction::HANDLED){
+			$handler = $this->handler;
+			if($handlerAction !== PacketHandlerAction::HANDLED || $handler === null){
 				if($handlerAction === PacketHandlerAction::DISCARD_WITH_DEBUG){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::STATE_DROPPED); }
 					$this->recordNetworkSecurityEvent("packet.state", "drop_packet", $packetId);
-					$this->unhandledPacketDebug($packetId, $buffer, "Discarded without decoding");
+					$this->unhandledPacketDebug($packet, $buffer, "Discarded without decoding");
 				}
 				return;
+			}
+
+			$maxBytes = self::MAX_PACKET_BYTES[$packetId] ?? null;
+			if($maxBytes !== null && strlen($buffer) > $maxBytes){
+				$this->recordNetworkSecurityEvent("packet.size", "reject_batch", $packetId, strlen($buffer), $maxBytes);
+				throw PacketHandlingException::limit($packet->getName() . " is too large", strlen($buffer), $maxBytes);
 			}
 
 			$decodeZone = $recording ? PulseZones::getDecodeDataPacketZone($packetId) : null;
 			$decodeZoneScope = $decodeZone?->start() ?? 0;
 			try{
 				$work?->stage($workToken, PulseNetworkWork::DECODE);
+				$stream = new ByteBufferReader($buffer);
 				try{
-					$packet = Protocol::decode($buffer, self::MAX_DECODED_VALUES);
-					if(!$packet instanceof Packet){
-						throw new PacketException("Unknown packet ID");
-					}
-					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
-				}catch(PacketException $e){
+					$packet->decode($stream);
+				}catch(PacketDecodeException $e){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODE_FAILED); }
 					$this->recordNetworkSecurityEvent("packet.malformed", "reject_batch", $packetId, $e->observed, $e->limit);
 					throw PacketHandlingException::wrap($e);
+				}
+				if($network !== null && $window !== null){ $network->count($window, PulseNetwork::DECODED); }
+				if($stream->getUnreadLength() > 0){
+					$this->logger->debug("Still " . $stream->getUnreadLength() . " bytes unread in " . $packet->getName());
 				}
 			}finally{
 				$decodeZone?->stop($decodeZoneScope);
@@ -783,11 +791,10 @@ class NetworkSession{
 			$handlerZoneScope = $handlerZone?->start() ?? 0;
 			try{
 				$work?->stage($workToken, PulseNetworkWork::HANDLE);
-				$method = $this->handlerMethods[$packetId] ?? null;
-				if($method === null || !$method($packet)){
+				if(!$packet->handle($handler)){
 					if($network !== null && $window !== null){ $network->count($window, PulseNetwork::STATE_DROPPED); }
 					$this->recordNetworkSecurityEvent("packet.state", "drop_packet", $packetId);
-					$this->unhandledPacketDebug($packetId, $buffer, "Handler rejected");
+					$this->unhandledPacketDebug($packet, $buffer, "Handler rejected");
 				}
 			}catch(PacketHandlingException $e){
 				$this->recordNetworkSecurityEvent("packet.handler_validation", "reject_batch", $packetId, $e->observed, $e->limit);
@@ -817,14 +824,14 @@ class NetworkSession{
 	/**
 	 * @phpstan-param PromiseResolver<true>|null $ackReceiptResolver
 	 */
-	private function sendDataPacketInternal(Packet|EncodedPacket $packet, bool $immediate, ?PromiseResolver $ackReceiptResolver) : bool{
+	private function sendDataPacketInternal(ClientboundPacket|EncodedPacket $packet, bool $immediate, ?PromiseResolver $ackReceiptResolver) : bool{
 		if(!$this->connected){
 			return false;
 		}
 		$packets = [$packet];
 		$this->checkSendable($packets);
 
-		$pulse = PulseZones::getSendDataPacketZone($packet->getId());
+		$pulse = PulseZones::getSendDataPacketZone($packet instanceof EncodedPacket ? $packet->getId() : $packet->pid());
 		$scope = $pulse->start();
 		try{
 			if(DataPacketSendEvent::hasHandlers()){
@@ -836,7 +843,7 @@ class NetworkSession{
 				//a plugin may have swapped the packets, so check them again
 				$this->addToSendBuffer($ev->getPackets());
 			}else{
-				$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : $packet;
+				$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : self::encodePacket($packet);
 			}
 			if($ackReceiptResolver !== null){
 				$this->sendBufferAckPromises[] = $ackReceiptResolver;
@@ -852,16 +859,16 @@ class NetworkSession{
 	}
 
 	/**
-	 * Queues a packet, which is encoded with the rest of the session's packets when they are flushed.
+	 * Queues a packet, which is sent with the rest of the session's packets when they are flushed.
 	 */
-	public function sendDataPacket(Packet|EncodedPacket $packet, bool $immediate = false) : bool{
+	public function sendDataPacket(ClientboundPacket|EncodedPacket $packet, bool $immediate = false) : bool{
 		return $this->sendDataPacketInternal($packet, $immediate, null);
 	}
 
 	/**
 	 * @phpstan-return Promise<true>
 	 */
-	public function sendDataPacketWithReceipt(Packet|EncodedPacket $packet, bool $immediate = false) : Promise{
+	public function sendDataPacketWithReceipt(ClientboundPacket|EncodedPacket $packet, bool $immediate = false) : Promise{
 		/** @phpstan-var PromiseResolver<true> $resolver */
 		$resolver = new PromiseResolver();
 
@@ -874,30 +881,38 @@ class NetworkSession{
 
 	/**
 	 * @internal
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	public function checkSendable(array $packets) : void{
 		foreach($packets as $packet){
-			$packetId = $packet->getId();
-			if(!isset(Packets::CLIENTBOUND[$packetId])){
+			if($packet instanceof EncodedPacket && !EncodedPacket::isClientbound($packet->getId())){
 				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
 			}
-			if(!$this->loggedIn && !isset(self::PRE_LOGIN_PACKETS[$packetId])){
+			if(!$this->loggedIn && !self::canBeSentBeforeLogin($packet)){
 				throw new \InvalidArgumentException("Attempted to send " . $packet->getName() . " to " . $this->getDisplayName() . " too early");
 			}
 		}
 	}
 
+	private static function canBeSentBeforeLogin(ClientboundPacket|EncodedPacket $packet) : bool{
+		if($packet instanceof ClientboundPacket){
+			return $packet->canBeSentBeforeLogin();
+		}
+		static $allowed = [];
+		$id = $packet->getId();
+		return $allowed[$id] ??= PacketPool::getInstance()->getPacketById($id)?->canBeSentBeforeLogin() ?? false;
+	}
+
 	/**
 	 * @internal Queues packets the broadcaster already fired events for.
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	public function addToSendBuffer(array $packets) : void{
 		$this->checkSendable($packets);
 		foreach($packets as $packet){
-			$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : $packet;
+			$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : self::encodePacket($packet);
 		}
 	}
 
@@ -916,34 +931,25 @@ class NetworkSession{
 		}
 	}
 
-	/**
-	 * Encodes queued packets into one batch body with a single native call.
-	 *
-	 * @phpstan-param list<Packet|string> $packets
-	 * @throws \ValueError naming the first packet whose fields do not fit it
-	 * @throws \TypeError
-	 */
-	public static function encodeBatch(array $packets) : string{
-		ProtocolClasses::bind();
+	private static function encodePacket(ClientboundPacket $packet) : string{
 		$scope = PulseZones::$playerNetworkSendEncode->start();
 		try{
-			return Protocol::encodeBatch($packets);
-		}catch(\ValueError|\TypeError $e){
-			//find the culprit, so a bad packet is reported where it was built instead of as an anonymous batch
-			foreach($packets as $packet){
-				if(is_string($packet)){
-					continue;
-				}
-				try{
-					Protocol::encode($packet->getId(), $packet);
-				}catch(\ValueError|\TypeError $inner){
-					throw new \ValueError("Invalid " . $packet->getName() . " packet: " . $inner->getMessage(), 0, $inner);
-				}
-			}
-			throw $e;
+			return EncodedPacket::encode($packet);
 		}finally{
 			PulseZones::$playerNetworkSendEncode->stop($scope);
 		}
+	}
+
+	/**
+	 * Joins encoded packets into one batch body, each behind its varint length.
+	 *
+	 * @param string[] $packets
+	 * @phpstan-param list<string> $packets
+	 */
+	public static function encodeBatch(array $packets) : string{
+		$out = new ByteBufferWriter();
+		PacketBatch::encodeRaw($out, $packets);
+		return $out->getData();
 	}
 
 	/**
@@ -964,44 +970,21 @@ class NetworkSession{
 					$syncMode = false;
 				}
 
-				$packets = $this->sendBuffer;
+				$batch = self::encodeBatch($this->sendBuffer);
 				$this->sendBuffer = [];
 				$ackPromises = $this->sendBufferAckPromises;
 				$this->sendBufferAckPromises = [];
 				if($this->sender instanceof NativeBatchPacketSender && $this->compressedQueue->isEmpty()){
-					ProtocolClasses::bind();
-					$encodeScope = PulseZones::$playerNetworkSendEncode->start();
-					try{
-						$sent = $this->sender->sendPackets($packets);
-					}finally{
-						PulseZones::$playerNetworkSendEncode->stop($encodeScope);
+					$this->sender->sendBatch($batch, 0);
+					//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
+					foreach($ackPromises as $promise){
+						$promise->resolve(true);
 					}
-					if($sent){
-						//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
-						foreach($ackPromises as $promise){
-							$promise->resolve(true);
-						}
-						return;
-					}
-				}
-				try{
-					$encoded = self::encodeBatch($packets);
-				}catch(\ValueError|\TypeError $e){
-					foreach($ackPromises as $resolver){
-						$resolver->reject();
-					}
-					$this->logger->logException($e);
-					$this->disconnectWithError(
-						reason: "Failed to encode packets: " . $e->getMessage(),
-						disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
-					);
 					return;
 				}
 
 				if($this->enableCompression){
-					$batch = $this->server->prepareBatch($encoded, $this->compressor, $syncMode, PulseZones::$playerNetworkSendCompressSessionBuffer);
-				}else{
-					$batch = $encoded;
+					$batch = $this->server->prepareBatch($batch, $this->compressor, $syncMode, PulseZones::$playerNetworkSendCompressSessionBuffer);
 				}
 				//these packets were already potentially buffered for up to 50ms - make sure the transport layer doesn't
 				//delay them any longer
@@ -1209,7 +1192,7 @@ class NetworkSession{
 		}else{
 			$translated = $message;
 		}
-		$this->sendDataPacket(new DisconnectPacket(reason: 0, messages: ["messages" => new DisconnectMessagesData(message: $translated, filteredMessage: "")]));
+		$this->sendDataPacket(DisconnectPacket::create(0, $translated, ""));
 	}
 
 	/**
@@ -1241,7 +1224,7 @@ class NetworkSession{
 	public function disconnectIncompatibleProtocol(int $protocolVersion) : void{
 		$this->tryDisconnect(
 			function() use ($protocolVersion) : void{
-				$this->sendDataPacket(new PlayStatusPacket(status: $protocolVersion < Protocol::VERSION ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER), true);
+				$this->sendDataPacket(PlayStatusPacket::create($protocolVersion < ProtocolInfo::CURRENT_PROTOCOL ? PlayStatusPacket::LOGIN_FAILED_CLIENT : PlayStatusPacket::LOGIN_FAILED_SERVER), true);
 			},
 			KnownTranslationFactory::quark_disconnect_incompatibleProtocol((string) $protocolVersion)
 		);
@@ -1253,7 +1236,7 @@ class NetworkSession{
 	public function transfer(string $ip, int $port, Translatable|string|null $reason = null) : void{
 		$reason ??= KnownTranslationFactory::quark_disconnect_transfer();
 		$this->tryDisconnect(function() use ($ip, $port, $reason) : void{
-			$this->sendDataPacket(new TransferPacket(serverAddress: $ip, serverPort: $port, reloadWorld: false), true);
+			$this->sendDataPacket(TransferPacket::create($ip, $port, false, null), true);
 			if($this->player !== null){
 				$this->player->onPostDisconnect($reason, null);
 			}
@@ -1406,7 +1389,7 @@ class NetworkSession{
 				if(!$this->connected){
 					return;
 				}
-				$this->sendDataPacket(new ServerToClientHandshakePacket(handshakeWebToken: $handshakeJwt), true); //make sure this gets sent before encryption is enabled
+				$this->sendDataPacket(ServerToClientHandshakePacket::create($handshakeJwt), true); //make sure this gets sent before encryption is enabled
 
 				$this->cipher = EncryptionContext::fakeGCM($encryptionKey);
 
@@ -1421,7 +1404,7 @@ class NetworkSession{
 	private function onServerLoginSuccess() : void{
 		$this->loggedIn = true;
 
-		$this->sendDataPacket(new PlayStatusPacket(status: PlayStatusPacket::LOGIN_SUCCESS));
+		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::LOGIN_SUCCESS));
 
 		$this->logger->debug("Initiating resource packs phase");
 
@@ -1450,7 +1433,7 @@ class NetworkSession{
 
 	public function notifyTerrainReady() : void{
 		$this->logger->debug("Sending spawn notification, waiting for spawn response");
-		$this->sendDataPacket(new PlayStatusPacket(status: PlayStatusPacket::PLAYER_SPAWN));
+		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
 		$this->setHandler(new SpawnResponsePacketHandler($this->onClientSpawnResponse(...)));
 	}
 
@@ -1484,16 +1467,16 @@ class NetworkSession{
 			$yaw = $yaw ?? $location->getYaw();
 			$pitch = $pitch ?? $location->getPitch();
 
-			$this->sendDataPacket(new MovePlayerPacket(
-				playerRuntimeId: $this->player->getId(),
-				position: $this->player->getOffsetPosition($pos),
-				rotation: new Vector2($pitch, $yaw),
-				yHeadRotation: $yaw, //TODO: head yaw
-				positionMode: $mode,
-				onGround: $this->player->onGround,
-				ridingRuntimeId: 0, //TODO: riding entity ID
-				teleportData: $mode === MovePlayerPacket::MODE_TELEPORT ? new MovePlayerTeleportData(teleportationCause: 0, sourceActorType: 0) : null,
-				tick: 0, //TODO: tick
+			$this->sendDataPacket(MovePlayerPacket::simple(
+				$this->player->getId(),
+				$this->player->getOffsetPosition($pos),
+				$pitch,
+				$yaw,
+				$yaw, //TODO: head yaw
+				$mode,
+				$this->player->onGround,
+				0, //TODO: riding entity ID
+				0 //TODO: tick
 			));
 
 			if($this->handler instanceof InGamePacketHandler){
@@ -1503,39 +1486,25 @@ class NetworkSession{
 	}
 
 	public function syncViewAreaRadius(int $distance) : void{
-		$this->sendDataPacket(new ChunkRadiusUpdatedPacket(chunkRadius: $distance));
+		$this->sendDataPacket(ChunkRadiusUpdatedPacket::create($distance));
 	}
 
 	public function syncViewAreaCenterPoint(Vector3 $newPos, int $viewDistance) : void{
-		$this->sendDataPacket(new NetworkChunkPublisherUpdatePacket(
-			newPositionForView: $newPos->floor(),
-			newRadiusForView: $viewDistance * 16, //blocks, not chunks >.>
-			serverBuiltChunksList: [],
-		));
+		$this->sendDataPacket(NetworkChunkPublisherUpdatePacket::create(BlockPosition::fromVector3($newPos), $viewDistance * 16, [])); //blocks, not chunks >.>
 	}
 
 	public function syncPlayerSpawnPoint(Position $newSpawn) : void{
-		$newSpawnBlockPosition = $newSpawn->floor();
+		$newSpawnBlockPosition = BlockPosition::fromVector3($newSpawn);
 		//TODO: respawn causing block position (bed, respawn anchor)
-		$this->sendDataPacket(new SetSpawnPositionPacket(
-			spawnPositionType: SetSpawnPositionPacket::TYPE_PLAYER_SPAWN,
-			blockPosition: $newSpawnBlockPosition,
-			dimensionType: DimensionIds::OVERWORLD,
-			spawnBlockPos: $newSpawnBlockPosition,
-		));
+		$this->sendDataPacket(SetSpawnPositionPacket::playerSpawn($newSpawnBlockPosition, DimensionIds::OVERWORLD, $newSpawnBlockPosition));
 	}
 
 	public function syncWorldSpawnPoint(Position $newSpawn) : void{
-		$this->sendDataPacket(new SetSpawnPositionPacket(
-			spawnPositionType: SetSpawnPositionPacket::TYPE_WORLD_SPAWN,
-			blockPosition: $newSpawn->floor(),
-			dimensionType: DimensionIds::OVERWORLD,
-			spawnBlockPos: new Vector3(Limits::INT32_MIN, Limits::INT32_MIN, Limits::INT32_MIN),
-		));
+		$this->sendDataPacket(SetSpawnPositionPacket::worldSpawn(BlockPosition::fromVector3($newSpawn), DimensionIds::OVERWORLD));
 	}
 
 	public function syncGameMode(GameMode $mode, bool $isRollback = false) : void{
-		$this->sendDataPacket(new SetPlayerGameTypePacket(playerGameType: $this->typeConverter->coreGameModeToProtocol($mode)->value));
+		$this->sendDataPacket(SetPlayerGameTypePacket::create($this->typeConverter->coreGameModeToProtocol($mode)));
 		if($this->player !== null){
 			$this->syncAbilities($this->player);
 			$this->syncAdventureSettings(); //TODO: we might be able to do this with the abilities packet alone
@@ -1583,12 +1552,12 @@ class NetworkSession{
 			], null, null, null);
 		}
 
-		$this->sendDataPacket(new UpdateAbilitiesPacket(data: Fields::abilities(new AbilitiesData(
+		$this->sendDataPacket(UpdateAbilitiesPacket::create(new AbilitiesData(
 			$isOp ? CommandPermissions::OPERATOR : CommandPermissions::NORMAL,
 			$isOp ? PlayerPermissions::OPERATOR : PlayerPermissions::MEMBER,
 			$for->getId(),
 			$layers
-		))));
+		)));
 	}
 
 	public function syncAdventureSettings() : void{
@@ -1596,79 +1565,51 @@ class NetworkSession{
 			throw new \LogicException("Cannot sync adventure settings for a player that is not yet created");
 		}
 		//everything except auto jump is handled via UpdateAbilitiesPacket
-		$this->sendDataPacket(new UpdateAdventureSettingsPacket(
-			noPvM: false,
-			noMvP: false,
-			immutableWorld: false,
+		$this->sendDataPacket(UpdateAdventureSettingsPacket::create(
+			noAttackingMobs: false,
+			noAttackingPlayers: false,
+			worldImmutable: false,
 			showNameTags: true,
-			autoJump: $this->player->hasAutoJump(),
+			autoJump: $this->player->hasAutoJump()
 		));
 	}
 
 	public function syncAvailableCommands() : void{
-		//every command has one free-form overload, plus an enum of its aliases if it has any
-		$enumValues = [];
-		$enumValueIndexes = [];
-		$enums = [];
-		$commands = [];
+		$commandData = [];
 		foreach($this->server->getCommandMap()->getCommands() as $command){
-			if(isset($commands[$command->getLabel()]) || $command->getLabel() === "help" || strlen($command->getLabel()) > self::MAX_COMMAND_TEXT_BYTES || !$command->testPermissionSilent($this->player)){
+			if(isset($commandData[$command->getLabel()]) || $command->getLabel() === "help" || strlen($command->getLabel()) > self::MAX_COMMAND_TEXT_BYTES || !$command->testPermissionSilent($this->player)){
 				continue;
 			}
 
 			$lname = strtolower($command->getLabel());
 			$aliases = $command->getAliases();
-			$aliasEnum = -1;
+			$aliasObj = null;
 			if(count($aliases) > 0){
 				if(!in_array($lname, $aliases, true)){
 					//work around a client bug which makes the original name not show when aliases are used
 					$aliases[] = $lname;
 				}
-				$valueIndexes = [];
-				foreach($aliases as $alias){
-					if(!isset($enumValueIndexes[$alias])){
-						$enumValueIndexes[$alias] = count($enumValues);
-						$enumValues[] = $alias;
-					}
-					$valueIndexes[] = $enumValueIndexes[$alias];
-				}
-				$aliasEnum = count($enums);
-				$enums[] = new CommandEnum(name: ucfirst($command->getLabel()) . "Aliases", values: $valueIndexes);
+				$aliasObj = new CommandHardEnum(ucfirst($command->getLabel()) . "Aliases", $aliases);
 			}
 
 			$description = $command->getDescription();
 			if($description instanceof Translatable){
 				$description = $this->player->getLanguage()->translate($description);
 			}
-			$commands[$command->getLabel()] = new Command(
-				name: $lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
-				description: strlen($description) > self::MAX_COMMAND_TEXT_BYTES ? mb_strcut($description, 0, self::MAX_COMMAND_TEXT_BYTES, "UTF-8") : $description,
-				flags: 0,
-				permissionLevel: CommandPermissions::NORMAL->value,
-				aliasEnum: $aliasEnum,
-				commandDataChainedSubcommandIndexes: [],
-				overloads: [new CommandOverload(
-					isChaining: false,
-					parameterData: [new CommandParameter(
-						name: "args",
-						parseSymbol: AvailableCommandsPacket::ARG_FLAG_VALID | AvailableCommandsPacket::ARG_TYPE_RAWTEXT,
-						isOptional: true,
-						options: 0,
-					)],
-				)],
+			$commandData[$command->getLabel()] = new CommandData(
+				$lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
+				strlen($description) > self::MAX_COMMAND_TEXT_BYTES ? mb_strcut($description, 0, self::MAX_COMMAND_TEXT_BYTES, "UTF-8") : $description,
+				0,
+				CommandPermissions::NORMAL,
+				$aliasObj,
+				[
+					new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])
+				],
+				chainedSubCommandData: []
 			);
 		}
 
-		$this->sendDataPacket(new AvailableCommandsPacket(
-			enumValues: $enumValues,
-			chainedSubcommandValues: [],
-			postFixes: [],
-			enumData: $enums,
-			chainedSubcommandData: [],
-			commands: array_values($commands),
-			softEnums: [],
-			constraints: [],
-		));
+		$this->sendDataPacket(AvailableCommandsPacketAssembler::assemble(array_values($commandData), [], []));
 	}
 
 	/**
@@ -1687,12 +1628,12 @@ class NetworkSession{
 	public function onChatMessage(Translatable|string $message) : void{
 		if($message instanceof Translatable){
 			if(!$this->server->isLanguageForced()){
-				$this->sendDataPacket(TextPackets::translation(...$this->prepareClientTranslatableMessage($message)));
+				$this->sendDataPacket(TextPacket::translation(...$this->prepareClientTranslatableMessage($message)));
 			}else{
-				$this->sendDataPacket(TextPackets::raw($this->player->getLanguage()->translate($message)));
+				$this->sendDataPacket(TextPacket::raw($this->player->getLanguage()->translate($message)));
 			}
 		}else{
-			$this->sendDataPacket(TextPackets::raw($message));
+			$this->sendDataPacket(TextPacket::raw($message));
 		}
 	}
 
@@ -1705,23 +1646,23 @@ class NetworkSession{
 				$message = $this->player->getLanguage()->translate($message);
 			}
 		}
-		$this->sendDataPacket(TextPackets::jukeboxPopup($message, $parameters));
+		$this->sendDataPacket(TextPacket::jukeboxPopup($message, $parameters));
 	}
 
 	public function onPopup(string $message) : void{
-		$this->sendDataPacket(TextPackets::popup($message));
+		$this->sendDataPacket(TextPacket::popup($message));
 	}
 
 	public function onTip(string $message) : void{
-		$this->sendDataPacket(TextPackets::tip($message));
+		$this->sendDataPacket(TextPacket::tip($message));
 	}
 
 	public function onFormSent(int $id, Form $form) : bool{
-		return $this->sendDataPacket(new ModalFormRequestPacket(formId: $id, formUiJson: json_encode($form, JSON_THROW_ON_ERROR)));
+		return $this->sendDataPacket(ModalFormRequestPacket::create($id, json_encode($form, JSON_THROW_ON_ERROR)));
 	}
 
 	public function onCloseAllForms() : void{
-		$this->sendDataPacket(new ClientBoundCloseFormPacket());
+		$this->sendDataPacket(ClientboundCloseFormPacket::create());
 	}
 
 	/**
@@ -1787,9 +1728,9 @@ class NetworkSession{
 	}
 
 	public function syncWorldWeather(Weather $weather) : void{
-		foreach(LevelPackets::weather($weather) as $packet){
-			$this->sendDataPacket($packet);
-		}
+		//both are always sent so a client switching worlds drops the old weather
+		$this->sendDataPacket($weather === Weather::CLEAR ? LevelEventPacket::create(LevelEvent::STOP_RAIN, 0, null) : LevelEventPacket::create(LevelEvent::START_RAIN, 65535, null));
+		$this->sendDataPacket($weather === Weather::THUNDER ? LevelEventPacket::create(LevelEvent::START_THUNDER, 65535, null) : LevelEventPacket::create(LevelEvent::STOP_THUNDER, 0, null));
 	}
 
 	public static function networkWorldTime(int $worldTime) : int{
@@ -1801,11 +1742,11 @@ class NetworkSession{
 	}
 
 	public function syncWorldTime(int $worldTime) : void{
-		$this->sendDataPacket(new SetTimePacket(time: self::networkWorldTime($worldTime)));
+		$this->sendDataPacket(SetTimePacket::create(self::networkWorldTime($worldTime)));
 	}
 
 	public function syncWorldDifficulty(int $worldDifficulty) : void{
-		$this->sendDataPacket(new SetDifficultyPacket(difficulty: $worldDifficulty));
+		$this->sendDataPacket(SetDifficultyPacket::create($worldDifficulty));
 	}
 
 	public function getInvManager() : ?InventoryManager{
@@ -1818,21 +1759,21 @@ class NetworkSession{
 	public function syncPlayerList(array $players) : void{
 		$entries = [];
 		foreach($players as $player){
-			$entries[] = Fields::playerListAddition($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($player->getSkin()), $player->getXuid());
+			$entries[] = PlayerListEntry::createAdditionEntry($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($player->getSkin()), $player->getXuid());
 		}
 		//the protocol caps a list at 1000 entries, and each carries a whole skin, so big servers send several
 		foreach(array_chunk($entries, self::PLAYER_LIST_ENTRIES_PER_PACKET) as $chunk){
-			$this->sendDataPacket(new PlayerListPacket(entries: $chunk));
+			$this->sendDataPacket(PlayerListPacket::create($chunk));
 		}
 	}
 
 	public function onPlayerAdded(Player $p) : void{
-		$this->sendDataPacket(new PlayerListPacket(entries: [Fields::playerListAddition($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($p->getSkin()), $p->getXuid())]));
+		$this->sendDataPacket(PlayerListPacket::create([PlayerListEntry::createAdditionEntry($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $this->typeConverter->getSkinAdapter()->toSkinData($p->getSkin()), $p->getXuid())]));
 	}
 
 	public function onPlayerRemoved(Player $p) : void{
 		if($p !== $this->player){
-			$this->sendDataPacket(new PlayerListPacket(entries: [Fields::playerListRemoval($p->getUniqueId())]));
+			$this->sendDataPacket(PlayerListPacket::create([PlayerListEntry::createRemovalEntry($p->getUniqueId())]));
 		}
 	}
 
@@ -1845,7 +1786,7 @@ class NetworkSession{
 	}
 
 	public function onActionBar(string $actionBar) : void{
-		$this->sendDataPacket(SetTitlePacket::actionBar($actionBar));
+		$this->sendDataPacket(SetTitlePacket::actionBarMessage($actionBar));
 	}
 
 	public function onClearTitle() : void{
@@ -1853,25 +1794,25 @@ class NetworkSession{
 	}
 
 	public function onResetTitleOptions() : void{
-		$this->sendDataPacket(SetTitlePacket::resetTitle());
+		$this->sendDataPacket(SetTitlePacket::resetTitleOptions());
 	}
 
 	public function onTitleDuration(int $fadeIn, int $stay, int $fadeOut) : void{
-		$this->sendDataPacket(SetTitlePacket::animationTimes($fadeIn, $stay, $fadeOut));
+		$this->sendDataPacket(SetTitlePacket::setAnimationTimes($fadeIn, $stay, $fadeOut));
 	}
 
 	public function onToastNotification(string $title, string $body) : void{
-		$this->sendDataPacket(new ToastRequestPacket(title: $title, content: $body));
+		$this->sendDataPacket(ToastRequestPacket::create($title, $body));
 	}
 
 	public function onOpenSignEditor(Vector3 $signPosition, bool $frontSide) : void{
-		$this->sendDataPacket(new OpenSignPacket(pos: $signPosition->floor(), isFrontSide: $frontSide));
+		$this->sendDataPacket(OpenSignPacket::create(BlockPosition::fromVector3($signPosition), $frontSide));
 	}
 
 	public function onItemCooldownChanged(Item $item, int $ticks) : void{
-		$this->sendDataPacket(new ClientStartItemCooldownPacket(
-			itemCategory: GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
-			durationTicks: $ticks,
+		$this->sendDataPacket(PlayerStartItemCooldownPacket::create(
+			GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
+			$ticks
 		));
 	}
 

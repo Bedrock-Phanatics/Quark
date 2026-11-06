@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 
 final class CauldronFillWaterSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::event(LevelEvent::CAULDRON_FILL_WATER, 0, $pos)];
+		return [LevelEventPacket::create(LevelEvent::CAULDRON_FILL_WATER, 0, $pos)];
 	}
 }

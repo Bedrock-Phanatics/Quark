@@ -26,6 +26,9 @@ namespace quark\entity\projectile;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\block\Block;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -34,9 +37,6 @@ use quark\event\entity\EntityItemPickupEvent;
 use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use quark\player\Player;
 use quark\world\sound\TridentHitBlockSound;
 use quark\world\sound\TridentHitEntitySound;
@@ -175,7 +175,7 @@ class Trident extends Projectile{
 		}
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$properties->setGenericFlag(EntityMetadataFlags::ENCHANTED, $this->item->hasEnchantments());

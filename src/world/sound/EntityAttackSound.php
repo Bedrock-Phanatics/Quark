@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 /**
  * Played when a player attacks a mob, dealing damage.
@@ -33,14 +33,15 @@ use quark\network\mcpe\protocol\types\LevelSoundEvent;
 class EntityAttackSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [new LevelSoundEventPacket(
-			soundEvent: LevelSoundEvent::ATTACK_STRONG, //TODO: seems like ATTACK is dysfunctional
-			position: $pos,
-			data: -1,
-			actorIdentifier: "minecraft:player",
-			isBaby: false,
-			isGlobal: false,
-			actorUniqueId: -1,
+		return [LevelSoundEventPacket::create(
+			LevelSoundEvent::ATTACK_STRONG, //TODO: seems like ATTACK is dysfunctional
+			$pos,
+			-1,
+			"minecraft:player",
+			false,
+			false,
+			-1,
+			null
 		)];
 	}
 }

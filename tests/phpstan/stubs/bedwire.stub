@@ -6,61 +6,7 @@ class Exception extends \RuntimeException{}
 
 final class BackpressureException extends Exception{}
 
-final class PacketException extends Exception{
-	public ?string $field = null;
-	public ?int $observed = null;
-	public ?int $limit = null;
-}
-
 final class NbtException extends Exception{}
-
-final class Protocol{
-	public const CLIENTBOUND = 1;
-	public const SERVERBOUND = 2;
-	public const BIDIRECTIONAL = 3;
-	public const VERSION = 2193;
-	public const MINECRAFT_VERSION = "1.26.51";
-
-	private function __construct(){}
-
-	public static function id(string $name) : int{}
-
-	public static function name(int $id) : ?string{}
-
-	public static function direction(int|string $packet) : int{}
-
-	/** @return array{int, int, int} */
-	public static function header(string $bytes) : array{}
-
-	public static function packetId(string $bytes) : int{}
-
-	/** @return array<string, mixed>|object|null */
-	public static function decode(string $bytes, int $maxValues = 0) : array|object|null{}
-
-	/**
-	 * @param list<string> $packets
-	 * @return list<array<string, mixed>|object|null>
-	 */
-	public static function decodeMany(array $packets, int $maxValues = 0) : array{}
-
-	/** @param array<string, mixed>|object $fields */
-	public static function encode(int|string $packet, array|object $fields, int $senderSubClient = 0, int $targetSubClient = 0) : string{}
-
-	/**
-	 * @param list<object|array{int|string, array<string, mixed>|object}|array{int|string, array<string, mixed>|object, int}|array{int|string, array<string, mixed>|object, int, int}> $packets
-	 * @return list<string>
-	 */
-	public static function encodeMany(array $packets) : array{}
-
-	/** @param list<string|object|array{int|string, array<string, mixed>|object}|array{int|string, array<string, mixed>|object, int}|array{int|string, array<string, mixed>|object, int, int}> $packets */
-	public static function encodeBatch(array $packets) : string{}
-
-	/** @return array<string, mixed> */
-	public static function schema() : array{}
-
-	/** @param array<string, class-string> $types */
-	public static function bind(array $types) : void{}
-}
 
 final class Nbt{
 	public const JAVA = 0;
@@ -131,9 +77,6 @@ final class Server{
 
 	/** @param list<string> $packets */
 	public function sendBatch(int $session, array $packets) : bool{}
-
-	/** @param list<string|object|array{int|string, array<string, mixed>|object}|array{int|string, array<string, mixed>|object, int}|array{int|string, array<string, mixed>|object, int, int}> $packets */
-	public function sendPackets(int $session, array $packets) : bool{}
 
 	public function sendRawBatch(int $session, string $batch, int $offset = 0) : bool{}
 

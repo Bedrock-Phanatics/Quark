@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use quark\entity\Living;
-use quark\network\mcpe\protocol\packet\AnimatePacket;
 
 class MagicHitAnimation implements Animation{
 	public function __construct(private Living $entity, private int $particleCount = 15){}
 
 	public function encode() : array{
 		return [
-			new AnimatePacket(AnimatePacket::ACTION_MAGICAL_CRITICAL_HIT, $this->entity->getId(), $this->particleCount, null, AnimatePacket::HAND_MAIN)
+			AnimatePacket::create($this->entity->getId(), AnimatePacket::ACTION_MAGICAL_CRITICAL_HIT, $this->particleCount)
 		];
 	}
 }

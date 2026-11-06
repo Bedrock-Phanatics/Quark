@@ -23,6 +23,25 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
+use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftingConsumeInputStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftingCreateSpecificResultStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftRecipeAutoStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftRecipeStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CreativeCreateStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DeprecatedCraftingResultsStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DestroyStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\DropStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestSlotInfo;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\MineBlockStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\PlaceStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\SwapStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\TakeStackRequestAction;
+use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
+use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use quark\block\inventory\window\CraftingTableInventoryWindow;
 use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\crafting\ShapedRecipe;
@@ -39,28 +58,11 @@ use quark\item\Durable;
 use quark\item\Item;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\InventoryManager;
-use quark\network\mcpe\protocol\types\AutoCraftRecipeStackRequestAction;
-use quark\network\mcpe\protocol\types\ConsumeStackRequestAction;
-use quark\network\mcpe\protocol\types\CraftCreativeStackRequestAction;
-use quark\network\mcpe\protocol\types\CraftRecipeStackRequestAction;
-use quark\network\mcpe\protocol\types\CraftResultsDeprecatedStackRequestAction;
-use quark\network\mcpe\protocol\types\CreateStackRequestAction;
-use quark\network\mcpe\protocol\types\DestroyStackRequestAction;
-use quark\network\mcpe\protocol\types\DropStackRequestAction;
-use quark\network\mcpe\protocol\types\FullContainerName;
-use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
-use quark\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
-use quark\network\mcpe\protocol\types\ItemStackRequestData;
-use quark\network\mcpe\protocol\types\ItemStackRequestPacketData;
-use quark\network\mcpe\protocol\types\MineBlockStackRequestAction;
-use quark\network\mcpe\protocol\types\PlaceStackRequestAction;
-use quark\network\mcpe\protocol\types\StackRequestSlotInfo;
-use quark\network\mcpe\protocol\types\SwapStackRequestAction;
-use quark\network\mcpe\protocol\types\TakeStackRequestAction;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\player\PlayerInventoryType;
 use quark\utils\AssumptionFailedError;
+use quark\utils\Utils;
 use function array_key_first;
 use function count;
 use function spl_object_id;
@@ -68,7 +70,7 @@ use function spl_object_id;
 class ItemStackRequestExecutor{
 	private TransactionBuilder $builder;
 
-	/** @phpstan-var list<StackRequestSlotInfo> */
+	/** @var ItemStackRequestSlotInfo[] */
 	private array $requestSlotInfos = [];
 
 	private ?InventoryTransaction $specialTransaction = null;
@@ -83,7 +85,7 @@ class ItemStackRequestExecutor{
 	public function __construct(
 		private Player $player,
 		private InventoryManager $inventoryManager,
-		private ItemStackRequestData|ItemStackRequestPacketData $request
+		private ItemStackRequest $request
 	){
 		$this->builder = new TransactionBuilder();
 	}
@@ -95,7 +97,7 @@ class ItemStackRequestExecutor{
 		if($inventory instanceof InventoryWindow){
 			$inventory = $inventory->getInventory();
 		}
-		return new \ReflectionClass($inventory)->getShortName() . "#" . spl_object_id($inventory) . ", slot: $slot";
+		return (new \ReflectionClass($inventory))->getShortName() . "#" . spl_object_id($inventory) . ", slot: $slot";
 	}
 
 	/**
@@ -121,12 +123,11 @@ class ItemStackRequestExecutor{
 	 *
 	 * @throws ItemStackRequestProcessException
 	 */
-	protected function getBuilderInventoryAndSlot(StackRequestSlotInfo $info) : array{
-		$containerId = $info->fullContainerName->containerName;
-		[$windowId, $slotId] = ItemStackContainerIdTranslator::translate($containerId, $this->inventoryManager->getCurrentWindowId(), $info->slot);
+	protected function getBuilderInventoryAndSlot(ItemStackRequestSlotInfo $info) : array{
+		[$windowId, $slotId] = ItemStackContainerIdTranslator::translate($info->getContainerName()->getContainerId(), $this->inventoryManager->getCurrentWindowId(), $info->getSlotId());
 		$windowAndSlot = $this->inventoryManager->locateWindowAndSlot($windowId, $slotId);
 		if($windowAndSlot === null){
-			throw new ItemStackRequestProcessException("No open inventory matches container UI ID: " . $containerId . ", slot ID: " . $info->slot);
+			throw new ItemStackRequestProcessException("No open inventory matches container UI ID: " . $info->getContainerName()->getContainerId() . ", slot ID: " . $info->getSlotId());
 		}
 		[$window, $slot] = $windowAndSlot;
 		$inventory = $window->getInventory();
@@ -134,8 +135,8 @@ class ItemStackRequestExecutor{
 			throw new ItemStackRequestProcessException("No such inventory slot :" . $this->prettyInventoryAndSlot($inventory, $slot));
 		}
 
-		if($info->netIdVariant !== $this->request->clientRequestId){ //the itemstack may have been modified by the current request
-			$this->matchItemStack($inventory, $slot, $info->netIdVariant);
+		if($info->getStackId() !== $this->request->getRequestId()){ //the itemstack may have been modified by the current request
+			$this->matchItemStack($inventory, $slot, $info->getStackId());
 		}
 
 		return [$this->builder->getActionBuilder($window), $slot];
@@ -144,18 +145,17 @@ class ItemStackRequestExecutor{
 	/**
 	 * @throws ItemStackRequestProcessException
 	 */
-	protected function transferItems(StackRequestSlotInfo $source, StackRequestSlotInfo $destination, int $count) : void{
+	protected function transferItems(ItemStackRequestSlotInfo $source, ItemStackRequestSlotInfo $destination, int $count) : void{
 		$removed = $this->removeItemFromSlot($source, $count);
 		$this->addItemToSlot($destination, $removed, $count);
 	}
 
 	/**
 	 * Deducts items from an inventory slot, returning a stack containing the removed items.
-	 *
 	 * @throws ItemStackRequestProcessException
 	 */
-	protected function removeItemFromSlot(StackRequestSlotInfo $slotInfo, int $count) : Item{
-		if($slotInfo->fullContainerName->containerName === ContainerUIIds::CREATED_OUTPUT && $slotInfo->slot === UIInventorySlotOffset::CREATED_ITEM_OUTPUT){
+	protected function removeItemFromSlot(ItemStackRequestSlotInfo $slotInfo, int $count) : Item{
+		if($slotInfo->getContainerName()->getContainerId() === ContainerUIIds::CREATED_OUTPUT && $slotInfo->getSlotId() === UIInventorySlotOffset::CREATED_ITEM_OUTPUT){
 			//special case for the "created item" output slot
 			//TODO: do we need to send a response for this slot info?
 			return $this->takeCreatedItem($count);
@@ -180,10 +180,9 @@ class ItemStackRequestExecutor{
 
 	/**
 	 * Adds items to the target slot, if they are stackable.
-	 *
 	 * @throws ItemStackRequestProcessException
 	 */
-	protected function addItemToSlot(StackRequestSlotInfo $slotInfo, Item $item, int $count) : void{
+	protected function addItemToSlot(ItemStackRequestSlotInfo $slotInfo, Item $item, int $count) : void{
 		$this->requestSlotInfos[] = $slotInfo;
 		[$inventory, $slot] = $this->getBuilderInventoryAndSlot($slotInfo);
 		if($count < 1){
@@ -325,15 +324,18 @@ class ItemStackRequestExecutor{
 	/**
 	 * @throws ItemStackRequestProcessException
 	 */
-	protected function processItemStackRequestAction(object|int $action) : void{
-		if($action instanceof TakeStackRequestAction || $action instanceof PlaceStackRequestAction){
-			$this->transferItems($action->source, $action->destination, $action->amount);
+	protected function processItemStackRequestAction(ItemStackRequestAction $action) : void{
+		if(
+			$action instanceof TakeStackRequestAction ||
+			$action instanceof PlaceStackRequestAction
+		){
+			$this->transferItems($action->getSource(), $action->getDestination(), $action->getCount());
 		}elseif($action instanceof SwapStackRequestAction){
-			$this->requestSlotInfos[] = $action->source;
-			$this->requestSlotInfos[] = $action->destination;
+			$this->requestSlotInfos[] = $action->getSlot1();
+			$this->requestSlotInfos[] = $action->getSlot2();
 
-			[$inventory1, $slot1] = $this->getBuilderInventoryAndSlot($action->source);
-			[$inventory2, $slot2] = $this->getBuilderInventoryAndSlot($action->destination);
+			[$inventory1, $slot1] = $this->getBuilderInventoryAndSlot($action->getSlot1());
+			[$inventory2, $slot2] = $this->getBuilderInventoryAndSlot($action->getSlot2());
 
 			$item1 = $inventory1->getItem($slot1);
 			$item2 = $inventory2->getItem($slot2);
@@ -341,17 +343,17 @@ class ItemStackRequestExecutor{
 			$inventory2->setItem($slot2, $item1);
 		}elseif($action instanceof DropStackRequestAction){
 			//TODO: this action has a "randomly" field, I have no idea what it's used for
-			$dropped = $this->removeItemFromSlot($action->source, $action->amount);
+			$dropped = $this->removeItemFromSlot($action->getSource(), $action->getCount());
 			$this->builder->addAction(new DropItemAction($dropped));
 
 		}elseif($action instanceof DestroyStackRequestAction){
-			$destroyed = $this->removeItemFromSlot($action->source, $action->amount);
+			$destroyed = $this->removeItemFromSlot($action->getSource(), $action->getCount());
 			$this->builder->addAction(new DestroyItemAction($destroyed));
 
-		}elseif($action instanceof CraftCreativeStackRequestAction){
-			$item = $this->player->getCreativeInventory()->getItem($action->creativeItemNetId - 1);
+		}elseif($action instanceof CreativeCreateStackRequestAction){
+			$item = $this->player->getCreativeInventory()->getItem($action->getCreativeItemId() - 1);
 			if($item === null){
-				throw new ItemStackRequestProcessException("No such creative item index: " . $action->creativeItemNetId);
+				throw new ItemStackRequestProcessException("No such creative item index: " . $action->getCreativeItemId());
 			}
 
 			$this->setNextCreatedItem($item, true);
@@ -361,39 +363,39 @@ class ItemStackRequestExecutor{
 				if($this->specialTransaction !== null){
 					throw new ItemStackRequestProcessException("Another special transaction is already in progress");
 				}
-				if($action->numberOfRequestedCrafts !== 1){
+				if($action->getRepetitions() !== 1){
 					throw new ItemStackRequestProcessException("Enchanting operations must have exactly 1 repetition");
 				}
-				$optionId = $this->inventoryManager->getEnchantingTableOptionIndex($action->recipeNetId);
+				$optionId = $this->inventoryManager->getEnchantingTableOptionIndex($action->getRecipeId());
 				if($optionId === null || ($option = $window->getOption($optionId)) === null || ($output = $window->getOutput($optionId)) === null){
 					throw new ItemStackRequestProcessException("No such enchanting option");
 				}
 				$this->specialTransaction = new EnchantingTransaction($this->player, $option, $optionId + 1, $window);
 				$this->setNextCreatedItem($output);
 			}else{
-				$this->beginCrafting($action->recipeNetId, $action->numberOfRequestedCrafts);
+				$this->beginCrafting($action->getRecipeId(), $action->getRepetitions());
 			}
-		}elseif($action instanceof AutoCraftRecipeStackRequestAction){
-			$this->beginCrafting($action->recipeNetId, $action->numberOfRequestedCrafts);
-		}elseif($action instanceof ConsumeStackRequestAction){
+		}elseif($action instanceof CraftRecipeAutoStackRequestAction){
+			$this->beginCrafting($action->getRecipeId(), $action->getRepetitions());
+		}elseif($action instanceof CraftingConsumeInputStackRequestAction){
 			$this->assertDoingCrafting();
-			$this->removeItemFromSlot($action->source, $action->amount); //output discarded - we allow CraftingTransaction to verify the balance
+			$this->removeItemFromSlot($action->getSource(), $action->getCount()); //output discarded - we allow CraftingTransaction to verify the balance
 
-		}elseif($action instanceof CreateStackRequestAction){
+		}elseif($action instanceof CraftingCreateSpecificResultStackRequestAction){
 			$this->assertDoingCrafting();
 
-			$nextResultItem = $this->craftingResults[$action->resultsIndex] ?? null;
+			$nextResultItem = $this->craftingResults[$action->getResultIndex()] ?? null;
 			if($nextResultItem === null){
-				throw new ItemStackRequestProcessException("No such crafting result index: " . $action->resultsIndex);
+				throw new ItemStackRequestProcessException("No such crafting result index: " . $action->getResultIndex());
 			}
 			$this->setNextCreatedItem($nextResultItem);
-		}elseif($action instanceof CraftResultsDeprecatedStackRequestAction){
+		}elseif($action instanceof DeprecatedCraftingResultsStackRequestAction){
 			//no obvious use
 		}elseif($action instanceof MineBlockStackRequestAction){
-			$slot = $action->slot;
-			$this->requestSlotInfos[] = new StackRequestSlotInfo(new FullContainerName(ContainerUIIds::HOTBAR), $slot, $action->netIdVariant);
+			$slot = $action->getHotbarSlot();
+			$this->requestSlotInfos[] = new ItemStackRequestSlotInfo(new FullContainerName(ContainerUIIds::HOTBAR), $slot, $action->getStackId());
 			$usedItem = $this->player->getHotbar()->isHotbarSlot($slot) ? $this->player->getInventory()->getItem($slot) : null;
-			$predictedDamage = $action->predictedDurability;
+			$predictedDamage = $action->getPredictedDurability();
 			if($usedItem instanceof Durable && $predictedDamage >= 0 && $predictedDamage <= $usedItem->getMaxDurability()){
 				$usedItem->setDamage($predictedDamage);
 				$this->inventoryManager->addPredictedSlotChange($this->player->getPermanentWindow(PlayerInventoryType::INVENTORY), $slot, $usedItem);
@@ -407,12 +409,11 @@ class ItemStackRequestExecutor{
 	 * @throws ItemStackRequestProcessException
 	 */
 	public function generateInventoryTransaction() : ?InventoryTransaction{
-		foreach($this->request->actions as $k => $action){
-			$name = array_key_first($action);
+		foreach(Utils::promoteKeys($this->request->getActions()) as $k => $action){
 			try{
-				$this->processItemStackRequestAction($action[$name]);
+				$this->processItemStackRequestAction($action);
 			}catch(ItemStackRequestProcessException $e){
-				throw new ItemStackRequestProcessException("Error processing action $k ($name): " . $e->getMessage(), 0, $e);
+				throw new ItemStackRequestProcessException("Error processing action $k (" . (new \ReflectionClass($action))->getShortName() . "): " . $e->getMessage(), 0, $e);
 			}
 		}
 		$this->setNextCreatedItem(null);
@@ -430,11 +431,15 @@ class ItemStackRequestExecutor{
 	}
 
 	public function getItemStackResponseBuilder() : ItemStackResponseBuilder{
-		$builder = new ItemStackResponseBuilder($this->request->clientRequestId, $this->inventoryManager);
+		$builder = new ItemStackResponseBuilder($this->request->getRequestId(), $this->inventoryManager);
 		foreach($this->requestSlotInfos as $requestInfo){
-			$builder->addSlot($requestInfo->fullContainerName->containerName, $requestInfo->slot);
+			$builder->addSlot($requestInfo->getContainerName()->getContainerId(), $requestInfo->getSlotId());
 		}
 
 		return $builder;
+	}
+
+	public function buildItemStackResponse() : ItemStackResponse{
+		return $this->getItemStackResponseBuilder()->build();
 	}
 }

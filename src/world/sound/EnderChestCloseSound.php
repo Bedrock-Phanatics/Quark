@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 class EnderChestCloseSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::sound(LevelSoundEvent::ENDERCHEST_CLOSED, $pos, false)];
+		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::ENDERCHEST_CLOSED, $pos, false)];
 	}
 }

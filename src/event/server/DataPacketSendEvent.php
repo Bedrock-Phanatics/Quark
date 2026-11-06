@@ -23,12 +23,11 @@ declare(strict_types=1);
 
 namespace quark\event\server;
 
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
 use quark\utils\Utils;
 
 /**
@@ -41,8 +40,8 @@ class DataPacketSendEvent extends ServerEvent implements Cancellable{
 	use CancellableTrait;
 
 	/**
-	 * @param NetworkSession[]         $targets
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param NetworkSession[]                    $targets
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 */
 	public function __construct(
 		private array $targets,
@@ -57,19 +56,19 @@ class DataPacketSendEvent extends ServerEvent implements Cancellable{
 	}
 
 	/**
-	 * @return (Packet|EncodedPacket)[]
+	 * @return (ClientboundPacket|EncodedPacket)[]
 	 */
 	public function getPackets() : array{
 		return $this->packets;
 	}
 
 	/**
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	public function setPackets(array $packets) : void{
-		Utils::validateArrayValueType($packets, function(Packet|EncodedPacket $packet) : void{
-			if(!isset(Packets::CLIENTBOUND[$packet->getId()])){
+		Utils::validateArrayValueType($packets, function(ClientboundPacket|EncodedPacket $packet) : void{
+			if($packet instanceof EncodedPacket && !EncodedPacket::isClientbound($packet->getId())){
 				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
 			}
 		});

@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace quark\block;
 
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
 use quark\block\utils\AnimatedContainerLike;
 use quark\block\utils\AnimatedContainerLikeTrait;
@@ -34,7 +36,6 @@ use quark\block\utils\ContainerTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
-use quark\network\mcpe\protocol\packet\BlockEventPacket;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\Position;
@@ -123,6 +124,6 @@ class ShulkerBox extends Opaque implements AnimatedContainerLike, Container, Any
 
 	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
 		//event ID is always 1 for a chest
-		$position->getWorld()->broadcastPacketToViewers($position, new BlockEventPacket(blockPosition: $position->floor(), eventType: 1, eventValue: $isOpen ? 1 : 0));
+		$position->getWorld()->broadcastPacketToViewers($position, BlockEventPacket::create(BlockPosition::fromVector3($position), 1, $isOpen ? 1 : 0));
 	}
 }

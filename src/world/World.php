@@ -29,12 +29,23 @@ namespace quark\world;
 use Bedwire\Nbt as NativeNbt;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\AddActorPacket;
+use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\RemoveActorPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
 use pocketmine\utils\Limits;
 use pocketmine\world\format\LightArray;
 use quark\block\Air;
@@ -88,16 +99,7 @@ use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\AddActorPacket;
-use quark\network\mcpe\protocol\packet\BlockActorDataPacket;
-use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
-use quark\network\mcpe\protocol\packet\RemoveActorPacket;
-use quark\network\mcpe\protocol\packet\UpdateBlockPacket;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
-use quark\network\mcpe\protocol\types\PropertySyncData;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\player\Player;
 use quark\promise\Promise;
 use quark\promise\PromiseResolver;
@@ -299,8 +301,8 @@ class World implements ChunkManager{
 	private array $playerChunkListeners = [];
 
 	/**
-	 * @var Packet[][]
-	 * @phpstan-var array<ChunkPosHash, list<Packet>>
+	 * @var ClientboundPacket[][]|EncodedPacket[][]
+	 * @phpstan-var array<ChunkPosHash, list<ClientboundPacket|EncodedPacket>>
 	 */
 	private array $packetBuffersByChunk = [];
 
@@ -906,11 +908,11 @@ class World implements ChunkManager{
 	/**
 	 * Broadcasts a packet to every player who has the target position within their view distance.
 	 */
-	public function broadcastPacketToViewers(Vector3 $pos, Packet $packet) : void{
+	public function broadcastPacketToViewers(Vector3 $pos, ClientboundPacket|EncodedPacket $packet) : void{
 		$this->broadcastPacketToPlayersUsingChunk($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE, $packet);
 	}
 
-	private function broadcastPacketToPlayersUsingChunk(int $chunkX, int $chunkZ, Packet $packet) : void{
+	private function broadcastPacketToPlayersUsingChunk(int $chunkX, int $chunkZ, ClientboundPacket|EncodedPacket $packet) : void{
 		if(!isset($this->packetBuffersByChunk[$index = World::chunkHash($chunkX, $chunkZ)])){
 			$this->packetBuffersByChunk[$index] = [$packet];
 		}else{
@@ -1313,8 +1315,8 @@ class World implements ChunkManager{
 	/**
 	 * @param Vector3[] $blocks
 	 *
-	 * @return Packet[]
-	 * @phpstan-return list<Packet>
+	 * @return ClientboundPacket[]
+	 * @phpstan-return list<ClientboundPacket>
 	 */
 	public function createBlockUpdatePackets(array $blocks) : array{
 		$packets = [];
@@ -1327,7 +1329,7 @@ class World implements ChunkManager{
 			}
 
 			$fullBlock = $this->getBlockAt($b->x, $b->y, $b->z);
-			$blockPosition = $b->floor();
+			$blockPosition = BlockPosition::fromVector3($b);
 
 			$tile = $this->getTileAt($b->x, $b->y, $b->z);
 			if($tile instanceof Spawnable){
@@ -1339,23 +1341,23 @@ class World implements ChunkManager{
 						array_merge($originalStateData->getStates(), $fakeStateProperties),
 						$originalStateData->getVersion()
 					);
-					$packets[] = new UpdateBlockPacket(
-						blockPosition: $blockPosition,
-						blockRuntimeId: $blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
-						flags: UpdateBlockPacket::FLAG_NETWORK,
-						layer: UpdateBlockPacket::DATA_LAYER_NORMAL,
+					$packets[] = UpdateBlockPacket::create(
+						$blockPosition,
+						$blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
+						UpdateBlockPacket::FLAG_NETWORK,
+						UpdateBlockPacket::DATA_LAYER_NORMAL
 					);
 				}
 			}
-			$packets[] = new UpdateBlockPacket(
-				blockPosition: $blockPosition,
-				blockRuntimeId: $blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
-				flags: UpdateBlockPacket::FLAG_NETWORK,
-				layer: UpdateBlockPacket::DATA_LAYER_NORMAL,
+			$packets[] = UpdateBlockPacket::create(
+				$blockPosition,
+				$blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
+				UpdateBlockPacket::FLAG_NETWORK,
+				UpdateBlockPacket::DATA_LAYER_NORMAL
 			);
 
 			if($tile instanceof Spawnable){
-				$packets[] = new BlockActorDataPacket(blockPosition: $blockPosition, actorDataTags: $tile->getSerializedSpawnCompound());
+				$packets[] = BlockActorDataPacket::create($blockPosition, $tile->getSerializedSpawnCompound());
 			}
 		}
 
@@ -3778,7 +3780,11 @@ class World implements ChunkManager{
 		if($changed){
 			$this->skyLightReduction = $this->computeSkyLightReduction();
 			if(count($this->players) > 0){
-				NetworkBroadcastUtils::broadcastPackets($this->players, LevelPackets::weather($weather));
+				//both are always sent so a client switching worlds drops the old weather
+				NetworkBroadcastUtils::broadcastPackets($this->players, [
+					$weather === Weather::CLEAR ? LevelEventPacket::create(LevelEvent::STOP_RAIN, 0, null) : LevelEventPacket::create(LevelEvent::START_RAIN, 65535, null),
+					$weather === Weather::THUNDER ? LevelEventPacket::create(LevelEvent::START_THUNDER, 65535, null) : LevelEventPacket::create(LevelEvent::STOP_THUNDER, 0, null),
+				]);
 			}
 		}
 		return true;
@@ -3873,21 +3879,8 @@ class World implements ChunkManager{
 
 	private function showLightning(Vector3 $pos) : void{
 		$id = Entity::nextRuntimeId();
-		$this->broadcastPacketToViewers($pos, new AddActorPacket(
-			targetActorId: $id,
-			targetRuntimeId: $id,
-			actorType: EntityIds::LIGHTNING_BOLT,
-			position: $pos,
-			velocity: Vector3::zero(),
-			rotation: new Vector2(0.0, 0.0),
-			yHeadRotation: 0.0,
-			yBodyRotation: 0.0,
-			attributesList: [],
-			actorData: [],
-			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
-			actorLinks: [],
-		));
-		$this->broadcastPacketToViewers($pos, new LevelSoundEventPacket(LevelSoundEvent::THUNDER, $pos, -1, EntityIds::LIGHTNING_BOLT, false, false, -1));
+		$this->broadcastPacketToViewers($pos, AddActorPacket::create($id, $id, EntityIds::LIGHTNING_BOLT, $pos, null, 0.0, 0.0, 0.0, 0.0, [], [], new PropertySyncData([], []), [], null));
+		$this->broadcastPacketToViewers($pos, LevelSoundEventPacket::create(LevelSoundEvent::THUNDER, $pos, -1, EntityIds::LIGHTNING_BOLT, false, false, -1, null));
 		$this->lightningBolts[$id] = $this->server->getTick() + 20;
 	}
 
@@ -3907,7 +3900,7 @@ class World implements ChunkManager{
 			if($removeTick > $currentTick){
 				break;
 			}
-			$packets[] = new RemoveActorPacket(targetActorId: $id);
+			$packets[] = RemoveActorPacket::create($id);
 			unset($this->lightningBolts[$id]);
 		}
 		if(count($packets) > 0 && count($this->players) > 0){

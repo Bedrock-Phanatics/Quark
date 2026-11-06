@@ -23,27 +23,23 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\ResourcePackChunkDataPacket;
+use pocketmine\network\mcpe\protocol\ResourcePackChunkRequestPacket;
+use pocketmine\network\mcpe\protocol\ResourcePackClientResponsePacket;
+use pocketmine\network\mcpe\protocol\ResourcePackDataInfoPacket;
+use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
+use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
+use pocketmine\network\mcpe\protocol\types\Experiments;
+use pocketmine\network\mcpe\protocol\types\ResourcePackClientResponseStatus;
+use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackInfoEntry;
+use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackStackEntry;
+use pocketmine\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
 use quark\lang\KnownTranslationFactory;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\packet\ResourcePackChunkDataPacket;
-use quark\network\mcpe\protocol\packet\ResourcePackChunkRequestPacket;
-use quark\network\mcpe\protocol\packet\ResourcePackClientResponsePacket;
-use quark\network\mcpe\protocol\packet\ResourcePackDataInfoPacket;
-use quark\network\mcpe\protocol\packet\ResourcePacksInfoPacket;
-use quark\network\mcpe\protocol\packet\ResourcePackStackPacket;
-use quark\network\mcpe\protocol\ProtocolInfo;
-use quark\network\mcpe\protocol\types\Downloading;
-use quark\network\mcpe\protocol\types\Experiments;
-use quark\network\mcpe\protocol\types\PackIDVersionData;
-use quark\network\mcpe\protocol\types\PackInfoData;
-use quark\network\mcpe\protocol\types\ResourcePackClientResponseStatus;
-use quark\network\mcpe\protocol\types\resourcepacks\ResourcePackType;
-use quark\network\mcpe\protocol\types\StackResourcePack;
 use quark\network\PacketHandlingException;
 use quark\resourcepacks\ResourcePack;
 use Ramsey\Uuid\Uuid;
-use function array_key_first;
 use function array_keys;
 use function array_map;
 use function ceil;
@@ -66,13 +62,6 @@ class ResourcePacksPacketHandler extends PacketHandler{
 	 * and cause the download speed to drop (due to ACKs taking too long to arrive).
 	 */
 	private const MAX_CONCURRENT_CHUNK_REQUESTS = 1;
-
-	private const RESPONSE_STATUSES = [
-		"cancel" => ResourcePackClientResponseStatus::REFUSED,
-		"downloading" => ResourcePackClientResponseStatus::SEND_PACKS,
-		"downloading_finished" => ResourcePackClientResponseStatus::HAVE_ALL_PACKS,
-		"resource_pack_stack_finished" => ResourcePackClientResponseStatus::COMPLETED,
-	];
 
 	/**
 	 * All chemistry resource packs need to be listed here to get chemistry blocks to render
@@ -131,25 +120,28 @@ class ResourcePacksPacketHandler extends PacketHandler{
 	}
 
 	public function setUp() : void{
-		$resourcePackEntries = array_map(fn(ResourcePack $pack) : PackInfoData => new PackInfoData( //TODO: more stuff
-			packIdVersion: new PackIDVersionData(packUuid: Fields::uuid(Uuid::fromString($pack->getPackId())), packVersion: $pack->getPackVersion()),
-			packSize: $pack->getPackSize(),
-			contentKey: $this->encryptionKeys[$pack->getPackId()] ?? "",
-			subpackName: "",
-			contentIdentity: $pack->getPackId(),
-			hasScripts: false,
-			isAddonPack: false,
-			isRayTracingCapable: false,
-			cdnUrl: "",
-		), $this->resourcePackStack);
+		$resourcePackEntries = array_map(function(ResourcePack $pack) : ResourcePackInfoEntry{
+			//TODO: more stuff
+
+			return new ResourcePackInfoEntry(
+				Uuid::fromString($pack->getPackId()),
+				$pack->getPackVersion(),
+				$pack->getPackSize(),
+				$this->encryptionKeys[$pack->getPackId()] ?? "",
+				"",
+				$pack->getPackId(),
+				false
+			);
+		}, $this->resourcePackStack);
 		//TODO: support forcing server packs
-		$this->session->sendDataPacket(new ResourcePacksInfoPacket(
-			resourcePackRequired: $this->mustAccept,
-			hasAddonPacks: false,
+		$this->session->sendDataPacket(ResourcePacksInfoPacket::create(
+			resourcePackEntries: $resourcePackEntries,
+			mustAccept: $this->mustAccept,
+			hasAddons: false,
 			hasScripts: false,
+			worldTemplateId: Uuid::fromString(Uuid::NIL),
+			worldTemplateVersion: "",
 			forceDisableVibrantVisuals: true,
-			worldTemplateIdAndVersion: new PackIDVersionData(packUuid: Fields::uuid(Uuid::fromString(Uuid::NIL)), packVersion: ""),
-			resourcePacks: $resourcePackEntries,
 		));
 		$this->session->getLogger()->debug("Waiting for client to accept resource packs");
 	}
@@ -162,17 +154,7 @@ class ResourcePacksPacketHandler extends PacketHandler{
 	}
 
 	public function handleResourcePackClientResponse(ResourcePackClientResponsePacket $packet) : bool{
-		$response = $packet->response;
-		$variant = array_key_first($response);
-		$status = self::RESPONSE_STATUSES[$variant];
-		$body = $response[$variant];
-		$innerType = $body instanceof Downloading ? $body->responseType : $body;
-		if($innerType !== $status->value){
-			throw new PacketHandlingException("Unexpected inner type $innerType for resource pack client response status $status->name, expected $status->value");
-		}
-		$packIds = $body instanceof Downloading ? $body->downloadingPacks : [];
-
-		switch($status){
+		switch($packet->status){
 			case ResourcePackClientResponseStatus::REFUSED:
 				//TODO: add lang strings for this
 				$this->session->disconnect("Refused resource packs", "You must accept resource packs to join this server.", true);
@@ -188,12 +170,12 @@ class ResourcePacksPacketHandler extends PacketHandler{
 					throw new PacketHandlingException("Cannot request resource pack metadata after resource pack stack");
 				}
 
-				if(count($packIds) > count($this->resourcePacksById)){
-					throw new PacketHandlingException(sprintf("Requested metadata for more resource packs (%d) than available on the server (%d)", count($packIds), count($this->resourcePacksById)));
+				if(count($packet->packIds) > count($this->resourcePacksById)){
+					throw new PacketHandlingException(sprintf("Requested metadata for more resource packs (%d) than available on the server (%d)", count($packet->packIds), count($this->resourcePacksById)));
 				}
 
 				$seen = [];
-				foreach($packIds as $uuid){
+				foreach($packet->packIds as $uuid){
 					//dirty hack for mojang's dirty hack for versions
 					$splitPos = strpos($uuid, "_");
 					if($splitPos !== false){
@@ -210,18 +192,18 @@ class ResourcePacksPacketHandler extends PacketHandler{
 						throw new PacketHandlingException("Repeated metadata request for pack $uuid");
 					}
 
-					$this->session->sendDataPacket(new ResourcePackDataInfoPacket(
-						resourceName: $pack->getPackId(),
-						chunkSize: self::PACK_CHUNK_SIZE,
-						numberOfChunks: (int) ceil($pack->getPackSize() / self::PACK_CHUNK_SIZE),
-						fileSize: $pack->getPackSize(),
-						fileHash: $pack->getSha256(),
-						isPremiumPack: false,
-						packType: ResourcePackType::RESOURCES->value, //TODO: this might be an addon (not behaviour pack), needed to properly support client-side custom items
+					$this->session->sendDataPacket(ResourcePackDataInfoPacket::create(
+						$pack->getPackId(),
+						self::PACK_CHUNK_SIZE,
+						(int) ceil($pack->getPackSize() / self::PACK_CHUNK_SIZE),
+						$pack->getPackSize(),
+						$pack->getSha256(),
+						false,
+						ResourcePackType::RESOURCES //TODO: this might be an addon (not behaviour pack), needed to properly support client-side custom items
 					));
 					$seen[$pack->getPackId()] = true;
 				}
-				$this->session->getLogger()->debug("Player requested download of " . count($packIds) . " resource packs");
+				$this->session->getLogger()->debug("Player requested download of " . count($packet->packIds) . " resource packs");
 				break;
 			case ResourcePackClientResponseStatus::HAVE_ALL_PACKS:
 				if($this->requestedStack){
@@ -229,27 +211,19 @@ class ResourcePacksPacketHandler extends PacketHandler{
 				}
 				$this->requestedStack = true;
 
-				$stack = array_map(static fn(ResourcePack $pack) : StackResourcePack => new StackResourcePack(
-					packId: $pack->getPackId(),
-					version: $pack->getPackVersion(),
-					subPackName: "", //TODO: subpacks
-				), $this->resourcePackStack);
+				$stack = array_map(static function(ResourcePack $pack) : ResourcePackStackEntry{
+					return new ResourcePackStackEntry($pack->getPackId(), $pack->getPackVersion(), ""); //TODO: subpacks
+				}, $this->resourcePackStack);
 
 				//we support chemistry blocks by default, the client should already have these installed
 				foreach(self::CHEMISTRY_RESOURCE_PACKS as [$uuid, $version]){
-					$stack[] = new StackResourcePack(packId: $uuid, version: $version, subPackName: "");
+					$stack[] = new ResourcePackStackEntry($uuid, $version, "");
 				}
 
 				//we don't force here, because it doesn't have user-facing effects
 				//but it does have an annoying side-effect when true: it makes
 				//the client remove its own non-server-supplied resource packs.
-				$this->session->sendDataPacket(new ResourcePackStackPacket(
-					texturePackRequired: false,
-					texturePackList: $stack,
-					baseGameVersion: ProtocolInfo::MINECRAFT_VERSION_NETWORK,
-					experiments: new Experiments(toggles: [], experimentsEverToggled: false),
-					includeEditorPacks: false,
-				));
+				$this->session->sendDataPacket(ResourcePackStackPacket::create($stack, false, ProtocolInfo::MINECRAFT_VERSION_NETWORK, new Experiments([], false), false));
 				$this->session->getLogger()->debug("Applying resource pack stack");
 				break;
 			case ResourcePackClientResponseStatus::COMPLETED:
@@ -259,40 +233,40 @@ class ResourcePacksPacketHandler extends PacketHandler{
 				}
 				($this->completionCallback)();
 				break;
+			default:
+				return false;
 		}
 
 		return true;
 	}
 
 	public function handleResourcePackChunkRequest(ResourcePackChunkRequestPacket $packet) : bool{
-		$requestedId = $packet->resourceName;
-		$chunkIndex = $packet->chunk;
-		$pack = $this->getPackById($requestedId);
+		$pack = $this->getPackById($packet->packId);
 		if(!($pack instanceof ResourcePack)){
-			$this->disconnectWithError("Invalid request for chunk $chunkIndex of unknown pack $requestedId, available packs: " . implode(", ", array_keys($this->resourcePacksById)));
+			$this->disconnectWithError("Invalid request for chunk $packet->chunkIndex of unknown pack $packet->packId, available packs: " . implode(", ", array_keys($this->resourcePacksById)));
 			return false;
 		}
 
 		$packId = $pack->getPackId(); //use this because case may be different
 
-		if(isset($this->downloadedChunks[$packId][$chunkIndex])){
-			$this->disconnectWithError("Duplicate request for chunk $chunkIndex of pack $requestedId");
+		if(isset($this->downloadedChunks[$packId][$packet->chunkIndex])){
+			$this->disconnectWithError("Duplicate request for chunk $packet->chunkIndex of pack $packet->packId");
 			return false;
 		}
 
-		$offset = $chunkIndex * self::PACK_CHUNK_SIZE;
+		$offset = $packet->chunkIndex * self::PACK_CHUNK_SIZE;
 		if($offset < 0 || $offset >= $pack->getPackSize()){
-			$this->disconnectWithError("Invalid out-of-bounds request for chunk $chunkIndex of $requestedId: offset $offset, file size " . $pack->getPackSize());
+			$this->disconnectWithError("Invalid out-of-bounds request for chunk $packet->chunkIndex of $packet->packId: offset $offset, file size " . $pack->getPackSize());
 			return false;
 		}
 
 		if(!isset($this->downloadedChunks[$packId])){
-			$this->downloadedChunks[$packId] = [$chunkIndex => true];
+			$this->downloadedChunks[$packId] = [$packet->chunkIndex => true];
 		}else{
-			$this->downloadedChunks[$packId][$chunkIndex] = true;
+			$this->downloadedChunks[$packId][$packet->chunkIndex] = true;
 		}
 
-		$this->requestQueue->enqueue([$pack, $chunkIndex]);
+		$this->requestQueue->enqueue([$pack, $packet->chunkIndex]);
 		$this->processChunkRequestQueue();
 
 		return true;
@@ -313,12 +287,7 @@ class ResourcePacksPacketHandler extends PacketHandler{
 		$chunkData = $pack->getPackChunk($offset, self::PACK_CHUNK_SIZE);
 		$this->activeRequests++;
 		$this->session
-			->sendDataPacketWithReceipt(new ResourcePackChunkDataPacket(
-				resourceName: $packId,
-				chunkId: $chunkIndex,
-				byteOffset: $offset,
-				chunkData: $chunkData,
-			))
+			->sendDataPacketWithReceipt(ResourcePackChunkDataPacket::create($packId, $chunkIndex, $offset, $chunkData))
 			->onCompletion(
 				function() : void{
 					$this->activeRequests--;

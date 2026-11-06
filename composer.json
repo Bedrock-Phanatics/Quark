@@ -7,7 +7,7 @@
    "require": {
       "php": "^8.4",
       "php-64bit": "*",
-      "ext-bedwire": "^0.4.0",
+      "ext-bedwire": "^0.5.0",
       "ext-chunkutils2": "^0.3.7",
       "ext-crypto": "^0.3.1",
       "ext-ctype": "*",
@@ -39,6 +39,7 @@
       "axolotl-pm/bedrock-block-upgrade-schema": "~5.5.0+bedrock-1.26.60",
       "axolotl-pm/bedrock-data": "~6.10.0+bedrock-1.26.60",
       "axolotl-pm/bedrock-item-upgrade-schema": "~1.20.0+bedrock-1.26.60",
+      "axolotl-pm/bedrock-protocol": "dev-quark",
       "axolotl-pm/xoroshiro128pp": "^0.1.0",
       "netresearch/jsonmapper": "~v6.0.0",
       "pocketmine/binaryutils": "^0.2.1",
@@ -54,6 +55,12 @@
       "ramsey/uuid": "~4.9.0",
       "symfony/filesystem": "~6.4.0"
    },
+   "repositories": [
+      {
+         "type": "vcs",
+         "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol"
+      }
+   ],
    "require-dev": {
       "phpstan/phpstan": "2.1.46",
       "phpstan/phpstan-phpunit": "^2.0.0",
@@ -101,8 +108,6 @@
          "@php build/codegen/block-serializer-consts.php vendor/axolotl-pm/bedrock-data/canonical_block_states.nbt",
          "@php build/codegen/item-type-names.php vendor/axolotl-pm/bedrock-data/required_item_list.json",
          "@php build/codegen/known-translation-apis.php",
-         "@php build/codegen/protocol-packets.php",
-         "@php build/codegen/protocol-classes.php",
          "@php build/codegen/quark-yml-property-consts.php",
          "@php build/codegen/registry-interface.php src generated"
       ]

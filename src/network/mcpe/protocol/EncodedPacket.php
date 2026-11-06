@@ -23,63 +23,83 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
-use Bedwire\PacketException;
-use Bedwire\Protocol;
-use function count;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\DataDecodeException;
+use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\PacketPool;
+use function strlen;
 
 /**
  * A packet held as its encoded bytes, for packets sent to many players or cached. It cannot be changed, so it is safe
  * to share between recipients.
  */
 final class EncodedPacket{
-	public const int MAX_DECODED_VALUES = 65536;
 
 	private function __construct(
 		private readonly int $id,
 		private readonly string $bytes
 	){}
 
-	/**
-	 * @throws \ValueError if the packet's fields do not fit it
-	 */
-	public static function of(Packet $packet) : self{
-		ProtocolClasses::bind();
-		return new self($packet->getId(), Protocol::encode($packet->getId(), $packet));
+	public static function of(ClientboundPacket $packet) : self{
+		return new self($packet->pid(), self::encode($packet));
 	}
 
 	/**
-	 * Encodes several packets with one native call, keeping encoded ones as they are.
-	 *
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 * @return EncodedPacket[]
 	 * @phpstan-return list<EncodedPacket>
-	 * @throws \ValueError if a packet's fields do not fit it
 	 */
 	public static function ofMany(array $packets) : array{
-		$pending = [];
-		foreach($packets as $packet){
-			if($packet instanceof Packet){
-				$pending[] = $packet;
-			}
-		}
-		$bytes = [];
-		if(count($pending) > 0){
-			ProtocolClasses::bind();
-			$bytes = Protocol::encodeMany($pending);
-		}
 		$encoded = [];
-		$next = 0;
 		foreach($packets as $packet){
-			$encoded[] = $packet instanceof EncodedPacket ? $packet : new self($packet->getId(), $bytes[$next++]);
+			$encoded[] = $packet instanceof self ? $packet : self::of($packet);
 		}
 		return $encoded;
 	}
 
 	/**
-	 * @throws PacketException if the packet header is malformed
+	 * @throws PacketDecodeException if the packet header is malformed
 	 */
 	public static function fromBytes(string $bytes) : self{
-		return new self(Protocol::packetId($bytes), $bytes);
+		return new self(self::idOf($bytes), $bytes);
+	}
+
+	/**
+	 * Encodes a packet with its header, as it is written into a batch.
+	 */
+	public static function encode(Packet $packet) : string{
+		$out = new ByteBufferWriter();
+		$packet->encode($out);
+		return $out->getData();
+	}
+
+	/**
+	 * Reads the packet ID from the header of an encoded packet.
+	 *
+	 * @throws PacketDecodeException
+	 */
+	public static function idOf(string $bytes) : int{
+		if(strlen($bytes) === 0){
+			throw new PacketDecodeException("Packet is empty");
+		}
+		try{
+			return VarInt::unpackUnsignedInt($bytes) & DataPacket::PID_MASK;
+		}catch(DataDecodeException $e){
+			throw PacketDecodeException::wrap($e, "Packet header");
+		}
+	}
+
+	/**
+	 * Whether clients accept packets with this ID.
+	 */
+	public static function isClientbound(int $id) : bool{
+		static $clientbound = [];
+		return $clientbound[$id] ??= PacketPool::getInstance()->getPacketById($id) instanceof ClientboundPacket;
 	}
 
 	public function getId() : int{
@@ -87,7 +107,7 @@ final class EncodedPacket{
 	}
 
 	public function getName() : string{
-		return Protocol::name($this->id) ?? "unknown_$this->id";
+		return PacketPool::getInstance()->getPacketById($this->id)?->getName() ?? "unknown_$this->id";
 	}
 
 	public function getBytes() : string{
@@ -97,14 +117,11 @@ final class EncodedPacket{
 	/**
 	 * Decodes a new copy of the packet each time, so changing it never affects anyone else this packet is sent to.
 	 *
-	 * @throws PacketException if the bytes are malformed or the ID is unknown
+	 * @throws PacketDecodeException if the bytes are malformed or the ID is unknown
 	 */
 	public function getPacket() : Packet{
-		ProtocolClasses::bind();
-		$packet = Protocol::decode($this->bytes, self::MAX_DECODED_VALUES);
-		if(!$packet instanceof Packet){
-			throw new PacketException("Packet $this->id does not decode to a packet class");
-		}
+		$packet = PacketPool::getInstance()->getPacketById($this->id) ?? throw new PacketDecodeException("Unknown packet ID $this->id");
+		$packet->decode(new ByteBufferReader($this->bytes));
 		return $packet;
 	}
 }

@@ -24,11 +24,11 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 final class CopperWaxApplySound implements Sound{
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::sound(LevelSoundEvent::COPPER_WAX_ON, $pos, false)];
+		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::COPPER_WAX_ON, $pos, false)];
 	}
 }

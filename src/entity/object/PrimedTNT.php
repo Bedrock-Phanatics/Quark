@@ -25,6 +25,10 @@ namespace quark\entity\object;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -33,10 +37,6 @@ use quark\entity\Location;
 use quark\event\entity\EntityDamageEvent;
 use quark\event\entity\EntityPreExplodeEvent;
 use quark\item\Item;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\world\Explosion;
 use quark\world\Position;
 use quark\world\tnt\TntLimiter;
@@ -147,7 +147,7 @@ class PrimedTNT extends Entity implements Explosive{
 		parent::onDispose();
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$properties->setGenericFlag(EntityMetadataFlags::IGNITED, true);

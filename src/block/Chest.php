@@ -25,6 +25,8 @@ namespace quark\block;
 
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\inventory\window\BlockInventoryWindow;
 use quark\block\inventory\window\DoubleChestInventoryWindow;
 use quark\block\tile\Chest as TileChest;
@@ -38,7 +40,6 @@ use quark\block\utils\SupportType;
 use quark\event\block\ChestPairEvent;
 use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\Inventory;
-use quark\network\mcpe\protocol\packet\BlockEventPacket;
 use quark\player\Player;
 use quark\world\Position;
 use quark\world\sound\ChestCloseSound;
@@ -149,7 +150,7 @@ class Chest extends Transparent implements AnimatedContainerLike, Container, Hor
 
 	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
 		//event ID is always 1 for a chest
-		$position->getWorld()->broadcastPacketToViewers($position, new BlockEventPacket(blockPosition: $position->floor(), eventType: 1, eventValue: $isOpen ? 1 : 0));
+		$position->getWorld()->broadcastPacketToViewers($position, BlockEventPacket::create(BlockPosition::fromVector3($position), 1, $isOpen ? 1 : 0));
 	}
 
 	protected function doAnimationEffects(bool $isOpen) : void{

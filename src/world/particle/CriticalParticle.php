@@ -24,13 +24,13 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\ParticleIds;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class CriticalParticle implements Particle{
 	public function __construct(private int $scale = 2){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::particle(ParticleIds::CRITICAL, $this->scale, $pos)];
+		return [LevelEventPacket::standardParticle(ParticleIds::CRITICAL, $this->scale, $pos)];
 	}
 }

@@ -25,6 +25,8 @@ namespace quark\block;
 
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\inventory\window\BlockInventoryWindow;
 use quark\block\tile\EnderChest as TileEnderChest;
 use quark\block\utils\AnimatedContainerLike;
@@ -34,7 +36,6 @@ use quark\block\utils\HorizontalFacing;
 use quark\block\utils\MenuAccessorTrait;
 use quark\block\utils\SupportType;
 use quark\item\Item;
-use quark\network\mcpe\protocol\packet\BlockEventPacket;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\world\Position;
@@ -116,6 +117,6 @@ class EnderChest extends Transparent implements AnimatedContainerLike, Horizonta
 
 	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
 		//event ID is always 1 for a chest
-		$position->getWorld()->broadcastPacketToViewers($position, new BlockEventPacket(blockPosition: $position->floor(), eventType: 1, eventValue: $isOpen ? 1 : 0));
+		$position->getWorld()->broadcastPacketToViewers($position, BlockEventPacket::create(BlockPosition::fromVector3($position), 1, $isOpen ? 1 : 0));
 	}
 }

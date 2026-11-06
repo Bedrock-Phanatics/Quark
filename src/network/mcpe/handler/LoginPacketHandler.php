@@ -23,7 +23,15 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\utils\Binary;
+use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\types\login\AuthenticationInfo;
+use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
+use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientData;
+use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientDataToSkinDataHelper;
+use pocketmine\network\mcpe\protocol\types\login\legacy\LegacyAuthIdentityData;
+use pocketmine\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
+use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
+use pocketmine\network\mcpe\protocol\types\login\openid\XboxAuthJwtHeader;
 use quark\entity\InvalidSkinException;
 use quark\event\player\PlayerPreLoginEvent;
 use quark\lang\KnownTranslationFactory;
@@ -34,15 +42,6 @@ use quark\network\mcpe\auth\ProcessSelfSignedLoginTask;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\packet\LoginPacket;
-use quark\network\mcpe\protocol\types\login\AuthenticationInfo;
-use quark\network\mcpe\protocol\types\login\AuthenticationType;
-use quark\network\mcpe\protocol\types\login\clientdata\ClientData;
-use quark\network\mcpe\protocol\types\login\clientdata\ClientDataToSkinDataHelper;
-use quark\network\mcpe\protocol\types\login\legacy\LegacyAuthIdentityData;
-use quark\network\mcpe\protocol\types\login\openid\SelfSignedJwtBody;
-use quark\network\mcpe\protocol\types\login\openid\XboxAuthJwtBody;
-use quark\network\mcpe\protocol\types\login\openid\XboxAuthJwtHeader;
 use quark\network\PacketHandlingException;
 use quark\network\TransportIdentityException;
 use quark\player\Player;
@@ -98,8 +97,8 @@ class LoginPacketHandler extends PacketHandler{
 	}
 
 	public function handleLogin(LoginPacket $packet) : bool{
-		[$authInfoJson, $clientDataJwt] = self::parseConnectionRequest($packet->connectionRequest);
-		$authInfo = $this->parseAuthInfo($authInfoJson);
+		$clientDataJwt = $packet->clientDataJwt;
+		$authInfo = $this->parseAuthInfo($packet->authInfoJson);
 		$clientData = $this->parseClientData($clientDataJwt);
 
 		$proxyLogin = $this->parseProxyLogin($authInfo);
@@ -261,31 +260,6 @@ class LoginPacketHandler extends PacketHandler{
 		}
 
 		return $ev->isAuthRequired();
-	}
-
-	/**
-	 * Splits a connection request into its authentication info JSON and client data JWT.
-	 *
-	 * @phpstan-return array{string, string}
-	 * @throws PacketHandlingException
-	 */
-	public static function parseConnectionRequest(string $request) : array{
-		$parts = [];
-		$offset = 0;
-		$length = strlen($request);
-		for($i = 0; $i < 2; ++$i){
-			if($length - $offset < 4){
-				throw new PacketHandlingException("Truncated connection request");
-			}
-			$partLength = Binary::readLInt(substr($request, $offset, 4));
-			$offset += 4;
-			if($partLength < 0 || $partLength > $length - $offset){
-				throw new PacketHandlingException("Connection request part length $partLength exceeds remaining " . ($length - $offset) . " bytes");
-			}
-			$parts[] = substr($request, $offset, $partLength);
-			$offset += $partLength;
-		}
-		return [$parts[0], $parts[1]];
 	}
 
 	/**

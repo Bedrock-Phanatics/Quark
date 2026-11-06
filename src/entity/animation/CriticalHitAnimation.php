@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use quark\entity\Living;
-use quark\network\mcpe\protocol\packet\AnimatePacket;
 
 final class CriticalHitAnimation implements Animation{
 
@@ -32,7 +32,7 @@ final class CriticalHitAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			new AnimatePacket(AnimatePacket::ACTION_CRITICAL_HIT, $this->entity->getId(), $this->particleCount, null, AnimatePacket::HAND_MAIN),
+			AnimatePacket::create($this->entity->getId(), AnimatePacket::ACTION_CRITICAL_HIT, $this->particleCount),
 		];
 	}
 }

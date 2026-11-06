@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use quark\network\mcpe\protocol\packet\ClientToServerHandshakePacket;
+use pocketmine\network\mcpe\protocol\ClientToServerHandshakePacket;
 
 /**
  * Handler responsible for awaiting client response from crypto handshake.

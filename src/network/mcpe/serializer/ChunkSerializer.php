@@ -28,11 +28,11 @@ use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
 use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\block\tile\Spawnable;
 use quark\data\bedrock\BiomeIds;
 use quark\data\bedrock\LegacyBiomeIdToStringIdMap;
 use quark\network\mcpe\convert\BlockTranslator;
-use quark\network\mcpe\protocol\types\DimensionIds;
 use quark\world\format\Chunk;
 use quark\world\format\SubChunk;
 use function count;
@@ -163,7 +163,7 @@ final class ChunkSerializer{
 		$encoded = "";
 		foreach($chunk->getTiles() as $tile){
 			if($tile instanceof Spawnable){
-				$encoded .= $tile->getSerializedSpawnCompound();
+				$encoded .= $tile->getSerializedSpawnCompound()->getEncodedNbt();
 			}
 		}
 

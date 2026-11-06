@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use pocketmine\network\mcpe\protocol\ContainerClosePacket;
+use pocketmine\network\mcpe\protocol\DeathInfoPacket;
+use pocketmine\network\mcpe\protocol\PlayerActionPacket;
+use pocketmine\network\mcpe\protocol\RespawnPacket;
+use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use quark\lang\Translatable;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\packet\ContainerClosePacket;
-use quark\network\mcpe\protocol\packet\DeathInfoPacket;
-use quark\network\mcpe\protocol\packet\PlayerActionPacket;
-use quark\network\mcpe\protocol\packet\RespawnPacket;
-use quark\network\mcpe\protocol\types\PlayerAction;
 use quark\player\Player;
 
 class DeathPacketHandler extends PacketHandler{
@@ -42,9 +42,13 @@ class DeathPacketHandler extends PacketHandler{
 	){}
 
 	public function setUp() : void{
-		$this->session->sendDataPacket(new RespawnPacket($this->player->getOffsetPosition($this->player->getSpawn()), RespawnPacket::SEARCHING_FOR_SPAWN, $this->player->getId()));
+		$this->session->sendDataPacket(RespawnPacket::create(
+			$this->player->getOffsetPosition($this->player->getSpawn()),
+			RespawnPacket::SEARCHING_FOR_SPAWN,
+			$this->player->getId()
+		));
 
-		/** @var list<string> $parameters */
+		/** @var string[] $parameters */
 		$parameters = [];
 		if($this->deathMessage instanceof Translatable){
 			$language = $this->player->getLanguage();
@@ -56,7 +60,7 @@ class DeathPacketHandler extends PacketHandler{
 		}else{
 			$message = $this->deathMessage;
 		}
-		$this->session->sendDataPacket(new DeathInfoPacket($message, $parameters));
+		$this->session->sendDataPacket(DeathInfoPacket::create($message, $parameters));
 	}
 
 	public function handlePlayerAction(PlayerActionPacket $packet) : bool{
@@ -69,13 +73,17 @@ class DeathPacketHandler extends PacketHandler{
 	}
 
 	public function handleContainerClose(ContainerClosePacket $packet) : bool{
-		$this->inventoryManager->onClientRemoveWindow($packet->containerId);
+		$this->inventoryManager->onClientRemoveWindow($packet->windowId);
 		return true;
 	}
 
 	public function handleRespawn(RespawnPacket $packet) : bool{
-		if($packet->state === RespawnPacket::CLIENT_READY_TO_SPAWN){
-			$this->session->sendDataPacket(new RespawnPacket($this->player->getOffsetPosition($this->player->getSpawn()), RespawnPacket::READY_TO_SPAWN, $this->player->getId()));
+		if($packet->respawnState === RespawnPacket::CLIENT_READY_TO_SPAWN){
+			$this->session->sendDataPacket(RespawnPacket::create(
+				$this->player->getOffsetPosition($this->player->getSpawn()),
+				RespawnPacket::READY_TO_SPAWN,
+				$this->player->getId()
+			));
 			return true;
 		}
 		return false;

@@ -23,10 +23,11 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\convert;
 
+use pocketmine\network\mcpe\protocol\types\skin\SkinData;
+use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
 use quark\entity\InvalidSkinException;
 use quark\entity\Skin;
-use quark\network\mcpe\protocol\types\skin\SkinData;
-use quark\network\mcpe\protocol\types\skin\SkinImage;
+use function count;
 use function is_array;
 use function is_string;
 use function json_decode;
@@ -36,6 +37,10 @@ use function str_repeat;
 use const JSON_THROW_ON_ERROR;
 
 class LegacySkinAdapter implements SkinAdapter{
+	private const MAX_ANIMATIONS = 32;
+	private const MAX_PERSONA_PIECES = 64;
+	private const MAX_PIECE_TINT_COLORS = 16;
+	private const MAX_IMAGE_SIZE = 4096;
 
 	public function toSkinData(Skin $skin) : SkinData{
 		$capeData = $skin->getCapeData();
@@ -51,7 +56,6 @@ class LegacySkinAdapter implements SkinAdapter{
 		}
 		return new SkinData(
 			$skin->getSkinId(),
-			"", //TODO: playfab ID
 			json_encode(["geometry" => ["default" => $geometryName]], JSON_THROW_ON_ERROR),
 			SkinImage::fromLegacy($skin->getSkinData()),
 			[],
@@ -61,6 +65,7 @@ class LegacySkinAdapter implements SkinAdapter{
 	}
 
 	public function fromSkinData(SkinData $data) : Skin{
+		self::checkLimits($data);
 		if($data->isPersona()){
 			return new Skin("Standard_Custom", str_repeat(random_bytes(3) . "\xff", 4096));
 		}
@@ -75,5 +80,35 @@ class LegacySkinAdapter implements SkinAdapter{
 		}
 
 		return new Skin($data->getSkinId(), $data->getSkinImage()->getData(), $capeData, $geometryName, $data->getGeometryDataJson());
+	}
+
+	/**
+	 * @throws InvalidSkinException
+	 */
+	private static function checkLimits(SkinData $data) : void{
+		if(count($data->getAnimations()) > self::MAX_ANIMATIONS || count($data->getPersonaPieces()) > self::MAX_PERSONA_PIECES || count($data->getPieceTintColors()) > self::MAX_PIECE_TINT_COLORS){
+			throw new InvalidSkinException("Skins may have at most " . self::MAX_ANIMATIONS . " animations, " . self::MAX_PERSONA_PIECES . " persona pieces and " . self::MAX_PIECE_TINT_COLORS . " piece tints");
+		}
+		self::checkImage($data->getSkinImage());
+		self::checkImage($data->getCapeImage());
+		foreach($data->getAnimations() as $animation){
+			self::checkImage($animation->getImage());
+			$type = $animation->getType();
+			$expressionType = $animation->getExpressionType();
+			if($type < 0 || $type > 0xffffffff || $expressionType < 0 || $expressionType > 0xffffffff){
+				throw new InvalidSkinException("Animation type and expression must be in range 0 - " . 0xffffffff . ", got $type and $expressionType");
+			}
+		}
+	}
+
+	/**
+	 * @throws InvalidSkinException
+	 */
+	private static function checkImage(SkinImage $image) : void{
+		$width = $image->getWidth();
+		$height = $image->getHeight();
+		if($width > self::MAX_IMAGE_SIZE || $height > self::MAX_IMAGE_SIZE){
+			throw new InvalidSkinException("Image dimensions must be at most " . self::MAX_IMAGE_SIZE . ", got {$width}x$height");
+		}
 	}
 }

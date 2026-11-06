@@ -23,18 +23,21 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\AddActorPacket;
+use pocketmine\network\mcpe\protocol\RemoveActorPacket;
+use pocketmine\network\mcpe\protocol\types\entity\ByteMetadataProperty;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\FloatMetadataProperty;
+use pocketmine\network\mcpe\protocol\types\entity\IntMetadataProperty;
+use pocketmine\network\mcpe\protocol\types\entity\LongMetadataProperty;
+use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
+use pocketmine\network\mcpe\protocol\types\entity\StringMetadataProperty;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\packet\AddActorPacket;
-use quark\network\mcpe\protocol\packet\RemoveActorPacket;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use quark\network\mcpe\protocol\types\PropertySyncData;
 
 class FloatingTextParticle implements Particle{
 	//TODO: HACK!
@@ -77,7 +80,7 @@ class FloatingTextParticle implements Particle{
 		if($this->entityId === null){
 			$this->entityId = Entity::nextRuntimeId();
 		}else{
-			$p[] = new RemoveActorPacket(targetActorId: $this->entityId);
+			$p[] = RemoveActorPacket::create($this->entityId);
 		}
 
 		if(!$this->invisible){
@@ -86,27 +89,30 @@ class FloatingTextParticle implements Particle{
 			$actorFlags = (
 				1 << EntityMetadataFlags::NO_AI
 			);
-			$actorMetadata = new EntityMetadata();
-			$actorMetadata->setLong(EntityMetadataProperties::FLAGS, $actorFlags);
-			$actorMetadata->setFloat(EntityMetadataProperties::SCALE, 0.01); //zero causes problems on debug builds
-			$actorMetadata->setFloat(EntityMetadataProperties::BOUNDING_BOX_WIDTH, 0.0);
-			$actorMetadata->setFloat(EntityMetadataProperties::BOUNDING_BOX_HEIGHT, 0.0);
-			$actorMetadata->setString(EntityMetadataProperties::NAMETAG, $name);
-			$actorMetadata->setInt(EntityMetadataProperties::VARIANT, TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId(VanillaBlocks::AIR()->getStateId()));
-			$actorMetadata->setByte(EntityMetadataProperties::ALWAYS_SHOW_NAMETAG, 1);
-			$p[] = new AddActorPacket(
-				targetActorId: $this->entityId, //TODO: actor unique ID
-				targetRuntimeId: $this->entityId,
-				actorType: EntityIds::FALLING_BLOCK,
-				position: $pos, //TODO: check offset (0.49?)
-				velocity: new Vector3(0.0, 0.0, 0.0),
-				rotation: new Vector2(0.0, 0.0),
-				yHeadRotation: 0.0,
-				yBodyRotation: 0.0,
-				attributesList: [],
-				actorData: $actorMetadata->getAll(),
-				synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
-				actorLinks: [],
+			$actorMetadata = [
+				EntityMetadataProperties::FLAGS => new LongMetadataProperty($actorFlags),
+				EntityMetadataProperties::SCALE => new FloatMetadataProperty(0.01), //zero causes problems on debug builds
+				EntityMetadataProperties::BOUNDING_BOX_WIDTH => new FloatMetadataProperty(0.0),
+				EntityMetadataProperties::BOUNDING_BOX_HEIGHT => new FloatMetadataProperty(0.0),
+				EntityMetadataProperties::NAMETAG => new StringMetadataProperty($name),
+				EntityMetadataProperties::VARIANT => new IntMetadataProperty(TypeConverter::getInstance()->getBlockTranslator()->internalIdToNetworkId(VanillaBlocks::AIR()->getStateId())),
+				EntityMetadataProperties::ALWAYS_SHOW_NAMETAG => new ByteMetadataProperty(1),
+			];
+			$p[] = AddActorPacket::create(
+				$this->entityId, //TODO: actor unique ID
+				$this->entityId,
+				EntityIds::FALLING_BLOCK,
+				$pos, //TODO: check offset (0.49?)
+				null,
+				0,
+				0,
+				0,
+				0,
+				[],
+				$actorMetadata,
+				new PropertySyncData([], []),
+				[],
+				null
 			);
 		}
 

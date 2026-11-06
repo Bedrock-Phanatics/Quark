@@ -24,14 +24,14 @@ declare(strict_types=1);
 namespace quark\world\particle;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\ParticleIds;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class BlockForceFieldParticle implements Particle{
 	//TODO: proper encode/decode of data
 	public function __construct(private int $data = 0){}
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::particle(ParticleIds::BLOCK_FORCE_FIELD, $this->data, $pos)];
+		return [LevelEventPacket::standardParticle(ParticleIds::BLOCK_FORCE_FIELD, $this->data, $pos)];
 	}
 }

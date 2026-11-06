@@ -25,6 +25,8 @@ namespace quark\block\tile\dispenser;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use quark\block\tile\ContainerTile;
 use quark\block\tile\ContainerTileTrait;
 use quark\block\tile\Nameable;
@@ -32,8 +34,6 @@ use quark\block\tile\NameableTrait;
 use quark\block\tile\Spawnable;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelEvent;
 use quark\player\Player;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
@@ -106,15 +106,15 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 
 		$contents = \quark\block\utils\redstone\RedstoneBlockUtils::fastReadOnlyInventoryContents($this->inventory);
 		if(count($contents) === 0){
-			$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelPackets::event(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
+			$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
 		}else{
 			/** @var int $slot */
 			$slot = array_rand($contents);
 			if(!DispensableItemManager::get($this->inventory->getItem($slot))->dispense($this->position, $this->inventory, $slot, $side_block, $facing, $player)){
-				$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelPackets::event(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
+				$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
 			}else{
-				$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelPackets::event(LevelEvent::SOUND_CLICK, 0, $this->position));
-				$this->position->getWorld()->broadcastPacketToViewers($pos, LevelPackets::event(LevelEvent::PARTICLE_SHOOT, $faces[$dispenser->getFacing()], $pos));
+				$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK, 0, $this->position));
+				$this->position->getWorld()->broadcastPacketToViewers($pos, LevelEventPacket::create(LevelEvent::PARTICLE_SHOOT, $faces[$dispenser->getFacing()], $pos));
 			}
 		}
 	}

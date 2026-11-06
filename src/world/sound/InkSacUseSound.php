@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 
 final class InkSacUseSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::event(LevelEvent::SOUND_INK_SAC_USED, 0, $pos)];
+		return [LevelEventPacket::create(LevelEvent::SOUND_INK_SAC_USED, 0, $pos)];
 	}
 }

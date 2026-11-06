@@ -23,17 +23,17 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use Bedwire\Nbt;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use quark\block\Block;
 use function get_class;
 
 abstract class Spawnable extends Tile{
-	private ?string $spawnCompoundCache = null;
+	/** @phpstan-var CacheableNbt<CompoundTag>|null */
+	private ?CacheableNbt $spawnCompoundCache = null;
 
 	/**
 	 * @deprecated
@@ -72,9 +72,15 @@ abstract class Spawnable extends Tile{
 	/**
 	 * Returns encoded NBT (varint, little-endian) used to spawn this tile to clients. Uses cache where possible,
 	 * populates cache if it is null.
+	 *
+	 * @phpstan-return CacheableNbt<CompoundTag>
 	 */
-	final public function getSerializedSpawnCompound() : string{
-		return $this->spawnCompoundCache ??= Nbt::write(new TreeRoot($this->getSpawnCompound()), Nbt::NETWORK);
+	final public function getSerializedSpawnCompound() : CacheableNbt{
+		if($this->spawnCompoundCache === null){
+			$this->spawnCompoundCache = new CacheableNbt($this->getSpawnCompound());
+		}
+
+		return $this->spawnCompoundCache;
 	}
 
 	final public function getSpawnCompound() : CompoundTag{

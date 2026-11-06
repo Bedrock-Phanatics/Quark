@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\convert;
 
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\data\bedrock\item\BlockItemIdMap;
 use quark\data\bedrock\item\ItemDeserializer;
 use quark\data\bedrock\item\ItemSerializer;
@@ -32,7 +33,6 @@ use quark\data\bedrock\item\ItemTypeSerializeException;
 use quark\data\bedrock\item\SavedItemData;
 use quark\item\Item;
 use quark\item\ItemBlock;
-use quark\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use quark\utils\AssumptionFailedError;
 
 /**
@@ -90,11 +90,11 @@ final class ItemTranslator{
 	 */
 	private function serializeNetworkId(Item $item) : array{
 		$itemData = $this->itemSerializer->serializeType($item);
-		if(!$this->itemTypeDictionary->hasStringId($itemData->getName())){
-			throw new ItemTypeSerializeException("No network item registered for " . $itemData->getName());
+		try{
+			$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());
+		}catch(\InvalidArgumentException $e){
+			throw new ItemTypeSerializeException("No network item registered for " . $itemData->getName(), 0, $e);
 		}
-
-		$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());
 		$meta = $itemData->getMeta();
 		if($meta < 0 || $meta > 0x7fff){
 			throw new ItemTypeSerializeException("Item meta $meta of " . $itemData->getName() . " does not fit the network's 0 - 32767");
