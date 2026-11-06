@@ -1,0 +1,102 @@
+<?php
+
+/*
+ *
+ *   ___  _   _   _    ____  _  __
+ *  / _ \| | | | / \  |  _ \| |/ /
+ * | | | | | | |/ _ \ | |_) | ' /
+ * | |_| | |_| / ___ \|  _ <| . \
+ *  \__\_|\___/_/   \_\_| \_\_|\_\
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author Quark Team
+ * @link https://github.com/Bedrock-Phanatics/Quark
+ *
+ *
+ */
+
+declare(strict_types=1);
+
+namespace quark\form\type;
+
+use Closure;
+use quark\form\element\MenuOption;
+use quark\form\FormValidationException;
+use quark\player\Player;
+use quark\utils\Utils;
+use function array_values;
+use function gettype;
+use function is_int;
+
+/**
+ * This form type presents a menu to the user with a list of options on it. The user may select an option or close the
+ * form by clicking the X in the top left corner.
+ *
+ * @phpstan-type OnSubmit Closure(Player $player, int $selectedOption) : void
+ * @phpstan-type OnClose Closure(Player $player) : void
+ */
+class MenuForm extends BaseForm{
+
+	protected string $content;
+	/** @var list<MenuOption> */
+	private array $options;
+	/** @phpstan-var OnSubmit */
+	private Closure $onSubmit;
+	/** @phpstan-var OnClose|null */
+	private ?Closure $onClose = null;
+
+	/**
+	 * @param MenuOption[] $options
+	 * @param Closure      $onSubmit signature `function(Player $player, int $selectedOption)`
+	 * @param Closure|null $onClose  signature `function(Player $player)`
+	 *
+	 * @phpstan-param OnSubmit     $onSubmit
+	 * @phpstan-param OnClose|null $onClose
+	 */
+	public function __construct(string $title, string $text, array $options, Closure $onSubmit, ?Closure $onClose = null){
+		parent::__construct($title);
+		$this->content = $text;
+		Utils::validateArrayValueType($options, static function(MenuOption $option) : void{});
+		$this->options = array_values($options);
+		Utils::validateCallableSignature(function(Player $player, int $selectedOption) : void{}, $onSubmit);
+		$this->onSubmit = $onSubmit;
+		if($onClose !== null){
+			Utils::validateCallableSignature(function(Player $player) : void{}, $onClose);
+			$this->onClose = $onClose;
+		}
+	}
+
+	public function getOption(int $position) : ?MenuOption{
+		return $this->options[$position] ?? null;
+	}
+
+	final public function handleResponse(Player $player, $data) : void{
+		if($data === null){
+			if($this->onClose !== null){
+				($this->onClose)($player);
+			}
+		}elseif(is_int($data)){
+			if(!isset($this->options[$data])){
+				throw new FormValidationException("Option $data does not exist");
+			}
+			($this->onSubmit)($player, $data);
+		}else{
+			throw new FormValidationException("Expected int or null, got " . gettype($data));
+		}
+	}
+
+	protected function getType() : string{
+		return "form";
+	}
+
+	protected function serializeFormData() : array{
+		return [
+			"content" => $this->content,
+			"buttons" => $this->options
+		];
+	}
+}

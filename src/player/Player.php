@@ -2320,13 +2320,13 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 
+		$form = $this->forms[$formId];
+		unset($this->forms[$formId]);
 		try{
-			$this->forms[$formId]->handleResponse($this, $responseData);
+			$form->handleResponse($this, $responseData);
 		}catch(FormValidationException $e){
-			$this->logger->critical("Failed to validate form " . get_class($this->forms[$formId]) . ": " . $e->getMessage());
+			$this->logger->critical("Failed to validate form " . get_class($form) . ": " . $e->getMessage());
 			$this->logger->logException($e);
-		}finally{
-			unset($this->forms[$formId]);
 		}
 
 		return true;
@@ -2344,6 +2344,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * Closes the current viewing form and forms in queue.
 	 */
 	public function closeAllForms() : void{
+		$this->forms = [];
 		$this->getNetworkSession()->onCloseAllForms();
 	}
 
@@ -2482,6 +2483,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function destroyCycles() : void{
+		$this->forms = [];
 		$this->networkSession = null;
 		unset($this->cursorInventory);
 		unset($this->craftingGrid);

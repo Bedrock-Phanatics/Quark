@@ -25,6 +25,7 @@ nethernet-identity.der
 !tests/phpunit/
 tests/phpunit/*
 !tests/phpunit/pulse/
+!tests/phpunit/form/
 !tests/phpunit/item/
 tests/phpunit/item/*
 !tests/phpunit/item/CustomItemTest.php
