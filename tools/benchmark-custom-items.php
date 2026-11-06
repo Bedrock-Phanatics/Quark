@@ -103,7 +103,7 @@ final class CustomItemBenchmark extends TestCase{
 		foreach(["vanilla" => [VanillaItems::DIAMOND_SWORD(), VanillaItems::DIAMOND_HELMET()], "custom" => [$registry->create("benchmark:sword"), $registry->create("benchmark:helmet")]] as $kind => [$weapon, $armor]){
 			$results[$kind . ".attack_with_equipment_reset"] = self::measure(static function() use ($attacker, $victim, $weapon, $armor) : void{
 				$victim->resetAttackState();
-				$attacker->getInventory()->setItemInHand($weapon);
+				$attacker->setMainHandItem($weapon);
 				$victim->getArmorInventory()->setHelmet($armor);
 				$attacker->attackEntity($victim);
 			}, 2000);
