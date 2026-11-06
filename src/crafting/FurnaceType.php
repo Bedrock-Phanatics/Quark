@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\crafting;
 
-use quark\utils\LegacyEnumShimTrait;
 use quark\world\sound\BlastFurnaceSound;
 use quark\world\sound\CampfireSound;
 use quark\world\sound\FurnaceSound;
@@ -32,20 +31,9 @@ use quark\world\sound\Sound;
 use function spl_object_id;
 
 /**
- * TODO: These tags need to be removed once we get rid of LegacyEnumShimTrait (PM6)
- *  These are retained for backwards compatibility only.
- *
- * @method static FurnaceType BLAST_FURNACE()
- * @method static FurnaceType CAMPFIRE()
- * @method static FurnaceType FURNACE()
- * @method static FurnaceType SMOKER()
- * @method static FurnaceType SOUL_CAMPFIRE()
- *
  * @phpstan-type TMetadata array{0: int, 1: Sound}
  */
 enum FurnaceType{
-	use LegacyEnumShimTrait;
-
 	case FURNACE;
 	case BLAST_FURNACE;
 	case SMOKER;

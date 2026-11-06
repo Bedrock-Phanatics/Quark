@@ -23,15 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use quark\utils\LegacyEnumShimTrait;
-
-/**
- * @method static WallConnectionType SHORT()
- * @method static WallConnectionType TALL()
- */
 enum WallConnectionType{
-	use LegacyEnumShimTrait;
-
 	case SHORT;
 	case TALL;
 }
