@@ -33,9 +33,7 @@ use function is_string;
  */
 class Input extends CustomFormElement{
 
-	/** @var string */
 	private string $hint;
-	/** @var string */
 	private string $default;
 
 	public function __construct(string $name, string $text, string $hintText = "", string $defaultText = ""){

@@ -41,25 +41,18 @@ use function is_int;
  */
 class MenuForm extends BaseForm{
 
-	/** @var string */
 	protected string $content;
-	/** @var MenuOption[] */
-	private $options;
-	/**
-	 * @var Closure
-	 * @phpstan-var OnSubmit
-	 */
+	/** @var list<MenuOption> */
+	private array $options;
+	/** @phpstan-var OnSubmit */
 	private Closure $onSubmit;
-	/**
-	 * @var Closure|null
-	 * @phpstan-var OnClose
-	 */
+	/** @phpstan-var OnClose|null */
 	private ?Closure $onClose = null;
 
 	/**
-	 * @param MenuOption[]  $options
+	 * @param MenuOption[] $options
 	 * @param Closure      $onSubmit signature `function(Player $player, int $selectedOption)`
-	 * @param Closure|null $onClose signature `function(Player $player)`
+	 * @param Closure|null $onClose  signature `function(Player $player)`
 	 *
 	 * @phpstan-param OnSubmit     $onSubmit
 	 * @phpstan-param OnClose|null $onClose
@@ -67,6 +60,7 @@ class MenuForm extends BaseForm{
 	public function __construct(string $title, string $text, array $options, Closure $onSubmit, ?Closure $onClose = null){
 		parent::__construct($title);
 		$this->content = $text;
+		Utils::validateArrayValueType($options, static function(MenuOption $option) : void{});
 		$this->options = array_values($options);
 		Utils::validateCallableSignature(function(Player $player, int $selectedOption) : void{}, $onSubmit);
 		$this->onSubmit = $onSubmit;
@@ -102,7 +96,7 @@ class MenuForm extends BaseForm{
 	protected function serializeFormData() : array{
 		return [
 			"content" => $this->content,
-			"buttons" => $this->options //yes, this is intended (MCPE calls them buttons)
+			"buttons" => $this->options
 		];
 	}
 }

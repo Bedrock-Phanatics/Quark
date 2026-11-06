@@ -24,16 +24,13 @@ declare(strict_types=1);
 namespace quark\form\element;
 
 use JsonSerializable;
-use ReturnTypeWillChange;
 
 /**
  * Represents an option on a MenuForm. The option is shown as a button and may optionally have an image next to it.
  */
 class MenuOption implements JsonSerializable{
 
-	/** @var string */
 	private string $text;
-	/** @var FormIcon|null */
 	private ?FormIcon $image;
 
 	public function __construct(string $text, ?FormIcon $image = null){
@@ -53,13 +50,13 @@ class MenuOption implements JsonSerializable{
 		return $this->image;
 	}
 
-	#[ReturnTypeWillChange]
-	public function jsonSerialize() : mixed{
+	/** @return array{text: string, image?: FormIcon} */
+	public function jsonSerialize() : array{
 		$json = [
 			"text" => $this->text
 		];
 
-		if($this->hasImage()){
+		if($this->image !== null){
 			$json["image"] = $this->image;
 		}
 

@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace quark\form\element;
 
-use function assert;
+use quark\form\FormValidationException;
+use function gettype;
 
 /**
  * Element which displays some text on a form.
@@ -35,7 +36,9 @@ class Label extends CustomFormElement{
 	}
 
 	public function validateValue($value) : void{
-		assert($value === null);
+		if($value !== null){
+			throw new FormValidationException("Expected null, got " . gettype($value));
+		}
 	}
 
 	protected function serializeElementData() : array{

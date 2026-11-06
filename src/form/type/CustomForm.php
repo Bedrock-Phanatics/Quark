@@ -29,6 +29,7 @@ use quark\form\element\CustomFormElement;
 use quark\form\FormValidationException;
 use quark\player\Player;
 use quark\utils\Utils;
+use function array_is_list;
 use function array_values;
 use function count;
 use function gettype;
@@ -40,25 +41,19 @@ use function is_array;
  */
 class CustomForm extends BaseForm{
 
-	/** @var CustomFormElement[] */
+	/** @var list<CustomFormElement> */
 	private array $elements;
-	/** @var CustomFormElement[] */
+	/** @var array<string, CustomFormElement> */
 	private array $elementMap = [];
-	/**
-	 * @var Closure
-	 * @phpstan-var OnSubmit
-	 */
+	/** @phpstan-var OnSubmit */
 	private Closure $onSubmit;
-	/**
-	 * @var Closure|null
-	 * @phpstan-var OnClose|null
-	 */
+	/** @phpstan-var OnClose|null */
 	private ?Closure $onClose = null;
 
 	/**
 	 * @param CustomFormElement[] $elements
-	 * @param Closure            $onSubmit signature `function(Player $player, CustomFormResponse $data)`
-	 * @param Closure|null       $onClose signature `function(Player $player)`
+	 * @param Closure             $onSubmit signature `function(Player $player, CustomFormResponse $data)`
+	 * @param Closure|null        $onClose  signature `function(Player $player)`
 	 *
 	 * @phpstan-param OnSubmit     $onSubmit
 	 * @phpstan-param OnClose|null $onClose
@@ -67,6 +62,7 @@ class CustomForm extends BaseForm{
 	 */
 	public function __construct(string $title, array $elements, Closure $onSubmit, ?Closure $onClose = null){
 		parent::__construct($title);
+		Utils::validateArrayValueType($elements, static function(CustomFormElement $element) : void{});
 		$this->elements = array_values($elements);
 		foreach($this->elements as $element){
 			if(isset($this->elementMap[$element->getName()])){
@@ -92,7 +88,7 @@ class CustomForm extends BaseForm{
 	}
 
 	/**
-	 * @return CustomFormElement[]
+	 * @return list<CustomFormElement>
 	 */
 	public function getAllElements() : array{
 		return $this->elements;
@@ -104,6 +100,9 @@ class CustomForm extends BaseForm{
 				($this->onClose)($player);
 			}
 		}elseif(is_array($data)){
+			if(!array_is_list($data)){
+				throw new FormValidationException("Expected a list of element values");
+			}
 			if(($actual = count($data)) !== ($expected = count($this->elements))){
 				throw new FormValidationException("Expected $expected result data, got $actual");
 			}
@@ -111,9 +110,6 @@ class CustomForm extends BaseForm{
 			$values = [];
 
 			foreach($data as $index => $value){
-				if(!isset($this->elements[$index])){
-					throw new FormValidationException("Element at offset $index does not exist");
-				}
 				$element = $this->elements[$index];
 				try{
 					$element->validateValue($value);

@@ -30,7 +30,6 @@ use quark\form\Form;
  */
 abstract class BaseForm implements Form{
 
-	/** @var string */
 	protected string $title;
 
 	public function __construct(string $title){

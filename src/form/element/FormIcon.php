@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\form\element;
 
-use ReturnTypeWillChange;
+use InvalidArgumentException;
 
 /**
  * Represents an icon which can be placed next to options on menus, or as the icon for the server-settings form type.
@@ -32,16 +32,17 @@ class FormIcon implements \JsonSerializable{
 	public const string IMAGE_TYPE_URL = "url";
 	public const string IMAGE_TYPE_PATH = "path";
 
-	/** @var string */
 	private string $type;
-	/** @var string */
 	private string $data;
 
 	/**
 	 * @param string $data URL or path depending on the type chosen.
-	 * @param string $type Can be one of the constants at the top of the file, but only "url" is known to work.
+	 * @param string $type One of IMAGE_TYPE_URL or IMAGE_TYPE_PATH.
 	 */
 	public function __construct(string $data, string $type = self::IMAGE_TYPE_URL){
+		if($type !== self::IMAGE_TYPE_URL && $type !== self::IMAGE_TYPE_PATH){
+			throw new InvalidArgumentException("Unknown form icon type \"$type\"");
+		}
 		$this->type = $type;
 		$this->data = $data;
 	}
@@ -54,8 +55,8 @@ class FormIcon implements \JsonSerializable{
 		return $this->data;
 	}
 
-	#[ReturnTypeWillChange]
-	public function jsonSerialize() : mixed{
+	/** @return array{type: string, data: string} */
+	public function jsonSerialize() : array{
 		return [
 			"type" => $this->type,
 			"data" => $this->data

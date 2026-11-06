@@ -29,9 +29,7 @@ use quark\form\FormValidationException;
  * Base class for UI elements which can be placed on custom forms.
  */
 abstract class CustomFormElement implements \JsonSerializable{
-	/** @var string */
 	private string $name;
-	/** @var string */
 	private string $text;
 
 	public function __construct(string $name, string $text){
@@ -59,8 +57,7 @@ abstract class CustomFormElement implements \JsonSerializable{
 	}
 
 	/**
-	 * Validates that the given value is of the correct type and fits the constraints for the component. This function
-	 * should do appropriate type checking and throw whatever errors necessary if the value is not valid.
+	 * Rejects values that do not match this element's type and constraints.
 	 *
 	 * @param mixed $value
 	 * @throws FormValidationException

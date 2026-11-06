@@ -24,16 +24,13 @@ declare(strict_types=1);
 namespace quark\form\type;
 
 use quark\form\element\FormIcon;
+use quark\player\Player;
 
 /**
- * Represents a custom form which can be shown in the Settings menu on the client. This is exactly the same as a regular
- * CustomForm, except that this type can also have an icon which can be shown on the settings section button.
- *
- * Passing this form to {@link Player::sendForm()} will not show a form with an icon nor set this form as the server
- * settings.
+ * Serializes custom form data with an optional server-settings icon.
+ * {@link Player::sendForm()} displays a normal custom form, the core does not register settings-menu forms.
  */
 class ServerSettingsForm extends CustomForm{
-	/** @var FormIcon|null */
 	private ?FormIcon $icon;
 
 	public function __construct(string $title, array $elements, ?FormIcon $icon, \Closure $onSubmit, ?\Closure $onClose = null){

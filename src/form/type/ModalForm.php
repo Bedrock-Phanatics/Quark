@@ -34,35 +34,38 @@ use function is_bool;
  * This form type presents a simple "yes/no" dialog with two buttons.
  *
  * @phpstan-type OnSubmit Closure(Player $player, bool $choice) : void
+ * @phpstan-type OnClose Closure(Player $player) : void
  */
 class ModalForm extends BaseForm{
 
-	/** @var string */
 	private string $content;
-	/**
-	 * @var Closure
-	 * @phpstan-var OnSubmit
-	 */
+	/** @phpstan-var OnSubmit */
 	private Closure $onSubmit;
-	/** @var string */
+	/** @phpstan-var OnClose|null */
+	private ?Closure $onClose;
 	private string $button1;
-	/** @var string */
 	private string $button2;
 
 	/**
-	 * @param string   $title Text to put on the title of the dialog.
-	 * @param string   $text Text to put in the body.
-	 * @param Closure $onSubmit signature `function(Player $player, bool $choice)`
-	 * @param string   $yesButtonText Text to show on the "Yes" button. Defaults to client-translated "Yes" string.
-	 * @param string   $noButtonText Text to show on the "No" button. Defaults to client-translated "No" string.
+	 * @param string       $title         Text to put on the title of the dialog.
+	 * @param string       $text          Text to put in the body.
+	 * @param Closure      $onSubmit      signature `function(Player $player, bool $choice)`
+	 * @param string       $yesButtonText Text to show on the "Yes" button. Defaults to client-translated "Yes" string.
+	 * @param string       $noButtonText  Text to show on the "No" button. Defaults to client-translated "No" string.
+	 * @param Closure|null $onClose       signature `function(Player $player)`
 	 *
 	 * @phpstan-param OnSubmit $onSubmit
+	 * @phpstan-param OnClose|null $onClose
 	 */
-	public function __construct(string $title, string $text, Closure $onSubmit, string $yesButtonText = "gui.yes", string $noButtonText = "gui.no"){
+	public function __construct(string $title, string $text, Closure $onSubmit, string $yesButtonText = "gui.yes", string $noButtonText = "gui.no", ?Closure $onClose = null){
 		parent::__construct($title);
 		$this->content = $text;
 		Utils::validateCallableSignature(function(Player $player, bool $choice) : void{}, $onSubmit);
 		$this->onSubmit = $onSubmit;
+		if($onClose !== null){
+			Utils::validateCallableSignature(function(Player $player) : void{}, $onClose);
+		}
+		$this->onClose = $onClose;
 		$this->button1 = $yesButtonText;
 		$this->button2 = $noButtonText;
 	}
@@ -76,6 +79,12 @@ class ModalForm extends BaseForm{
 	}
 
 	final public function handleResponse(Player $player, $data) : void{
+		if($data === null){
+			if($this->onClose !== null){
+				($this->onClose)($player);
+			}
+			return;
+		}
 		if(!is_bool($data)){
 			throw new FormValidationException("Expected bool, got " . gettype($data));
 		}

@@ -25,14 +25,14 @@ namespace quark\form\element;
 
 use InvalidArgumentException;
 use quark\form\FormValidationException;
+use quark\utils\Utils;
 use function array_values;
 use function gettype;
 use function is_int;
 
 abstract class BaseSelector extends CustomFormElement{
-	/** @var int */
 	protected int $defaultOptionIndex;
-	/** @var string[] */
+	/** @var list<string> */
 	protected array $options;
 
 	/**
@@ -42,6 +42,7 @@ abstract class BaseSelector extends CustomFormElement{
 	 */
 	public function __construct(string $name, string $text, array $options, int $defaultOptionIndex = 0){
 		parent::__construct($name, $text);
+		Utils::validateArrayValueType($options, static function(string $option) : void{});
 		$this->options = array_values($options);
 
 		if(!isset($this->options[$defaultOptionIndex])){
@@ -75,7 +76,7 @@ abstract class BaseSelector extends CustomFormElement{
 	}
 
 	/**
-	 * @return string[]
+	 * @return list<string>
 	 */
 	public function getOptions() : array{
 		return $this->options;

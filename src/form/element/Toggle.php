@@ -31,7 +31,6 @@ use function is_bool;
  * Represents a UI on/off switch. The switch may have a default value.
  */
 class Toggle extends CustomFormElement{
-	/** @var bool */
 	private bool $default;
 
 	public function __construct(string $name, string $text, bool $defaultValue = false){
