@@ -25,9 +25,32 @@ namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\VarInt;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
+use pocketmine\network\mcpe\protocol\BookEditPacket;
+use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
+use pocketmine\network\mcpe\protocol\serializer\BitSet;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\InputMode;
+use pocketmine\network\mcpe\protocol\types\InteractionMode;
+use pocketmine\network\mcpe\protocol\types\inventory\HandSlot;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
+use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
+use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
+use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
+use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
+use pocketmine\network\mcpe\protocol\types\PlayerAction;
+use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
+use pocketmine\network\mcpe\protocol\types\PlayerBlockAction;
+use pocketmine\network\mcpe\protocol\types\PlayMode;
 use pocketmine\utils\Limits;
 use quark\entity\Entity;
 use quark\entity\Location;
@@ -36,81 +59,101 @@ use quark\item\VanillaItems;
 use quark\item\WritableBookBase;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\packet\BlockActorDataPacket;
-use quark\network\mcpe\protocol\packet\BookEditPacket;
-use quark\network\mcpe\protocol\packet\PlayerAuthInputPacket;
-use quark\network\mcpe\protocol\types\BookEditActionReplacePage;
-use quark\network\mcpe\protocol\types\BookEditActionSwapPages;
-use quark\network\mcpe\protocol\types\InventoryAction;
-use quark\network\mcpe\protocol\types\InventorySource;
-use quark\network\mcpe\protocol\types\ItemUseInventoryTransaction;
-use quark\network\mcpe\protocol\types\NetworkItemStackDescriptor;
-use quark\network\mcpe\protocol\types\PackedItemUseLegacyInventoryTransaction;
-use quark\network\mcpe\protocol\types\PlayerAction;
-use quark\network\mcpe\protocol\types\PlayerAuthInputFlags;
-use quark\network\mcpe\protocol\types\PlayerBlockAction;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\world\World;
 use function array_fill;
+use function count;
+use function pack;
+use function range;
 use function str_repeat;
+use function strlen;
+use function substr;
 use const NAN;
 
 final class InGamePacketHandlerTest extends TestCase{
+
+	protected function setUp() : void{
+		Pulse::reset();
+		PulseZones::init();
+	}
+
+	protected function tearDown() : void{
+		Pulse::reset();
+	}
 
 	private static function handler() : InGamePacketHandler{
 		return new \ReflectionClass(InGamePacketHandler::class)->newInstanceWithoutConstructor();
 	}
 
 	/**
-	 * @param list<int> $inputData
+	 * @param list<int>                    $inputFlags
+	 * @param list<PlayerBlockAction>|null $blockActions
 	 */
-	private static function authInput(array $inputData = []) : PlayerAuthInputPacket{
-		return new PlayerAuthInputPacket(
-			playerRotation: new Vector2(0.0, 0.0),
-			position: new Vector3(0.0, 0.0, 0.0),
-			moveVector: new Vector2(0.0, 0.0),
-			playerHeadRotation: 0.0,
-			inputData: $inputData,
-			inputMode: 1,
-			playMode: 0,
-			newInteractionModel: 0,
-			interactRotation: new Vector2(0.0, 0.0),
-			clientTick: 0,
-			posDelta: new Vector3(0.0, 0.0, 0.0),
-			itemUseTransaction: null,
-			itemStackRequest: null,
-			playerBlockActions: null,
-			vehicleRotation: null,
-			clientPredictedVehicle: null,
-			analogMoveVector: new Vector2(0.0, 0.0),
-			cameraOrientation: new Vector3(0.0, 0.0, 0.0),
-			rawMoveVector: new Vector2(0.0, 0.0),
-		);
+	private static function authInput(array $inputFlags = [], Vector3 $position = new Vector3(0.0, 0.0, 0.0), ?ItemInteractionData $itemInteraction = null, ?array $blockActions = null) : PlayerAuthInputPacket{
+		$flags = new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS);
+		foreach($inputFlags as $flag){
+			$flags->set($flag, true);
+		}
+		$zero2 = new Vector2(0.0, 0.0);
+		$zero3 = new Vector3(0.0, 0.0, 0.0);
+		return PlayerAuthInputPacket::create($position, 0.0, 0.0, 0.0, 0.0, 0.0, $flags, InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, $zero2, 0, $zero3, $itemInteraction, null, $blockActions, null, 0.0, 0.0, $zero3, $zero2);
 	}
 
 	/**
-	 * @return \Generator<string, array{PlayerAuthInputPacket, string}>
+	 * A session that decodes packets for the handler, so checks the decoder makes can be seen as the session sees them.
+	 */
+	private function session(PacketHandler $handler) : NetworkSession{
+		$session = new \ReflectionClass(NetworkSession::class)->newInstanceWithoutConstructor();
+		$set = static fn(string $property, mixed $value) => new \ReflectionProperty(NetworkSession::class, $property)->setValue($session, $value);
+		$set("logger", new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		$set("handler", $handler);
+		$set("handlerActions", PacketHandlerInspector::getHandlerActions($handler));
+		return $session;
+	}
+
+	/**
+	 * An encoded auth input with no flags or vehicle, with its flag list and vehicle fields swapped for raw bytes.
+	 */
+	private static function authInputBytes(string $flags, string $vehicle = "\x00\x00") : string{
+		$bytes = EncodedPacket::encode(self::authInput());
+		//2 byte header, 8 floats before the flag list, and 28 bytes of floats after the vehicle
+		return substr($bytes, 0, 34) . $flags . substr($bytes, 35, -30) . $vehicle . substr($bytes, -28);
+	}
+
+	private static function flagList(int ...$flags) : string{
+		$out = new ByteBufferWriter();
+		VarInt::writeUnsignedInt($out, count($flags));
+		foreach($flags as $flag){
+			VarInt::writeSignedInt($out, $flag);
+		}
+		return $out->getData();
+	}
+
+	/**
+	 * @return \Generator<string, array{string, string}>
 	 */
 	public static function invalidAuthInputProvider() : \Generator{
-		foreach(["negative flag" => [-1], "unknown flag" => [PlayerAuthInputFlags::NUMBER_OF_FLAGS], "duplicate flag" => [3, 3]] as $name => $flags){
-			yield $name => [self::authInput($flags), $name === "duplicate flag" ? "Duplicate input flag 3" : "Unknown input flag " . $flags[0]];
-		}
-		$packet = self::authInput();
-		$packet->vehicleRotation = new Vector2(0.0, 0.0);
-		yield "vehicle rotation alone" => [$packet, "Vehicle rotation and actor unique ID must both be present or both be absent"];
-		$packet = self::authInput();
-		$packet->clientPredictedVehicle = 5;
-		yield "vehicle id alone" => [$packet, "Vehicle rotation and actor unique ID must both be present or both be absent"];
+		yield "negative flag" => [self::authInputBytes(self::flagList(-1)), "Index out of bounds"];
+		yield "unknown flag" => [self::authInputBytes(self::flagList(PlayerAuthInputFlags::NUMBER_OF_FLAGS)), "Index out of bounds"];
+		yield "duplicate flag" => [self::authInputBytes(self::flagList(3, 3)), "Duplicate input flag 3"];
+		yield "more flags than exist" => [self::authInputBytes(self::flagList(...[...range(0, PlayerAuthInputFlags::NUMBER_OF_FLAGS - 1), 0])), "Duplicate input flag 0"];
+		$message = "Vehicle rotation and actor unique ID must both be present or both be absent";
+		yield "vehicle rotation alone" => [self::authInputBytes(self::flagList(), "\x01" . pack("g2", 0.0, 0.0) . "\x00"), $message];
+		yield "vehicle id alone" => [self::authInputBytes(self::flagList(), "\x00\x01\x0a"), $message];
 	}
 
 	/**
 	 * @dataProvider invalidAuthInputProvider
 	 */
-	public function testRejectsInvalidAuthInput(PlayerAuthInputPacket $packet, string $message) : void{
+	public function testRejectsInvalidAuthInput(string $bytes, string $message) : void{
+		self::assertInstanceOf(PlayerAuthInputPacket::class, EncodedPacket::fromBytes(self::authInputBytes(self::flagList()))->getPacket());
 		$this->expectException(PacketHandlingException::class);
 		$this->expectExceptionMessage($message);
-		self::handler()->handlePlayerAuthInput($packet);
+		$this->session(self::handler())->handleDataPacket($bytes);
 	}
 
 	/**
@@ -144,12 +187,11 @@ final class InGamePacketHandlerTest extends TestCase{
 		$player->method("breakBlock")->willReturn(false);
 		$handler = $this->handlerFor($player);
 
-		$packet = self::authInput();
-		$packet->playerBlockActions = [];
+		$actions = [];
 		for($i = 0; $i < 100; ++$i){
-			$packet->playerBlockActions[] = new PlayerBlockAction(PlayerAction::PREDICT_DESTROY_BLOCK, new Vector3(...$position($i)), Facing::UP);
+			$actions[] = new PlayerBlockAction(PlayerAction::PREDICT_DESTROY_BLOCK, new BlockPosition(...$position($i)), Facing::UP);
 		}
-		$handler->handlePlayerAuthInput($packet);
+		$handler->handlePlayerAuthInput(self::authInput(blockActions: $actions));
 		/** @var list<Vector3> $synced */
 		return $synced;
 	}
@@ -162,13 +204,24 @@ final class InGamePacketHandlerTest extends TestCase{
 		self::assertCount(128, $this->syncedBlocksAfterFailedBreaks(static fn(int $i) : array => [$i * 3 - 150, 2, 3]));
 	}
 
+	private static function bookEdit(int $type, int $pageNumber, int $secondaryPageNumber = 0) : BookEditPacket{
+		$packet = new BookEditPacket();
+		$packet->type = $type;
+		$packet->inventorySlot = 0;
+		$packet->pageNumber = $pageNumber;
+		$packet->secondaryPageNumber = $secondaryPageNumber;
+		$packet->text = "x";
+		$packet->photoName = "";
+		return $packet;
+	}
+
 	/**
 	 * @return \Generator<string, array{BookEditPacket}>
 	 */
 	public static function farBookPageProvider() : \Generator{
-		yield "replace" => [new BookEditPacket(0, ["replace_page" => new BookEditActionReplacePage(Limits::INT32_MAX, "x", "")])];
-		yield "swap" => [new BookEditPacket(0, ["swap_pages" => new BookEditActionSwapPages(0, Limits::INT32_MAX)])];
-		yield "just past the client's last page" => [new BookEditPacket(0, ["replace_page" => new BookEditActionReplacePage(50, "x", "")])];
+		yield "replace" => [self::bookEdit(BookEditPacket::TYPE_REPLACE_PAGE, Limits::INT32_MAX)];
+		yield "swap" => [self::bookEdit(BookEditPacket::TYPE_SWAP_PAGES, 0, Limits::INT32_MAX)];
+		yield "just past the client's last page" => [self::bookEdit(BookEditPacket::TYPE_REPLACE_PAGE, 50)];
 	}
 
 	/**
@@ -209,21 +262,24 @@ final class InGamePacketHandlerTest extends TestCase{
 	public function testRejectsNonFiniteMovement() : void{
 		$player = $this->player();
 		$player->expects(self::never())->method("handleMovement");
-		$packet = self::authInput();
-		$packet->position = new Vector3(0.0, NAN, 0.0);
-		self::assertFalse($this->handlerFor($player)->handlePlayerAuthInput($packet));
+		self::assertFalse($this->handlerFor($player)->handlePlayerAuthInput(self::authInput(position: new Vector3(0.0, NAN, 0.0))));
 	}
 
 	public function testLimitsAuthInputTransactionActionsLikeInventoryTransactions() : void{
-		$item = new NetworkItemStackDescriptor(0, 0, 0, null, 0, "");
-		$action = new InventoryAction(new InventorySource(0), 0, $item, $item);
+		$item = ItemStackWrapper::legacy(ItemStack::null());
+		$action = new NetworkInventoryAction();
+		$action->sourceType = NetworkInventoryAction::SOURCE_CONTAINER;
+		$action->windowId = 0;
+		$action->inventorySlot = 0;
+		$action->oldItem = $item;
+		$action->newItem = $item;
 		$zero = new Vector3(0, 0, 0);
-		$packet = self::authInput();
-		$packet->itemUseTransaction = new PackedItemUseLegacyInventoryTransaction(0, null, new ItemUseInventoryTransaction(
-			array_fill(0, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS + 1, $action), 0, 0, $zero, 0, 0, 0, $item, $zero, $zero, 0, 0, 0
-		));
+		$transaction = UseItemTransactionData::new(
+			array_fill(0, InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS + 1, $action), UseItemTransactionData::ACTION_CLICK_AIR, TriggerType::PLAYER_INPUT,
+			new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, $item, $zero, $zero, 0, PredictedResult::FAILURE, 0
+		);
 		try{
-			self::handler()->handlePlayerAuthInput($packet);
+			self::handler()->handlePlayerAuthInput(self::authInput(itemInteraction: new ItemInteractionData(0, null, $transaction)));
 			self::fail("Oversized transaction accepted");
 		}catch(PacketHandlingException $e){
 			self::assertSame(InGamePacketHandler::MAX_INVENTORY_TRANSACTION_ACTIONS, $e->limit);
@@ -231,24 +287,14 @@ final class InGamePacketHandlerTest extends TestCase{
 	}
 
 	public function testRejectsOversizedBlockActorDataBeforeParsing() : void{
+		$nbt = CompoundTag::create()->setString("text", str_repeat("x", 16 * 1024));
+		$bytes = EncodedPacket::encode(BlockActorDataPacket::create(new BlockPosition(0, 0, 0), new CacheableNbt($nbt)));
+		self::assertGreaterThan(16 * 1024, strlen($bytes));
 		try{
-			self::handler()->handleBlockActorData(new BlockActorDataPacket(new Vector3(0, 0, 0), str_repeat("\0", 16 * 1024 + 1)));
+			$this->session(self::handler())->handleDataPacket($bytes);
 			self::fail("Oversized block actor data accepted");
 		}catch(PacketHandlingException $e){
-			self::assertSame([16 * 1024 + 1, 16 * 1024], [$e->observed, $e->limit]);
-		}
-	}
-
-	public function testLimitsInputFlagCount() : void{
-		$flags = [];
-		for($i = 0; $i <= PlayerAuthInputFlags::NUMBER_OF_FLAGS; ++$i){
-			$flags[] = $i % PlayerAuthInputFlags::NUMBER_OF_FLAGS;
-		}
-		try{
-			self::handler()->handlePlayerAuthInput(self::authInput($flags));
-			self::fail("Oversized input flag list accepted");
-		}catch(PacketHandlingException $e){
-			self::assertSame([PlayerAuthInputFlags::NUMBER_OF_FLAGS + 1, PlayerAuthInputFlags::NUMBER_OF_FLAGS], [$e->observed, $e->limit]);
+			self::assertSame([strlen($bytes), 16 * 1024], [$e->observed, $e->limit]);
 		}
 	}
 }

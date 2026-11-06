@@ -25,63 +25,73 @@ namespace quark\network\mcpe\protocol;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
+use pocketmine\network\mcpe\protocol\SetTimePacket;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use pocketmine\network\mcpe\protocol\types\skin\SkinAnimation;
+use pocketmine\network\mcpe\protocol\types\skin\SkinData;
+use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
 use pocketmine\utils\Limits;
 use quark\entity\InvalidSkinException;
 use quark\entity\Skin;
 use quark\item\enchantment\EnchantingOption;
+use quark\item\enchantment\EnchantmentInstance;
+use quark\item\enchantment\VanillaEnchantments;
 use quark\item\VanillaItems;
+use quark\network\mcpe\convert\LegacySkinAdapter;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\packet\MobEquipmentPacket;
-use quark\network\mcpe\protocol\packet\SetTimePacket;
-use quark\network\mcpe\protocol\types\inventory\ItemStackWrapper;
-use quark\network\mcpe\protocol\types\LevelEvent;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
-use quark\network\mcpe\protocol\types\skin\SkinImage;
 use quark\utils\Utils;
 use quark\world\World;
+use function array_fill;
 use function str_repeat;
 use const NAN;
-use const PHP_INT_MAX;
-use const PHP_INT_MIN;
 
 /**
- * Values the API allows but the protocol cannot carry must not reach the native encoder unchanged.
+ * Values the API allows but the protocol cannot carry must be clamped or rejected before they are sent.
  */
 final class EncodeLimitsTest extends TestCase{
-
-	public function testOversizedTextIsCut() : void{
-		self::assertNotSame("", EncodedPacket::of(TextPackets::raw(str_repeat("é", 40000)))->getBytes());
-		self::assertNotSame("", EncodedPacket::of(TextPackets::translation("key", ["1", "2", "3", "4", "5", "6"]))->getBytes());
-	}
 
 	public function testOversizedStackCountIsClamped() : void{
 		$stack = TypeConverter::getInstance()->coreItemStackToNet(VanillaItems::STICK()->setCount(70000));
 		self::assertSame(TypeConverter::MAX_NETWORK_COUNT, $stack->getCount());
-		self::assertNotSame("", EncodedPacket::of(new MobEquipmentPacket(
-			targetRuntimeId: 1,
-			item: Fields::itemStackWrapper(new ItemStackWrapper(0, $stack)),
-			slot: 0,
-			selectedSlot: 0,
-			containerId: 0,
-		))->getBytes());
+		$decoded = EncodedPacket::of(MobEquipmentPacket::create(1, new ItemStackWrapper(0, $stack), 0, 0, 0))->getPacket();
+		self::assertInstanceOf(MobEquipmentPacket::class, $decoded);
+		self::assertSame(TypeConverter::MAX_NETWORK_COUNT, $decoded->item->getItemStack()->getCount());
 	}
 
-	public function testEnchantingOptionRejectsUnsendableValues() : void{
+	/**
+	 * @return \Generator<string, array{int, string, list<int>}>
+	 */
+	public static function badEnchantingOptionProvider() : \Generator{
+		yield "xp level" => [256, "name", []];
+		yield "empty name" => [1, "", []];
+		yield "long name" => [1, str_repeat("a", 257), []];
+		yield "enchantment level" => [1, "name", [256]];
+	}
+
+	/**
+	 * @dataProvider badEnchantingOptionProvider
+	 * @param list<int> $levels
+	 */
+	public function testEnchantingOptionRejectsUnsendableValues(int $xpLevel, string $name, array $levels) : void{
+		$enchantments = [];
+		foreach($levels as $level){
+			$enchantments[] = new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), $level);
+		}
 		$this->expectException(\InvalidArgumentException::class);
-		new EnchantingOption(256, "name", []);
-	}
-
-	public function testLevelEventDataIsClamped() : void{
-		self::assertNotSame("", EncodedPacket::of(LevelPackets::event(LevelEvent::BLOCK_START_BREAK, PHP_INT_MAX, null))->getBytes());
-		self::assertNotSame("", EncodedPacket::of(LevelPackets::sound(LevelSoundEvent::LEVELUP, Vector3::zero(), false, PHP_INT_MIN))->getBytes());
+		new EnchantingOption($xpLevel, $name, $enchantments);
 	}
 
 	public function testWorldTimeKeepsTimeOfDay() : void{
 		self::assertSame(1000, NetworkSession::networkWorldTime(1000));
 		$time = NetworkSession::networkWorldTime(Limits::INT32_MAX + 1);
+		self::assertGreaterThanOrEqual(Limits::INT32_MIN, $time);
+		self::assertLessThanOrEqual(Limits::INT32_MAX, $time);
 		self::assertSame((Limits::INT32_MAX + 1) % World::TIME_FULL, $time % World::TIME_FULL);
-		self::assertNotSame("", EncodedPacket::of(new SetTimePacket(time: $time))->getBytes());
+		$decoded = EncodedPacket::of(SetTimePacket::create($time))->getPacket();
+		self::assertInstanceOf(SetTimePacket::class, $decoded);
+		self::assertSame($time, $decoded->time);
 	}
 
 	/**
@@ -101,9 +111,36 @@ final class EncodeLimitsTest extends TestCase{
 		Utils::checkBlockPositionFitsInt32($position);
 	}
 
-	public function testSkinLimits() : void{
-		$this->expectException(\InvalidArgumentException::class);
-		new SkinImage(SkinImage::MAX_SIZE + 1, 1, str_repeat("\x00", (SkinImage::MAX_SIZE + 1) * 4));
+	/**
+	 * @param list<SkinAnimation> $animations
+	 */
+	private static function skinData(SkinImage $image, array $animations = []) : SkinData{
+		return new SkinData("id", '{"geometry":{"default":"geometry.humanoid.custom"}}', $image, $animations);
+	}
+
+	public function testSkinsWithinLimitsAreAccepted() : void{
+		$skin = (new LegacySkinAdapter())->fromSkinData(self::skinData(new SkinImage(64, 64, str_repeat("\x00", 64 * 64 * 4))));
+		self::assertSame("geometry.humanoid.custom", $skin->getGeometryName());
+	}
+
+	/**
+	 * @return \Generator<string, array{SkinData}>
+	 */
+	public static function oversizedSkinProvider() : \Generator{
+		$small = new SkinImage(1, 1, "\x00\x00\x00\x00");
+		yield "skin image" => [self::skinData(new SkinImage(1, 4097, str_repeat("\x00", 4097 * 4)))];
+		yield "animation image" => [self::skinData($small, [new SkinAnimation(new SkinImage(4097, 1, str_repeat("\x00", 4097 * 4)), 0, 1.0, 0)])];
+		yield "animation count" => [self::skinData($small, array_fill(0, 33, new SkinAnimation($small, 0, 1.0, 0)))];
+		yield "animation type" => [self::skinData($small, [new SkinAnimation($small, 0x1_0000_0000, 1.0, 0)])];
+		yield "negative expression" => [self::skinData($small, [new SkinAnimation($small, 0, 1.0, -1)])];
+	}
+
+	/**
+	 * @dataProvider oversizedSkinProvider
+	 */
+	public function testSkinLimits(SkinData $data) : void{
+		$this->expectException(InvalidSkinException::class);
+		(new LegacySkinAdapter())->fromSkinData($data);
 	}
 
 	public function testInfiniteSkinGeometryIsInvalid() : void{

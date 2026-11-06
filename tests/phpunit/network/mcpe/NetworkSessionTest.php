@@ -23,25 +23,22 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use Bedwire\PacketId;
-use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
-use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\ContainerClosePacket;
+use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
+use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
+use pocketmine\network\mcpe\protocol\SetTimePacket;
+use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
+use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 use quark\lang\Language;
-use quark\network\mcpe\protocol\packet\ContainerClosePacket;
-use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
-use quark\network\mcpe\protocol\packet\SetTimePacket;
-use quark\network\mcpe\protocol\types\inventory\ContainerIds;
-use quark\network\mcpe\protocol\types\inventory\WindowTypes;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\ObjectSet;
 use function strlen;
-use const PHP_INT_MAX;
 
 final class NetworkSessionTest extends TestCase{
 
@@ -86,16 +83,6 @@ final class NetworkSessionTest extends TestCase{
 				($this->onSend)($this->session, $batch);
 			}
 
-			public function sendPackets(array $packets) : bool{
-				try{
-					$batch = NetworkSession::encodeBatch($packets);
-				}catch(\ValueError|\TypeError){
-					return false;
-				}
-				($this->onSend)($this->session, $batch);
-				return true;
-			}
-
 			public function acceptLogin(string $clientPublicKeyDer) : void{}
 
 			public function close(string $reason = "unknown reason") : void{}
@@ -107,7 +94,7 @@ final class NetworkSessionTest extends TestCase{
 	 * @return \Generator<string, array{\Closure(NetworkSession) : mixed}>
 	 */
 	public static function flushProvider() : \Generator{
-		yield "flush while connected" => [static fn(NetworkSession $session) => $session->sendDataPacket(new SetTimePacket(1), true)];
+		yield "flush while connected" => [static fn(NetworkSession $session) => $session->sendDataPacket(SetTimePacket::create(1), true)];
 		yield "final flush of a disconnect" => [static fn(NetworkSession $session) => $session->disconnect("test")];
 	}
 
@@ -136,7 +123,7 @@ final class NetworkSessionTest extends TestCase{
 	}
 
 	private static function chunkRadius(int $radius) : string{
-		return Protocol::encode(PacketId::REQUEST_CHUNK_RADIUS, ["chunk_radius" => $radius, "max_chunk_radius" => 32]);
+		return EncodedPacket::encode(RequestChunkRadiusPacket::create($radius, 32));
 	}
 
 	public function testNativelySplitPacketsSkipBatchLimits() : void{
@@ -162,44 +149,10 @@ final class NetworkSessionTest extends TestCase{
 		$this->session(static function() : void{})->handleEncoded($batch);
 	}
 
-	public function testEncodeFailureDisconnectsOnlyThatSession() : void{
-		$sent = [];
-		$session = $this->session(static function(NetworkSession $session, string $batch) use (&$sent) : void{
-			$sent[] = $batch;
-		});
-		$rejected = false;
-		$session->sendDataPacketWithReceipt(new SetTimePacket(PHP_INT_MAX))->onCompletion(
-			static fn() => self::fail("Receipt of an unsent packet resolved"),
-			static function() use (&$rejected) : void{ $rejected = true; }
-		);
-
-		$session->sendDataPacket(new SetTimePacket(1), true);
-
-		self::assertFalse($session->isConnected());
-		self::assertTrue($rejected);
-		self::assertCount(1, $sent);
-		$reader = new ByteBufferReader($sent[0]);
-		self::assertSame(PacketId::DISCONNECT, Protocol::packetId($reader->readByteArray(VarInt::readUnsignedInt($reader))));
-		self::assertSame(0, $reader->getUnreadLength());
-	}
-
-	public function testEncodeFailureDuringDisconnectStillClosesTheSession() : void{
-		$sends = 0;
-		$session = $this->session(static function() use (&$sends) : void{
-			$sends++;
-		});
-		$session->sendDataPacket(new SetTimePacket(PHP_INT_MAX));
-
-		$session->disconnect("test");
-
-		self::assertFalse($session->isConnected());
-		self::assertSame(0, $sends);
-	}
-
 	public function testNegativeWindowTypesEncode() : void{
 		$batch = NetworkSession::encodeBatch([
-			new ContainerOpenPacket(containerId: 1, containerType: WindowTypes::INVENTORY, position: new Vector3(0, 0, 0), targetActorId: 1),
-			new ContainerClosePacket(containerId: ContainerIds::NONE, containerType: WindowTypes::NONE, serverInitiatedClose: true),
+			EncodedPacket::encode(ContainerOpenPacket::entityInv(1, WindowTypes::INVENTORY, 1)),
+			EncodedPacket::encode(ContainerClosePacket::create(ContainerIds::NONE, WindowTypes::NONE, true)),
 		]);
 		self::assertStringContainsString("\x01\xff", $batch);
 		self::assertStringContainsString("\xff\xf7", $batch);

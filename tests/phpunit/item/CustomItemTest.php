@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use Bedwire\Nbt;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferWriter;
 use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
+use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackExtraData;
+use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use quark\block\BlockToolType;
 use quark\block\VanillaBlocks;
 use quark\data\bedrock\item\ItemDeserializer;
@@ -30,13 +35,6 @@ use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\network\mcpe\convert\TypeConversionException;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
-use quark\network\mcpe\protocol\PacketDecodeException;
-use quark\network\mcpe\protocol\serializer\ItemTypeDictionary;
-use quark\network\mcpe\protocol\types\CacheableNbt;
-use quark\network\mcpe\protocol\types\inventory\ItemStack;
-use quark\network\mcpe\protocol\types\inventory\ItemStackExtraData;
-use quark\network\mcpe\protocol\types\ItemTypeEntry;
 use quark\plugin\Plugin;
 use quark\world\format\io\GlobalBlockStateHandlers;
 use function bin2hex;
@@ -220,20 +218,28 @@ final class CustomItemTest extends TestCase{
 		self::assertSame($packet, $this->converter->getItemRegistryPacket());
 		$decoded = $packet->getPacket();
 		self::assertInstanceOf(ItemRegistryPacket::class, $decoded);
-		$found = false;
-		foreach($decoded->itemData as $entry){
-			if($entry->itemName !== "test:ruby_sword"){ continue; }
-			$found = true;
-			$root = Nbt::read($entry->itemComponentData, Nbt::NETWORK)->mustGetCompoundTag();
-			self::assertSame($entry->itemId, $root->getInt("id"));
+		$found = null;
+		foreach($decoded->getEntries() as $entry){
+			if($entry->getStringId() !== "test:ruby_sword"){ continue; }
+			$found = $entry->getNumericId();
+			$root = $entry->getComponentNbt()->getRoot();
+			self::assertInstanceOf(CompoundTag::class, $root);
+			self::assertSame($found, $root->getInt("id"));
 			self::assertSame(8, $root->getCompoundTag("components")?->getCompoundTag("item_properties")?->getInt("damage"));
 			self::assertSame(100, $root->getCompoundTag("components")?->getCompoundTag("minecraft:durability")?->getInt("max_durability"));
+			$root->setInt("id", -1);
 		}
-		self::assertTrue($found);
-		$decoded->itemData = [];
+		self::assertNotNull($found);
 		$anotherCopy = $packet->getPacket();
 		self::assertInstanceOf(ItemRegistryPacket::class, $anotherCopy);
-		self::assertNotEmpty($anotherCopy->itemData);
+		$ids = [];
+		foreach($anotherCopy->getEntries() as $entry){
+			$root = $entry->getComponentNbt()->getRoot();
+			if($entry->getStringId() === "test:ruby_sword" && $root instanceof CompoundTag){
+				$ids[] = $root->getInt("id");
+			}
+		}
+		self::assertSame([$found], $ids);
 		$this->expectException(\LogicException::class);
 		$this->registry->register(ItemDefinition::item("test:late", "Late"), $this->owner);
 	}
@@ -386,18 +392,9 @@ final class CustomItemTest extends TestCase{
 		}
 	}
 
-	public function testComponentSnapshotsCannotBeMutatedThroughNbt() : void{
-		$nbt = CompoundTag::create()->setInt("value", 1);
-		$cache = new CacheableNbt($nbt);
-		$nbt->setInt("value", 2);
-		$cache->getRoot()->setInt("value", 3);
-		self::assertSame(1, $cache->getRoot()->getInt("value"));
-		self::assertSame(1, Nbt::read($cache->getEncodedNbt(), Nbt::NETWORK)->mustGetCompoundTag()->getInt("value"));
-	}
-
 	public function testDictionaryRejectsRuntimeCollisions() : void{
 		$nbt = new CacheableNbt(new CompoundTag());
 		$this->expectException(\InvalidArgumentException::class);
-		new ItemTypeDictionary([new ItemTypeEntry("test:a", 10000, true, 1, $nbt), new ItemTypeEntry("test:b", 10000, true, 1, $nbt)]);
+		$this->converter->finalizeItemRegistry([new ItemTypeEntry("test:a", 10000, true, 1, $nbt), new ItemTypeEntry("test:b", 10000, true, 1, $nbt)]);
 	}
 }

@@ -26,6 +26,7 @@ namespace quark\network\mcpe\protocol;
 use PHPUnit\Framework\TestCase;
 use pocketmine\color\Color;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\block\Block;
 use quark\block\VanillaBlocks;
 use quark\entity\animation\Animation;
@@ -55,8 +56,7 @@ use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
 
 /**
- * Compares what sounds, particles and animations send with bytes recorded from the BedrockProtocol encoders they
- * replaced. Set QUARK_WRITE_GOLDEN=1 to record them again.
+ * Pins the exact bytes sounds, particles and animations send. Set QUARK_WRITE_GOLDEN=1 to record them again.
  */
 final class GameplayPacketGoldenTest extends TestCase{
 	private const GOLDEN = __DIR__ . "/golden/gameplay.json";
@@ -67,7 +67,7 @@ final class GameplayPacketGoldenTest extends TestCase{
 		"entity/animation" => Animation::class,
 	];
 
-	private static function hex(Packet $packet) : string{
+	private static function hex(ClientboundPacket $packet) : string{
 		return bin2hex(EncodedPacket::of($packet)->getBytes());
 	}
 

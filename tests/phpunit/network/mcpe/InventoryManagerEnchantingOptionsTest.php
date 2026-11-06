@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\PlayerEnchantOptionsPacket;
 use quark\entity\Entity;
 use quark\inventory\Hotbar;
 use quark\item\enchantment\EnchantingOption;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
 use quark\player\Player;
 
 final class InventoryManagerEnchantingOptionsTest extends TestCase{
@@ -20,9 +20,9 @@ final class InventoryManagerEnchantingOptionsTest extends TestCase{
 		$player->method("getHotbar")->willReturn(new Hotbar());
 		$session = $this->createMock(NetworkSession::class);
 		$recipeId = null;
-		$session->method("sendDataPacket")->willReturnCallback(static function(Packet $packet) use (&$recipeId) : bool{
+		$session->method("sendDataPacket")->willReturnCallback(static function(ClientboundPacket $packet) use (&$recipeId) : bool{
 			if($packet instanceof PlayerEnchantOptionsPacket){
-				$recipeId = $packet->options[0]->enchantNetId ?? null;
+				$recipeId = ($packet->getOptions()[0] ?? null)?->getOptionId();
 			}
 			return true;
 		});

@@ -24,13 +24,15 @@ declare(strict_types=1);
 namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use pocketmine\utils\Limits;
 use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelEvent;
+use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\world\format\Chunk;
-use function array_map;
 
 final class WorldWeatherTest extends TestCase{
 
@@ -79,7 +81,17 @@ final class WorldWeatherTest extends TestCase{
 	}
 
 	public function testWeatherPackets() : void{
-		$events = fn(Weather $weather) => array_map(fn($packet) => [$packet->eventId, $packet->data], LevelPackets::weather($weather));
+		$events = function(Weather $weather) : array{
+			$sent = [];
+			$session = $this->getMockBuilder(NetworkSession::class)->disableOriginalConstructor()->onlyMethods(["sendDataPacket"])->getMock();
+			$session->method("sendDataPacket")->willReturnCallback(function(ClientboundPacket|EncodedPacket $packet) use (&$sent) : bool{
+				self::assertInstanceOf(LevelEventPacket::class, $packet);
+				$sent[] = [$packet->eventId, $packet->eventData];
+				return true;
+			});
+			$session->syncWorldWeather($weather);
+			return $sent;
+		};
 		self::assertSame([[LevelEvent::STOP_RAIN, 0], [LevelEvent::STOP_THUNDER, 0]], $events(Weather::CLEAR));
 		self::assertSame([[LevelEvent::START_RAIN, 65535], [LevelEvent::STOP_THUNDER, 0]], $events(Weather::RAIN));
 		self::assertSame([[LevelEvent::START_RAIN, 65535], [LevelEvent::START_THUNDER, 65535]], $events(Weather::THUNDER));

@@ -148,7 +148,7 @@ class Main extends PluginBase implements Listener{
 				}
 				$names = [];
 				foreach(StaticPacketCache::getInstance()->getBlockPaletteEntries() as $entry){
-					$names[$entry->blockName] = true;
+					$names[$entry->getName()] = true;
 				}
 				foreach(["script_test:ruby_block", "script_test:vault", "script_test:lamp", "script_test:ruby_slab"] as $id){
 					if(!isset($names[$id])){ throw new TestFailedException("StartGame palette is missing $id"); }

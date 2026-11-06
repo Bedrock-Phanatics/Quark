@@ -23,52 +23,19 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\protocol;
 
-use Bedwire\PacketException;
-use Bedwire\PacketId;
-use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
-use quark\network\mcpe\protocol\packet\SetTimePacket;
-use quark\utils\Utils;
-use function hash;
-use function is_subclass_of;
-use function json_encode;
-use function str_replace;
-use function ucwords;
-use const JSON_THROW_ON_ERROR;
-use const PHP_INT_MAX;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\SetTimePacket;
+use function substr;
 
 final class PacketTest extends TestCase{
 
-	public function testGeneratedCodeMatchesTheLoadedProtocol() : void{
-		$hash = hash("sha256", json_encode(Protocol::schema(), JSON_THROW_ON_ERROR));
-		self::assertSame(Protocol::VERSION, Packets::PROTOCOL);
-		self::assertSame($hash, Packets::SCHEMA_HASH, "Run composer update-codegen after updating ext-bedwire");
-
-		$packets = Protocol::schema()["packets"];
-		self::assertIsArray($packets);
-		foreach(Utils::promoteKeys($packets) as $name => $_){
-			$name = (string) $name;
-			$class = ProtocolClasses::BINDINGS[$name] ?? self::fail("$name has no packet class");
-			self::assertTrue(is_subclass_of($class, Packet::class));
-			self::assertSame(Protocol::id($name), (new \ReflectionClass($class))->getConstant("ID"));
-		}
-
-		foreach(Packets::HANDLERS as $id => $handler){
-			$name = Protocol::name($id) ?? self::fail("Unknown packet $id");
-			self::assertSame("handle" . str_replace("_", "", ucwords($name, "_")), $handler);
-			self::assertNotSame(0, Protocol::direction($id) & Protocol::SERVERBOUND);
-		}
-		self::assertArrayNotHasKey(PacketId::START_GAME, Packets::HANDLERS);
-
-		Protocol::bind([]);
-		Protocol::bind(ProtocolClasses::BINDINGS);
-	}
-
 	public function testEncodedPacketsDecodeANewCopyEachTime() : void{
-		$encoded = EncodedPacket::of(new SetTimePacket(1234));
-		self::assertSame(PacketId::SET_TIME, $encoded->getId());
-		self::assertSame("set_time", $encoded->getName());
-		self::assertSame(Protocol::encode(PacketId::SET_TIME, ["time" => 1234]), $encoded->getBytes());
+		$encoded = EncodedPacket::of(SetTimePacket::create(1234));
+		self::assertSame(ProtocolInfo::SET_TIME_PACKET, $encoded->getId());
+		self::assertSame("SetTimePacket", $encoded->getName());
+		self::assertSame("\x0a\xa4\x13", $encoded->getBytes());
 
 		$first = $encoded->getPacket();
 		self::assertInstanceOf(SetTimePacket::class, $first);
@@ -80,21 +47,27 @@ final class PacketTest extends TestCase{
 		self::assertSame($encoded->getBytes(), EncodedPacket::fromBytes($encoded->getBytes())->getBytes());
 	}
 
-	public function testMalformedPacketsAreRejected() : void{
-		$this->expectException(PacketException::class);
-		EncodedPacket::fromBytes(Protocol::encode(PacketId::SET_TIME, ["time" => 7]) . "\x00")->getPacket();
+	public function testTruncatedPacketsAreRejected() : void{
+		$this->expectException(PacketDecodeException::class);
+		EncodedPacket::fromBytes(substr(EncodedPacket::encode(SetTimePacket::create(1234)), 0, -1))->getPacket();
 	}
 
 	public function testUnknownPacketsCannotBeDecoded() : void{
 		$packet = EncodedPacket::fromBytes("\xff\x07");
 		self::assertSame(1023, $packet->getId());
 		self::assertSame("unknown_1023", $packet->getName());
-		$this->expectException(PacketException::class);
+		$this->expectException(PacketDecodeException::class);
 		$packet->getPacket();
 	}
 
-	public function testInvalidFieldsAreRejectedWhenEncoding() : void{
-		$this->expectException(\ValueError::class);
-		EncodedPacket::of(new SetTimePacket(PHP_INT_MAX));
+	public function testEmptyPacketsHaveNoHeader() : void{
+		$this->expectException(PacketDecodeException::class);
+		EncodedPacket::fromBytes("");
+	}
+
+	public function testOnlyClientboundPacketsAreClientbound() : void{
+		self::assertTrue(EncodedPacket::isClientbound(ProtocolInfo::SET_TIME_PACKET));
+		self::assertFalse(EncodedPacket::isClientbound(ProtocolInfo::REQUEST_CHUNK_RADIUS_PACKET));
+		self::assertFalse(EncodedPacket::isClientbound(1023));
 	}
 }
