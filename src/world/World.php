@@ -1809,7 +1809,12 @@ class World implements ChunkManager{
 		$flags = $this->deferredBlockUpdates[$chunkHash][$blockHash] ?? 0;
 		if($flags === 0){
 			if($this->deferredBlockUpdateCount >= self::MAX_DEFERRED_BLOCK_UPDATES){
-				return true;
+				//drop the stalest bucket, it's usually waiting on terrain nobody is near anymore
+				foreach($this->deferredBlockUpdates as $stale => $updates){
+					$this->deferredBlockUpdateCount -= count($updates);
+					unset($this->deferredBlockUpdates[$stale]);
+					break;
+				}
 			}
 			++$this->deferredBlockUpdateCount;
 		}

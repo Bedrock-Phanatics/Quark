@@ -112,7 +112,13 @@ final class RedstoneWorldState implements ChunkListener{
 		$blockHash = World::blockHash($x, $y, $z);
 		if(!isset($this->deferred[$chunkHash][$blockHash])){
 			if($this->deferredCount >= RedstoneConfig::getMaxScheduledUpdates()){
-				return true;
+				foreach($this->deferred as $stale => $updates){
+					$this->deferredCount -= count($updates);
+					unset($this->deferred[$stale]);
+					World::getXZ($stale, $staleX, $staleZ);
+					$this->world->unregisterChunkListener($this, $staleX, $staleZ);
+					break;
+				}
 			}
 			if(!isset($this->deferred[$chunkHash])){
 				World::getXZ($chunkHash, $chunkX, $chunkZ);
