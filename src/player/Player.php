@@ -3053,6 +3053,13 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	public function onChunkLoaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
+		$this->onChunkInUse($chunkX, $chunkZ);
+	}
+
+	/**
+	 * @internal Called by World when a loaded chunk gets its first loader.
+	 */
+	public function onChunkInUse(int $chunkX, int $chunkZ) : void{
 		if($this->spawnChunkLoadCount === -1 && isset($this->releasedChunks[World::chunkHash($chunkX, $chunkZ)])){
 			$this->spawnEntitiesOnReleasedChunk($chunkX, $chunkZ);
 		}

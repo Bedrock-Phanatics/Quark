@@ -931,15 +931,21 @@ class World implements ChunkManager{
 	public function registerChunkLoader(ChunkLoader $loader, int $chunkX, int $chunkZ, bool $autoLoad = true) : void{
 		$loaderId = spl_object_id($loader);
 
-		if(!isset($this->chunkLoaders[$chunkHash = World::chunkHash($chunkX, $chunkZ)])){
-			$this->chunkLoaders[$chunkHash] = [];
-		}elseif(isset($this->chunkLoaders[$chunkHash][$loaderId])){
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		if(isset($this->chunkLoaders[$chunkHash][$loaderId])){
 			return;
 		}
+		$firstLoader = !isset($this->chunkLoaders[$chunkHash]);
 
 		$this->chunkLoaders[$chunkHash][$loaderId] = $loader;
 
 		$this->cancelUnloadChunkRequest($chunkX, $chunkZ);
+
+		if($firstLoader && isset($this->chunks[$chunkHash])){
+			foreach($this->playerChunkListeners[$chunkHash] ?? [] as $player){
+				$player->onChunkInUse($chunkX, $chunkZ);
+			}
+		}
 
 		if($autoLoad){
 			$this->loadChunk($chunkX, $chunkZ);
