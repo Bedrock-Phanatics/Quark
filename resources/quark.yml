@@ -137,9 +137,10 @@ chunk-sending:
 chunk-ticking:
   #Radius of chunks around a player to tick
   tick-radius: 3
-  #Unload chunks a player already received once they're outside the tick radius. Players keep seeing them, but
-  #entities and block updates in them pause like vanilla's simulation distance. Saves a lot of memory with a high
-  #view distance. Worlds with autosave off always keep them loaded.
+  #Unload chunks a player already received once they're outside the tick radius. Players keep seeing the terrain
+  #and block updates in it pause, but entities there are hidden until it loads again (except plugin entities that
+  #never save, which keep the chunk loaded). Saves a lot of memory with a high view distance. Worlds with autosave
+  #off always keep them loaded.
   unload-view-only-chunks: true
   #Number of blocks inside ticking areas' subchunks that get ticked every tick. Higher values will accelerate events
   #like tree and plant growth, but at a higher performance cost.
