@@ -36,7 +36,7 @@ final class ActorEventPacket extends Packet{
 	public function __construct(
 		public int $targetRuntimeId,
 		public int $eventId,
-		public int $data,
+		public int $data = 0,
 		public ?Vector3 $fireAtPosition = null,
 	){}
 

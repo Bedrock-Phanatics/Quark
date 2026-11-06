@@ -34,8 +34,8 @@ final class StopSoundPacket extends Packet{
 
 	public function __construct(
 		public string $soundName,
-		public bool $stopAllSounds,
-		public bool $stopMusicLegacy,
+		public bool $stopAllSounds = false,
+		public bool $stopMusicLegacy = false,
 	){}
 
 	public function getId() : int{

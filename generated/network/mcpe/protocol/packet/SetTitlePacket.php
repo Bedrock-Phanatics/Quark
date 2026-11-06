@@ -30,6 +30,8 @@ use quark\network\mcpe\protocol\Packet;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class SetTitlePacket extends Packet{
+	use SetTitlePacketMethods;
+
 	public const int ID = PacketId::SET_TITLE;
 
 	public const int TYPE_CLEAR_TITLE = 0;
@@ -44,13 +46,13 @@ final class SetTitlePacket extends Packet{
 
 	public function __construct(
 		public int $titleType,
-		public string $titleText,
-		public int $fadeInTime,
-		public int $stayTime,
-		public int $fadeOutTime,
-		public string $xuid,
-		public string $platformOnlineId,
-		public string $filteredTitleMessage,
+		public string $titleText = '',
+		public int $fadeInTime = 0,
+		public int $stayTime = 0,
+		public int $fadeOutTime = 0,
+		public string $xuid = '',
+		public string $platformOnlineId = '',
+		public string $filteredTitleMessage = '',
 	){}
 
 	public function getId() : int{

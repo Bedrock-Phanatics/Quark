@@ -27,8 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class ItemTagItemDescriptor{
+	public const int DESCRIPTOR_TYPE = 3;
+
+	public private(set) int $descriptorType = self::DESCRIPTOR_TYPE;
+
 	public function __construct(
-		public int $descriptorType,
 		public string $itemTag,
 	){}
 }

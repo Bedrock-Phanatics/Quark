@@ -27,8 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class PlayerListAddEntry implements PlayerListEntriesItem{
+	public const int ACTION = 0;
+
+	public private(set) int $action = self::ACTION;
+
 	public function __construct(
-		public int $action,
 		public string $uuid,
 		public int $actorUniqueId,
 		public string $playerName,

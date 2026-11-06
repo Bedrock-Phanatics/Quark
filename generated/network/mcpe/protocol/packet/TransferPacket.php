@@ -36,7 +36,7 @@ final class TransferPacket extends Packet{
 	public function __construct(
 		public string $serverAddress,
 		public int $serverPort,
-		public bool $reloadWorld,
+		public bool $reloadWorld = false,
 		public ?GatheringJoinInfo $gatheringsConfiguration = null,
 	){}
 

@@ -30,6 +30,8 @@ use quark\network\mcpe\protocol\Packet;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class SetDisplayObjectivePacket extends Packet{
+	use SetDisplayObjectivePacketMethods;
+
 	public const int ID = PacketId::SET_DISPLAY_OBJECTIVE;
 
 	public const string DISPLAY_SLOT_LIST = 'list';
@@ -42,8 +44,8 @@ final class SetDisplayObjectivePacket extends Packet{
 		public string $displaySlotName,
 		public string $objectiveName,
 		public string $objectiveDisplayName,
-		public string $criteriaName,
-		public int $sortOrder,
+		public string $criteriaName = 'dummy',
+		public int $sortOrder = 0,
 	){}
 
 	public function getId() : int{

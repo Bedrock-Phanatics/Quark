@@ -84,7 +84,7 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 	public function testDownloadSequenceMatchesRecordedEncoding() : void{
 		$handler = $this->handler($this->session());
 		$handler->setUp();
-		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading" => new Downloading("downloading", [self::PACK_ID . "_1.0.0"])])));
+		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading" => new Downloading([self::PACK_ID . "_1.0.0"])])));
 		self::assertTrue($handler->handleResourcePackChunkRequest(new ResourcePackChunkRequestPacket(self::PACK_ID, 1)));
 		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["downloading_finished" => "downloadingfinished"])));
 		self::assertTrue($handler->handleResourcePackClientResponse(new ResourcePackClientResponsePacket(["resource_pack_stack_finished" => "resourcepackstackfinished"])));
@@ -105,7 +105,7 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 
 	public function testRejectsRepeatedMetadataRequests() : void{
 		$handler = $this->handler($this->session());
-		$request = new ResourcePackClientResponsePacket(["downloading" => new Downloading("downloading", [self::PACK_ID])]);
+		$request = new ResourcePackClientResponsePacket(["downloading" => new Downloading([self::PACK_ID])]);
 		$handler->handleResourcePackClientResponse($request);
 		$this->expectException(PacketHandlingException::class);
 		$handler->handleResourcePackClientResponse($request);

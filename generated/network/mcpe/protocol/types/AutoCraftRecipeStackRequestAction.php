@@ -27,11 +27,14 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class AutoCraftRecipeStackRequestAction{
+	public const int ACTION_TYPE = 13;
+
+	public private(set) int $actionType = self::ACTION_TYPE;
+
 	/**
 	 * @param list<RecipeRecipeIngredient> $ingredients
 	 */
 	public function __construct(
-		public int $actionType,
 		public int $recipeNetId,
 		public int $numberOfRequestedCrafts,
 		public array $ingredients,

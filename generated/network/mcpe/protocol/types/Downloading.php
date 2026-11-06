@@ -27,11 +27,14 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class Downloading{
+	public const string RESPONSE_TYPE = 'downloading';
+
+	public private(set) string $responseType = self::RESPONSE_TYPE;
+
 	/**
 	 * @param list<string> $downloadingPacks
 	 */
 	public function __construct(
-		public string $responseType,
 		public array $downloadingPacks,
 	){}
 }

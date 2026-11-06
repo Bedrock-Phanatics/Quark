@@ -36,10 +36,10 @@ final class PlaySoundPacket extends Packet{
 	public function __construct(
 		public string $name,
 		public Vector3 $position,
-		public float $volume,
-		public float $pitch,
-		public int $loopCount,
-		public bool $bypassListenerRangeCheck,
+		public float $volume = 1.0,
+		public float $pitch = 1.0,
+		public int $loopCount = 0,
+		public bool $bypassListenerRangeCheck = false,
 		public ?int $serverSoundHandle = null,
 		public ?float $playbackPositionSeconds = null,
 	){}

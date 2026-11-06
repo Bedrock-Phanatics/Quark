@@ -36,7 +36,7 @@ final class SetActorMotionPacket extends Packet{
 	public function __construct(
 		public int $targetRuntimeId,
 		public Vector3 $motion,
-		public int $tick,
+		public int $tick = 0,
 	){}
 
 	public function getId() : int{

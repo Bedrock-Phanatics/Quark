@@ -29,24 +29,31 @@ use pocketmine\math\Vector3;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use function array_flip;
+use function array_key_exists;
 use function array_key_last;
 use function array_pop;
 use function array_push;
 use function count;
 use function dirname;
 use function extension_loaded;
+use function file_exists;
 use function file_put_contents;
 use function get_debug_type;
 use function glob;
 use function hash;
 use function implode;
 use function is_array;
+use function is_bool;
 use function is_dir;
+use function is_float;
+use function is_int;
 use function is_string;
 use function json_decode;
 use function json_encode;
 use function lcfirst;
+use function ltrim;
 use function mkdir;
+use function preg_replace;
 use function sort;
 use function str_replace;
 use function strlen;
@@ -63,6 +70,8 @@ require dirname(__DIR__, 2) . '/vendor/autoload.php';
 const PACKET_NAMESPACE = "quark\\network\\mcpe\\protocol\\packet";
 const TYPE_NAMESPACE = "quark\\network\\mcpe\\protocol\\types";
 const PACKET_BASE = "quark\\network\\mcpe\\protocol\\Packet";
+/** Hand-written <Class>Methods traits here are used by the generated class of the same namespace. */
+const SOURCE_ROOT = __DIR__ . "/../../src";
 
 /** Structs that already have a math class with the same public properties. */
 const MATH_CLASSES = [
@@ -139,9 +148,11 @@ final class Generator{
 
 	/**
 	 * @param array<mixed>                                        $schema
-	 * @param array<string, array<string, int|float|string|bool>> $constants constants to declare, by generated file such as packet/TextPacket
+	 * @param array<string, array<string, int|float|string|bool>> $constants     constants to declare, by generated file such as packet/TextPacket
+	 * @param array<string, array<string, array<string, mixed>>>  $fieldSettings fields.json by generated file: "fixed" discriminators the class
+	 *                                                                           always sends, and "defaults" of trailing parameters
 	 */
-	public function __construct(private array $schema, private array $constants){
+	public function __construct(private array $schema, private array $constants, private array $fieldSettings){
 		$this->types = [];
 		$references = [];
 		$uses = [];
@@ -314,6 +325,20 @@ final class Generator{
 		}
 	}
 
+	private static function fits(PropertyType $property, mixed $value) : bool{
+		return match(ltrim($property->native, "?")){
+			"int" => is_int($value),
+			"float" => is_float($value),
+			"string" => is_string($value),
+			"bool" => is_bool($value),
+			default => false
+		} || ($value === null && $property->native[0] === "?");
+	}
+
+	private static function literal(mixed $value) : string{
+		return $value === null ? "null" : var_export($value, true);
+	}
+
 	private function union(string $name) : string{
 		$parts = [];
 		foreach(Utils::promoteKeys(table($this->types[$name]["variants"] ?? null, "variants of $name")) as $variant => $type){
@@ -332,15 +357,44 @@ final class Generator{
 		$short = shortName($class);
 		$this->imports[$short] = $class;
 
+		$file = ($packetConstant !== null ? "packet/" : "types/") . $short;
 		$properties = [];
 		foreach(Utils::promoteKeys($fields) as $field => $type){
 			$properties[lcfirst(pascal((string) $field))] = $this->type($type);
 		}
+		$config = $this->fieldSettings[$file] ?? [];
+		foreach(Utils::stringifyKeys($config) as $key => $_){
+			if($key !== "fixed" && $key !== "defaults"){
+				throw new \RuntimeException("fields.json gives $file an unknown setting $key");
+			}
+		}
+		$fixed = $config["fixed"] ?? [];
+		$defaults = $config["defaults"] ?? [];
+		foreach(Utils::stringifyKeys($fixed + $defaults) as $name => $value){
+			$property = $properties[$name] ?? throw new \RuntimeException("fields.json names $file::\$$name, which does not exist");
+			if(!self::fits($property, $value)){
+				throw new \RuntimeException("fields.json gives $file::\$$name a value that does not fit {$property->docOrNative()}");
+			}
+		}
+
+		$constants = $this->constants[$file] ?? [];
+		$declared = "";
+		foreach(Utils::stringifyKeys($fixed) as $name => $fixedValue){
+			//the variant's class already says which one it is, so the value is not a parameter
+			$fixedConstant = strtoupper(preg_replace('/[A-Z]/', '_$0', $name) ?? throw new \RuntimeException("Couldn't name the constant for $name"));
+			if(isset($constants[$fixedConstant])){
+				throw new \RuntimeException("constants.json already declares $file::$fixedConstant");
+			}
+			$constants[$fixedConstant] = $fixedValue;
+			$declared .= "\tpublic private(set) {$properties[$name]->native} \$$name = self::$fixedConstant;\n";
+			unset($properties[$name]);
+		}
+
 		$required = 0;
 		$i = 0;
-		foreach($properties as $property){
+		foreach(Utils::stringifyKeys($properties) as $name => $property){
 			++$i;
-			if($property->native[0] !== "?" && $property->native !== "null"){
+			if(!array_key_exists($name, $defaults) && $property->native[0] !== "?" && $property->native !== "null"){
 				$required = $i;
 			}
 		}
@@ -353,23 +407,34 @@ final class Generator{
 			if($property->doc !== null){
 				$docs[] = "\t * @param {$property->doc} \$$name";
 			}
-			$default = $i > $required ? " = null" : "";
+			$default = "";
+			if($i > $required){
+				$default = " = " . self::literal($defaults[$name] ?? null);
+			}elseif(array_key_exists($name, $defaults)){
+				throw new \RuntimeException("fields.json gives $file::\$$name a default, but a later parameter is required");
+			}
 			$parameters[] = "\t\tpublic {$property->native} \$$name$default,";
 		}
 
 		$body = "";
 		$extends = "";
+		$methods = "{$short}Methods";
+		if(file_exists(SOURCE_ROOT . "/" . str_replace("\\", "/", substr($namespace, strlen("quark\\"))) . "/$methods.php")){
+			$body .= "\tuse $methods;\n";
+		}
 		if($packetConstant !== null){
 			$this->import("Bedwire\\PacketId");
 			$extends = " extends " . $this->import(PACKET_BASE);
-			$body .= "\tpublic const int ID = PacketId::$packetConstant;\n";
+			$body .= ($body !== "" ? "\n" : "") . "\tpublic const int ID = PacketId::$packetConstant;\n";
 		}
-		$constants = $this->constants[($packetConstant !== null ? "packet/" : "types/") . $short] ?? [];
 		if(count($constants) > 0){
 			$body .= ($body !== "" ? "\n" : "");
 			foreach(Utils::stringifyKeys($constants) as $constant => $value){
 				$body .= "\tpublic const " . get_debug_type($value) . " $constant = " . var_export($value, true) . ";\n";
 			}
+		}
+		if($declared !== ""){
+			$body .= ($body !== "" ? "\n" : "") . $declared;
 		}
 		if(count($parameters) > 0){
 			$body .= ($body !== "" ? "\n" : "") . (count($docs) > 0 ? "\t/**\n" . implode("\n", $docs) . "\n\t */\n" : "");
@@ -486,9 +551,11 @@ $entries	];
 }
 
 CLASS;
-		foreach(Utils::stringifyKeys($this->constants) as $file => $_){
-			if(!isset($files["$file.php"])){
-				throw new \RuntimeException("constants.json names $file, which is not generated");
+		foreach(["constants.json" => $this->constants, "fields.json" => $this->fieldSettings] as $source => $settings){
+			foreach(Utils::stringifyKeys($settings) as $file => $_){
+				if(!isset($files["$file.php"])){
+					throw new \RuntimeException("$source names $file, which is not generated");
+				}
 			}
 		}
 		return $files;
@@ -515,8 +582,15 @@ $constants = json_decode(Filesystem::fileGetContents(__DIR__ . "/constants.json"
 if(!is_array($constants)){
 	throw new \RuntimeException("constants.json should map generated files to constants");
 }
-/** @phpstan-var array<string, array<string, int|float|string|bool>> $constants */
-$generator = new Generator(Protocol::schema(), $constants);
+$fields = json_decode(Filesystem::fileGetContents(__DIR__ . "/fields.json"), true, flags: JSON_THROW_ON_ERROR);
+if(!is_array($fields)){
+	throw new \RuntimeException("fields.json should map generated files to field settings");
+}
+/**
+ * @phpstan-var array<string, array<string, int|float|string|bool>> $constants
+ * @phpstan-var array<string, array<string, array<string, mixed>>> $fields
+ */
+$generator = new Generator(Protocol::schema(), $constants, $fields);
 foreach(Utils::stringifyKeys($generator->generate()) as $path => $contents){
 	file_put_contents("$root/$path", $contents);
 }

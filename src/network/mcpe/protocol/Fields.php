@@ -229,7 +229,6 @@ final class Fields{
 
 	public static function playerListAddition(UuidInterface $uuid, int $actorUniqueId, string $username, SkinData $skin, string $xboxUserId = "") : PlayerListAddEntry{
 		return new PlayerListAddEntry(
-			action: 0,
 			uuid: self::uuid($uuid),
 			actorUniqueId: $actorUniqueId,
 			playerName: $username,
@@ -246,7 +245,7 @@ final class Fields{
 	}
 
 	public static function playerListRemoval(UuidInterface $uuid) : PlayerListRemoveEntry{
-		return new PlayerListRemoveEntry(1, self::uuid($uuid));
+		return new PlayerListRemoveEntry(self::uuid($uuid));
 	}
 
 	public static function abilities(AbilitiesData $data) : AbilityData{

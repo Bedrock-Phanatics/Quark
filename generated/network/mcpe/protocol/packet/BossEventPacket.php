@@ -30,6 +30,8 @@ use quark\network\mcpe\protocol\Packet;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class BossEventPacket extends Packet{
+	use BossEventPacketMethods;
+
 	public const int ID = PacketId::BOSS_EVENT;
 
 	public const int TYPE_SHOW = 0;
@@ -45,11 +47,11 @@ final class BossEventPacket extends Packet{
 	public function __construct(
 		public int $targetActorId,
 		public int $eventType,
-		public string $name,
-		public string $filteredName,
-		public float $healthPercent,
-		public int $color,
-		public int $overlay,
+		public string $name = '',
+		public string $filteredName = '',
+		public float $healthPercent = 0.0,
+		public int $color = 0,
+		public int $overlay = 0,
 	){}
 
 	public function getId() : int{

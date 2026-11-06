@@ -27,8 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class ChangeFakePlayerScore implements SetScoreScoreInfoItem{
+	public const string ACTION = 'changefakeplayer';
+
+	public private(set) string $action = self::ACTION;
+
 	public function __construct(
-		public string $action,
 		public int $scoreboardId,
 		public string $objectiveName,
 		public int $scoreValue,

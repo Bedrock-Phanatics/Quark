@@ -1835,41 +1835,28 @@ class NetworkSession{
 		}
 	}
 
-	private static function title(int $type, string $text = "", int $fadeIn = 0, int $stay = 0, int $fadeOut = 0) : Packet{
-		return new SetTitlePacket(
-			titleType: $type,
-			titleText: $text,
-			fadeInTime: $fadeIn,
-			stayTime: $stay,
-			fadeOutTime: $fadeOut,
-			xuid: "",
-			platformOnlineId: "",
-			filteredTitleMessage: "",
-		);
-	}
-
 	public function onTitle(string $title) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_TITLE, $title));
+		$this->sendDataPacket(SetTitlePacket::title($title));
 	}
 
 	public function onSubTitle(string $subtitle) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_SUBTITLE, $subtitle));
+		$this->sendDataPacket(SetTitlePacket::subtitle($subtitle));
 	}
 
 	public function onActionBar(string $actionBar) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE, $actionBar));
+		$this->sendDataPacket(SetTitlePacket::actionBar($actionBar));
 	}
 
 	public function onClearTitle() : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_CLEAR_TITLE));
+		$this->sendDataPacket(SetTitlePacket::clearTitle());
 	}
 
 	public function onResetTitleOptions() : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_RESET_TITLE));
+		$this->sendDataPacket(SetTitlePacket::resetTitle());
 	}
 
 	public function onTitleDuration(int $fadeIn, int $stay, int $fadeOut) : void{
-		$this->sendDataPacket(self::title(SetTitlePacket::TYPE_SET_ANIMATION_TIMES, "", $fadeIn, $stay, $fadeOut));
+		$this->sendDataPacket(SetTitlePacket::animationTimes($fadeIn, $stay, $fadeOut));
 	}
 
 	public function onToastNotification(string $title, string $body) : void{

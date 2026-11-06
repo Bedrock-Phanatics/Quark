@@ -27,8 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class DataItemFloatPayload implements DataItemEntryPayload{
+	public const int TYPE = 3;
+
+	public private(set) int $type = self::TYPE;
+
 	public function __construct(
-		public int $type,
 		public float $value,
 	){}
 }

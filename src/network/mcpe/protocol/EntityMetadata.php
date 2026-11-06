@@ -77,33 +77,33 @@ final class EntityMetadata{
 	public function setByte(int $key, int $value, bool $force = false) : void{
 		self::checkRange($value, -0x80, 0x7f);
 		if($this->changes($key, EntityMetadataTypes::BYTE, $value, $force)){
-			$this->put($key, new DataItemBytePayload(EntityMetadataTypes::BYTE, $value));
+			$this->put($key, new DataItemBytePayload($value));
 		}
 	}
 
 	public function setShort(int $key, int $value, bool $force = false) : void{
 		self::checkRange($value, -0x8000, 0x7fff);
 		if($this->changes($key, EntityMetadataTypes::SHORT, $value, $force)){
-			$this->put($key, new DataItemShortPayload(EntityMetadataTypes::SHORT, $value));
+			$this->put($key, new DataItemShortPayload($value));
 		}
 	}
 
 	public function setInt(int $key, int $value, bool $force = false) : void{
 		self::checkRange($value, -0x80000000, 0x7fffffff);
 		if($this->changes($key, EntityMetadataTypes::INT, $value, $force)){
-			$this->put($key, new DataItemIntPayload(EntityMetadataTypes::INT, $value));
+			$this->put($key, new DataItemIntPayload($value));
 		}
 	}
 
 	public function setFloat(int $key, float $value, bool $force = false) : void{
 		if($this->changes($key, EntityMetadataTypes::FLOAT, $value, $force)){
-			$this->put($key, new DataItemFloatPayload(EntityMetadataTypes::FLOAT, $value));
+			$this->put($key, new DataItemFloatPayload($value));
 		}
 	}
 
 	public function setString(int $key, string $value, bool $force = false) : void{
 		if($this->changes($key, EntityMetadataTypes::STRING, $value, $force)){
-			$this->put($key, new DataItemStringPayload(EntityMetadataTypes::STRING, $value));
+			$this->put($key, new DataItemStringPayload($value));
 		}
 	}
 
@@ -112,27 +112,27 @@ final class EntityMetadata{
 	 */
 	public function setCompoundTag(int $key, string $nbt, bool $force = false) : void{
 		if($this->changes($key, EntityMetadataTypes::COMPOUND_TAG, $nbt, $force)){
-			$this->put($key, new DataItemCompoundTagPayload(EntityMetadataTypes::COMPOUND_TAG, $nbt));
+			$this->put($key, new DataItemCompoundTagPayload($nbt));
 		}
 	}
 
 	public function setBlockPos(int $key, ?Vector3 $value, bool $force = false) : void{
 		$value = $value?->floor() ?? new Vector3(0, 0, 0);
 		if($this->changes($key, EntityMetadataTypes::POS, $value, $force)){
-			$this->put($key, new DataItemPosPayload(EntityMetadataTypes::POS, $value));
+			$this->put($key, new DataItemPosPayload($value));
 		}
 	}
 
 	public function setLong(int $key, int $value, bool $force = false) : void{
 		if($this->changes($key, EntityMetadataTypes::LONG, $value, $force)){
-			$this->put($key, new DataItemInt64Payload(EntityMetadataTypes::LONG, $value));
+			$this->put($key, new DataItemInt64Payload($value));
 		}
 	}
 
 	public function setVector3(int $key, ?Vector3 $value, bool $force = false) : void{
 		$value ??= new Vector3(0.0, 0.0, 0.0);
 		if($this->changes($key, EntityMetadataTypes::VECTOR3F, $value, $force)){
-			$this->put($key, new DataItemVec3Payload(EntityMetadataTypes::VECTOR3F, $value->asVector3()));
+			$this->put($key, new DataItemVec3Payload($value->asVector3()));
 		}
 	}
 

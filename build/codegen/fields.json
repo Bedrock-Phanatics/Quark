@@ -1,0 +1,66 @@
+{
+    "packet/ActorEventPacket": {
+        "defaults": {"data": 0}
+    },
+    "packet/AnimatePacket": {
+        "defaults": {"data": 0.0, "hand": 0}
+    },
+    "packet/BossEventPacket": {
+        "defaults": {"name": "", "filteredName": "", "healthPercent": 0.0, "color": 0, "overlay": 0}
+    },
+    "packet/PlaySoundPacket": {
+        "defaults": {"volume": 1.0, "pitch": 1.0, "loopCount": 0, "bypassListenerRangeCheck": false}
+    },
+    "packet/SetActorMotionPacket": {
+        "defaults": {"tick": 0}
+    },
+    "packet/SetDisplayObjectivePacket": {
+        "defaults": {"criteriaName": "dummy", "sortOrder": 0}
+    },
+    "packet/SetTitlePacket": {
+        "defaults": {"titleText": "", "fadeInTime": 0, "stayTime": 0, "fadeOutTime": 0, "xuid": "", "platformOnlineId": "", "filteredTitleMessage": ""}
+    },
+    "packet/StopSoundPacket": {
+        "defaults": {"stopAllSounds": false, "stopMusicLegacy": false}
+    },
+    "packet/TransferPacket": {
+        "defaults": {"reloadWorld": false}
+    },
+    "types/AutoCraftRecipeStackRequestAction": {"fixed": {"actionType": 13}},
+    "types/BeaconPaymentStackRequestAction": {"fixed": {"actionType": 10}},
+    "types/ChangeEntityScore": {"fixed": {"action": "changeentity"}},
+    "types/ChangeFakePlayerScore": {"fixed": {"action": "changefakeplayer"}},
+    "types/ChangePlayerScore": {"fixed": {"action": "changeplayer"}},
+    "types/ConsumeStackRequestAction": {"fixed": {"actionType": 5}},
+    "types/CraftCreativeStackRequestAction": {"fixed": {"actionType": 14}},
+    "types/CraftDiscPressStackRequestAction": {"fixed": {"actionType": 18}},
+    "types/CraftRecipeOptionalStackRequestAction": {"fixed": {"actionType": 15}},
+    "types/CraftRecipeStackRequestAction": {"fixed": {"actionType": 12}},
+    "types/CraftResultsDeprecatedStackRequestAction": {"fixed": {"actionType": 20}},
+    "types/CreateStackRequestAction": {"fixed": {"actionType": 6}},
+    "types/DataItemBytePayload": {"fixed": {"type": 0}},
+    "types/DataItemCompoundTagPayload": {"fixed": {"type": 5}},
+    "types/DataItemFloatPayload": {"fixed": {"type": 3}},
+    "types/DataItemInt64Payload": {"fixed": {"type": 7}},
+    "types/DataItemIntPayload": {"fixed": {"type": 2}},
+    "types/DataItemPosPayload": {"fixed": {"type": 6}},
+    "types/DataItemShortPayload": {"fixed": {"type": 1}},
+    "types/DataItemStringPayload": {"fixed": {"type": 4}},
+    "types/DataItemVec3Payload": {"fixed": {"type": 8}},
+    "types/DefaultItemDescriptor": {"fixed": {"descriptorType": 1}},
+    "types/DestroyStackRequestAction": {"fixed": {"actionType": 4}},
+    "types/Downloading": {"fixed": {"responseType": "downloading"}},
+    "types/DropStackRequestAction": {"fixed": {"actionType": 3}},
+    "types/FloatOverride": {"fixed": {"type": "setfloatoverride"}},
+    "types/IntOverride": {"fixed": {"type": "setintoverride"}},
+    "types/ItemTagItemDescriptor": {"fixed": {"descriptorType": 3}},
+    "types/MineBlockStackRequestAction": {"fixed": {"actionType": 11}},
+    "types/MoLangItemDescriptor": {"fixed": {"descriptorType": 2}},
+    "types/PlaceStackRequestAction": {"fixed": {"actionType": 1}},
+    "types/PlayerListAddEntry": {"fixed": {"action": 0}},
+    "types/PlayerListRemoveEntry": {"fixed": {"action": 1}},
+    "types/PlayerLocationCoordinatesLocation": {"fixed": {"packetType": 0}},
+    "types/RemoveScore": {"fixed": {"action": "remove"}},
+    "types/SwapStackRequestAction": {"fixed": {"actionType": 2}},
+    "types/TakeStackRequestAction": {"fixed": {"actionType": 0}}
+}

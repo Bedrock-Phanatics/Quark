@@ -27,8 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class SwapStackRequestAction{
+	public const int ACTION_TYPE = 2;
+
+	public private(set) int $actionType = self::ACTION_TYPE;
+
 	public function __construct(
-		public int $actionType,
 		public StackRequestSlotInfo $source,
 		public StackRequestSlotInfo $destination,
 	){}

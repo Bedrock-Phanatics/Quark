@@ -42,9 +42,9 @@ final class AnimatePacket extends Packet{
 	public function __construct(
 		public int $action,
 		public int $targetActorRuntimeId,
-		public float $data,
-		public ?string $swingSource,
-		public int $hand,
+		public float $data = 0.0,
+		public ?string $swingSource = null,
+		public int $hand = 0,
 	){}
 
 	public function getId() : int{

@@ -27,8 +27,11 @@ namespace quark\network\mcpe\protocol\types;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class PlayerListRemoveEntry implements PlayerListEntriesItem{
+	public const int ACTION = 1;
+
+	public private(set) int $action = self::ACTION;
+
 	public function __construct(
-		public int $action,
 		public string $uuid,
 	){}
 }

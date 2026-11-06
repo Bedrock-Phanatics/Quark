@@ -29,8 +29,11 @@ use pocketmine\math\Vector3;
  * This class is generated from Bedwire\Protocol::schema() by build/codegen/protocol-classes.php. Do not edit it manually.
  */
 final class PlayerLocationCoordinatesLocation{
+	public const int PACKET_TYPE = 0;
+
+	public private(set) int $packetType = self::PACKET_TYPE;
+
 	public function __construct(
-		public int $packetType,
 		public Vector3 $position,
 	){}
 }
