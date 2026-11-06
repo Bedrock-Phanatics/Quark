@@ -24,19 +24,8 @@ declare(strict_types=1);
 namespace quark\block\utils;
 
 use quark\block\inventory\BrewingStandInventory;
-use quark\utils\LegacyEnumShimTrait;
 
-/**
- * TODO: These tags need to be removed once we get rid of LegacyEnumShimTrait (PM6)
- *  These are retained for backwards compatibility only.
- *
- * @method static BrewingStandSlot EAST()
- * @method static BrewingStandSlot NORTHWEST()
- * @method static BrewingStandSlot SOUTHWEST()
- */
 enum BrewingStandSlot{
-	use LegacyEnumShimTrait;
-
 	case EAST;
 	case NORTHWEST;
 	case SOUTHWEST;

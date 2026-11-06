@@ -10,7 +10,6 @@ includes:
 	- vendor/phpstan/phpstan-strict-rules/rules.neon
 
 rules:
-	- quark\phpstan\rules\DeprecatedLegacyEnumAccessRule
 	- quark\phpstan\rules\DisallowDynamicNewRule
 	- quark\phpstan\rules\DisallowEnumComparisonRule
 	- quark\phpstan\rules\DisallowForeachByReferenceRule

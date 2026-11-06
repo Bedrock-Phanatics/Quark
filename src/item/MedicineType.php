@@ -25,20 +25,8 @@ namespace quark\item;
 
 use quark\entity\effect\Effect;
 use quark\entity\effect\VanillaEffects;
-use quark\utils\LegacyEnumShimTrait;
 
-/**
- * TODO: These tags need to be removed once we get rid of LegacyEnumShimTrait (PM6)
- *  These are retained for backwards compatibility only.
- *
- * @method static MedicineType ANTIDOTE()
- * @method static MedicineType ELIXIR()
- * @method static MedicineType EYE_DROPS()
- * @method static MedicineType TONIC()
- */
 enum MedicineType{
-	use LegacyEnumShimTrait;
-
 	case ANTIDOTE;
 	case ELIXIR;
 	case EYE_DROPS;
