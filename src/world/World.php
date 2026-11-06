@@ -207,6 +207,7 @@ class World implements ChunkManager{
 	private const MAX_DEFERRED_BLOCK_UPDATES = 65536;
 
 	public const CHUNK_UNLOAD_DELAY = 30.0;
+	private const UNLOAD_RETRY_DELAY = 5.0;
 
 	/**
 	 * @var Player[] entity runtime ID => Player
@@ -4309,6 +4310,8 @@ class World implements ChunkManager{
 				if($this->unloadChunk($X, $Z, true)){
 					unset($this->unloadQueue[$index]);
 					--$maxUnload;
+				}elseif(!$force){
+					$this->unloadQueue[$index] = $now + self::UNLOAD_RETRY_DELAY;
 				}
 			}
 		}
