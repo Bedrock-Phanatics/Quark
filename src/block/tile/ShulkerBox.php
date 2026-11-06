@@ -26,25 +26,36 @@ namespace quark\block\tile;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use quark\block\inventory\ShulkerBoxInventory;
+use quark\block\BlockTypeIds;
+use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
+use quark\inventory\transaction\action\validator\CallbackSlotValidator;
+use quark\inventory\transaction\TransactionValidationException;
 use quark\item\Item;
+use quark\item\ItemTypeIds;
 use quark\world\World;
 
-class ShulkerBox extends Spawnable implements Container, Nameable{
+class ShulkerBox extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait {
 		addAdditionalSpawnData as addNameSpawnData;
 	}
-	use ContainerTrait;
+	use ContainerTileTrait;
 
 	public const TAG_FACING = "facing";
 
 	protected int $facing = Facing::NORTH;
 
-	protected ShulkerBoxInventory $inventory;
+	protected Inventory $inventory;
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new ShulkerBoxInventory($this->position);
+		$this->inventory = new SimpleInventory(27);
+		//nesting shulker boxes would let a client build arbitrarily deep item NBT
+		$this->inventory->getSlotValidators()->add(new CallbackSlotValidator(static function(Inventory $_, Item $item) : ?TransactionValidationException{
+			$blockTypeId = ItemTypeIds::toBlockTypeId($item->getTypeId());
+			return $blockTypeId === BlockTypeIds::SHULKER_BOX || $blockTypeId === BlockTypeIds::DYED_SHULKER_BOX ?
+				new TransactionValidationException("Shulker boxes can't contain shulker boxes") : null;
+		}));
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
@@ -68,13 +79,13 @@ class ShulkerBox extends Spawnable implements Container, Nameable{
 
 	public function close() : void{
 		if(!$this->closed){
-			$this->inventory->removeAllViewers();
+			$this->inventory->removeAllWindows();
 			parent::close();
 		}
 	}
 
 	protected function onBlockDestroyedHook() : void{
-		//NOOP override of ContainerTrait - shulker boxes retain their contents when destroyed
+		//NOOP override of ContainerTileTrait - shulker boxes retain their contents when destroyed
 	}
 
 	public function getCleanedNBT() : ?CompoundTag{
@@ -93,11 +104,7 @@ class ShulkerBox extends Spawnable implements Container, Nameable{
 		$this->facing = $facing;
 	}
 
-	public function getInventory() : ShulkerBoxInventory{
-		return $this->inventory;
-	}
-
-	public function getRealInventory() : ShulkerBoxInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 

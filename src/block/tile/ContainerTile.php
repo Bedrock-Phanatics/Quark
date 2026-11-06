@@ -21,17 +21,16 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\tile;
 
-use quark\crafting\CraftingGrid;
-use quark\inventory\TemporaryInventory;
-use quark\world\Position;
+use quark\inventory\InventoryHolder;
 
-final class CraftingTableInventory extends CraftingGrid implements BlockInventory, TemporaryInventory{
-	use BlockInventoryTrait;
+interface ContainerTile extends InventoryHolder{
+	public const TAG_ITEMS = "Items";
+	public const TAG_LOCK = "Lock";
 
-	public function __construct(Position $holder){
-		$this->holder = $holder;
-		parent::__construct(CraftingGrid::SIZE_BIG);
-	}
+	/**
+	 * Returns whether this container can be opened by an item with the given custom name.
+	 */
+	public function canOpenWith(string $key) : bool;
 }

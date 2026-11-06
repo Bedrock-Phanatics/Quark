@@ -21,17 +21,8 @@
 
 declare(strict_types=1);
 
-namespace quark\inventory;
+namespace quark\block\inventory\window;
 
-use quark\entity\Human;
+final class DispenserInventoryWindow extends BlockInventoryWindow{
 
-final class PlayerEnderInventory extends SimpleInventory{
-	public function __construct(
-		private Human $holder,
-		int $size = 27
-	){
-		parent::__construct($size);
-	}
-
-	public function getHolder() : Human{ return $this->holder; }
 }

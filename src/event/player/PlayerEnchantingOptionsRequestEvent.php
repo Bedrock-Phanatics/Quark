@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\event\player;
 
-use quark\block\inventory\EnchantInventory;
+use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
 use quark\event\Event;
@@ -44,14 +44,14 @@ class PlayerEnchantingOptionsRequestEvent extends PlayerEvent implements Cancell
 	 */
 	public function __construct(
 		Player $player,
-		private readonly EnchantInventory $inventory,
+		private readonly EnchantingTableInventoryWindow $window,
 		private array $options
 	){
 		$this->player = $player;
 	}
 
-	public function getInventory() : EnchantInventory{
-		return $this->inventory;
+	public function getWindow() : EnchantingTableInventoryWindow{
+		return $this->window;
 	}
 
 	/**

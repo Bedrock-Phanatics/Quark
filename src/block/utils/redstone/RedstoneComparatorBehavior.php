@@ -33,11 +33,15 @@ use quark\block\Glowstone;
 use quark\block\Slab;
 use quark\block\tile\comparator\ComparatorInventoryListener;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
-use quark\block\tile\Container;
+use quark\block\tile\ContainerTile;
+use quark\block\utils\Container;
 use quark\block\utils\SlabType;
+use quark\inventory\CombinedInventoryProxy;
+use quark\inventory\Inventory;
 use quark\item\Item;
 use quark\player\Player;
-use quark\world\BlockTransaction;use quark\world\redstone\RedstoneManager;
+use quark\world\BlockTransaction;
+use quark\world\redstone\RedstoneManager;
 use quark\world\redstone\RedstoneWorldState;
 use quark\world\sound\RedstonePowerOffSound;
 use quark\world\sound\RedstonePowerOnSound;
@@ -104,9 +108,8 @@ trait RedstoneComparatorBehavior{
 		if($behind instanceof PowerSource){
 			$rear = $behind->getPowerLevel();
 		}else{
-			$tile = $behind->position->getWorld()->getTileAt((int) $behind->position->x, (int) $behind->position->y, (int) $behind->position->z);
-			if($tile instanceof Container){
-				$inventory = $tile->getInventory();
+			$inventory = self::getReadableInventory($behind);
+			if($inventory !== null){
 				$fullness = 0;
 				foreach(RedstoneBlockUtils::fastReadOnlyInventoryContents($inventory) as $item){
 					$fullness += min(1, $item->getCount() / $item->getMaxStackSize());
@@ -202,16 +205,26 @@ trait RedstoneComparatorBehavior{
 		return false;
 	}
 
+	/**
+	 * Returns what a comparator reads from the block, including both halves of a double chest.
+	 */
+	private static function getReadableInventory(Block $block) : ?Inventory{
+		if($block instanceof Container){
+			return $block->getInventory();
+		}
+		$position = $block->getPosition();
+		$tile = $position->getWorld()->getTile($position);
+		return $tile instanceof ContainerTile ? $tile->getInventory() : null;
+	}
+
 	private function notifyContainer() : void{
-		$behind_pos = $this->position->getSide($this->facing);
-		$behind = $this->position->getWorld()->getTileAt((int) $behind_pos->x, (int) $behind_pos->y, (int) $behind_pos->z);
-		if($behind instanceof Container){
-			$inventory = $behind->getRealInventory();
-			$listener = ComparatorInventoryListener::instance($this->facing);
-			if(!$inventory->getListeners()->contains($listener)){
-				$inventory->getListeners()->add($listener);
-				$listener->update($inventory);
-			}
+		$inventory = self::getReadableInventory(RedstoneBlockUtils::getBlockAtSide($this->position, $this->facing));
+		if($inventory === null){
+			return;
+		}
+		//combined views are thrown away after use, so listen to the inventories that actually store the items
+		foreach($inventory instanceof CombinedInventoryProxy ? $inventory->getBackingInventories() : [$inventory] as $backing){
+			ComparatorInventoryListener::attach($backing, $this->position);
 		}
 	}
 

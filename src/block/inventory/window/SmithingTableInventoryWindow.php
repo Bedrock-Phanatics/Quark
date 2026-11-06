@@ -21,11 +21,16 @@
 
 declare(strict_types=1);
 
-namespace quark\inventory;
+namespace quark\block\inventory\window;
 
-use quark\block\inventory\BlockInventory;
+use quark\inventory\SimpleInventory;
+use quark\player\Player;
+use quark\player\TemporaryInventoryWindow;
+use quark\world\Position;
 
-interface BlockInventoryWindow extends BlockInventory{
+final class SmithingTableInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
 
-	public function getNetworkWindowType() : int;
+	public function __construct(Player $viewer, Position $holder){
+		parent::__construct($viewer, new SimpleInventory(3), $holder);
+	}
 }

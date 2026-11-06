@@ -33,7 +33,7 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\nbt\UnexpectedTagTypeException;
-use quark\block\tile\Container;
+use quark\block\tile\ContainerTile;
 use quark\block\VanillaBlocks;
 use quark\crafting\ExactRecipeIngredient;
 use quark\crafting\MetaWildcardRecipeIngredient;
@@ -280,7 +280,7 @@ class TypeConverter{
 	 */
 	protected function stripContainedItemNonVisualNBT(CompoundTag $tag) : bool{
 		try{
-			$blockEntityInventoryTag = $tag->getListTag(Container::TAG_ITEMS, CompoundTag::class);
+			$blockEntityInventoryTag = $tag->getListTag(ContainerTile::TAG_ITEMS, CompoundTag::class);
 		}catch(UnexpectedTagTypeException){
 			return false;
 		}
@@ -298,7 +298,7 @@ class TypeConverter{
 					continue;
 				}
 			}
-			$tag->setTag(Container::TAG_ITEMS, $stripped);
+			$tag->setTag(ContainerTile::TAG_ITEMS, $stripped);
 			return true;
 		}
 		return false;

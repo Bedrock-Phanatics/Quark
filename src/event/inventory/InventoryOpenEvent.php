@@ -25,20 +25,12 @@ namespace quark\event\inventory;
 
 use quark\event\Cancellable;
 use quark\event\CancellableTrait;
-use quark\inventory\Inventory;
 use quark\player\Player;
 
 class InventoryOpenEvent extends InventoryEvent implements Cancellable{
 	use CancellableTrait;
 
-	public function __construct(
-		Inventory $inventory,
-		private Player $who
-	){
-		parent::__construct($inventory);
-	}
-
 	public function getPlayer() : Player{
-		return $this->who;
+		return $this->window->getViewer();
 	}
 }

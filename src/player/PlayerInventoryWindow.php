@@ -21,17 +21,22 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\player;
 
-use quark\inventory\SimpleInventory;
-use quark\inventory\TemporaryInventory;
-use quark\world\Position;
+use quark\inventory\Inventory;
 
-final class CartographyTableInventory extends SimpleInventory implements BlockInventory, TemporaryInventory{
-	use BlockInventoryTrait;
+/**
+ * Window on one of the player's own inventories. These stay open for as long as the player is online.
+ */
+final class PlayerInventoryWindow extends InventoryWindow{
 
-	public function __construct(Position $holder){
-		$this->holder = $holder;
-		parent::__construct(2);
+	public function __construct(
+		Player $viewer,
+		Inventory $inventory,
+		private readonly PlayerInventoryType $type
+	){
+		parent::__construct($viewer, $inventory);
 	}
+
+	public function getType() : PlayerInventoryType{ return $this->type; }
 }

@@ -21,16 +21,17 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\inventory\window;
 
 use quark\inventory\SimpleInventory;
+use quark\player\Player;
+use quark\player\TemporaryInventoryWindow;
 use quark\world\Position;
 
-class HopperInventory extends SimpleInventory implements BlockInventory{
-	use BlockInventoryTrait;
+final class StonecutterInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
+	public const SLOT_INPUT = 0;
 
-	public function __construct(Position $holder, int $size = 5){
-		$this->holder = $holder;
-		parent::__construct($size);
+	public function __construct(Player $viewer, Position $holder){
+		parent::__construct($viewer, new SimpleInventory(1), $holder);
 	}
 }

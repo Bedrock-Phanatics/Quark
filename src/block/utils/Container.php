@@ -21,19 +21,23 @@
 
 declare(strict_types=1);
 
-namespace quark\block\tile;
+namespace quark\block\utils;
 
 use quark\inventory\Inventory;
-use quark\inventory\InventoryHolder;
 
-interface Container extends InventoryHolder{
-	public const TAG_ITEMS = "Items";
-	public const TAG_LOCK = "Lock";
-
-	public function getRealInventory() : Inventory;
+/**
+ * Blocks that store items, like chests and furnaces. See ContainerTrait for the default implementation.
+ */
+interface Container extends MenuAccessor{
 
 	/**
-	 * Returns whether this container can be opened by an item with the given custom name.
+	 * Returns whether an item with the given custom name can open the container, if it's locked.
 	 */
 	public function canOpenWith(string $key) : bool;
+
+	/**
+	 * Returns the stored contents, or null if the block's tile is missing or the wrong type, which can happen with old
+	 * worlds or blocks placed incorrectly by plugins.
+	 */
+	public function getInventory() : ?Inventory;
 }

@@ -21,16 +21,19 @@
 
 declare(strict_types=1);
 
-namespace quark\inventory;
+namespace quark\block\inventory\window;
 
-use quark\crafting\CraftingGrid;
+use quark\inventory\SimpleInventory;
 use quark\player\Player;
+use quark\player\TemporaryInventoryWindow;
+use quark\world\Position;
 
-final class PlayerCraftingInventory extends CraftingGrid implements TemporaryInventory{
+final class LoomInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
+	public const SLOT_BANNER = 0;
+	public const SLOT_DYE = 1;
+	public const SLOT_PATTERN = 2;
 
-	public function __construct(private Player $holder){
-		parent::__construct(CraftingGrid::SIZE_SMALL);
+	public function __construct(Player $viewer, Position $holder){
+		parent::__construct($viewer, new SimpleInventory(3), $holder);
 	}
-
-	public function getHolder() : Player{ return $this->holder; }
 }

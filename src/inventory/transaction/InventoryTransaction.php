@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\inventory\transaction;
 
 use quark\event\inventory\InventoryTransactionEvent;
-use quark\inventory\Inventory;
 use quark\inventory\transaction\action\InventoryAction;
 use quark\inventory\transaction\action\SlotChangeAction;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\utils\Utils;
 use function array_values;
@@ -57,10 +57,10 @@ class InventoryTransaction{
 	protected bool $hasExecuted = false;
 
 	/**
-	 * @var Inventory[]
-	 * @phpstan-var array<int, Inventory>
+	 * @var InventoryWindow[]
+	 * @phpstan-var array<int, InventoryWindow>
 	 */
-	protected array $inventories = [];
+	protected array $inventoryWindows = [];
 
 	/**
 	 * @var InventoryAction[]
@@ -85,11 +85,14 @@ class InventoryTransaction{
 	}
 
 	/**
-	 * @return Inventory[]
-	 * @phpstan-return array<int, Inventory>
+	 * Returns the windows of every inventory changed by this transaction. Check the window type to find out what kind
+	 * of inventory it is, e.g. PlayerInventoryWindow or BlockInventoryWindow.
+	 *
+	 * @return InventoryWindow[]
+	 * @phpstan-return array<int, InventoryWindow>
 	 */
-	public function getInventories() : array{
-		return $this->inventories;
+	public function getInventoryWindows() : array{
+		return $this->inventoryWindows;
 	}
 
 	/**
@@ -112,8 +115,9 @@ class InventoryTransaction{
 		if(!isset($this->actions[$hash = spl_object_id($action)])){
 			$this->actions[$hash] = $action;
 			$action->onAddToTransaction($this);
-			if($action instanceof SlotChangeAction && !isset($this->inventories[$inventoryId = spl_object_id($action->getInventory())])){
-				$this->inventories[$inventoryId] = $action->getInventory();
+			if($action instanceof SlotChangeAction){
+				$window = $action->getInventoryWindow();
+				$this->inventoryWindows[spl_object_id($window)] = $window;
 			}
 		}else{
 			throw new \InvalidArgumentException("Tried to add the same action to a transaction twice");
@@ -181,13 +185,14 @@ class InventoryTransaction{
 	 */
 	protected function squashDuplicateSlotChanges() : void{
 		$slotChanges = [];
-		$inventories = [];
+		$windows = [];
 		$slots = [];
 
 		foreach($this->actions as $key => $action){
 			if($action instanceof SlotChangeAction){
+				//key by the storage, not the window, so two windows on one inventory can't each change the same slot
 				$slotChanges[$h = (spl_object_hash($action->getInventory()) . "@" . $action->getSlot())][] = $action;
-				$inventories[$h] = $action->getInventory();
+				$windows[$h] ??= $action->getInventoryWindow();
 				$slots[$h] = $action->getSlot();
 			}
 		}
@@ -197,7 +202,8 @@ class InventoryTransaction{
 				continue;
 			}
 
-			$inventory = $inventories[$hash];
+			$window = $windows[$hash];
+			$inventory = $window->getInventory();
 			$slot = $slots[$hash];
 			if(!$inventory->slotExists($slot)){ //this can get hit for crafting tables because the validation happens after this compaction
 				throw new TransactionValidationException("Slot $slot does not exist in inventory " . get_class($inventory));
@@ -215,7 +221,7 @@ class InventoryTransaction{
 
 			if(!$targetItem->equalsExact($sourceItem)){
 				//sometimes we get actions on the crafting grid whose source and target items are the same, so dump them
-				$this->addAction(new SlotChangeAction($inventory, $slot, $sourceItem, $targetItem));
+				$this->addAction(new SlotChangeAction($window, $slot, $sourceItem, $targetItem));
 			}
 		}
 	}

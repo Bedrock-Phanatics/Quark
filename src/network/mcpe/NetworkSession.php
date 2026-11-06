@@ -1199,6 +1199,7 @@ class NetworkSession{
 	 * session, so it's safe to destroy any cycles and perform destructive cleanup.
 	 */
 	private function dispose() : void{
+		$this->invManager?->dispose();
 		$this->invManager = null;
 	}
 

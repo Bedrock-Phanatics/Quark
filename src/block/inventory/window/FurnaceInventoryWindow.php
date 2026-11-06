@@ -21,51 +21,26 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\inventory\window;
 
 use quark\crafting\FurnaceType;
-use quark\inventory\SimpleInventory;
-use quark\item\Item;
+use quark\inventory\Inventory;
+use quark\player\Player;
 use quark\world\Position;
 
-class FurnaceInventory extends SimpleInventory implements BlockInventory{
-	use BlockInventoryTrait;
-
+final class FurnaceInventoryWindow extends BlockInventoryWindow{
 	public const SLOT_INPUT = 0;
 	public const SLOT_FUEL = 1;
 	public const SLOT_RESULT = 2;
 
 	public function __construct(
+		Player $viewer,
+		Inventory $inventory,
 		Position $holder,
 		private FurnaceType $furnaceType
 	){
-		$this->holder = $holder;
-		parent::__construct(3);
+		parent::__construct($viewer, $inventory, $holder);
 	}
 
 	public function getFurnaceType() : FurnaceType{ return $this->furnaceType; }
-
-	public function getResult() : Item{
-		return $this->getItem(self::SLOT_RESULT);
-	}
-
-	public function getFuel() : Item{
-		return $this->getItem(self::SLOT_FUEL);
-	}
-
-	public function getSmelting() : Item{
-		return $this->getItem(self::SLOT_INPUT);
-	}
-
-	public function setResult(Item $item) : void{
-		$this->setItem(self::SLOT_RESULT, $item);
-	}
-
-	public function setFuel(Item $item) : void{
-		$this->setItem(self::SLOT_FUEL, $item);
-	}
-
-	public function setSmelting(Item $item) : void{
-		$this->setItem(self::SLOT_INPUT, $item);
-	}
 }

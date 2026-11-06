@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use quark\inventory\Inventory;
+use quark\player\InventoryWindow;
 
-final class ComplexInventoryMapEntry{
+final class ComplexWindowMapEntry{
 
 	/**
 	 * @var int[]
@@ -38,7 +38,7 @@ final class ComplexInventoryMapEntry{
 	 * @phpstan-param array<int, int> $slotMap
 	 */
 	public function __construct(
-		private Inventory $inventory,
+		private InventoryWindow $window,
 		private array $slotMap
 	){
 		foreach($slotMap as $slot => $index){
@@ -46,7 +46,7 @@ final class ComplexInventoryMapEntry{
 		}
 	}
 
-	public function getInventory() : Inventory{ return $this->inventory; }
+	public function getWindow() : InventoryWindow{ return $this->window; }
 
 	/**
 	 * @return int[]

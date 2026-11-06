@@ -23,19 +23,24 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Vector3;
+use quark\block\inventory\window\FurnaceInventoryWindow;
 use quark\block\tile\Furnace as TileFurnace;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\Lightable;
 use quark\block\utils\LightableTrait;
 use quark\crafting\FurnaceType;
 use quark\data\runtime\RuntimeDataDescriber;
-use quark\item\Item;
+use quark\inventory\Inventory;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
 use function mt_rand;
 
-class Furnace extends Opaque implements Lightable, HorizontalFacing{
+class Furnace extends Opaque implements Container, Lightable, HorizontalFacing{
+	use ContainerTrait;
 	use FacesOppositePlacingPlayerTrait;
 	use LightableTrait;
 
@@ -59,17 +64,6 @@ class Furnace extends Opaque implements Lightable, HorizontalFacing{
 		return $this->lit ? 13 : 0;
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			$furnace = $this->position->getWorld()->getTile($this->position);
-			if($furnace instanceof TileFurnace && $furnace->canOpenWith($item->getCustomName())){
-				$player->setCurrentWindow($furnace->getInventory());
-			}
-		}
-
-		return true;
-	}
-
 	public function onScheduledUpdate() : void{
 		$world = $this->position->getWorld();
 		$furnace = $world->getTile($this->position);
@@ -79,5 +73,9 @@ class Furnace extends Opaque implements Lightable, HorizontalFacing{
 			}
 			$world->scheduleDelayedBlockUpdate($this->position, 1); //TODO: check this
 		}
+	}
+
+	protected function newMenu(Player $player, Inventory $inventory, Position $position) : InventoryWindow{
+		return new FurnaceInventoryWindow($player, $inventory, $position, $this->furnaceType);
 	}
 }

@@ -26,17 +26,22 @@ namespace quark\block;
 use pocketmine\math\Axis;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
+use quark\block\inventory\window\BrewingStandInventoryWindow;
 use quark\block\tile\BrewingStand as TileBrewingStand;
 use quark\block\utils\BrewingStandSlot;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
-use quark\item\Item;
+use quark\inventory\Inventory;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
 use function array_key_exists;
 use function spl_object_id;
 
-class BrewingStand extends Transparent{
+class BrewingStand extends Transparent implements Container{
+	use ContainerTrait;
 
 	/**
 	 * @var BrewingStandSlot[]
@@ -95,17 +100,6 @@ class BrewingStand extends Transparent{
 		return $this;
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			$stand = $this->position->getWorld()->getTile($this->position);
-			if($stand instanceof TileBrewingStand && $stand->canOpenWith($item->getCustomName())){
-				$player->setCurrentWindow($stand->getInventory());
-			}
-		}
-
-		return true;
-	}
-
 	public function onScheduledUpdate() : void{
 		$world = $this->position->getWorld();
 		$brewing = $world->getTile($this->position);
@@ -127,5 +121,9 @@ class BrewingStand extends Transparent{
 				$world->setBlock($this->position, $this);
 			}
 		}
+	}
+
+	protected function newMenu(Player $player, Inventory $inventory, Position $position) : InventoryWindow{
+		return new BrewingStandInventoryWindow($player, $inventory, $position);
 	}
 }

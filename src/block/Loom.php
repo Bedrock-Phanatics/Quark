@@ -23,21 +23,20 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Vector3;
-use quark\block\inventory\LoomInventory;
+use quark\block\inventory\window\LoomInventoryWindow;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
-use quark\item\Item;
+use quark\block\utils\MenuAccessor;
+use quark\block\utils\MenuAccessorTrait;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
 
-final class Loom extends Opaque implements HorizontalFacing{
+final class Loom extends Opaque implements MenuAccessor, HorizontalFacing{
+	use MenuAccessorTrait;
 	use FacesOppositePlacingPlayerTrait;
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player !== null){
-			$player->setCurrentWindow(new LoomInventory($this->position));
-			return true;
-		}
-		return false;
+	protected function newMenu(Player $player, Position $position) : InventoryWindow{
+		return new LoomInventoryWindow($player, $position);
 	}
 }

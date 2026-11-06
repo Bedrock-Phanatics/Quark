@@ -21,19 +21,20 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\inventory\window;
 
-use quark\inventory\SimpleInventory;
-use quark\inventory\TemporaryInventory;
+use quark\crafting\CraftingGrid;
+use quark\player\Player;
+use quark\player\TemporaryInventoryWindow;
 use quark\world\Position;
 
-class StonecutterInventory extends SimpleInventory implements BlockInventory, TemporaryInventory{
-	use BlockInventoryTrait;
+final class CraftingTableInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
+	private CraftingGrid $grid;
 
-	public const SLOT_INPUT = 0;
-
-	public function __construct(Position $holder){
-		$this->holder = $holder;
-		parent::__construct(1);
+	public function __construct(Player $viewer, Position $holder){
+		$this->grid = new CraftingGrid(CraftingGrid::SIZE_BIG);
+		parent::__construct($viewer, $this->grid, $holder);
 	}
+
+	public function getCraftingGrid() : CraftingGrid{ return $this->grid; }
 }

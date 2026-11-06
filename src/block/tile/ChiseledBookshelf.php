@@ -37,8 +37,8 @@ use quark\item\Item;
 use quark\world\World;
 use function count;
 
-class ChiseledBookshelf extends Tile implements Container{
-	use ContainerTrait;
+class ChiseledBookshelf extends Tile implements ContainerTile{
+	use ContainerTileTrait;
 
 	private const TAG_LAST_INTERACTED_SLOT = "LastInteractedSlot"; //TAG_Int
 
@@ -52,10 +52,6 @@ class ChiseledBookshelf extends Tile implements Container{
 	}
 
 	public function getInventory() : SimpleInventory{
-		return $this->inventory;
-	}
-
-	public function getRealInventory() : SimpleInventory{
 		return $this->inventory;
 	}
 
@@ -87,13 +83,13 @@ class ChiseledBookshelf extends Tile implements Container{
 
 	protected function loadItems(CompoundTag $tag) : void{
 		try{
-			$inventoryTag = $tag->getListTag(Container::TAG_ITEMS, CompoundTag::class);
+			$inventoryTag = $tag->getListTag(ContainerTile::TAG_ITEMS, CompoundTag::class);
 		}catch(UnexpectedTagTypeException){
 			//preserve the old behaviour of not throwing on wrong types
 			$inventoryTag = null;
 		}
 		if($inventoryTag !== null){
-			$inventory = $this->getRealInventory();
+			$inventory = $this->getInventory();
 			$listeners = $inventory->getListeners()->toArray();
 			$inventory->getListeners()->remove(...$listeners); //prevent any events being fired by initialization
 
@@ -111,14 +107,14 @@ class ChiseledBookshelf extends Tile implements Container{
 			$inventory->getListeners()->add(...$listeners);
 		}
 
-		if(($lockTag = $tag->getTag(Container::TAG_LOCK)) instanceof StringTag){
+		if(($lockTag = $tag->getTag(ContainerTile::TAG_LOCK)) instanceof StringTag){
 			$this->lock = $lockTag->getValue();
 		}
 	}
 
 	protected function saveItems(CompoundTag $tag) : void{
 		$items = [];
-		foreach($this->getRealInventory()->getContents(true) as $slot => $item){
+		foreach($this->getInventory()->getContents(true) as $slot => $item){
 			if($item->isNull()){
 				$items[$slot] = CompoundTag::create()
 					->setByte(SavedItemStackData::TAG_COUNT, 0)
@@ -130,10 +126,10 @@ class ChiseledBookshelf extends Tile implements Container{
 			}
 		}
 
-		$tag->setTag(Container::TAG_ITEMS, new ListTag($items, NBT::TAG_Compound));
+		$tag->setTag(ContainerTile::TAG_ITEMS, new ListTag($items, NBT::TAG_Compound));
 
 		if($this->lock !== null){
-			$tag->setString(Container::TAG_LOCK, $this->lock);
+			$tag->setString(ContainerTile::TAG_LOCK, $this->lock);
 		}
 	}
 }

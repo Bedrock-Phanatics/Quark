@@ -21,25 +21,8 @@
 
 declare(strict_types=1);
 
-namespace quark\inventory;
+namespace quark\block\inventory\window;
 
-use quark\network\mcpe\protocol\types\inventory\WindowTypes;
-use quark\world\Position;
+final class HopperInventoryWindow extends BlockInventoryWindow{
 
-final class DispenserInventory extends SimpleInventory implements BlockInventoryWindow{
-
-	protected Position $holder;
-
-	public function __construct(Position $holder){
-		parent::__construct(9);
-		$this->holder = $holder;
-	}
-
-	public function getNetworkWindowType() : int{
-		return WindowTypes::DISPENSER;
-	}
-
-	public function getHolder() : Position{
-		return $this->holder;
-	}
 }

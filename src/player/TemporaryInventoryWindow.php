@@ -21,17 +21,12 @@
 
 declare(strict_types=1);
 
-namespace quark\inventory;
+namespace quark\player;
 
-use quark\entity\Human;
+/**
+ * Marks windows whose inventory only exists while the window is open, like crafting tables and anvils. Anything left
+ * in them is returned to the player (or dropped) when the window closes.
+ */
+interface TemporaryInventoryWindow{
 
-final class PlayerOffHandInventory extends SimpleInventory{
-	private Human $holder;
-
-	public function __construct(Human $player){
-		$this->holder = $player;
-		parent::__construct(1);
-	}
-
-	public function getHolder() : Human{ return $this->holder; }
 }

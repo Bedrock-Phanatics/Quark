@@ -21,21 +21,20 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\utils;
 
-use quark\inventory\SimpleInventory;
-use quark\inventory\TemporaryInventory;
-use quark\world\Position;
+/**
+ * Blocks that look and sound open (like chests) for as long as at least one player has their menu open.
+ */
+interface AnimatedContainerLike extends MenuAccessor{
 
-final class LoomInventory extends SimpleInventory implements BlockInventory, TemporaryInventory{
-	use BlockInventoryTrait;
+	/**
+	 * Called after a player opens the block's menu.
+	 */
+	public function onViewerAdded() : void;
 
-	public const SLOT_BANNER = 0;
-	public const SLOT_DYE = 1;
-	public const SLOT_PATTERN = 2;
-
-	public function __construct(Position $holder, int $size = 3){
-		$this->holder = $holder;
-		parent::__construct($size);
-	}
+	/**
+	 * Called before a player's menu for the block is closed.
+	 */
+	public function onViewerRemoved() : void;
 }

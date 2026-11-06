@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
+use quark\entity\Entity;
 use quark\inventory\SimpleInventory;
 use quark\item\VanillaItems;
 use quark\network\mcpe\InventoryManager;
@@ -32,6 +33,9 @@ use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\protocol\packet\ItemStackResponsePacket;
 use quark\network\mcpe\protocol\RecordedPackets;
 use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
+use quark\player\Player;
+use quark\player\PlayerInventoryType;
+use quark\player\PlayerInventoryWindow;
 use function bin2hex;
 
 final class ItemStackResponseBuilderTest extends TestCase{
@@ -40,9 +44,13 @@ final class ItemStackResponseBuilderTest extends TestCase{
 		$inventory = new SimpleInventory(9);
 		$inventory->setItem(1, VanillaItems::DIAMOND_SWORD()->setDamage(12)->setCustomName("blade"));
 		$inventory->setItem(4, VanillaItems::APPLE()->setCount(7));
+		$player = $this->createMock(Player::class);
+		new \ReflectionProperty(Entity::class, "closed")->setValue($player, true);
+		new \ReflectionProperty(Player::class, "logger")->setValue($player, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		$window = new PlayerInventoryWindow($player, $inventory, PlayerInventoryType::INVENTORY);
 		$manager = $this->createMock(InventoryManager::class);
 		$manager->method("getCurrentWindowId")->willReturn(0);
-		$manager->method("locateWindowAndSlot")->willReturnCallback(fn(int $windowId, int $slot) : ?array => $slot < 9 ? [$inventory, $slot] : null);
+		$manager->method("locateWindowAndSlot")->willReturnCallback(fn(int $windowId, int $slot) : ?array => $slot < 9 ? [$window, $slot] : null);
 		$manager->method("getItemStackInfo")->willReturnCallback(fn($inventory, int $slot) : ItemStackInfo => new ItemStackInfo(null, 100 + $slot));
 
 		$builder = new ItemStackResponseBuilder(-7, $manager);

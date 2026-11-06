@@ -25,18 +25,19 @@ namespace quark\block\tile;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use quark\block\inventory\BarrelInventory;
+use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\world\World;
 
-class Barrel extends Spawnable implements Container, Nameable{
+class Barrel extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait;
-	use ContainerTrait;
+	use ContainerTileTrait;
 
-	protected BarrelInventory $inventory;
+	protected Inventory $inventory;
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new BarrelInventory($this->position);
+		$this->inventory = new SimpleInventory(27);
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
@@ -51,16 +52,12 @@ class Barrel extends Spawnable implements Container, Nameable{
 
 	public function close() : void{
 		if(!$this->closed){
-			$this->inventory->removeAllViewers();
+			$this->inventory->removeAllWindows();
 			parent::close();
 		}
 	}
 
-	public function getInventory() : BarrelInventory{
-		return $this->inventory;
-	}
-
-	public function getRealInventory() : BarrelInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 

@@ -21,20 +21,16 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\inventory\window;
 
 use quark\inventory\SimpleInventory;
+use quark\player\Player;
+use quark\player\TemporaryInventoryWindow;
 use quark\world\Position;
 
-class CampfireInventory extends SimpleInventory implements BlockInventory{
-	use BlockInventoryTrait;
+final class CartographyTableInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
 
-	public function __construct(Position $holder){
-		$this->holder = $holder;
-		parent::__construct(4);
-	}
-
-	public function getMaxStackSize() : int{
-		return 1;
+	public function __construct(Player $viewer, Position $holder){
+		parent::__construct($viewer, new SimpleInventory(2), $holder);
 	}
 }

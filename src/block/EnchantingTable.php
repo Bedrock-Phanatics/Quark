@@ -25,13 +25,16 @@ namespace quark\block;
 
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
-use quark\block\inventory\EnchantInventory;
+use quark\block\inventory\window\EnchantingTableInventoryWindow;
+use quark\block\utils\MenuAccessor;
+use quark\block\utils\MenuAccessorTrait;
 use quark\block\utils\SupportType;
-use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
 
-class EnchantingTable extends Transparent{
+class EnchantingTable extends Transparent implements MenuAccessor{
+	use MenuAccessorTrait;
 
 	protected function recalculateCollisionBoxes() : array{
 		return [AxisAlignedBB::one()->trim(Facing::UP, 0.25)];
@@ -41,13 +44,7 @@ class EnchantingTable extends Transparent{
 		return SupportType::NONE;
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			//TODO lock
-
-			$player->setCurrentWindow(new EnchantInventory($this->position));
-		}
-
-		return true;
+	protected function newMenu(Player $player, Position $position) : InventoryWindow{
+		return new EnchantingTableInventoryWindow($player, $position);
 	}
 }

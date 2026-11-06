@@ -22,11 +22,13 @@
 declare(strict_types=1);
 
 /**
- * Handles the creation of virtual inventories or mapped to an InventoryHolder
+ * Item storage. Inventories don't know who owns them or where they are, that context lives in the
+ * InventoryWindow a player opens to view one.
  */
 namespace quark\inventory;
 
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\utils\ObjectSet;
 
@@ -97,6 +99,13 @@ interface Inventory{
 	 * Returns how many items from the given itemstack can be added to this inventory.
 	 */
 	public function getAddableItemQuantity(Item $item) : int;
+
+	/**
+	 * Returns the count of the item in the given slot if it matches the test item, 0 otherwise.
+	 *
+	 * @param bool $checkTags If true, the NBT of the items must also be the same.
+	 */
+	public function getMatchingItemCount(int $slot, Item $test, bool $checkTags) : int;
 
 	/**
 	 * Returns whether the total amount of matching items is at least the stack size of the given item. Multiple stacks
@@ -172,19 +181,28 @@ interface Inventory{
 	public function swap(int $slot1, int $slot2) : void;
 
 	/**
-	 * Gets all the Players viewing the inventory
-	 * Players will view their inventory at all times, even when not open.
+	 * Returns every player with a window open on this inventory, keyed by spl_object_id(). Players always have
+	 * windows open on their own inventories, even when the inventory screen isn't shown.
 	 *
 	 * @return Player[]
+	 * @phpstan-return array<int, Player>
 	 */
 	public function getViewers() : array;
 
 	/**
-	 * Called when a player opens this inventory.
+	 * Closes every window viewing this inventory, e.g. because its block was destroyed.
 	 */
-	public function onOpen(Player $who) : void;
+	public function removeAllWindows() : void;
 
-	public function onClose(Player $who) : void;
+	/**
+	 * @internal Called by InventoryWindow::onOpen(). Use Player::setCurrentWindow() to open windows.
+	 */
+	public function onOpen(InventoryWindow $window) : void;
+
+	/**
+	 * @internal Called by InventoryWindow::onClose().
+	 */
+	public function onClose(InventoryWindow $window) : void;
 
 	/**
 	 * Returns whether the specified slot exists in the inventory.

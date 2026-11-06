@@ -28,21 +28,29 @@ namespace quark\event\inventory;
 
 use quark\event\Event;
 use quark\inventory\Inventory;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 
 abstract class InventoryEvent extends Event{
 	public function __construct(
-		protected Inventory $inventory
+		protected InventoryWindow $window
 	){}
 
+	/**
+	 * Returns the window involved, which carries context like the block it was opened from.
+	 */
+	public function getWindow() : InventoryWindow{
+		return $this->window;
+	}
+
 	public function getInventory() : Inventory{
-		return $this->inventory;
+		return $this->window->getInventory();
 	}
 
 	/**
 	 * @return Player[]
 	 */
 	public function getViewers() : array{
-		return $this->inventory->getViewers();
+		return $this->window->getInventory()->getViewers();
 	}
 }

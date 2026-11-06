@@ -27,7 +27,6 @@ use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
-use quark\block\inventory\CampfireInventory;
 use quark\block\tile\Campfire as TileCampfire;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
@@ -44,6 +43,8 @@ use quark\entity\projectile\SplashPotion;
 use quark\event\block\CampfireCookEvent;
 use quark\event\entity\EntityDamageByBlockEvent;
 use quark\event\entity\EntityDamageEvent;
+use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\item\Durable;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
@@ -75,7 +76,7 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 	 * @deprecated This was added by mistake. It can't be relied on as the inventory won't be initialized if this block
 	 * has never been set in the world.
 	 */
-	protected CampfireInventory $inventory;
+	protected Inventory $inventory;
 
 	/**
 	 * @var int[] slot => ticks
@@ -95,7 +96,8 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 			$this->inventory = $tile->getInventory();
 			$this->cookingTimes = $tile->getCookingTimes();
 		}else{
-			$this->inventory = new CampfireInventory($this->position);
+			$this->inventory = new SimpleInventory(4);
+			$this->inventory->setMaxStackSize(1);
 		}
 
 		return $this;
@@ -139,7 +141,7 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 	 * @deprecated This was added by mistake. It can't be relied on as the inventory won't be initialized if this block
 	 * has never been set in the world.
 	 */
-	public function getInventory() : CampfireInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 

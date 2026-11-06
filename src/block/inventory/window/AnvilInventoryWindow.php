@@ -21,20 +21,18 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\inventory\window;
 
 use quark\inventory\SimpleInventory;
-use quark\inventory\TemporaryInventory;
+use quark\player\Player;
+use quark\player\TemporaryInventoryWindow;
 use quark\world\Position;
 
-class AnvilInventory extends SimpleInventory implements BlockInventory, TemporaryInventory{
-	use BlockInventoryTrait;
-
+final class AnvilInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
 	public const SLOT_INPUT = 0;
 	public const SLOT_MATERIAL = 1;
 
-	public function __construct(Position $holder){
-		$this->holder = $holder;
-		parent::__construct(2);
+	public function __construct(Player $viewer, Position $holder){
+		parent::__construct($viewer, new SimpleInventory(2), $holder);
 	}
 }

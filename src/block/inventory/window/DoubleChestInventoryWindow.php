@@ -21,17 +21,24 @@
 
 declare(strict_types=1);
 
-namespace quark\block\inventory;
+namespace quark\block\inventory\window;
 
-use quark\inventory\SimpleInventory;
-use quark\inventory\TemporaryInventory;
+use quark\inventory\Inventory;
+use quark\player\Player;
 use quark\world\Position;
 
-final class SmithingTableInventory extends SimpleInventory implements BlockInventory, TemporaryInventory{
-	use BlockInventoryTrait;
+final class DoubleChestInventoryWindow extends BlockInventoryWindow{
 
-	public function __construct(Position $holder){
-		$this->holder = $holder;
-		parent::__construct(3);
+	public function __construct(
+		Player $viewer,
+		Inventory $inventory,
+		private Position $left,
+		private Position $right
+	){
+		parent::__construct($viewer, $inventory, $this->left);
 	}
+
+	public function getLeft() : Position{ return $this->left; }
+
+	public function getRight() : Position{ return $this->right; }
 }

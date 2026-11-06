@@ -25,23 +25,19 @@ namespace quark\block;
 
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
-use quark\block\inventory\StonecutterInventory;
+use quark\block\inventory\window\StonecutterInventoryWindow;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
+use quark\block\utils\MenuAccessor;
+use quark\block\utils\MenuAccessorTrait;
 use quark\block\utils\SupportType;
-use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
 
-class Stonecutter extends Transparent implements HorizontalFacing{
+class Stonecutter extends Transparent implements MenuAccessor, HorizontalFacing{
+	use MenuAccessorTrait;
 	use FacesOppositePlacingPlayerTrait;
-
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player !== null){
-			$player->setCurrentWindow(new StonecutterInventory($this->position));
-		}
-		return true;
-	}
 
 	protected function recalculateCollisionBoxes() : array{
 		return [AxisAlignedBB::one()->trim(Facing::UP, 7 / 16)];
@@ -49,5 +45,9 @@ class Stonecutter extends Transparent implements HorizontalFacing{
 
 	public function getSupportType(int $facing) : SupportType{
 		return SupportType::NONE;
+	}
+
+	protected function newMenu(Player $player, Position $position) : InventoryWindow{
+		return new StonecutterInventoryWindow($player, $position);
 	}
 }
