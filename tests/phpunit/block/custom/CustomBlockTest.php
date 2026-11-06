@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace quark\block\custom;
 
-use Bedwire\Nbt;
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
@@ -13,6 +12,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
+use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use quark\block\Block;
 use quark\block\BlockIdentifier;
 use quark\block\BlockToolType;
@@ -420,12 +420,12 @@ final class CustomBlockTest extends TestCase{
 		$expectedOrder = [$this->id("a"), $this->id("b")];
 		usort($expectedOrder, static fn(string $x, string $y) => strcmp(hash("fnv164", $x), hash("fnv164", $y)));
 		foreach($entries as $i => $entry){
-			self::assertSame($expectedOrder[$i], $entry->blockName);
-			$root = Nbt::read($entry->blockDefinition, Nbt::NETWORK)->mustGetCompoundTag();
+			self::assertSame($expectedOrder[$i], $entry->getName());
+			$root = self::states($entry);
 			self::assertSame(BlockRegistry::FIRST_NETWORK_BLOCK_ID + $i, $root->getCompoundTag("vanilla_block_data")?->getInt("block_id"));
 			self::assertSame(13, $root->getInt("molangVersion"));
 		}
-		$root = Nbt::read($entries[array_search($this->id("a"), $expectedOrder, true)]->blockDefinition, Nbt::NETWORK)->mustGetCompoundTag();
+		$root = self::states($entries[array_search($this->id("a"), $expectedOrder, true)]);
 		$properties = $root->getListTag("properties");
 		self::assertNotNull($properties);
 		$names = [];
@@ -479,7 +479,7 @@ final class CustomBlockTest extends TestCase{
 			$converter = $this->finalized();
 			$snapshot = [];
 			foreach($this->registry->getPaletteEntries() as $entry){
-				$snapshot[] = str_replace($this->ns, "ns", $entry->blockName . $entry->blockDefinition);
+				$snapshot[] = str_replace($this->ns, "ns", $entry->getName() . $entry->getStates()->getEncodedNbt());
 			}
 			$networkIds = [];
 			foreach($ids as $path){
@@ -500,8 +500,8 @@ final class CustomBlockTest extends TestCase{
 		$this->registry->register(BlockDefinition::cube($this->id("glow"), "Glow", "glow")->states(BlockState::bool($this->id("lit")))->lightLevel(12), $this->owner);
 		$this->finalized();
 		foreach($this->registry->getPaletteEntries() as $entry){
-			$root = Nbt::read($entry->blockDefinition, Nbt::NETWORK)->mustGetCompoundTag();
-			$block = $this->registry->create($entry->blockName);
+			$root = self::states($entry);
+			$block = $this->registry->create($entry->getName());
 			foreach($block->generateStatePermutations() as $state){
 				$data = $this->serializer->serialize($state->getStateId());
 				$components = self::componentsFor($root, $data);
@@ -509,7 +509,7 @@ final class CustomBlockTest extends TestCase{
 				self::assertInstanceOf(CompoundTag::class, $collision);
 				$boxes = $collision->getListTag("boxes")?->getValue() ?? [];
 				$server = $state->getCollisionBoxes();
-				self::assertCount(count($server), $boxes, $entry->blockName);
+				self::assertCount(count($server), $boxes, $entry->getName());
 				foreach($server as $k => $box){
 					$client = $boxes[$k];
 					self::assertInstanceOf(CompoundTag::class, $client);
@@ -524,6 +524,12 @@ final class CustomBlockTest extends TestCase{
 				self::assertSame($state->getLightLevel(), $emission->getByte("emission"));
 			}
 		}
+	}
+
+	private static function states(BlockPaletteEntry $entry) : CompoundTag{
+		$root = $entry->getStates()->getRoot();
+		self::assertInstanceOf(CompoundTag::class, $root);
+		return $root;
 	}
 
 	/**
@@ -632,7 +638,7 @@ final class CustomBlockTest extends TestCase{
 			static fn(BlockIdentifier $id, string $name, BlockTypeInfo $info, CustomBlockSettings $settings) => new TestToggleBlock($id, $name, $info, $settings)
 		), $this->owner);
 		$this->finalized();
-		$root = Nbt::read($this->registry->getPaletteEntries()[0]->blockDefinition, Nbt::NETWORK)->mustGetCompoundTag();
+		$root = self::states($this->registry->getPaletteEntries()[0]);
 		$found = 0;
 		foreach($root->getListTag("permutations")?->getValue() ?? [] as $permutation){
 			self::assertInstanceOf(CompoundTag::class, $permutation);
@@ -666,7 +672,7 @@ final class CustomBlockTest extends TestCase{
 		self::assertSame("north", $block->getState($this->id("facing")));
 		self::assertSame("south", CustomBlock::facingName(Facing::SOUTH));
 		$this->finalized();
-		$root = Nbt::read($this->registry->getPaletteEntries()[0]->blockDefinition, Nbt::NETWORK)->mustGetCompoundTag();
+		$root = self::states($this->registry->getPaletteEntries()[0]);
 		$turns = [];
 		foreach($root->getListTag("permutations")?->getValue() ?? [] as $permutation){
 			self::assertInstanceOf(CompoundTag::class, $permutation);

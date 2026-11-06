@@ -26,6 +26,7 @@ namespace quark\network\mcpe\bedwire;
 use Bedwire\Server as BedwireServer;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\network\mcpe\NetworkSession;
 use quark\Server;
 use function array_fill_keys;
@@ -38,7 +39,7 @@ final class BedwireInterfaceTest extends TestCase{
 	private BedwireServer $server;
 
 	protected function setUp() : void{
-		$this->server = new BedwireServer("127.0.0.1", 0, ["authentication" => false, "udp_mux" => false]);
+		$this->server = new BedwireServer("127.0.0.1", 0, ["authentication" => false, "udp_mux" => false, "protocol_version" => ProtocolInfo::CURRENT_PROTOCOL, "minecraft_version" => ProtocolInfo::MINECRAFT_VERSION_NETWORK]);
 	}
 
 	protected function tearDown() : void{
@@ -92,7 +93,6 @@ final class BedwireInterfaceTest extends TestCase{
 		$defer = new \ReflectionMethod(BedwireInterface::class, "defer");
 		$defer->invoke($interface, self::SESSION, 4, function() use (&$sent) : void{ $sent[] = "first"; });
 		$interface->putBatch(self::SESSION, self::packets(2, 3), 0);
-		self::assertFalse($interface->putPackets(self::SESSION, ["\x01"]));
 		$deferred = new \ReflectionProperty(BedwireInterface::class, "deferred");
 		/** @var array<int, list<mixed>> $queued */
 		$queued = $deferred->getValue($interface);

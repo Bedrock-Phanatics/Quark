@@ -24,13 +24,12 @@ declare(strict_types=1);
 namespace quark\entity;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\AddActorPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\AddActorPacket;
-use quark\network\mcpe\protocol\types\PropertySyncData;
 use quark\player\Player;
 use quark\Server;
 
@@ -40,7 +39,7 @@ final class EntitySpawnPacketTest extends TestCase{
 		$state = new class{
 			public int $tick = 10;
 			public int $built = 0;
-			/** @var list<Packet|EncodedPacket> */
+			/** @var list<ClientboundPacket|EncodedPacket> */
 			public array $sent = [];
 		};
 		$server = $this->createMock(Server::class);
@@ -49,13 +48,13 @@ final class EntitySpawnPacketTest extends TestCase{
 		$entity = $this->getMockBuilder(Zombie::class)->disableOriginalConstructor()->onlyMethods(["spawnPacket"])->getMock();
 		$entity->method("spawnPacket")->willReturnCallback(function() use ($state) : AddActorPacket{
 			++$state->built;
-			return new AddActorPacket(1, 1, "minecraft:zombie", new Vector3(0, 0, 0), new Vector3(0, 0, 0), new Vector2(0, 0), 0.0, 0.0, [], [], new PropertySyncData([], []), []);
+			return AddActorPacket::create(1, 1, "minecraft:zombie", Vector3::zero(), null, 0.0, 0.0, 0.0, 0.0, [], [], new PropertySyncData([], []), [], null);
 		});
 		(new \ReflectionProperty(Entity::class, "server"))->setValue($entity, $server);
 		(new \ReflectionProperty(Entity::class, "id"))->setValue($entity, 41);
 
 		$session = $this->createMock(NetworkSession::class);
-		$session->method("sendDataPacket")->willReturnCallback(function(Packet|EncodedPacket $packet) use ($state) : bool{
+		$session->method("sendDataPacket")->willReturnCallback(function(ClientboundPacket|EncodedPacket $packet) use ($state) : bool{
 			$state->sent[] = $packet;
 			return true;
 		});

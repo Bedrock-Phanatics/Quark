@@ -599,8 +599,8 @@
         "e002028001050000000000000000"
     ],
     "quark\\world\\sound\\RecordStopSound": [
-        "dc02000000000000000000",
-        "dc02000000000000000000"
+        "dc0200000000000000000000",
+        "dc0200000000000000000000"
     ],
     "quark\\world\\sound\\RedstonePowerOffSound": [
         "7b09706f7765722e6f66660000c03f00008042000010c001013a0000ffffffffffffffff00",

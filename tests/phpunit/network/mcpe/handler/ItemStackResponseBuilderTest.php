@@ -24,14 +24,13 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\network\mcpe\protocol\ItemStackResponsePacket;
+use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use quark\inventory\SimpleInventory;
 use quark\item\VanillaItems;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\ItemStackInfo;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\packet\ItemStackResponsePacket;
-use quark\network\mcpe\protocol\RecordedPackets;
-use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use function bin2hex;
 
 final class ItemStackResponseBuilderTest extends TestCase{
@@ -53,7 +52,7 @@ final class ItemStackResponseBuilderTest extends TestCase{
 		$builder->addSlot(ContainerUIIds::CREATED_OUTPUT, 50);
 
 		//slots 1 and 4 of the hotbar with their stack IDs, damage and custom name, then an error for request 9
-		$actual = new ItemStackResponsePacket([$builder->build(), ItemStackResponseBuilder::error(9)]);
-		self::assertSame(bin2hex(RecordedPackets::get($this, 0)), bin2hex(EncodedPacket::of($actual)->getBytes()));
+		$actual = ItemStackResponsePacket::create([$builder->build(), ItemStackResponseBuilder::error(9)]);
+		self::assertSame("940102000d01011c000201010101ca0105626c6164650105626c6164651804040701d00100010000011200", bin2hex(EncodedPacket::of($actual)->getBytes()));
 	}
 }

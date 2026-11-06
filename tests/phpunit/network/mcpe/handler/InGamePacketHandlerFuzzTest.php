@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use Bedwire\PacketException;
-use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\entity\Location;
@@ -34,9 +34,6 @@ use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
-use quark\network\mcpe\protocol\ProtocolClasses;
 use quark\network\PacketHandlingException;
 use quark\player\GameMode;
 use quark\player\Player;
@@ -49,7 +46,6 @@ use function get_class;
 use function getenv;
 use function hex2bin;
 use function is_numeric;
-use function method_exists;
 use function mt_rand;
 use function mt_srand;
 use function ord;
@@ -77,7 +73,7 @@ final class InGamePacketHandlerFuzzTest extends TestCase{
 			}
 			[$sender, , $hex] = explode(" ", $line, 3);
 			$bytes = hex2bin($hex);
-			if($sender === "client" && $bytes !== false){
+			if($sender === "client" && $bytes !== false && strlen($bytes) > 1){
 				$packets[] = $bytes;
 			}
 		}
@@ -114,7 +110,6 @@ final class InGamePacketHandlerFuzzTest extends TestCase{
 	}
 
 	public function testMutatedClientPacketsOnlyFailAsHandlingErrors() : void{
-		ProtocolClasses::bind();
 		$rounds = getenv("QUARK_FUZZ_ROUNDS");
 		$rounds = is_numeric($rounds) ? (int) $rounds : 20;
 		$seed = getenv("QUARK_FUZZ_SEED");
@@ -122,34 +117,32 @@ final class InGamePacketHandlerFuzzTest extends TestCase{
 		$handler = $this->handler();
 		$handled = 0;
 		foreach(self::clientPackets() as $original){
-			$method = Packets::HANDLERS[Protocol::packetId($original)] ?? null;
-			if($method === null || !method_exists($handler, $method)){
-				continue;
-			}
 			for($i = 0; $i < $rounds; ++$i){
 				$bytes = $i === 0 ? $original : self::mutate($original);
 				try{
 					$packet = EncodedPacket::fromBytes($bytes)->getPacket();
-				}catch(PacketException){
+				}catch(PacketDecodeException){
 					continue;
+				}catch(\Throwable $e){
+					self::fail("Decoding threw " . get_class($e) . ": " . $e->getMessage() . " for " . bin2hex($bytes));
 				}
-				if(!isset(Packets::HANDLERS[$packet->getId()]) || Packets::HANDLERS[$packet->getId()] !== $method){
-					continue;
+				if($packet instanceof ServerboundPacket && self::handle($handler, $packet, $bytes)){
+					++$handled;
 				}
-				self::handle($handler, $method, $packet, $bytes);
-				++$handled;
 			}
 		}
 		self::assertGreaterThan(0, $handled);
 	}
 
-	private static function handle(InGamePacketHandler $handler, string $method, Packet $packet, string $bytes) : void{
+	private static function handle(InGamePacketHandler $handler, ServerboundPacket $packet, string $bytes) : bool{
 		try{
-			(new \ReflectionMethod($handler, $method))->invoke($handler, $packet);
-		}catch(PacketHandlingException|FilterNoisyPacketException){
-			//rejected, or dropped as noise, both of which the session handles
+			return $packet->handle($handler);
 		}catch(\Throwable $e){
-			self::fail("$method threw " . get_class($e) . ": " . $e->getMessage() . " for " . bin2hex($bytes) . "\n" . $e->getTraceAsString());
+			//rejected, or dropped as noise, both of which the session handles
+			if($e instanceof PacketHandlingException || $e instanceof FilterNoisyPacketException){
+				return true;
+			}
+			self::fail($packet->getName() . " handler threw " . get_class($e) . ": " . $e->getMessage() . " for " . bin2hex($bytes) . "\n" . $e->getTraceAsString());
 		}
 	}
 }

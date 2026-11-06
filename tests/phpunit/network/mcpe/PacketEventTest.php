@@ -23,9 +23,12 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
-use Bedwire\PacketId;
-use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
+use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
+use pocketmine\network\mcpe\protocol\PlayStatusPacket;
+use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
+use pocketmine\network\mcpe\protocol\ResourcePacksReadyForValidationPacket;
+use pocketmine\network\mcpe\protocol\SetTimePacket;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
@@ -34,12 +37,7 @@ use quark\event\server\DataPacketSendEvent;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\handler\PacketHandler;
 use quark\network\mcpe\handler\PacketHandlerInspector;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\ChunkRadiusUpdatedPacket;
-use quark\network\mcpe\protocol\packet\PlayStatusPacket;
-use quark\network\mcpe\protocol\packet\RequestChunkRadiusPacket;
-use quark\network\mcpe\protocol\packet\ResourcePacksReadyForValidationPacket;
-use quark\network\mcpe\protocol\packet\SetTimePacket;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\plugin\Plugin;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
@@ -74,10 +72,10 @@ final class PacketEventTest extends TestCase{
 	}
 
 	/**
-	 * @phpstan-return list<Packet|string>
+	 * @phpstan-return list<string>
 	 */
 	private function sendBuffer(NetworkSession $session) : array{
-		/** @phpstan-var list<Packet|string> $buffer */
+		/** @phpstan-var list<string> $buffer */
 		$buffer = new \ReflectionProperty(NetworkSession::class, "sendBuffer")->getValue($session);
 		return $buffer;
 	}
@@ -95,18 +93,12 @@ final class PacketEventTest extends TestCase{
 			public array $received = [];
 
 			public function handleRequestChunkRadius(RequestChunkRadiusPacket $packet) : bool{
-				$this->received[] = $packet->chunkRadius;
+				$this->received[] = $packet->radius;
 				return true;
 			}
 		};
-		[$actions, $methods] = PacketHandlerInspector::inspect($handler);
-		$closures = [];
-		foreach($methods as $id => $method){
-			$closures[$id] = new \ReflectionMethod($handler, $method)->getClosure($handler);
-		}
 		$this->set($session, "handler", $handler);
-		$this->set($session, "handlerActions", $actions);
-		$this->set($session, "handlerMethods", $closures);
+		$this->set($session, "handlerActions", PacketHandlerInspector::getHandlerActions($handler));
 		return $session;
 	}
 
@@ -122,12 +114,12 @@ final class PacketEventTest extends TestCase{
 	}
 
 	private static function chunkRadius(int $radius) : string{
-		return Protocol::encode(PacketId::REQUEST_CHUNK_RADIUS, ["chunk_radius" => $radius, "max_chunk_radius" => 32]);
+		return EncodedPacket::encode(RequestChunkRadiusPacket::create($radius, 32));
 	}
 
 	public function testReceivedPacketsReachHandlersUnchangedWithoutListeners() : void{
 		$session = $this->session();
-		$session->handleDataPacket(PacketId::REQUEST_CHUNK_RADIUS, self::chunkRadius(8));
+		$session->handleDataPacket(self::chunkRadius(8));
 		self::assertSame([8], self::received($session));
 	}
 
@@ -136,11 +128,11 @@ final class PacketEventTest extends TestCase{
 		$this->listen(DataPacketReceiveEvent::class, static function(DataPacketReceiveEvent $event) use (&$seen) : void{
 			$packet = $event->getPacket();
 			self::assertInstanceOf(RequestChunkRadiusPacket::class, $packet);
-			$seen[] = $packet->chunkRadius;
-			$packet->chunkRadius = 4;
+			$seen[] = $packet->radius;
+			$packet->radius = 4;
 		});
 		$session = $this->session();
-		$session->handleDataPacket(PacketId::REQUEST_CHUNK_RADIUS, self::chunkRadius(8));
+		$session->handleDataPacket(self::chunkRadius(8));
 		self::assertSame([8], $seen);
 		self::assertSame([4], self::received($session));
 	}
@@ -148,51 +140,58 @@ final class PacketEventTest extends TestCase{
 	public function testReceiveListenersCanCancel() : void{
 		$this->listen(DataPacketReceiveEvent::class, static function(DataPacketReceiveEvent $event) : void{
 			$packet = $event->getPacket();
-			if($packet instanceof RequestChunkRadiusPacket && $packet->chunkRadius === 8){
+			if($packet instanceof RequestChunkRadiusPacket && $packet->radius === 8){
 				$event->cancel();
 			}
 		});
 		$session = $this->session();
-		$session->handleDataPacket(PacketId::REQUEST_CHUNK_RADIUS, self::chunkRadius(8));
-		$session->handleDataPacket(PacketId::REQUEST_CHUNK_RADIUS, self::chunkRadius(9));
+		$session->handleDataPacket(self::chunkRadius(8));
+		$session->handleDataPacket(self::chunkRadius(9));
 		self::assertSame([9], self::received($session));
 	}
 
 	public function testSendListenersCanReplaceAndCancelPackets() : void{
 		$this->listen(DataPacketSendEvent::class, static function(DataPacketSendEvent $event) : void{
 			$packet = $event->getPackets()[0];
-			if($packet instanceof ChunkRadiusUpdatedPacket && $packet->chunkRadius === 1){
+			if($packet instanceof ChunkRadiusUpdatedPacket && $packet->radius === 1){
 				$event->cancel();
-			}elseif($packet instanceof ChunkRadiusUpdatedPacket && $packet->chunkRadius === 2){
-				$event->setPackets([new ChunkRadiusUpdatedPacket(3), new SetTimePacket(7)]);
+			}elseif($packet instanceof ChunkRadiusUpdatedPacket && $packet->radius === 2){
+				$event->setPackets([ChunkRadiusUpdatedPacket::create(3), EncodedPacket::of(SetTimePacket::create(7))]);
 			}
 		});
 		$session = $this->session();
-		self::assertFalse($session->sendDataPacket(new ChunkRadiusUpdatedPacket(1)));
+		self::assertFalse($session->sendDataPacket(ChunkRadiusUpdatedPacket::create(1)));
 		self::assertSame([], $this->sendBuffer($session));
-		self::assertTrue($session->sendDataPacket(new ChunkRadiusUpdatedPacket(2)));
-		$batch = NetworkSession::encodeBatch($this->sendBuffer($session));
+		self::assertTrue($session->sendDataPacket(ChunkRadiusUpdatedPacket::create(2)));
 		self::assertSame(
-			Protocol::encodeBatch([Protocol::encode(PacketId::CHUNK_RADIUS_UPDATED, ["chunk_radius" => 3]), Protocol::encode(PacketId::SET_TIME, ["time" => 7])]),
-			$batch
+			[EncodedPacket::encode(ChunkRadiusUpdatedPacket::create(3)), EncodedPacket::encode(SetTimePacket::create(7))],
+			$this->sendBuffer($session)
 		);
+	}
+
+	private static function serverbound() : EncodedPacket{
+		return EncodedPacket::fromBytes(EncodedPacket::encode(ResourcePacksReadyForValidationPacket::create()));
 	}
 
 	public function testSendListenersCannotQueueServerboundPackets() : void{
 		$this->listen(DataPacketSendEvent::class, static function(DataPacketSendEvent $event) : void{
-			$event->setPackets([new ResourcePacksReadyForValidationPacket()]);
+			$event->setPackets([self::serverbound()]);
 		});
-		$this->expectException(\InvalidArgumentException::class);
-		$this->session()->sendDataPacket(new ChunkRadiusUpdatedPacket(2));
+		$session = $this->session();
+		try{
+			$session->sendDataPacket(ChunkRadiusUpdatedPacket::create(2));
+			self::fail("Serverbound packet queued");
+		}catch(\InvalidArgumentException){}
+		self::assertSame([], $this->sendBuffer($session));
 	}
 
 	public function testSendListenersCannotQueuePacketsBeforeLogin() : void{
 		$this->listen(DataPacketSendEvent::class, static function(DataPacketSendEvent $event) : void{
-			$event->setPackets([new SetTimePacket(7)]);
+			$event->setPackets([SetTimePacket::create(7)]);
 		});
 		$session = $this->session(loggedIn: false);
 		try{
-			$session->sendDataPacket(new PlayStatusPacket(0));
+			$session->sendDataPacket(PlayStatusPacket::create(0));
 			self::fail("Packet queued before login");
 		}catch(\InvalidArgumentException){}
 		self::assertSame([], $this->sendBuffer($session));
@@ -220,7 +219,7 @@ final class PacketEventTest extends TestCase{
 		}
 		$broadcaster = new \ReflectionClass(StandardPacketBroadcaster::class)->newInstanceWithoutConstructor();
 		try{
-			$broadcaster->broadcastPackets($recipients, [new SetTimePacket(7)]);
+			$broadcaster->broadcastPackets($recipients, [SetTimePacket::create(7)]);
 			self::fail("Packet broadcast before login");
 		}catch(\InvalidArgumentException){}
 		foreach($recipients as $recipient){
@@ -229,7 +228,7 @@ final class PacketEventTest extends TestCase{
 	}
 
 	public function testServerboundPacketsCannotBeSentOrBroadcast() : void{
-		$packet = new ResourcePacksReadyForValidationPacket();
+		$packet = self::serverbound();
 		try{
 			$this->session()->sendDataPacket($packet);
 			self::fail("Serverbound packet sent");

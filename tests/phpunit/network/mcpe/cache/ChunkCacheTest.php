@@ -23,18 +23,17 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use Bedwire\Protocol;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\LevelChunkPacket;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\block\VanillaBlocks;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\NativeCompressor;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\packet\LevelChunkPacket;
-use quark\network\mcpe\protocol\ProtocolClasses;
-use quark\network\mcpe\protocol\types\CompressionAlgorithm;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\serializer\ChunkSerializerTest;
 use quark\Server;
 use quark\world\format\Chunk;
@@ -97,12 +96,11 @@ final class ChunkCacheTest extends TestCase{
 		$packet = $reader->readByteArray(VarInt::readUnsignedInt($reader));
 		self::assertSame(0, $reader->getUnreadLength(), "one packet per batch");
 
-		ProtocolClasses::bind();
-		$decoded = Protocol::decode($packet);
+		$decoded = EncodedPacket::fromBytes($packet)->getPacket();
 		self::assertInstanceOf(LevelChunkPacket::class, $decoded);
-		self::assertSame([self::X, self::Z], [$decoded->chunkPosition->x, $decoded->chunkPosition->z]);
-		self::assertSame(5, $decoded->subChunksCount);
-		$payload = $decoded->serializedChunkData;
+		self::assertSame([self::X, self::Z], [$decoded->getChunkPosition()->getX(), $decoded->getChunkPosition()->getZ()]);
+		self::assertSame(5, $decoded->getSubChunkCount());
+		$payload = $decoded->getExtraPayload();
 		[$subChunks] = ChunkSerializerTest::decode($payload, 5, 24);
 		return $subChunks[4][0][1];
 	}
