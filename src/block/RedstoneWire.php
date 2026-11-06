@@ -113,8 +113,8 @@ class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter, Powe
 	}
 
 	private static function isConductor(Block $block) : bool{
-		//TODO: approximation, vanilla has a per-block conductor flag that no existing block property matches
-		return $block->isFullCube() && !$block->isTransparent();
+		//matches RedstoneWireBehavior so wires are drawn the way power actually flows
+		return !$block->isTransparent();
 	}
 
 	private static function connectsTo(Block $block, int $facing) : bool{
