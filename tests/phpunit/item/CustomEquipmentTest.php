@@ -177,6 +177,7 @@ final class CustomEquipmentTest extends TestCase{
 		$armor = $this->helmet();
 		$inventory = $this->victim->getArmorInventory();
 		$window = new PlayerInventoryWindow($this->attacker, $inventory, PlayerInventoryType::ARMOR);
+		new \ReflectionProperty(Player::class, "permanentWindows")->setValue($this->attacker, [PlayerInventoryType::ARMOR->name => $window]);
 		foreach([[ArmorInventory::SLOT_CHEST, $armor], [ArmorInventory::SLOT_HEAD, (clone $armor)->setCount(2)]] as [$slot, $target]){
 			try{
 				(new SlotChangeAction($window, $slot, VanillaItems::AIR(), $target))->validate($this->attacker);

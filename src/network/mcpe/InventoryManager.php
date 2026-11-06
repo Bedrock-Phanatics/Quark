@@ -394,16 +394,21 @@ class InventoryManager implements InventoryListener{
 
 			foreach($this->containerOpenCallbacks as $callback){
 				$pks = $callback($windowId, $window);
+				if($this->player->getCurrentWindow() !== $window){
+					return;
+				}
 				if($pks !== null){
-					$windowType = null;
+					$this->currentWindowType = WindowTypes::CONTAINER;
 					foreach($pks as $pk){
 						//Bedrock 1.21 requires ContainerClose packets to include the window type
 						if($pk instanceof ContainerOpenPacket){
-							$windowType = $pk->containerType;
+							$this->currentWindowType = $pk->containerType;
 						}
 						$this->session->sendDataPacket($pk);
+						if($this->player->getCurrentWindow() !== $window){
+							return;
+						}
 					}
-					$this->currentWindowType = $windowType ?? WindowTypes::CONTAINER;
 					$this->syncContents($window->getInventory());
 					return;
 				}
@@ -468,12 +473,12 @@ class InventoryManager implements InventoryListener{
 	public function onCurrentWindowRemove() : void{
 		if(isset($this->networkIdToWindowMap[$this->lastInventoryNetworkId])){
 			$this->remove($this->lastInventoryNetworkId);
-			$this->session->sendDataPacket(new ContainerClosePacket(containerId: $this->lastInventoryNetworkId, containerType: $this->currentWindowType, serverInitiatedClose: true));
 			if($this->pendingCloseWindowId !== null){
 				throw new AssumptionFailedError("We should not have opened a new window while a window was waiting to be closed");
 			}
 			$this->pendingCloseWindowId = $this->lastInventoryNetworkId;
 			$this->enchantingTableOptions = [];
+			$this->session->sendDataPacket(new ContainerClosePacket(containerId: $this->lastInventoryNetworkId, containerType: $this->currentWindowType, serverInitiatedClose: true));
 		}
 	}
 
@@ -504,8 +509,9 @@ class InventoryManager implements InventoryListener{
 			$this->pendingCloseWindowId = null;
 			if($this->pendingOpenWindowCallback !== null){
 				$this->session->getLogger()->debug("Opening deferred window after close ack of window $id");
-				($this->pendingOpenWindowCallback)();
+				$callback = $this->pendingOpenWindowCallback;
 				$this->pendingOpenWindowCallback = null;
+				$callback();
 			}
 		}
 	}
@@ -801,6 +807,7 @@ class InventoryManager implements InventoryListener{
 	 * @phpstan-param list<EnchantingOption> $options
 	 */
 	public function syncEnchantingTableOptions(array $options) : void{
+		$this->enchantingTableOptions = [];
 		$protocolOptions = [];
 
 		foreach($options as $index => $option){

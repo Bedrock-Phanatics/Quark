@@ -37,7 +37,6 @@ use quark\player\Player;
 use quark\player\TemporaryInventoryWindow;
 use quark\world\Position;
 use function array_values;
-use function count;
 
 final class EnchantingTableInventoryWindow extends BlockInventoryWindow implements TemporaryInventoryWindow{
 	public const SLOT_INPUT = 0;
@@ -72,7 +71,19 @@ final class EnchantingTableInventoryWindow extends BlockInventoryWindow implemen
 				$weakThis->get()?->regenerateOptions();
 			}
 		);
-		$inventory->getListeners()->add($this->listener);
+	}
+
+	public function onOpen() : void{
+		parent::onOpen();
+		if($this->viewer->getCurrentWindow() === $this){
+			$this->inventory->getListeners()->add($this->listener);
+		}
+	}
+
+	public function onClose() : void{
+		$this->inventory->getListeners()->remove($this->listener);
+		$this->options = [];
+		parent::onClose();
 	}
 
 	public function __destruct(){
@@ -80,14 +91,19 @@ final class EnchantingTableInventoryWindow extends BlockInventoryWindow implemen
 	}
 
 	private function regenerateOptions() : void{
+		if($this->viewer->getCurrentWindow() !== $this){
+			return;
+		}
 		$this->options = [];
-		$options = Helper::generateOptions($this->holder, $this->getInput(), $this->viewer->getEnchantmentSeed());
+		$input = $this->getInput();
+		$options = Helper::generateOptions($this->holder, $input, $this->viewer->getEnchantmentSeed());
 		$event = new PlayerEnchantingOptionsRequestEvent($this->viewer, $this, $options);
 		$event->call();
-		if(!$event->isCancelled() && count($event->getOptions()) > 0){
-			$this->options = array_values($event->getOptions());
-			$this->viewer->getNetworkSession()->getInvManager()?->syncEnchantingTableOptions($this->options);
+		if($this->viewer->getCurrentWindow() !== $this || !$input->equalsExact($this->getInput())){
+			return;
 		}
+		$this->options = $event->isCancelled() ? [] : array_values($event->getOptions());
+		$this->viewer->getNetworkSession()->getInvManager()?->syncEnchantingTableOptions($this->options);
 	}
 
 	public function getInput() : Item{

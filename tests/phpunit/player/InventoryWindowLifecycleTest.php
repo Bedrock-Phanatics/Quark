@@ -24,13 +24,19 @@ declare(strict_types=1);
 namespace quark\player;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\math\Vector3;
 use quark\block\inventory\window\BlockInventoryWindow;
 use quark\block\inventory\window\CraftingTableInventoryWindow;
+use quark\block\inventory\window\EnchantingTableInventoryWindow;
+use quark\block\tile\Chest;
+use quark\block\VanillaBlocks;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\inventory\InventoryCloseEvent;
+use quark\event\player\PlayerEnchantingOptionsRequestEvent;
 use quark\event\RegisteredListener;
 use quark\inventory\ArmorInventory;
+use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\Hotbar;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
@@ -42,9 +48,12 @@ use quark\network\mcpe\protocol\Packet;
 use quark\network\mcpe\protocol\packet\ContainerClosePacket;
 use quark\network\mcpe\protocol\packet\ContainerOpenPacket;
 use quark\network\mcpe\protocol\packet\InventorySlotPacket;
+use quark\network\mcpe\protocol\packet\PlayerEnchantOptionsPacket;
+use quark\network\mcpe\protocol\types\inventory\WindowTypes;
 use quark\plugin\Plugin;
 use quark\pulse\Pulse;
 use quark\world\Position;
+use quark\world\World;
 use function array_filter;
 use function array_values;
 use function count;
@@ -55,6 +64,8 @@ final class InventoryWindowLifecycleTest extends TestCase{
 	private InventoryManager $manager;
 	/** @var Packet[] */
 	private array $packets = [];
+	/** @phpstan-var (\Closure(Packet) : void)|null */
+	private ?\Closure $packetSendCallback = null;
 	private Plugin $plugin;
 
 	protected function setUp() : void{
@@ -80,6 +91,7 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		$session->method("getLogger")->willReturn(new \PrefixedLogger($this->createMock(\Logger::class), "test"));
 		$session->method("sendDataPacket")->willReturnCallback(function(Packet $packet) : bool{
 			$this->packets[] = $packet;
+			($this->packetSendCallback)?->__invoke($packet);
 			return true;
 		});
 		return [$player, $manager];
@@ -136,6 +148,86 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertSame([], $this->sent(InventorySlotPacket::class));
 	}
 
+	public function testClosingDuringTheOpenPacketDoesNotRetainTheWindow() : void{
+		$chest = new SimpleInventory(27);
+		$this->packetSendCallback = function(Packet $packet) : void{
+			if($packet instanceof ContainerOpenPacket){
+				$this->player->removeCurrentWindow();
+			}
+		};
+
+		self::assertFalse($this->player->setCurrentWindow($this->chestWindow($chest)));
+		self::assertNull($this->player->getCurrentWindow());
+		self::assertSame([], $chest->getViewers());
+		self::assertFalse($chest->getListeners()->contains($this->manager));
+	}
+
+	public function testClosingDuringTheOpenPacketUsesTheOpenedWindowType() : void{
+		$this->packetSendCallback = function(Packet $packet) : void{
+			if($packet instanceof ContainerOpenPacket){
+				$this->player->removeCurrentWindow();
+			}
+		};
+		$this->player->setCurrentWindow(new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null)));
+		self::assertSame(WindowTypes::WORKBENCH, $this->sent(ContainerClosePacket::class)[0]->containerType);
+	}
+
+	public function testOpeningDuringTheClosePacketWaitsForTheAcknowledgement() : void{
+		$this->player->setCurrentWindow($this->chestWindow());
+		$replacement = $this->chestWindow();
+		$this->packets = [];
+		$this->packetSendCallback = function(Packet $packet) use ($replacement) : void{
+			if($packet instanceof ContainerClosePacket && $packet->serverInitiatedClose){
+				$this->packetSendCallback = null;
+				$this->player->setCurrentWindow($replacement);
+			}
+		};
+		$this->player->removeCurrentWindow();
+		self::assertSame([], $this->sent(ContainerOpenPacket::class));
+		$this->ackClose();
+		self::assertCount(1, $this->sent(ContainerOpenPacket::class));
+		self::assertSame($replacement, $this->player->getCurrentWindow());
+	}
+
+	public function testReplacementWhileOpeningADeferredWindowIsStillSent() : void{
+		$this->player->setCurrentWindow($this->chestWindow());
+		$this->player->setCurrentWindow($this->chestWindow());
+		$replacement = $this->chestWindow();
+		$this->packetSendCallback = function(Packet $packet) use ($replacement) : void{
+			if($packet instanceof ContainerOpenPacket){
+				$this->packetSendCallback = null;
+				$this->player->setCurrentWindow($replacement);
+			}
+		};
+		$this->ackClose();
+		$closes = $this->sent(ContainerClosePacket::class);
+		$closeId = $closes[count($closes) - 1]->containerId;
+		$this->packets = [];
+		$this->manager->onClientRemoveWindow($closeId);
+		self::assertCount(1, $this->sent(ContainerOpenPacket::class));
+		self::assertSame($replacement, $this->player->getCurrentWindow());
+		self::assertTrue($replacement->getInventory()->getListeners()->contains($this->manager));
+	}
+
+	public function testReplacementDuringTheOpenPacketTakesPriority() : void{
+		$chest = new SimpleInventory(27);
+		$replacement = $this->chestWindow();
+		$this->packetSendCallback = function(Packet $packet) use ($replacement) : void{
+			if($packet instanceof ContainerOpenPacket){
+				$this->packetSendCallback = null;
+				$this->player->setCurrentWindow($replacement);
+			}
+		};
+
+		self::assertFalse($this->player->setCurrentWindow($this->chestWindow($chest)));
+		self::assertSame($replacement, $this->player->getCurrentWindow());
+		self::assertSame([], $chest->getViewers());
+		self::assertFalse($chest->getListeners()->contains($this->manager));
+		self::assertCount(1, $replacement->getInventory()->getViewers());
+		$this->ackClose();
+		self::assertTrue($replacement->getInventory()->getListeners()->contains($this->manager));
+	}
+
 	public function testWindowsReplacedBeforeTheCloseAckAreNeverSent() : void{
 		$this->player->setCurrentWindow($this->chestWindow());
 		$skipped = new SimpleInventory(27);
@@ -180,6 +272,7 @@ final class InventoryWindowLifecycleTest extends TestCase{
 			$this->chestWindow(viewer: $other),
 			$this->player->getPermanentWindow(PlayerInventoryType::INVENTORY),
 			$this->chestWindow($this->player->getInventory()),
+			$this->chestWindow(new CombinedInventoryProxy([$this->player->getInventory(), new SimpleInventory(1)])),
 		] as $window){
 			try{
 				$this->player->setCurrentWindow($window);
@@ -198,6 +291,51 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertFalse($chest->getListeners()->contains($this->manager));
 		//the player's own inventories stay open
 		self::assertCount(1, $this->player->getInventory()->getViewers());
+	}
+
+	public function testForcedClosureKeepsTheViewerRegisteredUntilOnClose() : void{
+		$chest = new SimpleInventory(27);
+		$window = new class($this->player, $chest, new Position(0, 64, 0, null)) extends BlockInventoryWindow{
+			public int $viewersAtClose = -1;
+
+			public function onClose() : void{
+				$this->viewersAtClose = count($this->inventory->getViewers());
+				parent::onClose();
+			}
+		};
+		$this->player->setCurrentWindow($window);
+		$chest->removeAllWindows();
+
+		self::assertSame(1, $window->viewersAtClose);
+		self::assertSame([], $chest->getViewers());
+	}
+
+	public function testBreakingADoubleChestClosesTheWindowBeforeUnpairing() : void{
+		$world = $this->createMock(World::class);
+		$world->method("isLoaded")->willReturn(true);
+		$left = new Chest($world, new Vector3(0, 64, 0));
+		$right = new Chest($world, new Vector3(1, 64, 0));
+		$world->method("isInLoadedTerrain")->willReturn(true);
+		$world->method("getTileAt")->willReturnCallback(static fn(int $x) => $x === 0 ? $left : $right);
+		self::assertTrue($left->pairWith($right));
+		$window = new class($this->player, new CombinedInventoryProxy([$left->getInventory(), $right->getInventory()]), new Position(0, 64, 0, null), $left) extends BlockInventoryWindow{
+			public bool $pairedAtClose = false;
+
+			public function __construct(Player $player, Inventory $inventory, Position $holder, private Chest $chest){
+				parent::__construct($player, $inventory, $holder);
+			}
+
+			public function onClose() : void{
+				$this->pairedAtClose = $this->chest->isPaired();
+				parent::onClose();
+			}
+		};
+		$this->player->setCurrentWindow($window);
+		$left->onBlockDestroyed();
+		self::assertTrue($window->pairedAtClose);
+		self::assertFalse($right->isPaired());
+		self::assertNull($this->player->getCurrentWindow());
+		$right->close();
 	}
 
 	public function testTemporaryWindowContentsReturnToTheInventory() : void{
@@ -219,6 +357,59 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		$this->manager->dispose();
 		self::assertFalse($chest->getListeners()->contains($this->manager));
 		self::assertFalse($this->player->getInventory()->getListeners()->contains($this->manager));
+	}
+
+	private function enchantingWindow() : EnchantingTableInventoryWindow{
+		$world = $this->createMock(World::class);
+		$world->method("isLoaded")->willReturn(true);
+		$world->method("getBlock")->willReturn(VanillaBlocks::AIR());
+		$this->player->setEnchantmentSeed(123);
+		return new EnchantingTableInventoryWindow($this->player, new Position(0, 64, 0, $world));
+	}
+
+	public function testRetainedClosedEnchantingWindowsCannotReplaceCurrentOffers() : void{
+		$old = $this->enchantingWindow();
+		$this->player->setCurrentWindow($old);
+		$old->getInventory()->setItem(0, VanillaItems::DIAMOND_SWORD());
+		self::assertNotNull($old->getOption(0));
+		$this->player->removeCurrentWindow();
+		$this->ackClose();
+		$current = $this->enchantingWindow();
+		$this->player->setCurrentWindow($current);
+		$current->getInventory()->setItem(0, VanillaItems::DIAMOND_PICKAXE());
+		$option = $current->getOption(0);
+		$events = 0;
+		HandlerListManager::global()->getListFor(PlayerEnchantingOptionsRequestEvent::class)->register(new RegisteredListener(
+			static function(PlayerEnchantingOptionsRequestEvent $event) use (&$events) : void{ ++$events; },
+			EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+		$this->packets = [];
+		$old->getInventory()->setItem(0, VanillaItems::DIAMOND_SWORD());
+		self::assertSame(0, $events);
+		self::assertSame([], $this->sent(PlayerEnchantOptionsPacket::class));
+		self::assertNull($old->getOption(0));
+		self::assertSame($option, $current->getOption(0));
+	}
+
+	public function testClosingDuringTheEnchantingEventDoesNotSendStaleOffers() : void{
+		$window = $this->enchantingWindow();
+		$this->player->setCurrentWindow($window);
+		$closed = false;
+		HandlerListManager::global()->getListFor(PlayerEnchantingOptionsRequestEvent::class)->register(new RegisteredListener(
+			function(PlayerEnchantingOptionsRequestEvent $event) use (&$closed) : void{
+				if(!$closed){
+					$closed = true;
+					$this->player->removeCurrentWindow();
+				}
+			}, EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+		$this->packets = [];
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND_SWORD());
+		self::assertNull($this->player->getCurrentWindow());
+		foreach($this->sent(PlayerEnchantOptionsPacket::class) as $packet){
+			self::assertSame([], $packet->options);
+		}
+		self::assertNull($window->getOption(0));
 	}
 }
 

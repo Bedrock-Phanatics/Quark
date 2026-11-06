@@ -97,8 +97,8 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 	}
 
 	protected function onBlockDestroyedHook() : void{
-		$this->unpair();
 		$this->containerTraitBlockDestroyedHook();
+		$this->unpair();
 	}
 
 	/**

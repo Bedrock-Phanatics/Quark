@@ -347,11 +347,11 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 		//a window must never outlive its inventory's holder, or the viewer could keep moving items in and out of storage
 		//that no longer exists in the world
 		foreach($this->windows as $id => $window){
-			unset($this->windows[$id]);
 			$viewer = $window->getViewer();
 			if($viewer->getCurrentWindow() === $window){
 				$viewer->removeCurrentWindow();
 			}
+			unset($this->windows[$id]);
 		}
 	}
 

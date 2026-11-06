@@ -23,12 +23,14 @@ declare(strict_types=1);
 
 namespace quark\inventory\transaction\action;
 
+use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\Inventory;
 use quark\inventory\SlotValidatedInventory;
 use quark\inventory\transaction\TransactionValidationException;
 use quark\item\Item;
 use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\player\PlayerInventoryWindow;
 
 /**
  * Represents an action causing a change in an inventory slot.
@@ -73,6 +75,14 @@ class SlotChangeAction extends InventoryAction{
 		if($this->inventoryWindow->getViewer() !== $source){
 			throw new TransactionValidationException("Window belongs to another player");
 		}
+		if($this->inventoryWindow instanceof PlayerInventoryWindow){
+			$isOpen = ($source->getPermanentWindows()[$this->inventoryWindow->getType()->name] ?? null) === $this->inventoryWindow;
+		}else{
+			$isOpen = $source->getCurrentWindow() === $this->inventoryWindow;
+		}
+		if(!$isOpen){
+			throw new TransactionValidationException("Window is no longer open");
+		}
 		$inventory = $this->inventoryWindow->getInventory();
 		if(!$inventory->slotExists($this->inventorySlot)){
 			throw new TransactionValidationException("Slot does not exist");
@@ -83,12 +93,20 @@ class SlotChangeAction extends InventoryAction{
 		if($this->targetItem->getCount() > $this->targetItem->getMaxStackSize()){
 			throw new TransactionValidationException("Target item exceeds item type max stack size");
 		}
+		$this->validateTarget($inventory, $this->inventorySlot);
+		if($inventory instanceof CombinedInventoryProxy){
+			$backing = $inventory->getBackingInventory($this->inventorySlot, $localSlot);
+			$this->validateTarget($backing, $localSlot);
+		}
+	}
+
+	private function validateTarget(Inventory $inventory, int $slot) : void{
 		if($this->targetItem->getCount() > $inventory->getMaxStackSize()){
 			throw new TransactionValidationException("Target item exceeds inventory max stack size");
 		}
 		if($inventory instanceof SlotValidatedInventory && !$this->targetItem->isNull()){
 			foreach($inventory->getSlotValidators() as $validator){
-				$ret = $validator->validate($inventory, $this->targetItem, $this->inventorySlot);
+				$ret = $validator->validate($inventory, $this->targetItem, $slot);
 				if($ret !== null){
 					throw new TransactionValidationException("Target item is not accepted by the inventory at slot #" . $this->inventorySlot . ": " . $ret->getMessage(), 0, $ret);
 				}

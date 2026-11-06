@@ -79,6 +79,39 @@ final class CombinedInventoryProxyTest extends TestCase{
 		new CombinedInventoryProxy([$inventory, $inventory]);
 	}
 
+	public function testNestedInventoriesAreFlattenedInSlotOrder() : void{
+		$left = new SimpleInventory(2);
+		$right = new SimpleInventory(1);
+		$last = new SimpleInventory(1);
+		$nested = new CombinedInventoryProxy([$left, $right]);
+		$reference = \WeakReference::create($nested);
+		$proxy = new CombinedInventoryProxy([$nested, $last]);
+		unset($nested);
+
+		self::assertNull($reference->get());
+		self::assertSame([$left, $right, $last], $proxy->getBackingInventories());
+		self::assertSame(4, $proxy->getSize());
+		self::assertCount(1, $left->getListeners()->toArray());
+		$proxy->setContents([2 => VanillaItems::APPLE(), 3 => VanillaItems::STICK()]);
+		self::assertTrue($right->getItem(0)->equals(VanillaItems::APPLE()));
+		self::assertTrue($last->getItem(0)->equals(VanillaItems::STICK()));
+	}
+
+	public function testNestedInventoryCannotRepeatDirectStorage() : void{
+		$inventory = new SimpleInventory(1);
+		$nested = new CombinedInventoryProxy([$inventory]);
+		$this->expectException(\InvalidArgumentException::class);
+		new CombinedInventoryProxy([$inventory, $nested]);
+	}
+
+	public function testNestedInventoriesCannotShareStorage() : void{
+		$inventory = new SimpleInventory(1);
+		$first = new CombinedInventoryProxy([$inventory]);
+		$second = new CombinedInventoryProxy([$inventory]);
+		$this->expectException(\InvalidArgumentException::class);
+		new CombinedInventoryProxy([$first, $second]);
+	}
+
 	public function testItemsAreAddedAcrossBackingInventories() : void{
 		$left = new SimpleInventory(1);
 		$right = new SimpleInventory(1);
@@ -119,6 +152,23 @@ final class CombinedInventoryProxyTest extends TestCase{
 		$a->setItem(1, VanillaItems::APPLE());
 		self::assertSame(1, $changes);
 		self::assertTrue($b->getItem(1)->equals(VanillaItems::APPLE()));
+	}
+
+	public function testChangesMadeByBackingListenersAreAlsoForwarded() : void{
+		$left = new SimpleInventory(1);
+		$right = new SimpleInventory(1);
+		$left->getListeners()->add(CallbackInventoryListener::onAnyChange(static function() use ($right) : void{
+			$right->setItem(0, VanillaItems::DIAMOND());
+		}));
+		$proxy = new CombinedInventoryProxy([$left, $right]);
+		$slots = [];
+		$proxy->getListeners()->add(new CallbackInventoryListener(
+			static function(Inventory $_, int $slot) use (&$slots) : void{ $slots[] = $slot; },
+			null
+		));
+		$proxy->setItem(0, VanillaItems::APPLE());
+		self::assertSame([1, 0], $slots);
+		self::assertTrue($proxy->getItem(1)->equalsExact(VanillaItems::DIAMOND()));
 	}
 
 	public function testDroppedProxiesStopListening() : void{

@@ -60,7 +60,6 @@ final class CombinedInventoryProxy extends BaseInventory{
 	private readonly int $size;
 
 	private InventoryListener $backingInventoryListener;
-	private bool $modifyingBackingInventory = false;
 
 	/**
 	 * @param Inventory[] $backingInventories
@@ -72,19 +71,21 @@ final class CombinedInventoryProxy extends BaseInventory{
 			throw new \InvalidArgumentException("At least one inventory is required");
 		}
 		$size = 0;
-		foreach($backingInventories as $inventory){
-			$id = spl_object_id($inventory);
-			if(isset($this->backingInventories[$id])){
-				throw new \InvalidArgumentException("The same inventory can't be combined more than once");
+		foreach($backingInventories as $backingInventory){
+			foreach($backingInventory instanceof self ? $backingInventory->backingInventories : [$backingInventory] as $inventory){
+				$id = spl_object_id($inventory);
+				if(isset($this->backingInventories[$id])){
+					throw new \InvalidArgumentException("The same inventory can't be combined more than once");
+				}
+				$this->backingInventories[$id] = $inventory;
+				$this->offsets[$id] = $size;
+				$slots = $inventory->getSize();
+				if($slots > 0){
+					$this->slotOwners += array_fill($size, $slots, $inventory);
+					$this->slotOffsets += array_fill($size, $slots, $size);
+				}
+				$size += $slots;
 			}
-			$this->backingInventories[$id] = $inventory;
-			$this->offsets[$id] = $size;
-			$slots = $inventory->getSize();
-			if($slots > 0){
-				$this->slotOwners += array_fill($size, $slots, $inventory);
-				$this->slotOffsets += array_fill($size, $slots, $size);
-			}
-			$size += $slots;
 		}
 		$this->size = $size;
 
@@ -116,9 +117,7 @@ final class CombinedInventoryProxy extends BaseInventory{
 	 * @internal
 	 */
 	public function onBackingSlotChange(Inventory $inventory, int $slot, Item $oldItem) : void{
-		if(!$this->modifyingBackingInventory){
-			$this->onSlotChange($this->offsets[spl_object_id($inventory)] + $slot, $oldItem);
-		}
+		$this->onSlotChange($this->offsets[spl_object_id($inventory)] + $slot, $oldItem);
 	}
 
 	/**
@@ -128,9 +127,6 @@ final class CombinedInventoryProxy extends BaseInventory{
 	 * @phpstan-param array<int, Item> $oldContents
 	 */
 	public function onBackingContentChange(Inventory $inventory, array $oldContents) : void{
-		if($this->modifyingBackingInventory){
-			return;
-		}
 		if(count($this->backingInventories) === 1){
 			$this->onContentChange($oldContents);
 			return;
@@ -147,36 +143,29 @@ final class CombinedInventoryProxy extends BaseInventory{
 	 *
 	 * @param-out int $localSlot
 	 */
-	private function locate(int $slot, ?int &$localSlot) : Inventory{
+	public function getBackingInventory(int $slot, ?int &$localSlot) : Inventory{
 		$inventory = $this->slotOwners[$slot] ?? throw new \InvalidArgumentException("Invalid combined inventory slot $slot");
 		$localSlot = $slot - $this->slotOffsets[$slot];
 		return $inventory;
 	}
 
 	protected function internalSetItem(int $index, Item $item) : void{
-		$inventory = $this->locate($index, $localSlot);
-		//BaseInventory::setItem() notifies our own listeners, so ignore the echo from the backing inventory
-		$this->modifyingBackingInventory = true;
-		try{
-			$inventory->setItem($localSlot, $item);
-		}finally{
-			$this->modifyingBackingInventory = false;
-		}
+		$inventory = $this->getBackingInventory($index, $localSlot);
+		$inventory->setItem($localSlot, $item);
+	}
+
+	public function setItem(int $index, Item $item) : void{
+		$this->internalSetItem($index, $item);
 	}
 
 	protected function internalSetContents(array $items) : void{
 		$contentsByInventory = array_fill_keys(array_keys($this->backingInventories), []);
 		foreach($items as $i => $item){
-			$inventory = $this->locate($i, $localSlot);
+			$inventory = $this->getBackingInventory($i, $localSlot);
 			$contentsByInventory[spl_object_id($inventory)][$localSlot] = $item;
 		}
-		$this->modifyingBackingInventory = true;
-		try{
-			foreach($contentsByInventory as $id => $contents){
-				$this->backingInventories[$id]->setContents($contents);
-			}
-		}finally{
-			$this->modifyingBackingInventory = false;
+		foreach($contentsByInventory as $id => $contents){
+			$this->backingInventories[$id]->setContents($contents);
 		}
 	}
 
@@ -185,7 +174,7 @@ final class CombinedInventoryProxy extends BaseInventory{
 	}
 
 	public function getItem(int $index) : Item{
-		return ($this->slotOwners[$index] ?? $this->locate($index, $_))->getItem($index - $this->slotOffsets[$index]);
+		return ($this->slotOwners[$index] ?? $this->getBackingInventory($index, $_))->getItem($index - $this->slotOffsets[$index]);
 	}
 
 	public function getContents(bool $includeEmpty = false) : array{
@@ -200,11 +189,11 @@ final class CombinedInventoryProxy extends BaseInventory{
 	}
 
 	public function getMatchingItemCount(int $slot, Item $test, bool $checkTags) : int{
-		return ($this->slotOwners[$slot] ?? $this->locate($slot, $_))->getMatchingItemCount($slot - $this->slotOffsets[$slot], $test, $checkTags);
+		return ($this->slotOwners[$slot] ?? $this->getBackingInventory($slot, $_))->getMatchingItemCount($slot - $this->slotOffsets[$slot], $test, $checkTags);
 	}
 
 	public function isSlotEmpty(int $index) : bool{
-		return ($this->slotOwners[$index] ?? $this->locate($index, $_))->isSlotEmpty($index - $this->slotOffsets[$index]);
+		return ($this->slotOwners[$index] ?? $this->getBackingInventory($index, $_))->isSlotEmpty($index - $this->slotOffsets[$index]);
 	}
 
 	//windows are registered on the backing inventories, so destroying either half closes the combined view too

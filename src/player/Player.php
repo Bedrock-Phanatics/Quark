@@ -91,6 +91,7 @@ use quark\event\player\PlayerViewDistanceChangeEvent;
 use quark\form\Form;
 use quark\form\FormValidationException;
 use quark\inventory\CallbackInventoryListener;
+use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\CreativeInventory;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
@@ -2897,10 +2898,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			throw new \InvalidArgumentException("Player inventory windows are always open");
 		}
 		$inventoryManager = $this->getNetworkSession()->getInvManager() ?? throw new \InvalidArgumentException("Player cannot open inventories in this state");
-		$openWindow = $inventoryManager->getInventoryWindow($window->getInventory());
-		if($openWindow !== null && $openWindow !== $this->currentWindow){
-			//one inventory can only be tracked once per player, a second window would desync its slots
-			throw new \InvalidArgumentException("This inventory is already open in another of the player's windows");
+		$inventory = $window->getInventory();
+		$inventories = $inventory instanceof CombinedInventoryProxy ? [$inventory, ...$inventory->getBackingInventories()] : [$inventory];
+		foreach($inventories as $backing){
+			$openWindow = $inventoryManager->getInventoryWindow($backing);
+			if($openWindow !== null && $openWindow !== $this->currentWindow){
+				//one inventory can only be tracked once per player, a second window would desync its slots
+				throw new \InvalidArgumentException("This inventory is already open in another of the player's windows");
+			}
 		}
 
 		$ev = new InventoryOpenEvent($window);
@@ -2921,9 +2926,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		$this->logger->debug("Opening inventory window " . get_class($window) . "#" . spl_object_id($window));
 		$this->currentWindow = $window;
-		$inventoryManager->onCurrentWindowChange($window);
 		$window->onOpen();
-		return true;
+		if($this->currentWindow !== $window || !$this->isConnected()){
+			return false;
+		}
+		$inventoryManager->onCurrentWindowChange($window);
+		return $this->currentWindow === $window && $this->isConnected();
 	}
 
 	public function removeCurrentWindow() : void{
