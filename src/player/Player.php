@@ -356,7 +356,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$this->releaseViewOnlyChunks = $this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CHUNK_TICKING_UNLOAD_VIEW_ONLY_CHUNKS, true);
 		$this->chunkSelector = new ChunkSelector();
 
-		$this->chunkLoader = new class implements ChunkLoader{};
+		$this->chunkLoader = new ChunkLoader();
 		$this->chunkTicker = new ChunkTicker();
 		$world = $spawnLocation->getWorld();
 		//load the spawn chunk so we can see the terrain
