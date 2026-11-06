@@ -90,11 +90,23 @@ final class ChorusPlant extends Flowable implements HorizontalConnectable{
 		return $changed;
 	}
 
+	public function readStateFromWorld() : Block{
+		parent::readStateFromWorld();
+		//worlds from before 1.26.60 have no stored connections, so derive them on read and save them once
+		if($this->recalculateConnections()){
+			$this->collisionBoxes = null;
+			$this->position->getWorld()->scheduleDelayedBlockUpdate($this->position, 1);
+		}
+		return $this;
+	}
+
+	public function onScheduledUpdate() : void{
+		$this->position->getWorld()->setBlock($this->position, $this);
+	}
+
 	public function onNearbyBlockChange() : void{
 		if(!$this->canBeSupportedAt($this)){
 			$this->position->getWorld()->useBreakOn($this->position);
-		}elseif($this->recalculateConnections()){
-			$this->position->getWorld()->setBlock($this->position, $this);
 		}
 	}
 
