@@ -132,6 +132,7 @@ return array (
   'chunk-ticking' =>
   array (
     'tick-radius' => 3,
+    'unload-view-only-chunks' => true,
     'blocks-per-subchunk-per-tick' => 3,
   ),
   'chunk-generation' =>

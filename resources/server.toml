@@ -130,6 +130,10 @@ spawn-radius = 4
 
 [chunk-ticking]
 tick-radius = 3
+# Unload chunks a player already received once they're outside the tick radius. Players keep seeing them, but
+# entities and block updates in them pause like vanilla's simulation distance. Saves a lot of memory with a high
+# view distance. Worlds with autosave off always keep them loaded.
+unload-view-only-chunks = true
 blocks-per-subchunk-per-tick = 3
 
 [chunk-generation]

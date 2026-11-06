@@ -3501,7 +3501,8 @@ class World implements ChunkManager{
 	}
 
 	public function unloadChunk(int $x, int $z, bool $safe = true, bool $trySave = true) : bool{
-		if($safe && $this->isChunkInUse($x, $z)){
+		//without autosave the unload would drop changes players can still see
+		if($safe && ($this->isChunkInUse($x, $z) || (!$this->autoSave && isset($this->playerChunkListeners[World::chunkHash($x, $z)])))){
 			return false;
 		}
 

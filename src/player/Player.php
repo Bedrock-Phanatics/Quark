@@ -262,6 +262,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	/** @var true[] */
 	private array $tickingChunks = [];
+	/** @phpstan-var array<int, true> ticking area plus a ring so its edge chunks stay tickable */
+	private array $keptChunks = [];
+	/** @phpstan-var array<int, true> */
+	private array $releasedChunks = [];
+	private bool $releaseViewOnlyChunks;
+	private bool $releasingChunks = false;
 
 	protected int $viewDistance = -1;
 	protected int $spawnThreshold;
@@ -344,6 +350,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$this->perm = new PermissibleBase($rootPermissions);
 		$this->chunksPerTick = $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_PER_TICK, 4);
 		$this->spawnThreshold = (int) (($this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_SPAWN_RADIUS, 4) ** 2) * M_PI);
+		$this->releaseViewOnlyChunks = $this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CHUNK_TICKING_UNLOAD_VIEW_ONLY_CHUNKS, true);
 		$this->chunkSelector = new ChunkSelector();
 
 		$this->chunkLoader = new class implements ChunkLoader{};
@@ -813,6 +820,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 				$this->usedChunks = [];
 				$this->loadQueue = [];
+				$this->keptChunks = [];
 				$this->getNetworkSession()->onEnterWorld();
 			}
 
@@ -839,7 +847,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$world->unregisterChunkListener($this, $x, $z);
 		unset($this->loadQueue[$index]);
 		$world->unregisterTickingChunk($this->chunkTicker, $x, $z);
-		unset($this->tickingChunks[$index]);
+		unset($this->tickingChunks[$index], $this->keptChunks[$index], $this->releasedChunks[$index]);
 	}
 
 	protected function spawnEntitiesOnAllChunks() : void{
@@ -888,7 +896,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 			$this->usedChunks[$index] = UsedChunkStatus::REQUESTED_GENERATION;
 			$this->activeChunkGenerationRequests[$index] = true;
-			unset($this->loadQueue[$index]);
+			unset($this->loadQueue[$index], $this->releasedChunks[$index]);
 			$world->registerChunkLoader($this->chunkLoader, $X, $Z, true);
 			$world->registerChunkListener($this, $X, $Z);
 			if(isset($this->tickingChunks[$index])){
@@ -911,6 +919,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 					$this->getNetworkSession()->startUsingChunk($X, $Z, function() use ($X, $Z, $index) : void{
 						$this->usedChunks[$index] = UsedChunkStatus::SENT;
+						if(!isset($this->keptChunks[$index]) && $this->canReleaseChunks()){
+							$this->releasedChunks[$index] = true;
+							$this->getWorld()->unregisterChunkLoader($this->chunkLoader, $X, $Z);
+						}
 						if($this->spawnChunkLoadCount === -1){
 							$this->spawnEntitiesOnChunk($X, $Z);
 						}elseif($this->spawnChunkLoadCount++ === $this->spawnThreshold){
@@ -1004,6 +1016,42 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 	}
 
+	//without autosave an unload would lose changes the client still shows
+	private function canReleaseChunks() : bool{
+		return $this->releaseViewOnlyChunks && $this->getWorld()->getAutoSave();
+	}
+
+	/**
+	 * @phpstan-param array<int, true> $keptChunks
+	 */
+	private function updateKeptChunks(array $keptChunks) : void{
+		$release = $this->canReleaseChunks();
+		if($keptChunks === $this->keptChunks && $release === $this->releasingChunks){
+			return;
+		}
+		$this->keptChunks = $keptChunks;
+		$this->releasingChunks = $release;
+
+		$world = $this->getWorld();
+		foreach($this->usedChunks as $hash => $status){
+			if($status !== UsedChunkStatus::SENT){
+				continue;
+			}
+			$keep = !$release || isset($keptChunks[$hash]);
+			if($keep === isset($this->releasedChunks[$hash])){
+				World::getXZ($hash, $chunkX, $chunkZ);
+				if($keep){
+					//released stays set until the load is done so the reloaded chunk's entities get spawned to us
+					$world->registerChunkLoader($this->chunkLoader, $chunkX, $chunkZ, true);
+					unset($this->releasedChunks[$hash]);
+				}else{
+					$this->releasedChunks[$hash] = true;
+					$world->unregisterChunkLoader($this->chunkLoader, $chunkX, $chunkZ);
+				}
+			}
+		}
+	}
+
 	/**
 	 * Calculates which new chunks this player needs to use, and which currently-used chunks it needs to stop using.
 	 * This is based on factors including the player's current render radius and current position.
@@ -1019,8 +1067,11 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$tickingChunks = [];
 		$unloadChunks = $this->usedChunks;
 
+		$keptChunks = [];
+
 		$world = $this->getWorld();
 		$tickingChunkRadius = $world->getChunkTickRadius();
+		$keptChunkRadius = max($tickingChunkRadius, 1);
 
 		foreach($this->chunkSelector->selectChunks(
 			$this->server->getAllowedViewDistance($this->viewDistance),
@@ -1032,6 +1083,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			}
 			if($radius < $tickingChunkRadius){
 				$tickingChunks[$hash] = true;
+			}
+			if($radius < $keptChunkRadius){
+				World::getXZ($hash, $chunkX, $chunkZ);
+				for($x = $chunkX - 1; $x <= $chunkX + 1; ++$x){
+					for($z = $chunkZ - 1; $z <= $chunkZ + 1; ++$z){
+						$keptChunks[World::chunkHash($x, $z)] = true;
+					}
+				}
 			}
 			unset($unloadChunks[$hash]);
 		}
@@ -1045,6 +1104,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		$this->updateTickingChunkRegistrations($this->tickingChunks, $tickingChunks);
 		$this->tickingChunks = $tickingChunks;
+
+		$this->updateKeptChunks($keptChunks);
 
 		if(count($this->loadQueue) > 0 || count($unloadChunks) > 0){
 			$this->getNetworkSession()->syncViewAreaCenterPoint($this->location, $this->viewDistance);
@@ -2931,6 +2992,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	use ChunkListenerNoOpTrait {
 		onChunkChanged as private;
+		onChunkLoaded as private;
 		onChunkUnloaded as private;
 		onBlockChanged as private;
 	}
@@ -2943,8 +3005,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 	}
 
+	public function onChunkLoaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
+		if($this->spawnChunkLoadCount === -1 && isset($this->releasedChunks[World::chunkHash($chunkX, $chunkZ)])){
+			$this->spawnEntitiesOnChunk($chunkX, $chunkZ);
+		}
+	}
+
 	public function onChunkUnloaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
-		if($this->isUsingChunk($chunkX, $chunkZ)){
+		$hash = World::chunkHash($chunkX, $chunkZ);
+		if(isset($this->usedChunks[$hash]) && !isset($this->releasedChunks[$hash])){
 			$this->logger->debug("Detected forced unload of chunk " . $chunkX . " " . $chunkZ);
 			$this->unloadChunk($chunkX, $chunkZ);
 		}
