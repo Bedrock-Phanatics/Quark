@@ -3239,6 +3239,10 @@ class World implements ChunkManager{
 		$newChunkZ = $newPosition->getFloorZ() >> Chunk::COORD_BIT_SIZE;
 
 		if($oldChunkX !== $newChunkX || $oldChunkZ !== $newChunkZ){
+			if(!($entity instanceof Player) && !isset($this->chunks[World::chunkHash($newChunkX, $newChunkZ)])){
+				//otherwise it falls through unloaded terrain
+				$this->loadChunk($newChunkX, $newChunkZ);
+			}
 			$oldChunkHash = World::chunkHash($oldChunkX, $oldChunkZ);
 			if(isset($this->entitiesByChunk[$oldChunkHash][$entity->getId()])){
 				if(count($this->entitiesByChunk[$oldChunkHash]) === 1){
