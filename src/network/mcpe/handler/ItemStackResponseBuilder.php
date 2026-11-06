@@ -23,23 +23,20 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
+use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
+use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
+use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseContainerInfo;
+use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponseSlotInfo;
 use pocketmine\utils\Limits;
 use quark\inventory\Inventory;
 use quark\item\Durable;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\InventoryManager;
-use quark\network\mcpe\protocol\types\FullContainerName;
-use quark\network\mcpe\protocol\types\inventory\ContainerUIIds;
-use quark\network\mcpe\protocol\types\ItemStackResponseContainerInfo;
-use quark\network\mcpe\protocol\types\ItemStackResponseInfo;
-use quark\network\mcpe\protocol\types\ItemStackResponseSlotInfo;
-use quark\network\mcpe\protocol\types\SafetyRedactableString;
 use quark\utils\AssumptionFailedError;
 use function min;
 
 final class ItemStackResponseBuilder{
-	public const RESULT_OK = 0;
-	public const RESULT_ERROR = 1;
 
 	/**
 	 * @var int[][]
@@ -73,11 +70,11 @@ final class ItemStackResponseBuilder{
 		return [$inventory, $slot];
 	}
 
-	public static function error(int $requestId) : ItemStackResponseInfo{
-		return new ItemStackResponseInfo(self::RESULT_ERROR, $requestId);
+	public static function error(int $requestId) : ItemStackResponse{
+		return new ItemStackResponse(ItemStackResponse::RESULT_ERROR, $requestId, null);
 	}
 
-	public function build() : ItemStackResponseInfo{
+	public function build() : ItemStackResponse{
 		$responseInfosByContainer = [];
 		foreach($this->changedSlots as $containerInterfaceId => $slotIds){
 			if($containerInterfaceId === ContainerUIIds::CREATED_OUTPUT){
@@ -98,12 +95,13 @@ final class ItemStackResponseBuilder{
 				$item = $inventory->getItem($slot);
 
 				$responseInfosByContainer[$containerInterfaceId][] = new ItemStackResponseSlotInfo(
-					requestedSlot: $slotId,
-					slot: $slotId,
-					amount: min($item->getCount(), TypeConverter::MAX_NETWORK_COUNT),
-					itemStackNetId: $itemStackInfo->getStackId(),
-					customName: new SafetyRedactableString($item->getCustomName(), $item->getCustomName()),
-					durabilityCorrection: $item instanceof Durable ? min($item->getDamage(), Limits::INT16_MAX) : 0,
+					$slotId,
+					$slotId,
+					min($item->getCount(), TypeConverter::MAX_NETWORK_COUNT),
+					$itemStackInfo->getStackId(),
+					$item->getCustomName(),
+					$item->getCustomName(),
+					$item instanceof Durable ? min($item->getDamage(), Limits::INT16_MAX) : 0,
 				);
 			}
 		}
@@ -113,6 +111,6 @@ final class ItemStackResponseBuilder{
 			$responseContainerInfos[] = new ItemStackResponseContainerInfo(new FullContainerName($containerInterfaceId), $responseInfos);
 		}
 
-		return new ItemStackResponseInfo(self::RESULT_OK, $this->requestId, $responseContainerInfos);
+		return new ItemStackResponse(ItemStackResponse::RESULT_OK, $this->requestId, $responseContainerInfos);
 	}
 }

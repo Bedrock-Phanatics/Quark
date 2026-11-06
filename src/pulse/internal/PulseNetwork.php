@@ -53,7 +53,7 @@ final class PulseNetwork{
 	public const STATE_DROPPED = 9;
 	public const REPEATED_DROPPED = 10;
 	public const PHASES = ["session_start", "login", "awaiting_async", "handshake", "resource_packs", "pre_spawn", "spawn_response", "in_game", "death", "closed", "unknown"];
-	public const REASONS = ["rate.batch", "rate.packet", "batch.packet_limit", "batch.empty", "batch.malformed", "packet.unknown", "packet.direction", "packet.state", "packet.malformed", "packet.handler_validation", "compression.algorithm", "decompression.malformed", "decompression.limit", "encryption.invalid", "packet.bad_packet_disconnect", "transport.header"];
+	public const REASONS = ["rate.batch", "rate.packet", "batch.packet_limit", "batch.empty", "batch.malformed", "packet.unknown", "packet.direction", "packet.state", "packet.malformed", "packet.handler_validation", "compression.algorithm", "decompression.malformed", "decompression.limit", "encryption.invalid", "packet.bad_packet_disconnect", "transport.header", "packet.size"];
 	public const ACTIONS = ["drop_packet", "drop_batch", "reject_batch", "disconnect"];
 
 	private static int $nextGeneration = 0;

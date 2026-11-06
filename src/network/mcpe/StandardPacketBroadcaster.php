@@ -23,10 +23,9 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\event\server\DataPacketSendEvent;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\Packets;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use function array_values;
@@ -56,23 +55,18 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 			self::checkClientbound($packets);
 		}
 
-		//nothing to share with one recipient, so leave encoding to its next flush
-		$encodedPackets = null;
-		if(count($recipients) > 1){
-			$encodeScope = PulseZones::$playerNetworkSendEncode->start();
-			try{
-				$encodedPackets = EncodedPacket::ofMany($packets);
-			}catch(\ValueError){
-				//each recipient's flush reports the bad packet and drops only that session, instead of failing the tick
-			}finally{
-				PulseZones::$playerNetworkSendEncode->stop($encodeScope);
-			}
-		}
-		if($encodedPackets === null){
+		//nothing to share with one recipient
+		if(count($recipients) <= 1){
 			foreach($recipients as $recipient){
 				$recipient->addToSendBuffer($packets);
 			}
 			return;
+		}
+		$encodeScope = PulseZones::$playerNetworkSendEncode->start();
+		try{
+			$encodedPackets = EncodedPacket::ofMany($packets);
+		}finally{
+			PulseZones::$playerNetworkSendEncode->stop($encodeScope);
 		}
 
 		$compressors = [];
@@ -118,12 +112,12 @@ final class StandardPacketBroadcaster implements PacketBroadcaster{
 	}
 
 	/**
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 * @throws \InvalidArgumentException
 	 */
 	private static function checkClientbound(array $packets) : void{
 		foreach($packets as $packet){
-			if(!isset(Packets::CLIENTBOUND[$packet->getId()])){
+			if($packet instanceof EncodedPacket && !EncodedPacket::isClientbound($packet->getId())){
 				throw new \InvalidArgumentException("Clients do not accept " . $packet->getName() . " packets");
 			}
 		}

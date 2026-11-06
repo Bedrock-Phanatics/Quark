@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace quark\item\custom;
 
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
+use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use quark\block\tile\dispenser\ArmorDispensableItem;
 use quark\block\tile\dispenser\DispensableItemManager;
 use quark\data\bedrock\item\ItemDeserializer;
@@ -21,9 +24,6 @@ use quark\item\ItemIdentifier;
 use quark\item\ItemTypeIds;
 use quark\item\StringToItemParser;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\serializer\ItemTypeDictionary;
-use quark\network\mcpe\protocol\types\CacheableNbt;
-use quark\network\mcpe\protocol\types\ItemTypeEntry;
 use quark\plugin\Plugin;
 use quark\utils\Utils;
 use quark\world\format\io\GlobalItemDataHandlers;
@@ -74,7 +74,13 @@ final class ItemRegistry{
 		if(isset($this->namespaceOwners[$namespace]) && $this->namespaceOwners[$namespace] !== $ownerName){
 			throw new \InvalidArgumentException("Namespace '$namespace' belongs to plugin " . $this->namespaceOwners[$namespace]);
 		}
-		if(isset($this->items[$id]) || $this->vanillaDictionary->hasStringId($id) || $this->deserializer->getDeserializerForId($id) !== null || $this->parser->hasAlias($id)){
+		try{
+			$this->vanillaDictionary->fromStringId($id);
+			$vanilla = true;
+		}catch(\InvalidArgumentException){
+			$vanilla = false;
+		}
+		if(isset($this->items[$id]) || $vanilla || $this->deserializer->getDeserializerForId($id) !== null || $this->parser->hasAlias($id)){
 			throw new \InvalidArgumentException("Item '$id' is already registered");
 		}
 		if(count($this->items) >= self::MAX_ITEMS){ throw new \InvalidArgumentException("Custom item limit exceeded"); }

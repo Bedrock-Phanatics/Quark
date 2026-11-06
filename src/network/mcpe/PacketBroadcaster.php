@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe;
 
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\Packet;
 
 interface PacketBroadcaster{
 
 	/**
-	 * @param NetworkSession[]         $recipients
-	 * @param (Packet|EncodedPacket)[] $packets
+	 * @param NetworkSession[]                    $recipients
+	 * @param (ClientboundPacket|EncodedPacket)[] $packets
 	 */
 	public function broadcastPackets(array $recipients, array $packets) : void;
 }

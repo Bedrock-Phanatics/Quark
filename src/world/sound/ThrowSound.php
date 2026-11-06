@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 class ThrowSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [new LevelSoundEventPacket(LevelSoundEvent::THROW, $pos, -1, "minecraft:player", false, false, -1)];
+		return [LevelSoundEventPacket::create(LevelSoundEvent::THROW, $pos, -1, "minecraft:player", false, false, -1, null)];
 	}
 }

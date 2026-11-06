@@ -35,6 +35,15 @@ use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\network\mcpe\protocol\AddActorPacket;
+use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket;
+use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
+use pocketmine\network\mcpe\protocol\types\entity\Attribute as NetworkAttribute;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\MetadataProperty;
+use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
 use pocketmine\utils\Limits;
 use quark\block\Block;
 use quark\block\Water;
@@ -50,16 +59,6 @@ use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\packet\AddActorPacket;
-use quark\network\mcpe\protocol\packet\MoveActorAbsolutePacket;
-use quark\network\mcpe\protocol\packet\SetActorMotionPacket;
-use quark\network\mcpe\protocol\types\DataItemEntry;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use quark\network\mcpe\protocol\types\PropertySyncData;
-use quark\network\mcpe\protocol\types\SyncedAttribute;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\PulseZone;
@@ -125,7 +124,7 @@ abstract class Entity{
 
 	protected int $id;
 
-	private EntityMetadata $networkProperties;
+	private EntityMetadataCollection $networkProperties;
 
 	protected ?EntityDamageEvent $lastDamageCause = null;
 
@@ -236,7 +235,7 @@ abstract class Entity{
 
 		$this->resetLastMovements();
 
-		$this->networkProperties = new EntityMetadata();
+		$this->networkProperties = new EntityMetadataCollection();
 
 		$this->attributeMap = new AttributeMap();
 		$this->addAttributes();
@@ -661,7 +660,7 @@ abstract class Entity{
 		return $this->attributeMap;
 	}
 
-	public function getNetworkProperties() : EntityMetadata{
+	public function getNetworkProperties() : EntityMetadataCollection{
 		return $this->networkProperties;
 	}
 
@@ -895,23 +894,25 @@ abstract class Entity{
 	}
 
 	protected function movementPacket(bool $teleport) : MoveActorAbsolutePacket{
-		return new MoveActorAbsolutePacket(
-			actorRuntimeId: $this->id,
-			//TODO: We should be setting FLAG_TELEPORT here to disable client-side movement interpolation, but it
-			//breaks player teleporting (observers see the player rubberband back to the pre-teleport position while
-			//the teleported player sees themselves at the correct position), and does nothing whatsoever for
-			//non-player entities (movement is still interpolated). Both of these are client bugs.
-			//See https://github.com/Bedrock-Phanatics/Quark/issues/4394
-			header: $this->onGround ? MoveActorAbsolutePacket::FLAG_GROUND : 0,
-			position: $this->getOffsetPosition($this->location),
-			rotationX: Fields::rotationByte($this->location->pitch),
-			rotationY: Fields::rotationByte($this->location->yaw),
-			rotationYHead: Fields::rotationByte($this->location->yaw),
+		return MoveActorAbsolutePacket::create(
+			$this->id,
+			$this->getOffsetPosition($this->location),
+			$this->location->pitch,
+			$this->location->yaw,
+			$this->location->yaw,
+			(
+				//TODO: We should be setting FLAG_TELEPORT here to disable client-side movement interpolation, but it
+				//breaks player teleporting (observers see the player rubberband back to the pre-teleport position while
+				//the teleported player sees themselves at the correct position), and does nothing whatsoever for
+				//non-player entities (movement is still interpolated). Both of these are client bugs.
+				//See https://github.com/Bedrock-Phanatics/Quark/issues/4394
+				($this->onGround ? MoveActorAbsolutePacket::FLAG_GROUND : 0)
+			)
 		);
 	}
 
 	protected function motionPacket() : SetActorMotionPacket{
-		return new SetActorMotionPacket(targetRuntimeId: $this->id, motion: $this->getMotion(), tick: 0);
+		return SetActorMotionPacket::create($this->id, $this->getMotion(), tick: 0);
 	}
 
 	public function getGravity() : float{
@@ -1619,38 +1620,29 @@ abstract class Entity{
 			self::$spawnPackets = [];
 			self::$spawnPacketsTick = $tick;
 		}
-		try{
-			$packet = self::$spawnPackets[$this->id] ??= EncodedPacket::of($this->spawnPacket());
-		}catch(\ValueError){
-			//the session's flush reports it and drops only that player, instead of failing the tick
-			$packet = $this->spawnPacket();
-		}
-		$player->getNetworkSession()->sendDataPacket($packet);
+		$player->getNetworkSession()->sendDataPacket(self::$spawnPackets[$this->id] ??= EncodedPacket::of($this->spawnPacket()));
 	}
 
 	protected function spawnPacket() : AddActorPacket{
 		$attributes = [];
 		foreach($this->attributeMap->getAll() as $attribute){
-			$attributes[] = new SyncedAttribute(
-				attributeName: $attribute->getId(),
-				minValue: $attribute->getMinValue(),
-				currentValue: $attribute->getValue(),
-				maxValue: $attribute->getMaxValue(),
-			);
+			$attributes[] = new NetworkAttribute($attribute->getId(), $attribute->getMinValue(), $attribute->getMaxValue(), $attribute->getValue());
 		}
-		return new AddActorPacket(
-			targetActorId: $this->getId(), //TODO: actor unique ID
-			targetRuntimeId: $this->getId(),
-			actorType: static::getNetworkTypeId(),
-			position: $this->getOffsetPosition($this->location->asVector3()),
-			velocity: $this->getMotion(),
-			rotation: new Vector2($this->location->pitch, $this->location->yaw),
-			yHeadRotation: $this->location->yaw, //TODO: head yaw
-			yBodyRotation: $this->location->yaw, //TODO: body yaw (wtf mojang?)
-			attributesList: $attributes,
-			actorData: $this->getAllNetworkData(),
-			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
-			actorLinks: [], //TODO: entity links
+		return AddActorPacket::create(
+			$this->getId(), //TODO: actor unique ID
+			$this->getId(),
+			static::getNetworkTypeId(),
+			$this->getOffsetPosition($this->location->asVector3()),
+			$this->getMotion(),
+			$this->location->pitch,
+			$this->location->yaw,
+			$this->location->yaw, //TODO: head yaw
+			$this->location->yaw, //TODO: body yaw (wtf mojang?)
+			$attributes,
+			$this->getAllNetworkData(),
+			new PropertySyncData([], []),
+			[], //TODO: entity links
+			null
 		);
 	}
 
@@ -1782,10 +1774,10 @@ abstract class Entity{
 	}
 
 	/**
-	 * @param Player[]|null $targets
-	 * @param array[]|null  $data    Properly formatted entity data, defaults to everything
+	 * @param Player[]|null           $targets
+	 * @param MetadataProperty[]|null $data    Properly formatted entity data, defaults to everything
 	 *
-	 * @phpstan-param list<DataItemEntry>|null $data
+	 * @phpstan-param array<int, MetadataProperty>|null $data
 	 */
 	public function sendData(?array $targets, ?array $data = null) : void{
 		$targets = $targets ?? $this->hasSpawned;
@@ -1795,7 +1787,8 @@ abstract class Entity{
 	}
 
 	/**
-	 * @phpstan-return list<DataItemEntry>
+	 * @return MetadataProperty[]
+	 * @phpstan-return array<int, MetadataProperty>
 	 */
 	final protected function getDirtyNetworkData() : array{
 		if($this->networkPropertiesDirty){
@@ -1806,7 +1799,8 @@ abstract class Entity{
 	}
 
 	/**
-	 * @phpstan-return list<DataItemEntry>
+	 * @return MetadataProperty[]
+	 * @phpstan-return array<int, MetadataProperty>
 	 */
 	final protected function getAllNetworkData() : array{
 		if($this->networkPropertiesDirty){
@@ -1816,7 +1810,7 @@ abstract class Entity{
 		return $this->networkProperties->getAll();
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		$properties->setByte(EntityMetadataProperties::ALWAYS_SHOW_NAMETAG, $this->alwaysShowNameTag ? 1 : 0);
 		$properties->setFloat(EntityMetadataProperties::BOUNDING_BOX_HEIGHT, $this->size->getHeight() / $this->scale);
 		$properties->setFloat(EntityMetadataProperties::BOUNDING_BOX_WIDTH, $this->size->getWidth() / $this->scale);

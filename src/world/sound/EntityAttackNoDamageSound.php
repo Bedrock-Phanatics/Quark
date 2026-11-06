@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 /**
  * Played when a player attacks a mob, but fails to deal damage (e.g. cancelled or attack cooldown).
@@ -33,6 +33,15 @@ use quark\network\mcpe\protocol\types\LevelSoundEvent;
 class EntityAttackNoDamageSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [new LevelSoundEventPacket(LevelSoundEvent::ATTACK_NODAMAGE, $pos, -1, "minecraft:player", false, false, -1)];
+		return [LevelSoundEventPacket::create(
+			LevelSoundEvent::ATTACK_NODAMAGE,
+			$pos,
+			-1,
+			"minecraft:player",
+			false,
+			false,
+			-1,
+			null
+		)];
 	}
 }

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\entity\animation;
 
+use pocketmine\network\mcpe\protocol\ActorEventPacket;
+use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use quark\entity\Living;
-use quark\network\mcpe\protocol\packet\ActorEventPacket;
-use quark\network\mcpe\protocol\types\ActorEvent;
 
 final class RespawnAnimation implements Animation{
 
@@ -33,7 +33,7 @@ final class RespawnAnimation implements Animation{
 
 	public function encode() : array{
 		return [
-			new ActorEventPacket($this->entity->getId(), ActorEvent::RESPAWN, 0)
+			ActorEventPacket::create($this->entity->getId(), ActorEvent::RESPAWN, 0, null)
 		];
 	}
 }

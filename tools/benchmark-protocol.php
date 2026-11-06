@@ -23,23 +23,20 @@ declare(strict_types=1);
 
 namespace quark\tools\benchmark_protocol;
 
-use Bedwire\Protocol;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket;
+use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\SetActorDataPacket;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\Packet;
-use quark\network\mcpe\protocol\packet\MoveActorAbsolutePacket;
-use quark\network\mcpe\protocol\packet\SetActorDataPacket;
-use quark\network\mcpe\protocol\ProtocolClasses;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
-use quark\network\mcpe\protocol\types\PropertySyncData;
-use quark\pulse\internal\PulseZones;
 use function array_map;
+use function bin2hex;
 use function dirname;
 use function hex2bin;
 use function hrtime;
@@ -58,9 +55,6 @@ use const JSON_THROW_ON_ERROR;
 use const PHP_EOL;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
-
-PulseZones::init();
-ProtocolClasses::bind();
 
 //serverbound packets as BedrockProtocol encoded them: walking and sprinting auth input, clicking a block with a named
 //sword, and taking then placing a stack
@@ -107,13 +101,14 @@ function inbound(string $label, string $hex, int $iterations) : array{
 		throw new \RuntimeException("$label: invalid hex");
 	}
 	$decode = static fn() : Packet => EncodedPacket::fromBytes($buffer)->getPacket();
-	if(Protocol::encode(Protocol::packetId($buffer), $decode()) !== $buffer){
-		throw new \RuntimeException("$label: decoding and encoding again changed the bytes");
+	$encoded = EncodedPacket::encode($decode());
+	if($encoded !== $buffer){
+		throw new \RuntimeException("$label: decoding and encoding again changed the bytes: " . bin2hex($encoded));
 	}
 	return ["bytes" => strlen($buffer)] + measure($iterations, $decode);
 }
 
-function mobMetadata(EntityMetadata $metadata, int $id) : EntityMetadata{
+function mobMetadata(EntityMetadataCollection $metadata, int $id) : EntityMetadataCollection{
 	$metadata->setGenericFlag(EntityMetadataFlags::AFFECTED_BY_GRAVITY, true);
 	$metadata->setGenericFlag(EntityMetadataFlags::HAS_COLLISION, true);
 	$metadata->setGenericFlag(EntityMetadataFlags::CAN_CLIMB, true);
@@ -131,31 +126,25 @@ function mobMetadata(EntityMetadata $metadata, int $id) : EntityMetadata{
 }
 
 /**
- * Times building and batching what a viewer receives from a group of mobs and a few sounds. With $spawn every mob
- * sends all of its metadata, as on spawning, otherwise the mobs move and three of them send one changed property.
+ * Times building, encoding and batching what a viewer receives from a group of mobs and a few sounds. With $spawn
+ * every mob sends all of its metadata, as on spawning, otherwise the mobs move and three of them send one changed
+ * property.
  *
  * @return mixed[]
  */
 function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 	$positions = array_map(fn(int $i) => new Vector3(100.5 + $i, 64.0, -20.25 - $i), range(0, $mobs - 1));
-	$metadata = array_map(function(int $i) : EntityMetadata{
-		$metadata = mobMetadata(new EntityMetadata(), $i);
+	$metadata = array_map(function(int $i) : EntityMetadataCollection{
+		$metadata = mobMetadata(new EntityMetadataCollection(), $i);
 		$metadata->clearDirtyProperties();
 		return $metadata;
 	}, range(0, $mobs - 1));
 	$tick = 0;
-	$packets = static function() use ($positions, $spawn, $metadata, &$tick) : array{
+	$batch = static function() use ($positions, $spawn, $metadata, &$tick) : string{
 		$packets = [];
 		++$tick;
 		foreach($positions as $i => $position){
-			$packets[] = new MoveActorAbsolutePacket(
-				actorRuntimeId: $i + 10,
-				header: MoveActorAbsolutePacket::FLAG_GROUND,
-				position: $position,
-				rotationX: Fields::rotationByte(12.0),
-				rotationY: Fields::rotationByte(90.0 + $i),
-				rotationYHead: Fields::rotationByte(90.0 + $i),
-			);
+			$packets[] = EncodedPacket::encode(MoveActorAbsolutePacket::create($i + 10, $position, 12.0, 90.0 + $i, 90.0 + $i, MoveActorAbsolutePacket::FLAG_GROUND));
 			if($spawn){
 				$data = $metadata[$i]->getAll();
 			}elseif($i < 3){
@@ -165,19 +154,13 @@ function outboundTick(int $mobs, bool $spawn, int $iterations) : array{
 			}else{
 				continue;
 			}
-			$packets[] = new SetActorDataPacket(
-				targetRuntimeId: $i + 10,
-				actorData: $data,
-				synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
-				tick: 0,
-			);
+			$packets[] = EncodedPacket::encode(SetActorDataPacket::create($i + 10, $data, new PropertySyncData([], []), 0));
 		}
 		for($i = 0; $i < 3; ++$i){
-			$packets[] = LevelPackets::sound(LevelSoundEvent::STEP, $positions[$i], false);
+			$packets[] = EncodedPacket::encode(LevelSoundEventPacket::nonActorSound(LevelSoundEvent::STEP, $positions[$i], false));
 		}
-		return $packets;
+		return NetworkSession::encodeBatch($packets);
 	};
-	$batch = static fn() : string => NetworkSession::encodeBatch($packets());
 	return ["bytes" => strlen($batch())] + measure($iterations, $batch);
 }
 

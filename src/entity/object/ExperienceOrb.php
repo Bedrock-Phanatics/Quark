@@ -25,14 +25,14 @@ namespace quark\entity\object;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\utils\Limits;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
 use quark\entity\Human;
 use quark\entity\Location;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\player\Player;
 use function max;
 use function min;
@@ -349,7 +349,7 @@ class ExperienceOrb extends Entity{
 		return false;
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$properties->setInt(EntityMetadataProperties::EXPERIENCE_VALUE, $this->xpValue);

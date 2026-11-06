@@ -23,13 +23,27 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\network\mcpe\protocol\AddPlayerPacket;
+use pocketmine\network\mcpe\protocol\PlayerListPacket;
+use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
+use pocketmine\network\mcpe\protocol\types\AbilitiesData;
+use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
+use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
+use pocketmine\network\mcpe\protocol\types\DeviceOS;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
+use pocketmine\network\mcpe\protocol\types\entity\StringMetadataProperty;
+use pocketmine\network\mcpe\protocol\types\GameMode;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
+use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use quark\data\bedrock\item\SavedItemStackData;
 use quark\data\SavedDataLoadingException;
 use quark\entity\animation\TotemUseAnimation;
@@ -51,19 +65,6 @@ use quark\item\Totem;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\packet\AddPlayerPacket;
-use quark\network\mcpe\protocol\packet\PlayerListPacket;
-use quark\network\mcpe\protocol\packet\PlayerSkinPacket;
-use quark\network\mcpe\protocol\types\AbilitiesData;
-use quark\network\mcpe\protocol\types\AbilitiesLayer;
-use quark\network\mcpe\protocol\types\command\CommandPermissions;
-use quark\network\mcpe\protocol\types\DeviceOS;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use quark\network\mcpe\protocol\types\GameMode;
-use quark\network\mcpe\protocol\types\PlayerPermissions;
-use quark\network\mcpe\protocol\types\PropertySyncData;
 use quark\player\Player;
 use quark\world\sound\TotemUseSound;
 use quark\world\World;
@@ -167,12 +168,7 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 	 */
 	public function sendSkin(?array $targets = null) : void{
 		NetworkBroadcastUtils::broadcastPackets($targets ?? $this->hasSpawned, [
-			new PlayerSkinPacket(
-				uuid: Fields::uuid($this->getUniqueId()),
-				serializedSkin: Fields::skin(TypeConverter::getInstance()->getSkinAdapter()->toSkinData($this->skin)),
-				localizedNewSkinName: "",
-				localizedOldSkinName: "",
-			)
+			PlayerSkinPacket::create($this->getUniqueId(), "", "", TypeConverter::getInstance()->getSkinAdapter()->toSkinData($this->skin))
 		]);
 	}
 
@@ -505,23 +501,24 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		$networkSession = $player->getNetworkSession();
 		$typeConverter = $networkSession->getTypeConverter();
 		if(!($this instanceof Player)){
-			$networkSession->sendDataPacket(new PlayerListPacket(entries: [Fields::playerListAddition($this->uuid, $this->id, $this->getName(), $typeConverter->getSkinAdapter()->toSkinData($this->skin))]));
+			$networkSession->sendDataPacket(PlayerListPacket::create([PlayerListEntry::createAdditionEntry($this->uuid, $this->id, $this->getName(), $typeConverter->getSkinAdapter()->toSkinData($this->skin))]));
 		}
 
-		$networkSession->sendDataPacket(new AddPlayerPacket(
-			uuid: Fields::uuid($this->getUniqueId()),
-			playerName: $this->getName(),
-			targetRuntimeId: $this->getId(),
-			platformChatId: "",
-			position: $this->location->asVector3(),
-			velocity: $this->getMotion(),
-			rotation: new Vector2($this->location->pitch, $this->location->yaw),
-			yHeadRotation: $this->location->yaw, //TODO: head yaw
-			carriedItem: Fields::legacyItemStack($typeConverter->coreItemStackToNet($this->getInventory()->getItemInHand())),
-			playerGameType: GameMode::SURVIVAL->value,
-			entityData: $this->getAllNetworkData(),
-			synchedProperties: new PropertySyncData(intEntriesList: [], floatEntriesList: []),
-			abilitiesData: Fields::abilities(new AbilitiesData(CommandPermissions::NORMAL, PlayerPermissions::VISITOR, $this->getId() /* TODO: this should be unique ID */, [
+		$networkSession->sendDataPacket(AddPlayerPacket::create(
+			$this->getUniqueId(),
+			$this->getName(),
+			$this->getId(),
+			"",
+			$this->location->asVector3(),
+			$this->getMotion(),
+			$this->location->pitch,
+			$this->location->yaw,
+			$this->location->yaw, //TODO: head yaw
+			ItemStackWrapper::legacy($typeConverter->coreItemStackToNet($this->getInventory()->getItemInHand())),
+			GameMode::SURVIVAL,
+			$this->getAllNetworkData(),
+			new PropertySyncData([], []),
+			new AbilitiesData(CommandPermissions::NORMAL, PlayerPermissions::VISITOR, $this->getId() /* TODO: this should be unique ID */, [
 				new AbilitiesLayer(
 					AbilitiesLayer::LAYER_BASE,
 					array_fill(0, AbilitiesLayer::NUMBER_OF_ABILITIES, false),
@@ -529,25 +526,22 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 					0.0,
 					0.0
 				)
-			])),
-			actorLinks: [], //TODO: entity links
-			passengerBlockData: null,
-			deviceId: "", //we intentionally don't send this (secvuln)
-			buildPlatform: DeviceOS::UNKNOWN, //we intentionally don't send this (secvuln)
+			]),
+			[], //TODO: entity links
+			null,
+			"", //device ID (we intentionally don't send this - secvuln)
+			DeviceOS::UNKNOWN //we intentionally don't send this (secvuln)
 		));
 
-		//TODO: Hack for MCPE 1.2.13: DATA_NAMETAG is useless in add_player, so it has to be sent separately
-		$nameTag = $this->getNetworkProperties()->get(EntityMetadataProperties::NAMETAG);
-		if($nameTag !== null){
-			$this->sendData([$player], [$nameTag]);
-		}
+		//TODO: Hack for MCPE 1.2.13: DATA_NAMETAG is useless in AddPlayerPacket, so it has to be sent separately
+		$this->sendData([$player], [EntityMetadataProperties::NAMETAG => new StringMetadataProperty($this->getNameTag())]);
 
 		$entityEventBroadcaster = $networkSession->getEntityEventBroadcaster();
 		$entityEventBroadcaster->onMobArmorChange([$networkSession], $this);
 		$entityEventBroadcaster->onMobOffHandItemChange([$networkSession], $this);
 
 		if(!($this instanceof Player)){
-			$networkSession->sendDataPacket(new PlayerListPacket(entries: [Fields::playerListRemoval($this->uuid)]));
+			$networkSession->sendDataPacket(PlayerListPacket::create([PlayerListEntry::createRemovalEntry($this->uuid)]));
 		}
 	}
 

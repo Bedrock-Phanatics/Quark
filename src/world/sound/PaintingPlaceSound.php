@@ -24,13 +24,13 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 
 class PaintingPlaceSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
 		//item frame and painting have the same sound
-		return [LevelPackets::event(LevelEvent::SOUND_ITEMFRAME_PLACE, 0, $pos)];
+		return [LevelEventPacket::create(LevelEvent::SOUND_ITEMFRAME_PLACE, 0, $pos)];
 	}
 }

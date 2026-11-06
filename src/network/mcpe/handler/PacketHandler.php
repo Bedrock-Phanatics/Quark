@@ -23,15 +23,17 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
+use pocketmine\network\mcpe\protocol\PacketHandlerDefaultImplTrait;
+use pocketmine\network\mcpe\protocol\PacketHandlerInterface;
+
 /**
  * Handlers are attached to sessions to handle packets received from their associated clients. A handler
  * is mutable and may be removed/replaced at any time.
  *
- * A handler handles a packet by declaring the public method Packets::HANDLERS names for it, such as handleText(). The
- * method takes the decoded packet's class and returns whether it handled it. Packets a handler has no method for are
- * dropped without being decoded.
+ * This class is an automatically generated stub. Do not edit it manually.
  */
-abstract class PacketHandler{
+abstract class PacketHandler implements PacketHandlerInterface{
+	use PacketHandlerDefaultImplTrait;
 
 	public function setUp() : void{
 

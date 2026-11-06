@@ -21,7 +21,7 @@
 
 declare(strict_types=1);
 
-use quark\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use quark\VersionInfo;
 
 require dirname(__DIR__) . '/vendor/autoload.php';

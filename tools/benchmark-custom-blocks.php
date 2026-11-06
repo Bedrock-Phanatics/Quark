@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace quark\tools\benchmark_custom_blocks;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\world\format\PalettedBlockArray;
 use quark\block\Block;
 use quark\block\custom\BlockComponents;
@@ -16,7 +17,6 @@ use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
 use quark\inventory\CreativeInventory;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\serializer\ChunkSerializer;
 use quark\plugin\Plugin;
 use quark\world\format\Chunk;

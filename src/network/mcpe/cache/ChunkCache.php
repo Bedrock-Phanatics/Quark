@@ -23,13 +23,15 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use Bedwire\PacketId;
-use Bedwire\Protocol;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\LevelChunkPacket;
+use pocketmine\network\mcpe\protocol\types\ChunkPosition;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\network\mcpe\protocol\types\DimensionIds;
+use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\serializer\ChunkSerializer;
 use quark\utils\AssumptionFailedError;
 use quark\world\ChunkListener;
@@ -120,16 +122,16 @@ class ChunkCache implements ChunkListener{
 		$syncChunkSendPrepareScope = $this->world->pulse->syncChunkSendPrepare->start();
 		try{
 			$subChunkCount = ChunkSerializer::getSubChunkCount($chunk, $this->dimensionId);
-			$batch = Protocol::encodeBatch([[PacketId::LEVEL_CHUNK, [
-				"chunk_position" => ["x" => $chunkX, "z" => $chunkZ],
-				"dimension_id" => $this->dimensionId,
-				"sub_chunks_count" => $subChunkCount,
-				"client_request_sub_chunk_limit" => null,
-				"cache_enabled" => false,
-				"cache_metadata" => [],
-				"serialized_chunk_data" => ChunkSerializer::serializeFullChunk($chunk, $this->dimensionId, TypeConverter::getInstance()->getBlockTranslator(), null, $subChunkCount),
-				"is_client_biome_update" => false,
-			]]]);
+			$batch = NetworkSession::encodeBatch([EncodedPacket::encode(LevelChunkPacket::create(
+				new ChunkPosition($chunkX, $chunkZ),
+				$this->dimensionId,
+				$subChunkCount,
+				null,
+				false,
+				[],
+				ChunkSerializer::serializeFullChunk($chunk, $this->dimensionId, TypeConverter::getInstance()->getBlockTranslator(), null, $subChunkCount),
+				false
+			))]);
 		}finally{
 			$this->world->pulse->syncChunkSendPrepare->stop($syncChunkSendPrepareScope);
 		}

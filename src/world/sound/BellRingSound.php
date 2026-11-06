@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
-use quark\network\mcpe\protocol\LevelPackets;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 
 final class BellRingSound implements Sound{
 
 	public function encode(Vector3 $pos) : array{
-		return [LevelPackets::sound(LevelSoundEvent::BLOCK_BELL_HIT, $pos, false)];
+		return [LevelSoundEventPacket::nonActorSound(LevelSoundEvent::BLOCK_BELL_HIT, $pos, false)];
 	}
 }

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\pulse\internal;
 
-use Bedwire\Protocol;
+use pocketmine\network\mcpe\protocol\PacketPool;
 use quark\block\tile\Tile;
 use quark\entity\Entity;
 use quark\event\Event;
@@ -178,7 +178,7 @@ final class PulseZones{
 		$zone = self::$packets[$phase][$packetId] ?? null;
 		if($zone !== null){ return $zone; }
 		if(count(self::$packets[$phase] ?? []) >= 4096){ return self::dynamic("pulse.zone_limit"); }
-		return self::$packets[$phase][$packetId] = self::dynamic("network.$phase." . (Protocol::name($packetId) ?? "unknown_$packetId"));
+		return self::$packets[$phase][$packetId] = self::dynamic("network.$phase." . (PacketPool::getInstance()->getPacketById($packetId)?->getName() ?? "unknown_$packetId"));
 	}
 
 	public static function getAsyncTaskRunZone(AsyncTask $task) : PulseZone{ return self::task($task, "run"); }

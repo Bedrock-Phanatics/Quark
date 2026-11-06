@@ -26,6 +26,11 @@ namespace quark\entity\object;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
 use quark\entity\Explosive;
@@ -33,10 +38,6 @@ use quark\event\entity\EntityDamageEvent;
 use quark\event\entity\EntityPreExplodeEvent;
 use quark\item\Item;
 use quark\item\VanillaItems;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\utils\Utils;
 use quark\world\Explosion;
 
@@ -147,10 +148,10 @@ class EndCrystal extends Entity implements Explosive{
 		}
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$properties->setGenericFlag(EntityMetadataFlags::SHOWBASE, $this->showBase);
-		$properties->setBlockPos(EntityMetadataProperties::BLOCK_TARGET, $this->beamTarget ?? Vector3::zero());
+		$properties->setBlockPos(EntityMetadataProperties::BLOCK_TARGET, BlockPosition::fromVector3($this->beamTarget ?? Vector3::zero()));
 	}
 }

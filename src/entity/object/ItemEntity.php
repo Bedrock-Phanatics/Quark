@@ -25,6 +25,9 @@ namespace quark\entity\object;
 
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\AddItemActorPacket;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use quark\entity\animation\ItemEntityStackSizeChangeAnimation;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -36,9 +39,6 @@ use quark\event\entity\ItemSpawnEvent;
 use quark\item\Item;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
-use quark\network\mcpe\protocol\Fields;
-use quark\network\mcpe\protocol\packet\AddItemActorPacket;
-use quark\network\mcpe\protocol\types\entity\EntityIds;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use function intdiv;
@@ -318,14 +318,14 @@ class ItemEntity extends Entity{
 
 	protected function sendSpawnPacket(Player $player) : void{
 		$networkSession = $player->getNetworkSession();
-		$networkSession->sendDataPacket(new AddItemActorPacket(
-			targetActorId: $this->getId(), //TODO: entity unique ID
-			targetRuntimeId: $this->getId(),
-			item: Fields::legacyItemStack($networkSession->getTypeConverter()->coreItemStackToNet($this->getItem())),
-			position: $this->location->asVector3(),
-			velocity: $this->getMotion(),
-			entityData: $this->getAllNetworkData(),
-			isFromFishing: false, //TODO: I have no idea what this is needed for, but right now we don't support fishing anyway
+		$networkSession->sendDataPacket(AddItemActorPacket::create(
+			$this->getId(), //TODO: entity unique ID
+			$this->getId(),
+			ItemStackWrapper::legacy($networkSession->getTypeConverter()->coreItemStackToNet($this->getItem())),
+			$this->location->asVector3(),
+			$this->getMotion(),
+			$this->getAllNetworkData(),
+			false //TODO: I have no idea what this is needed for, but right now we don't support fishing anyway
 		));
 	}
 

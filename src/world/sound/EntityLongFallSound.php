@@ -24,9 +24,9 @@ declare(strict_types=1);
 namespace quark\world\sound;
 
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use quark\entity\Entity;
-use quark\network\mcpe\protocol\packet\LevelSoundEventPacket;
-use quark\network\mcpe\protocol\types\LevelSoundEvent;
 
 /**
  * Played when an entity hits ground after falling a long distance (damage).
@@ -36,14 +36,15 @@ class EntityLongFallSound implements Sound{
 	public function __construct(private Entity $entity){}
 
 	public function encode(Vector3 $pos) : array{
-		return [new LevelSoundEventPacket(
-			soundEvent: LevelSoundEvent::FALL_BIG,
-			position: $pos,
-			data: -1,
-			actorIdentifier: $this->entity::getNetworkTypeId(),
-			isBaby: false, //TODO: is isBaby relevant here?
-			isGlobal: false,
-			actorUniqueId: $this->entity->getId(),
+		return [LevelSoundEventPacket::create(
+			LevelSoundEvent::FALL_BIG,
+			$pos,
+			-1,
+			$this->entity::getNetworkTypeId(),
+			false, //TODO: is isBaby relevant here?
+			false,
+			$this->entity->getId(),
+			null
 		)];
 	}
 }

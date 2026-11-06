@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\compression;
 
-use quark\network\mcpe\protocol\types\CompressionAlgorithm;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 
 interface Compressor{
 	/**

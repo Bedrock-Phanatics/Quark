@@ -26,6 +26,15 @@ namespace quark\player;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
+use pocketmine\network\mcpe\protocol\MovePlayerPacket;
+use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use pocketmine\utils\Limits;
 use quark\block\BaseSign;
 use quark\block\Bed;
@@ -112,14 +121,6 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\Translatable;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\EntityMetadata;
-use quark\network\mcpe\protocol\packet\AnimatePacket;
-use quark\network\mcpe\protocol\packet\MovePlayerPacket;
-use quark\network\mcpe\protocol\packet\SetActorMotionPacket;
-use quark\network\mcpe\protocol\types\DimensionIds;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataFlags;
-use quark\network\mcpe\protocol\types\entity\EntityMetadataProperties;
-use quark\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
@@ -1319,7 +1320,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 			$this->getWorld()->setSleepTicks(0);
 
-			$this->getNetworkSession()->sendDataPacket(new AnimatePacket(action: AnimatePacket::ACTION_STOP_SLEEP, targetActorRuntimeId: $this->getId(), data: 0.0, swingSource: null, hand: AnimatePacket::HAND_MAIN));
+			$this->getNetworkSession()->sendDataPacket(AnimatePacket::create($this->getId(), AnimatePacket::ACTION_STOP_SLEEP));
 		}
 	}
 
@@ -1630,7 +1631,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	public function setMotion(Vector3 $motion) : bool{
 		if(parent::setMotion($motion)){
 			$this->broadcastMotion();
-			$this->getNetworkSession()->sendDataPacket(new SetActorMotionPacket(targetRuntimeId: $this->id, motion: $motion, tick: 0));
+			$this->getNetworkSession()->sendDataPacket(SetActorMotionPacket::create($this->id, $motion, tick: 0));
 
 			return true;
 		}
@@ -2809,7 +2810,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		parent::attack($source);
 	}
 
-	protected function syncNetworkData(EntityMetadata $properties) : void{
+	protected function syncNetworkData(EntityMetadataCollection $properties) : void{
 		parent::syncNetworkData($properties);
 
 		$properties->setGenericFlag(EntityMetadataFlags::ACTION, $this->startAction > -1);
@@ -2820,16 +2821,16 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			//this should only be sent when the player enters the bed, as of 1.26.??
 			//previously we were setting this to 0,0,0 if the player wasn't sleeping, but that now causes the player to
 			//teleport to that position temporarily when leaving the bed. Bugrock moment...
-			$properties->setBlockPos(EntityMetadataProperties::PLAYER_BED_POSITION, $this->sleeping);
+			$properties->setBlockPos(EntityMetadataProperties::PLAYER_BED_POSITION, BlockPosition::fromVector3($this->sleeping));
 		}
 
 		if($this->deathPosition !== null && $this->deathPosition->world === $this->location->world){
-			$properties->setBlockPos(EntityMetadataProperties::PLAYER_DEATH_POSITION, $this->deathPosition);
+			$properties->setBlockPos(EntityMetadataProperties::PLAYER_DEATH_POSITION, BlockPosition::fromVector3($this->deathPosition));
 			//TODO: this should be updated when dimensions are implemented
 			$properties->setInt(EntityMetadataProperties::PLAYER_DEATH_DIMENSION, DimensionIds::OVERWORLD);
 			$properties->setByte(EntityMetadataProperties::PLAYER_HAS_DIED, 1);
 		}else{
-			$properties->setBlockPos(EntityMetadataProperties::PLAYER_DEATH_POSITION, null);
+			$properties->setBlockPos(EntityMetadataProperties::PLAYER_DEATH_POSITION, new BlockPosition(0, 0, 0));
 			$properties->setInt(EntityMetadataProperties::PLAYER_DEATH_DIMENSION, DimensionIds::OVERWORLD);
 			$properties->setByte(EntityMetadataProperties::PLAYER_HAS_DIED, 0);
 		}

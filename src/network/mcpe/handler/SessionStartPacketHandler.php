@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use Bedwire\Protocol;
+use pocketmine\network\mcpe\protocol\NetworkSettingsPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
 use quark\network\mcpe\NetworkSession;
-use quark\network\mcpe\protocol\packet\NetworkSettingsPacket;
-use quark\network\mcpe\protocol\packet\RequestNetworkSettingsPacket;
 
 final class SessionStartPacketHandler extends PacketHandler{
 
@@ -39,7 +39,7 @@ final class SessionStartPacketHandler extends PacketHandler{
 	){}
 
 	public function handleRequestNetworkSettings(RequestNetworkSettingsPacket $packet) : bool{
-		$protocolVersion = $packet->clientNetworkVersion;
+		$protocolVersion = $packet->getProtocolVersion();
 		$this->session->recordProtocolVersion($protocolVersion);
 		if(!$this->isCompatibleProtocol($protocolVersion)){
 			$this->session->disconnectIncompatibleProtocol($protocolVersion);
@@ -48,12 +48,12 @@ final class SessionStartPacketHandler extends PacketHandler{
 		}
 
 		//TODO: we're filling in the defaults to get pre-1.19.30 behaviour back for now, but we should explore the new options in the future
-		$this->session->sendDataPacket(new NetworkSettingsPacket(
-			compressionThreshold: NetworkSettingsPacket::COMPRESS_EVERYTHING,
-			compressionAlgorithm: $this->session->getCompressor()->getNetworkType()->value,
-			clientThrottleEnabled: false,
-			clientThrottleThreshold: 0,
-			clientThrottleScalar: 0.0,
+		$this->session->sendDataPacket(NetworkSettingsPacket::create(
+			NetworkSettingsPacket::COMPRESS_EVERYTHING,
+			$this->session->getCompressor()->getNetworkType(),
+			false,
+			0,
+			0
 		));
 		($this->onSuccess)();
 
@@ -61,6 +61,6 @@ final class SessionStartPacketHandler extends PacketHandler{
 	}
 
 	protected function isCompatibleProtocol(int $protocolVersion) : bool{
-		return $protocolVersion === Protocol::VERSION;
+		return $protocolVersion === ProtocolInfo::CURRENT_PROTOCOL;
 	}
 }

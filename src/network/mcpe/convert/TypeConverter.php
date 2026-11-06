@@ -33,6 +33,17 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\nbt\UnexpectedTagTypeException;
+use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
+use pocketmine\network\mcpe\protocol\types\GameMode as ProtocolGameMode;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackExtraData;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackExtraDataShield;
+use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
+use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient as ProtocolRecipeIngredient;
+use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\TagItemDescriptor;
+use pocketmine\utils\Limits;
 use quark\block\tile\Container;
 use quark\block\VanillaBlocks;
 use quark\crafting\ExactRecipeIngredient;
@@ -49,17 +60,6 @@ use quark\data\SavedDataLoadingException;
 use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\network\mcpe\protocol\EncodedPacket;
-use quark\network\mcpe\protocol\packet\ItemRegistryPacket;
-use quark\network\mcpe\protocol\serializer\ItemTypeDictionary;
-use quark\network\mcpe\protocol\types\GameMode as ProtocolGameMode;
-use quark\network\mcpe\protocol\types\inventory\ItemStack;
-use quark\network\mcpe\protocol\types\inventory\ItemStackExtraData;
-use quark\network\mcpe\protocol\types\inventory\ItemStackExtraDataShield;
-use quark\network\mcpe\protocol\types\ItemData;
-use quark\network\mcpe\protocol\types\ItemTypeEntry;
-use quark\network\mcpe\protocol\types\recipe\RecipeIngredient as ProtocolRecipeIngredient;
-use quark\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
-use quark\network\mcpe\protocol\types\recipe\TagItemDescriptor;
 use quark\player\GameMode;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Filesystem;
@@ -148,12 +148,22 @@ class TypeConverter{
 	 */
 	public function finalizeItemRegistry(array $customEntries) : void{
 		if($this->itemRegistryPacket !== null){ throw new \LogicException("The network item registry is already finalized"); }
-		$dictionary = new ItemTypeDictionary([...$this->itemTypeDictionary->getEntries(), ...$customEntries]);
-		$items = [];
-		foreach($dictionary->getEntries() as $entry){
-			$items[] = new ItemData($entry->getStringId(), $entry->getNumericId(), $entry->isComponentBased(), $entry->getVersion(), $entry->getComponentNbt()->getEncodedNbt());
+		$entries = [...$this->itemTypeDictionary->getEntries(), ...$customEntries];
+		$names = [];
+		$ids = [];
+		foreach($entries as $entry){
+			$id = $entry->getNumericId();
+			if(isset($names[$entry->getStringId()]) || isset($ids[$id])){
+				throw new \InvalidArgumentException("Duplicate item dictionary name or numeric ID: " . $entry->getStringId());
+			}
+			if($id < Limits::INT16_MIN || $id > Limits::INT16_MAX){
+				throw new \InvalidArgumentException("Item dictionary numeric ID must fit a signed short, got $id for " . $entry->getStringId());
+			}
+			$names[$entry->getStringId()] = true;
+			$ids[$id] = true;
 		}
-		$packet = EncodedPacket::of(new ItemRegistryPacket($items));
+		$dictionary = new ItemTypeDictionary($entries);
+		$packet = EncodedPacket::of(ItemRegistryPacket::create($dictionary->getEntries()));
 		if(strlen($packet->getBytes()) > 8 * 1024 * 1024){ throw new \LengthException("Network item registry exceeds the 8 MiB limit"); }
 		$this->itemTypeDictionary = $dictionary;
 		$this->itemTranslator = new ItemTranslator($dictionary, $this->blockTranslator->getBlockStateDictionary(), $this->itemSerializer, $this->itemDeserializer, $this->blockItemIdMap);
