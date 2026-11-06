@@ -190,6 +190,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	private const MAX_REACH_DISTANCE_CREATIVE = 13;
 	private const MAX_REACH_DISTANCE_SURVIVAL = 7;
 	private const MAX_REACH_DISTANCE_ENTITY_INTERACTION = 8;
+	private const RELEASED_CHUNK_UNLOAD_DELAY = 5.0;
 
 	public const DEFAULT_FLIGHT_SPEED_MULTIPLIER = 0.05;
 
@@ -854,7 +855,21 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		foreach($this->usedChunks as $chunkHash => $status){
 			if($status === UsedChunkStatus::SENT){
 				World::getXZ($chunkHash, $chunkX, $chunkZ);
-				$this->spawnEntitiesOnChunk($chunkX, $chunkZ);
+				if(isset($this->releasedChunks[$chunkHash])){
+					$this->spawnEntitiesOnReleasedChunk($chunkX, $chunkZ);
+				}else{
+					$this->spawnEntitiesOnChunk($chunkX, $chunkZ);
+				}
+			}
+		}
+	}
+
+	private function spawnEntitiesOnReleasedChunk(int $chunkX, int $chunkZ) : void{
+		$world = $this->getWorld();
+		$all = $world->isChunkInUse($chunkX, $chunkZ);
+		foreach($world->getChunkEntities($chunkX, $chunkZ) as $entity){
+			if($entity !== $this && !$entity->isFlaggedForDespawn() && ($all || !$entity->canSaveWithChunk())){
+				$entity->spawnTo($this);
 			}
 		}
 	}
@@ -919,12 +934,16 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 					$this->getNetworkSession()->startUsingChunk($X, $Z, function() use ($X, $Z, $index) : void{
 						$this->usedChunks[$index] = UsedChunkStatus::SENT;
-						if(!isset($this->keptChunks[$index]) && $this->canReleaseChunks()){
-							$this->releasedChunks[$index] = true;
-							$this->getWorld()->unregisterChunkLoader($this->chunkLoader, $X, $Z);
+						$released = !isset($this->keptChunks[$index]) && $this->canReleaseChunks();
+						if($released){
+							$this->releaseChunk($index, $X, $Z);
 						}
 						if($this->spawnChunkLoadCount === -1){
-							$this->spawnEntitiesOnChunk($X, $Z);
+							if($released){
+								$this->spawnEntitiesOnReleasedChunk($X, $Z);
+							}else{
+								$this->spawnEntitiesOnChunk($X, $Z);
+							}
 						}elseif($this->spawnChunkLoadCount++ === $this->spawnThreshold){
 							$this->spawnChunkLoadCount = -1;
 
@@ -1041,15 +1060,23 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			if($keep === isset($this->releasedChunks[$hash])){
 				World::getXZ($hash, $chunkX, $chunkZ);
 				if($keep){
-					//released stays set until the load is done so the reloaded chunk's entities get spawned to us
-					$world->registerChunkLoader($this->chunkLoader, $chunkX, $chunkZ, true);
 					unset($this->releasedChunks[$hash]);
+					$world->registerChunkLoader($this->chunkLoader, $chunkX, $chunkZ, true);
+					if($this->spawnChunkLoadCount === -1){
+						$this->spawnEntitiesOnChunk($chunkX, $chunkZ);
+					}
 				}else{
-					$this->releasedChunks[$hash] = true;
-					$world->unregisterChunkLoader($this->chunkLoader, $chunkX, $chunkZ);
+					$this->releaseChunk($hash, $chunkX, $chunkZ);
 				}
 			}
 		}
+	}
+
+	private function releaseChunk(int $hash, int $chunkX, int $chunkZ) : void{
+		$this->releasedChunks[$hash] = true;
+		$world = $this->getWorld();
+		$world->unregisterChunkLoader($this->chunkLoader, $chunkX, $chunkZ);
+		$world->unloadChunkRequest($chunkX, $chunkZ, true, self::RELEASED_CHUNK_UNLOAD_DELAY);
 	}
 
 	/**
@@ -2997,17 +3024,17 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		onBlockChanged as private;
 	}
 
+	public function onChunkLoaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
+		if($this->spawnChunkLoadCount === -1 && isset($this->releasedChunks[World::chunkHash($chunkX, $chunkZ)])){
+			$this->spawnEntitiesOnReleasedChunk($chunkX, $chunkZ);
+		}
+	}
+
 	public function onChunkChanged(int $chunkX, int $chunkZ, Chunk $chunk) : void{
 		$status = $this->usedChunks[$hash = World::chunkHash($chunkX, $chunkZ)] ?? null;
 		if($status === UsedChunkStatus::SENT){
 			$this->usedChunks[$hash] = UsedChunkStatus::NEEDED;
 			$this->nextChunkOrderRun = 0;
-		}
-	}
-
-	public function onChunkLoaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
-		if($this->spawnChunkLoadCount === -1 && isset($this->releasedChunks[World::chunkHash($chunkX, $chunkZ)])){
-			$this->spawnEntitiesOnChunk($chunkX, $chunkZ);
 		}
 	}
 

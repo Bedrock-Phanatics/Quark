@@ -206,6 +206,8 @@ class World implements ChunkManager{
 	private const DEFERRED_NEIGHBOUR = 2;
 	private const MAX_DEFERRED_BLOCK_UPDATES = 65536;
 
+	public const CHUNK_UNLOAD_DELAY = 30.0;
+
 	/**
 	 * @var Player[] entity runtime ID => Player
 	 * @phpstan-var array<int, Player>
@@ -309,7 +311,7 @@ class World implements ChunkManager{
 	private array $packetBuffersByChunk = [];
 
 	/**
-	 * @var float[] chunkHash => timestamp of request
+	 * @var float[] chunkHash => time the chunk may be unloaded
 	 * @phpstan-var array<ChunkPosHash, float>
 	 */
 	private array $unloadQueue = [];
@@ -3387,6 +3389,21 @@ class World implements ChunkManager{
 		}
 	}
 
+	private function isChunkPinnedByViewers(int $chunkHash) : bool{
+		if(!isset($this->playerChunkListeners[$chunkHash])){
+			return false;
+		}
+		if(!$this->autoSave){
+			return true;
+		}
+		foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
+			if(!($entity instanceof Player) && !$entity->canSaveWithChunk() && !$entity->isFlaggedForDespawn()){
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public function isChunkInUse(int $x, int $z) : bool{
 		return isset($this->chunkLoaders[$index = World::chunkHash($x, $z)]) && count($this->chunkLoaders[$index]) > 0;
 	}
@@ -3547,16 +3564,16 @@ class World implements ChunkManager{
 		}
 	}
 
-	private function queueUnloadChunk(int $x, int $z) : void{
-		$this->unloadQueue[World::chunkHash($x, $z)] = microtime(true);
+	private function queueUnloadChunk(int $x, int $z, float $delay) : void{
+		$this->unloadQueue[World::chunkHash($x, $z)] = microtime(true) + $delay;
 	}
 
-	public function unloadChunkRequest(int $x, int $z, bool $safe = true) : bool{
+	public function unloadChunkRequest(int $x, int $z, bool $safe = true, float $delay = self::CHUNK_UNLOAD_DELAY) : bool{
 		if(($safe && $this->isChunkInUse($x, $z)) || $this->isSpawnChunk($x, $z)){
 			return false;
 		}
 
-		$this->queueUnloadChunk($x, $z);
+		$this->queueUnloadChunk($x, $z, $delay);
 
 		return true;
 	}
@@ -3566,8 +3583,7 @@ class World implements ChunkManager{
 	}
 
 	public function unloadChunk(int $x, int $z, bool $safe = true, bool $trySave = true) : bool{
-		//without autosave the unload would drop changes players can still see
-		if($safe && ($this->isChunkInUse($x, $z) || (!$this->autoSave && isset($this->playerChunkListeners[World::chunkHash($x, $z)])))){
+		if($safe && ($this->isChunkInUse($x, $z) || $this->isChunkPinnedByViewers(World::chunkHash($x, $z)))){
 			return false;
 		}
 
@@ -4273,7 +4289,7 @@ class World implements ChunkManager{
 				if(!$force){
 					if($maxUnload <= 0){
 						break;
-					}elseif($time > ($now - 30)){
+					}elseif($time > $now){
 						continue;
 					}
 				}
