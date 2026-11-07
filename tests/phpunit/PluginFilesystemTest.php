@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use quark\FilesystemPaths;
 use quark\lang\Language;
 use quark\permission\Permission;
+use quark\ProcessTestHelper;
 use quark\Server;
 use quark\thread\ThreadSafeClassLoader;
 use quark\utils\MainLogger;
@@ -17,12 +18,9 @@ use function array_map;
 use function assert;
 use function bin2hex;
 use function dirname;
-use function escapeshellarg;
-use function exec;
 use function file_get_contents;
 use function file_put_contents;
 use function glob;
-use function implode;
 use function is_dir;
 use function is_link;
 use function iterator_to_array;
@@ -71,6 +69,15 @@ final class PluginFilesystemTest extends TestCase{
 	private function script(string $file, string $name) : void{
 		$namespace = "PluginFilesystem" . bin2hex(random_bytes(8));
 		file_put_contents($this->paths->plugins . "/$file", "<?php\nnamespace $namespace;\n/**\n * @name $name\n * @main $namespace\\Main\n * @version 1.0.0\n * @api 6.0.0\n */\nfinal class Main extends \\quark\\plugin\\PluginBase {}\n");
+	}
+
+	/**
+	 * Waits on the process instead of exec()'s pipe. On Windows the logger thread's console child can inherit that pipe
+	 * and keep it open, which hangs exec() until the CI timeout.
+	 */
+	private function buildPhar(string $source, string $name) : void{
+		[$status, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-n", "-d", "phar.readonly=0", dirname(__DIR__) . "/build-plugin-phar.php", $source, $this->paths->plugins . "/$name.phar"], 30.0);
+		self::assertSame(0, $status, $output . $errors);
 	}
 
 	private function manager(?PluginGraylist $graylist = null) : PluginManager{
@@ -237,8 +244,7 @@ final class PluginFilesystemTest extends TestCase{
 				@mkdir(dirname("$source/$path"), 0777, true);
 				file_put_contents("$source/$path", $contents);
 			}
-			exec(escapeshellarg(PHP_BINARY) . " -n -d phar.readonly=0 " . escapeshellarg(dirname(__DIR__) . "/build-plugin-phar.php") . " " . escapeshellarg($source) . " " . escapeshellarg($this->paths->plugins . "/$name.phar") . " 2>&1", $output, $status);
-			self::assertSame(0, $status, implode("\n", $output));
+			$this->buildPhar($source, $name);
 		};
 		$prefix = "PharManifest" . bin2hex(random_bytes(4));
 		$build("{$prefix}Legacy", [
@@ -280,8 +286,7 @@ final class PluginFilesystemTest extends TestCase{
 			@mkdir(dirname("$source/$path"), 0777, true);
 			file_put_contents("$source/$path", $contents);
 		}
-		exec(escapeshellarg(PHP_BINARY) . " -n -d phar.readonly=0 " . escapeshellarg(dirname(__DIR__) . "/build-plugin-phar.php") . " " . escapeshellarg($source) . " " . escapeshellarg($this->paths->plugins . "/$name.phar") . " 2>&1", $output, $status);
-		self::assertSame(0, $status, implode("\n", $output));
+		$this->buildPhar($source, $name);
 		$loader = new class($classLoader) extends PharPluginLoader{
 			public int $reads = 0;
 
@@ -320,9 +325,7 @@ final class Main extends \quark\plugin\PluginBase {}
 			@mkdir(dirname("$source/$path"), 0777, true);
 			file_put_contents("$source/$path", $contents);
 		}
-		exec(escapeshellarg(PHP_BINARY) . " -n -d phar.readonly=0 " . escapeshellarg(dirname(__DIR__) . "/build-plugin-phar.php") . " " . escapeshellarg($source) . " " . escapeshellarg($this->paths->plugins . "/$name.phar") . " 2>&1", $output, $status);
-		self::assertSame(0, $status, implode("
-", $output));
+		$this->buildPhar($source, $name);
 		file_put_contents($this->paths->pluginData() . "/secret.txt", "secret");
 		$manager = $this->manager();
 		$manager->registerInterface(new PharPluginLoader($classLoader));
