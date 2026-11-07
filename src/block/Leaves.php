@@ -34,11 +34,12 @@ use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\player\Player;
 use quark\world\BlockTransaction;
+use quark\world\ChunkManager;
 use quark\world\World;
 use function mt_rand;
 
 class Leaves extends Transparent{
-	private const MAX_LOG_DISTANCE = 4;
+	private const MAX_LOG_DISTANCE = 5;
 
 	protected LeavesType $leavesType; //immutable for now
 	protected bool $noDecay = false;
@@ -77,28 +78,38 @@ class Leaves extends Transparent{
 	}
 
 	/**
-	 * @param true[] $visited reference parameter
-	 * @phpstan-param array<int, true> $visited
-	 * @phpstan-param-out array<int, true> $visited
+	 * Breadth-first so every leaf is reached by its shortest path. A depth-first search with a shared visited set
+	 * marks leaves from long detours first and then skips them on the short route, wrongly decaying distant leaves.
 	 */
-	protected function findLog(Vector3 $pos, array &$visited = [], int $distance = 0) : bool{
-		$index = World::blockHash($pos->x, $pos->y, $pos->z);
-		if(isset($visited[$index])){
-			return false;
-		}
-		$visited[$index] = true;
+	public static function isConnectedToLog(ChunkManager $world, int $x, int $y, int $z) : bool{
+		$visited = [World::blockHash($x, $y, $z) => true];
+		$frontier = [[$x, $y, $z]];
+		for($distance = 1; $distance <= self::MAX_LOG_DISTANCE && $frontier !== []; ++$distance){
+			$next = [];
+			foreach($frontier as [$fx, $fy, $fz]){
+				foreach(Facing::OFFSET as [$dx, $dy, $dz]){
+					$nx = $fx + $dx;
+					$ny = $fy + $dy;
+					$nz = $fz + $dz;
+					if(!$world->isInWorld($nx, $ny, $nz)){
+						continue;
+					}
+					$index = World::blockHash($nx, $ny, $nz);
+					if(isset($visited[$index])){
+						continue;
+					}
+					$visited[$index] = true;
 
-		$block = $this->position->getWorld()->getBlock($pos);
-		if($block instanceof Wood){ //type doesn't matter
-			return true;
-		}
-
-		if($block instanceof Leaves && $distance <= self::MAX_LOG_DISTANCE){
-			foreach(Facing::ALL as $side){
-				if($this->findLog($pos->getSide($side), $visited, $distance + 1)){
-					return true;
+					$block = $world->getBlockAt($nx, $ny, $nz);
+					if($block instanceof Wood){ //type doesn't matter
+						return true;
+					}
+					if($block instanceof Leaves){
+						$next[] = [$nx, $ny, $nz];
+					}
 				}
 			}
+			$frontier = $next;
 		}
 
 		return false;
@@ -125,7 +136,7 @@ class Leaves extends Transparent{
 			}
 
 			$world = $this->position->getWorld();
-			if($cancelled || $this->findLog($this->position)){
+			if($cancelled || self::isConnectedToLog($world, $this->position->getFloorX(), $this->position->getFloorY(), $this->position->getFloorZ())){
 				$this->checkDecay = false;
 				$world->setBlock($this->position, $this, false);
 			}else{
