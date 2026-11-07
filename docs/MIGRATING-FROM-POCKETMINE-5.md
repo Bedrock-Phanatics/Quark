@@ -123,6 +123,10 @@ $player->sendForm($form);
 - Turtle Helmets no longer grant Water Breathing.
 - Plugins relying on these mechanics must implement their own behavior.
 
+### Block Placement
+
+- `Block::place()` no longer receives the clicked block. Use `$blockReplace->getSide(Facing::opposite($face))` for the block the placement is attached to.
+
 ### Plugin Resources
 
 - `PluginBase::getResource()` has been removed because it returned a handle that had to be closed with `fclose()`. Use `file_get_contents($this->getResourcePath($name))` or `fopen()` on the same path instead.

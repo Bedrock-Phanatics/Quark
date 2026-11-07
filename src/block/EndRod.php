@@ -38,7 +38,8 @@ class EndRod extends Flowable implements AnyFacing{
 
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->facing = $face;
-		if(($clicked = $blockReplace->getSide(Facing::opposite($face))) instanceof EndRod && $clicked->facing === $this->facing){
+		$support = $blockReplace->getSide(Facing::opposite($face));
+		if($support instanceof EndRod && $support->facing === $this->facing){
 			$this->facing = Facing::opposite($face);
 		}
 
