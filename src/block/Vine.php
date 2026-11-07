@@ -101,7 +101,7 @@ class Vine extends Flowable{
 		return [];
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockReplace->getSide(Facing::opposite($face))->isFullCube() || Facing::axis($face) === Axis::Y){
 			return false;
 		}
@@ -109,7 +109,7 @@ class Vine extends Flowable{
 		$this->faces = $blockReplace instanceof Vine ? $blockReplace->faces : [];
 		$this->faces[Facing::opposite($face)] = Facing::opposite($face);
 
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{

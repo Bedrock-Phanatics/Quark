@@ -41,13 +41,13 @@ use function assert;
 trait RedstoneRepeaterBehavior{
 	use RedstoneBlockAccessTrait;
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($this->canBePlacedUpon(RedstoneBlockUtils::getBlockAtSide($blockReplace->position, Facing::DOWN))){
 			if($player !== null){
 				$this->facing = Facing::opposite($player->getHorizontalFacing());
 			}
 
-			return Flowable::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+			return Flowable::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 		}
 
 		return false;

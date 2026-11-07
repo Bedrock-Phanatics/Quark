@@ -116,7 +116,7 @@ class MobHead extends Flowable{
 		return [$collisionBox];
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face === Facing::DOWN){
 			return false;
 		}
@@ -125,6 +125,6 @@ class MobHead extends Flowable{
 		if($player !== null && $face === Facing::UP){
 			$this->rotation = ((int) floor(($player->getLocation()->getYaw() * 16 / 360) + 0.5)) & 0xf;
 		}
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 }

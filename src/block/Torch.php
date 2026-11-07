@@ -60,10 +60,10 @@ class Torch extends Flowable{
 		}
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face !== Facing::DOWN && $this->canBeSupportedAt($blockReplace, Facing::opposite($face))){
 			$this->facing = $face;
-			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+			return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 		}else{
 			foreach([
 				Facing::SOUTH,
@@ -74,7 +74,7 @@ class Torch extends Flowable{
 			] as $side){
 				if($this->canBeSupportedAt($blockReplace, $side)){
 					$this->facing = Facing::opposite($side);
-					return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+					return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 				}
 			}
 		}

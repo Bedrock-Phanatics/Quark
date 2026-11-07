@@ -88,11 +88,11 @@ class CustomBlock extends Block{
 		$this->stateId = null;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($this->settings->facingState !== null && $player !== null){
 			$this->setState($this->settings->facingState, self::facingName(Facing::opposite($player->getHorizontalFacing())));
 		}
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	/** @internal */

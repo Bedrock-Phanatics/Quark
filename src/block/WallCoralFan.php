@@ -41,7 +41,7 @@ final class WallCoralFan extends BaseCoral implements HorizontalFacing{
 		$w->horizontalFacing($this->facing);
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$axis = Facing::axis($face);
 		if(($axis !== Axis::X && $axis !== Axis::Z) || !$this->canBeSupportedAt($blockReplace, Facing::opposite($face))){
 			return false;
@@ -50,7 +50,7 @@ final class WallCoralFan extends BaseCoral implements HorizontalFacing{
 
 		$this->dead = !$this->isCoveredWithWater();
 
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{

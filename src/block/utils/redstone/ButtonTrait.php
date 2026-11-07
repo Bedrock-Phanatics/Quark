@@ -86,8 +86,8 @@ trait ButtonTrait{
 		return $side === $this->getSupportingSide();
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		return $blockClicked->isSolid() && parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		return $blockReplace->getSide(Facing::opposite($face))->isSolid() && parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onBreak(Item $item, ?Player $player = null, array &$returnedItems = []) : bool{

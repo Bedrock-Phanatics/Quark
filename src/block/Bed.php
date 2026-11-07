@@ -172,7 +172,7 @@ class Bed extends Transparent implements Colored, HorizontalFacing{
 		return $entity->getMotion()->y * -3 / 4; // 2/3 in Java, according to the wiki
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($this->canBeSupportedAt($blockReplace)){
 			$this->facing = $player !== null ? $player->getHorizontalFacing() : Facing::NORTH;
 

@@ -67,10 +67,10 @@ class CocoaBlock extends Flowable implements Ageable, HorizontalFacing{
 		return $block instanceof Wood && $block->getWoodType() === WoodType::JUNGLE;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		if(Facing::axis($face) !== Axis::Y && $this->canAttachTo($blockClicked)){
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(Facing::axis($face) !== Axis::Y && $this->canAttachTo($blockReplace->getSide(Facing::opposite($face)))){
 			$this->facing = $face;
-			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+			return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 		}
 
 		return false;

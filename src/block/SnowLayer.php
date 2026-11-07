@@ -80,7 +80,7 @@ class SnowLayer extends Flowable implements Fallable{
 		return $block->getAdjacentSupportType(Facing::DOWN) === SupportType::FULL;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($blockReplace instanceof SnowLayer){
 			if($blockReplace->layers >= self::MAX_LAYERS){
 				return false;
@@ -88,7 +88,7 @@ class SnowLayer extends Flowable implements Fallable{
 			$this->layers = $blockReplace->layers + 1;
 		}
 		if($this->canBeSupportedAt($blockReplace)){
-			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+			return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 		}
 
 		return false;

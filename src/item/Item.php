@@ -488,7 +488,7 @@ class Item implements \JsonSerializable{
 			return null;
 		}
 		$transaction = new BlockTransaction($position->getWorld());
-		return $blockPlace->place($transaction, $this, $blockReplace, $blockClicked, $face, $clickVector, $player) ? $transaction : null;
+		return $blockPlace->place($transaction, $this, $blockReplace, $face, $clickVector, $player) ? $transaction : null;
 	}
 
 	public function getPlacementTransaction(Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : ?BlockTransaction{

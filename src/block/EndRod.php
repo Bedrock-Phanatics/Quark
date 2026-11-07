@@ -36,13 +36,13 @@ use quark\world\BlockTransaction;
 class EndRod extends Flowable implements AnyFacing{
 	use AnyFacingTrait;
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->facing = $face;
-		if($blockClicked instanceof EndRod && $blockClicked->facing === $this->facing){
+		if(($clicked = $blockReplace->getSide(Facing::opposite($face))) instanceof EndRod && $clicked->facing === $this->facing){
 			$this->facing = Facing::opposite($face);
 		}
 
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function isSolid() : bool{

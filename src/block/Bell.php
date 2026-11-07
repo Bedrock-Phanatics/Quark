@@ -87,7 +87,7 @@ final class Bell extends Transparent implements HorizontalFacing{
 		return $block->getAdjacentSupportType($face) !== SupportType::NONE;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$this->canBeSupportedAt($blockReplace, Facing::opposite($face))){
 			return false;
 		}
@@ -106,7 +106,7 @@ final class Bell extends Transparent implements HorizontalFacing{
 					BellAttachmentType::ONE_WALL
 			);
 		}
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{
