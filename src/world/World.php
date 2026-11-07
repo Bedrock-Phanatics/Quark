@@ -1171,25 +1171,7 @@ class World implements ChunkManager{
 		$this->executeQueuedLightUpdates();
 
 		if(count($this->changedBlocks) > 0){
-			$changedBlocks = $this->changedBlocks;
-			$this->changedBlocks = [];
-			foreach($changedBlocks as $index => $blocks){
-				//a previous chunk may have caused this one to be unloaded by a ChunkListener
-				$chunk = $this->chunks[$index] ?? null;
-				if($chunk === null || !isset($this->playerChunkListeners[$index])){
-					continue;
-				}
-				World::getXZ($index, $chunkX, $chunkZ);
-				if(count($blocks) > 512){
-					foreach($this->playerChunkListeners[$index] as $p){
-						$p->onChunkChanged($chunkX, $chunkZ, $chunk);
-					}
-				}else{
-					foreach($this->createChunkBlockUpdatePackets($chunkX, $chunkZ, $chunk, $blocks) as $packet){
-						$this->packetBuffersByChunk[$index][] = $packet;
-					}
-				}
-			}
+			$this->sendChangedBlocks();
 		}
 
 		if($this->sleepTicks > 0 && --$this->sleepTicks <= 0){
@@ -1321,6 +1303,29 @@ class World implements ChunkManager{
 		$this->sleepTicks = $ticks;
 	}
 
+	private function sendChangedBlocks() : void{
+		//taken up front so blocks changed while sending wait for the next tick instead of being dropped
+		$changedBlocks = $this->changedBlocks;
+		$this->changedBlocks = [];
+		foreach($changedBlocks as $index => $blocks){
+			//a previous chunk may have caused this one to be unloaded by a ChunkListener
+			$chunk = $this->chunks[$index] ?? null;
+			if($chunk === null || !isset($this->playerChunkListeners[$index])){
+				continue;
+			}
+			World::getXZ($index, $chunkX, $chunkZ);
+			if(count($blocks) > 512){
+				foreach($this->playerChunkListeners[$index] as $p){
+					$p->onChunkChanged($chunkX, $chunkZ, $chunk);
+				}
+			}else{
+				foreach($this->createChunkBlockUpdatePackets($chunkX, $chunkZ, $chunk, $blocks) as $packet){
+					$this->packetBuffersByChunk[$index][] = $packet;
+				}
+			}
+		}
+	}
+
 	/**
 	 * @param Vector3[] $blocks
 	 *
@@ -1363,7 +1368,7 @@ class World implements ChunkManager{
 	 * @phpstan-param-out list<ClientboundPacket> $packets
 	 */
 	private function addBlockUpdatePackets(array &$packets, BlockTranslator $blockTranslator, Chunk $chunk, int $x, int $y, int $z) : void{
-		$fullBlock = $this->getBlockAt($x, $y, $z, addToCache: false);
+		$fullBlock = $this->getBlockAt($x, $y, $z);
 		$blockPosition = new BlockPosition($x, $y, $z);
 
 		$tile = $chunk->getTile($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
@@ -2461,9 +2466,10 @@ class World implements ChunkManager{
 		}
 
 		if($addToCache && $relativeBlockHash !== null){
+			$replaced = !$cached && isset($this->blockCache[$chunkHash][$relativeBlockHash]);
 			$this->blockCache[$chunkHash][$relativeBlockHash] = $block;
 
-			if(++$this->blockCacheSize >= self::BLOCK_CACHE_SIZE_CAP){
+			if(!$replaced && ++$this->blockCacheSize >= self::BLOCK_CACHE_SIZE_CAP){
 				$this->trimBlockCache();
 			}
 		}
