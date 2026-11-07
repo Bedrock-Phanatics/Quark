@@ -268,6 +268,50 @@ final class PluginFilesystemTest extends TestCase{
 		self::assertFileDoesNotExist($this->paths->pluginData() . "/Modern/config.yml");
 	}
 
+	public function testResourcesAreScopedToTheResourceFolder() : void{
+		$classLoader = new ThreadSafeClassLoader();
+		$classLoader->register(true);
+		$name = "PharResources" . bin2hex(random_bytes(4));
+		$source = $this->root . "/src-$name";
+		foreach([
+			"plugin.yml" => "name: Res
+main: $name\Main
+src-namespace-prefix: $name
+version: 1.0.0
+api: 6.0.0
+",
+			"src/Main.php" => "<?php
+namespace $name;
+final class Main extends \quark\plugin\PluginBase {}
+",
+			"resources/a.txt" => "a",
+			"resources/lang/b.txt" => "b"
+		] as $path => $contents){
+			@mkdir(dirname("$source/$path"), 0777, true);
+			file_put_contents("$source/$path", $contents);
+		}
+		exec(escapeshellarg(PHP_BINARY) . " -n -d phar.readonly=0 " . escapeshellarg(dirname(__DIR__) . "/build-plugin-phar.php") . " " . escapeshellarg($source) . " " . escapeshellarg($this->paths->plugins . "/$name.phar") . " 2>&1", $output, $status);
+		self::assertSame(0, $status, implode("
+", $output));
+		file_put_contents($this->paths->pluginData() . "/secret.txt", "secret");
+		$manager = $this->manager();
+		$manager->registerInterface(new PharPluginLoader($classLoader));
+		$errors = 0;
+		$plugin = $manager->loadPlugins($this->paths->plugins, $errors)["Res"];
+		self::assertInstanceOf(PluginBase::class, $plugin);
+		self::assertSame(["a.txt", "lang/b.txt"], array_keys($plugin->getResources()));
+		self::assertSame("b", file_get_contents($plugin->getResourcePath("lang/b.txt")));
+		self::assertFalse($plugin->saveResource("lang"), "directories are not resources");
+		self::assertFalse($plugin->saveResource("../../plugin.yml"), "path traversal is rejected");
+		self::assertFalse($plugin->saveResource("missing.txt"));
+		self::assertTrue($plugin->saveResource("lang/b.txt"));
+		self::assertSame("b", file_get_contents($plugin->getDataFolder() . "lang/b.txt"));
+		file_put_contents($plugin->getDataFolder() . "lang/b.txt", "edited");
+		self::assertFalse($plugin->saveResource("lang/b.txt"));
+		self::assertTrue($plugin->saveResource("lang/b.txt", true));
+		self::assertSame("b", file_get_contents($plugin->getDataFolder() . "lang/b.txt"));
+	}
+
 	public function testSymlinkedPluginDataFolderIsRejected() : void{
 		$this->script("alpha.php", "Alpha");
 		mkdir($this->root . "/outside");

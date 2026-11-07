@@ -40,6 +40,7 @@ use function count;
 use function dirname;
 use function file_exists;
 use function is_dir;
+use function is_file;
 use function mkdir;
 use function rtrim;
 use function str_contains;
@@ -241,11 +242,11 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		}
 
 		$source = Path::join($this->resourceFolder, $filename);
-		if(!file_exists($source)){
+		$destination = Path::join($this->dataFolder, $filename);
+		if(!is_file($source) || !Path::isBasePath($this->resourceFolder, $source) || !Path::isBasePath($this->dataFolder, $destination)){
 			return false;
 		}
 
-		$destination = Path::join($this->dataFolder, $filename);
 		if(file_exists($destination) && !$replace){
 			return false;
 		}
@@ -266,7 +267,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		$resources = [];
 		if(is_dir($this->resourceFolder)){
 			/** @var \SplFileInfo $resource */
-			foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->resourceFolder)) as $resource){
+			foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->resourceFolder, \FilesystemIterator::SKIP_DOTS)) as $resource){
 				if($resource->isFile()){
 					$path = str_replace(DIRECTORY_SEPARATOR, "/", substr((string) $resource, strlen($this->resourceFolder)));
 					$resources[$path] = $resource;
