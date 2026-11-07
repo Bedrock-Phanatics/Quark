@@ -290,7 +290,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		$this->getConfig()->save();
 	}
 
-	public function saveDefaultConfig() : bool{
+	private function saveDefaultConfig() : bool{
 		if(file_exists($this->configFile)){
 			return false;
 		}
