@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\player;
 
+use DateTimeImmutable;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -463,18 +464,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		return parent::getUniqueId();
 	}
 
-	/**
-	 * TODO: not sure this should be nullable
-	 */
-	public function getFirstPlayed() : ?int{
-		return $this->firstPlayed;
+	public function getFirstPlayed() : DateTimeImmutable{
+		return DateTimeImmutable::createFromTimestamp($this->firstPlayed / 1000);
 	}
 
-	/**
-	 * TODO: not sure this should be nullable
-	 */
-	public function getLastPlayed() : ?int{
-		return $this->lastPlayed;
+	public function getLastPlayed() : DateTimeImmutable{
+		return DateTimeImmutable::createFromTimestamp($this->lastPlayed / 1000);
 	}
 
 	public function hasPlayedBefore() : bool{
