@@ -464,6 +464,14 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 					$this->dropSession($sessionId, "Failed to send packet: " . $e->getMessage());
 					continue 2;
 				}
+				if(!isset($this->sessions[$sessionId]) && !isset($this->pendingDisconnects[$sessionId])){
+					//the send dropped the session, so the rest of its queue must not reach the native side
+					foreach(array_slice($queue, $i + 1) as [$unsent]){
+						$this->deferredBytes -= $unsent;
+					}
+					$this->discardDeferred($sessionId);
+					continue 2;
+				}
 				$progressed = $progressed || !isset($this->deferred[$sessionId]);
 			}
 			if(isset($this->deferred[$sessionId])){
@@ -486,6 +494,8 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	 */
 	private function dropSession(int $sessionId, string $reason) : void{
 		$this->discardDeferred($sessionId);
+		//a closed session waiting on its queue is disconnected here, not again by flushPendingDisconnects
+		unset($this->pendingDisconnects[$sessionId]);
 		$session = $this->sessions[$sessionId] ?? null;
 		if($session !== null){
 			$this->close($sessionId);
