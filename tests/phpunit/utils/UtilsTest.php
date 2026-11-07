@@ -78,9 +78,9 @@ class UtilsTest extends TestCase{
 	 */
 	public static function parseDocCommentNewlineProvider() : array{
 		return [
-			["\t/**\r\n\t * @param PlayerJoinEvent \$event\r\n\t * @priority HIGHEST\r\n\t * @notHandler\r\n\t */"],
-			["\t/**\n\t * @param PlayerJoinEvent \$event\n\t * @priority HIGHEST\n\t * @notHandler\n\t */"],
-			["\t/**\r\t * @param PlayerJoinEvent \$event\r\t * @priority HIGHEST\r\t * @notHandler\r\t */"]
+			["\t/**\r\n\t * @param PlayerJoinEvent \$event\r\n\t * @priority LATEST\r\n\t * @notHandler\r\n\t */"],
+			["\t/**\n\t * @param PlayerJoinEvent \$event\n\t * @priority LATEST\n\t * @notHandler\n\t */"],
+			["\t/**\r\t * @param PlayerJoinEvent \$event\r\t * @priority LATEST\r\t * @notHandler\r\t */"]
 		];
 	}
 
@@ -93,7 +93,7 @@ class UtilsTest extends TestCase{
 		self::assertArrayHasKey("notHandler", $tags);
 		self::assertEquals("", $tags["notHandler"]);
 		self::assertArrayHasKey("priority", $tags);
-		self::assertEquals("HIGHEST", $tags["priority"]);
+		self::assertEquals("LATEST", $tags["priority"]);
 	}
 
 	/**

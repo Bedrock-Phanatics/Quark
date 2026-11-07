@@ -32,6 +32,7 @@ use quark\event\fixtures\TestChildEvent;
 use quark\event\fixtures\TestGrandchildEvent;
 use quark\event\fixtures\TestParentEvent;
 use quark\plugin\Plugin;
+use quark\plugin\PluginException;
 use quark\plugin\PluginManager;
 use quark\Server;
 use function array_reverse;
@@ -115,8 +116,82 @@ final class EventTest extends TestCase{
 		self::assertSame(EventPriority::LATE, EventPriority::fromString("Late"));
 		self::assertSame(EventPriority::MONITOR, EventPriority::fromString("MONITOR"));
 
-		$this->expectException(\InvalidArgumentException::class);
-		EventPriority::fromString("HIGHEST");
+		foreach(["LOWEST", "LOW", "HIGH", "HIGHEST", ""] as $removed){
+			try{
+				EventPriority::fromString($removed);
+				self::fail("Expected \"$removed\" to be rejected");
+			}catch(\InvalidArgumentException){
+			}
+		}
+	}
+
+	public function testPriorityBeatsInheritanceOrder() : void{
+		$called = [];
+		$registrations = [
+			[TestChildEvent::class, EventPriority::NORMAL],
+			[TestParentEvent::class, EventPriority::EARLIEST],
+			[TestChildEvent::class, EventPriority::MONITOR]
+		];
+		foreach($registrations as [$class, $priority]){
+			$this->pluginManager->registerEvent(
+				$class,
+				function(TestParentEvent $event) use (&$called, $class, $priority) : void{
+					$called[] = [$class, $priority];
+				},
+				$priority,
+				$this->mockPlugin
+			);
+		}
+
+		new TestChildEvent()->call();
+
+		self::assertSame([
+			[TestParentEvent::class, EventPriority::EARLIEST],
+			[TestChildEvent::class, EventPriority::NORMAL],
+			[TestChildEvent::class, EventPriority::MONITOR]
+		], $called);
+	}
+
+	public function testPriorityTagsOnListener() : void{
+		$called = new \ArrayObject();
+		$listener = new class($called) implements Listener{
+			/** @phpstan-param \ArrayObject<int, string> $called */
+			public function __construct(private \ArrayObject $called){}
+
+			/** @priority LATEST */
+			public function latest(TestParentEvent $event) : void{
+				$this->called[] = "latest";
+			}
+
+			public function normal(TestParentEvent $event) : void{
+				$this->called[] = "normal";
+			}
+
+			/** @priority earliest */
+			public function earliest(TestParentEvent $event) : void{
+				$this->called[] = "earliest";
+			}
+
+			/** @priority MONITOR */
+			public function monitor(TestParentEvent $event) : void{
+				$this->called[] = "monitor";
+			}
+		};
+		$this->pluginManager->registerEvents($listener, $this->mockPlugin);
+
+		new TestParentEvent()->call();
+
+		self::assertSame(["earliest", "normal", "latest", "monitor"], $called->getArrayCopy());
+	}
+
+	public function testRemovedPriorityTagIsRejected() : void{
+		$listener = new class implements Listener{
+			/** @priority HIGHEST */
+			public function handle(TestParentEvent $event) : void{}
+		};
+
+		$this->expectException(PluginException::class);
+		$this->pluginManager->registerEvents($listener, $this->mockPlugin);
 	}
 
 	public function testHumanExhaustionEvent() : void{
