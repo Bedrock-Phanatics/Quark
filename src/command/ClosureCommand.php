@@ -46,10 +46,8 @@ final class ClosureCommand extends Command{
 		Translatable|string|null $usageMessage = null,
 		array $aliases = []
 	){
-		Utils::validateCallableSignature(
-			fn(CommandSender $sender, Command $command, string $commandLabel, array $args) : mixed => 1,
-			$execute,
-		);
+		//void accepts any return type, including undeclared ones, which mixed would reject
+		Utils::validateCallableSignature(function(CommandSender $sender, Command $command, string $commandLabel, array $args) : void{}, $execute);
 		$this->execute = $execute;
 		parent::__construct($name, $description, $usageMessage, $aliases);
 		$this->setPermissions($permissions);

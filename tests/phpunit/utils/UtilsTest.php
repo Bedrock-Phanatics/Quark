@@ -196,6 +196,7 @@ class UtilsTest extends TestCase{
 			[fn(int $a) : int|string => die(), fn(int $a, int $b = 0) : int => 0],
 			[fn() : ?TestInterface => null, fn() : TestInstantiableClass&TestInterface => new TestInstantiableClass()],
 			[function() : void{}, fn() : bool => true],
+			[function(int $a) : void{}, function($a){ return $a; }],
 		];
 	}
 
@@ -219,6 +220,7 @@ class UtilsTest extends TestCase{
 			[fn() : int => 0, fn() : ?int => null],
 			[fn(int $a) : int => 0, fn(int $a, int $b) : int => 0],
 			[fn(TestInterface $a) : int => 0, fn(TestInstantiableClass $a) : int => 0],
+			[fn() : mixed => 0, function(){ return 0; }],
 		];
 	}
 
