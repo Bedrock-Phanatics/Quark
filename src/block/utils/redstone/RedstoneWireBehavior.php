@@ -27,6 +27,7 @@ use Generator;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\Block;
+use quark\block\Opaque;
 use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\player\Player;
@@ -303,7 +304,7 @@ trait RedstoneWireBehavior{
 		}
 		$above_transparent = RedstoneBlockUtils::getBlockAtSide($this->position, Facing::UP)->isTransparent();
 		foreach($blocks as $side => $block){
-			if(!($block instanceof self) && $this->canStronglyPower($side)){
+			if($block instanceof Opaque && $this->canStronglyPower($side)){
 				$side_opposite = Facing::opposite($side);
 				foreach(Facing::ALL as $side2){
 					if($side2 === $side_opposite){
