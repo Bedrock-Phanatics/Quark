@@ -43,7 +43,8 @@ final class BedwireWakeupThread extends Thread{
 	protected function onRun() : void{
 		$notifier = $this->sleeperEntry->createNotifier();
 		$seen = 0;
-		while(($sequence = BedwireServer::waitForEvents($this->signal, $seen, 1000)) !== null){
+		//isKilled covers a fatal error leaving a reference to the server alive, which would otherwise hang quit()
+		while(!$this->isKilled && ($sequence = BedwireServer::waitForEvents($this->signal, $seen, 1000)) !== null){
 			if($sequence !== $seen){
 				$seen = $sequence;
 				$notifier->wakeupSleeper();
