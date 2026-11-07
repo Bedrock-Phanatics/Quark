@@ -24,14 +24,14 @@ declare(strict_types=1);
 namespace quark\world;
 
 /**
- * If you want to keep chunks loaded, implement this interface and register it into World.
+ * If you want to keep chunks loaded, register an instance of this class with World.
  *
  * @see World::registerChunkLoader()
  * @see World::unregisterChunkLoader()
  *
- * WARNING: When moving this object around in the world or destroying it,
- * be sure to unregister the loader from chunks you're not using, otherwise you'll leak memory.
+ * WARNING: When moving or destroying this object, be sure to unregister it
+ * from any chunks it is no longer associated with, otherwise memory leaks may occur.
  */
-interface ChunkLoader{
+final class ChunkLoader{
 
 }
