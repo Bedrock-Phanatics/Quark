@@ -60,7 +60,7 @@ final class PulseCommand extends VanillaCommand{
 		return (int) $ns;
 	}
 
-	private const PREFIX = TextFormat::DARK_AQUA . "Pulse " . TextFormat::DARK_GRAY . "» " . TextFormat::GRAY;
+	private const PREFIX = TextFormat::DARK_GRAY . "[" . TextFormat::DARK_AQUA . "Pulse" . TextFormat::DARK_GRAY . "] " . TextFormat::GRAY;
 
 	private static function msg(string $message) : string{
 		return self::PREFIX . $message;
@@ -121,7 +121,7 @@ final class PulseCommand extends VanillaCommand{
 					$sender->sendMessage(self::msg("Top main-thread costs " . TextFormat::DARK_GRAY . "(self time)"));
 					foreach($top as $index => $zone){
 						$name = preg_replace('/[\x00-\x1f\x7f]/', " ", TextFormat::clean($zone["name"])) ?? "zone";
-						$sender->sendMessage(TextFormat::DARK_GRAY . " " . ($index + 1) . ". " . TextFormat::WHITE . $name . TextFormat::DARK_GRAY . " » " . TextFormat::GRAY .
+						$sender->sendMessage(TextFormat::DARK_GRAY . " " . ($index + 1) . ". " . TextFormat::WHITE . $name . TextFormat::DARK_GRAY . " - " . TextFormat::GRAY .
 							self::ms($zone["self_ns"]) . " self, " . self::value((string) $zone["calls"]) . " calls, " . self::ms($zone["max_ns"]) . " max");
 					}
 					break;
