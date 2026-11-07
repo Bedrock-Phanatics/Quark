@@ -34,7 +34,7 @@ class SubChunkTest extends TestCase{
 	 * Test that a cloned SubChunk instance doesn't influence the original
 	 */
 	public function testClone() : void{
-		$sub1 = new SubChunk(0, [], new PalettedBlockArray(BiomeIds::OCEAN));
+		$sub1 = new SubChunk(0, null, null, new PalettedBlockArray(BiomeIds::OCEAN));
 
 		$sub1->setBlockStateId(0, 0, 0, 1);
 		$sub1->getBlockLightArray()->set(0, 0, 0, 1);
@@ -49,5 +49,47 @@ class SubChunkTest extends TestCase{
 		self::assertNotSame($sub1->getBlockStateId(0, 0, 0), $sub2->getBlockStateId(0, 0, 0));
 		self::assertNotSame($sub1->getBlockLightArray()->get(0, 0, 0), $sub2->getBlockLightArray()->get(0, 0, 0));
 		self::assertNotSame($sub1->getBlockSkyLightArray()->get(0, 0, 0), $sub2->getBlockSkyLightArray()->get(0, 0, 0));
+	}
+
+	public function testCloneCopiesBothLayers() : void{
+		$layer1 = new PalettedBlockArray(0);
+		$layer1->set(0, 0, 0, 5);
+		$sub1 = new SubChunk(0, new PalettedBlockArray(0), $layer1, new PalettedBlockArray(BiomeIds::OCEAN));
+
+		$sub2 = clone $sub1;
+
+		self::assertNotSame($sub1->getBlockLayer0(), $sub2->getBlockLayer0());
+		self::assertNotSame($sub1->getBlockLayer1(), $sub2->getBlockLayer1());
+		self::assertSame(5, $sub2->getBlockLayer1()?->get(0, 0, 0));
+	}
+
+	public function testGarbageCollectionDropsEmptyLayersAndShiftsDown() : void{
+		$layer1 = new PalettedBlockArray(0);
+		$layer1->set(0, 0, 0, 5);
+		$sub = new SubChunk(0, new PalettedBlockArray(0), $layer1, new PalettedBlockArray(BiomeIds::OCEAN));
+
+		self::assertFalse($sub->isEmptyFast());
+		self::assertFalse($sub->isEmptyAuthoritative());
+		self::assertSame($layer1, $sub->getBlockLayer0());
+		self::assertNull($sub->getBlockLayer1());
+		self::assertSame([$layer1], $sub->getBlockLayers());
+
+		$layer1->set(0, 0, 0, 0);
+		self::assertTrue($sub->isEmptyAuthoritative());
+		self::assertNull($sub->getBlockLayer0());
+		self::assertSame([], $sub->getBlockLayers());
+	}
+
+	public function testSetBlockCreatesFirstLayerBeforeSecond() : void{
+		$layer1 = new PalettedBlockArray(0);
+		$layer1->set(0, 0, 0, 5);
+		$sub = new SubChunk(0, null, $layer1, new PalettedBlockArray(BiomeIds::OCEAN));
+
+		self::assertSame(0, $sub->getBlockStateId(0, 0, 0));
+		$sub->setBlockStateId(0, 0, 0, 3);
+
+		self::assertSame(3, $sub->getBlockLayer0()?->get(0, 0, 0));
+		self::assertSame(5, $sub->getBlockLayer1()?->get(0, 0, 0));
+		self::assertSame(0, $sub->getHighestBlockAt(0, 0));
 	}
 }

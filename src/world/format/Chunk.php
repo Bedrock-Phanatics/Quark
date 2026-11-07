@@ -74,7 +74,7 @@ class Chunk{
 	public function __construct(array $subChunks, bool $terrainPopulated){
 		for($y = self::MIN_SUBCHUNK_INDEX; $y <= self::MAX_SUBCHUNK_INDEX; ++$y){
 			//TODO: we should probably require all subchunks to be provided here
-			$this->subChunks[$y] = $subChunks[$y] ?? new SubChunk(Block::EMPTY_STATE_ID, [], new PalettedBlockArray(BiomeIds::OCEAN));
+			$this->subChunks[$y] = $subChunks[$y] ?? new SubChunk(Block::EMPTY_STATE_ID, null, null, new PalettedBlockArray(BiomeIds::OCEAN));
 		}
 
 		$val = (self::MAX_SUBCHUNK_INDEX + 1) * SubChunk::EDGE_LENGTH;
@@ -299,7 +299,7 @@ class Chunk{
 			throw new \InvalidArgumentException("Invalid subchunk Y coordinate $y");
 		}
 
-		$this->subChunks[$y] = $subChunk ?? new SubChunk(Block::EMPTY_STATE_ID, [], new PalettedBlockArray(BiomeIds::OCEAN));
+		$this->subChunks[$y] = $subChunk ?? new SubChunk(Block::EMPTY_STATE_ID, null, null, new PalettedBlockArray(BiomeIds::OCEAN));
 		$this->terrainDirtyFlags |= self::DIRTY_FLAG_BLOCKS;
 	}
 

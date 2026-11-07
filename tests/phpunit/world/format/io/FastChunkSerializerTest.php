@@ -24,9 +24,13 @@ declare(strict_types=1);
 namespace quark\world\format\io;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\world\format\PalettedBlockArray;
 use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
 use quark\world\format\Chunk;
+use quark\world\format\SubChunk;
+
+use function substr_replace;
 
 final class FastChunkSerializerTest extends TestCase{
 
@@ -47,6 +51,30 @@ final class FastChunkSerializerTest extends TestCase{
 		self::assertSame(BiomeIds::DESERT, $copy->getBiomeId(5, 40, 5));
 		self::assertSame(BiomeIds::PLAINS, $copy->getBiomeId(0, 300, 0));
 		self::assertSame(BiomeIds::OCEAN, $copy->getBiomeId(0, 0, 0));
+	}
+
+	public function testRoundTripKeepsBothBlockLayers() : void{
+		$air = VanillaBlocks::AIR()->getStateId();
+		$water = new PalettedBlockArray($air);
+		$water->set(1, 2, 3, VanillaBlocks::WATER()->getStateId());
+		$chunk = new Chunk([0 => new SubChunk($air, null, $water, new PalettedBlockArray(BiomeIds::OCEAN))], false);
+		$chunk->setBlockStateId(1, 2, 3, VanillaBlocks::STONE()->getStateId());
+
+		$serialized = FastChunkSerializer::serializeTerrain($chunk);
+		$sub = FastChunkSerializer::deserializeTerrain($serialized)->getSubChunk(0);
+
+		self::assertSame(VanillaBlocks::STONE()->getStateId(), $sub->getBlockLayer0()?->get(1, 2, 3));
+		self::assertSame(VanillaBlocks::WATER()->getStateId(), $sub->getBlockLayer1()?->get(1, 2, 3));
+		self::assertCount(2, $sub->getBlockLayers());
+	}
+
+	public function testMoreThanTwoBlockLayersAreRejected() : void{
+		$valid = FastChunkSerializer::serializeTerrain(new Chunk([], false));
+		//flags, subchunk count, then the first subchunk's y and air id put the layer count at offset 7
+		$corrupt = substr_replace($valid, "\x03", 7, 1);
+
+		$this->expectException(\UnexpectedValueException::class);
+		FastChunkSerializer::deserializeTerrain($corrupt);
 	}
 
 	public function testRepeatedBiomesAreIndependentCopies() : void{

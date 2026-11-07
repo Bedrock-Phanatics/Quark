@@ -55,7 +55,7 @@ final class LightPopulationTaskTest extends TestCase{
 			if($y === 0){
 				for($x = 0; $x < 16; ++$x) for($z = 0; $z < 16; ++$z) $layer->set($x, 0, $z, VanillaBlocks::STONE()->getStateId());
 			}
-			$subChunks[$y] = new SubChunk($air, [$layer], new PalettedBlockArray(BiomeIds::PLAINS));
+			$subChunks[$y] = new SubChunk($air, $layer, null, new PalettedBlockArray(BiomeIds::PLAINS));
 		}
 		return new Chunk($subChunks, true);
 	}

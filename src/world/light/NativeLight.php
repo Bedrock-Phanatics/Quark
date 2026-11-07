@@ -60,7 +60,7 @@ final class NativeLight{
 		$skyLight = [];
 		foreach($chunk->getSubChunks() as $y => $subChunk){
 			$emptyBlockIds[$y] = $subChunk->getEmptyBlockId();
-			$blocks[$y] = $subChunk->getBlockLayers()[0] ?? null;
+			$blocks[$y] = $subChunk->getBlockLayer0();
 			$blockLight[$y] = $subChunk->getBlockLightArray();
 			$skyLight[$y] = $subChunk->getBlockSkyLightArray();
 		}

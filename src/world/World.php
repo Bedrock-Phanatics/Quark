@@ -1645,7 +1645,7 @@ class World implements ChunkManager{
 
 		$blockFactory = $this->blockStateRegistry;
 		foreach($chunk->getSubChunks() as $Y => $subChunk){
-			$blocks = $subChunk->getBlockLayers()[0] ?? null;
+			$blocks = $subChunk->getBlockLayer0();
 			if($blocks === null){
 				continue;
 			}

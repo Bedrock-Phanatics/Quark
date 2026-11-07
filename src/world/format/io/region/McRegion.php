@@ -90,16 +90,16 @@ class McRegion extends RegionWorldProvider{
 		$fullData = self::readFixedSizeByteArray($chunk, "Data", 16384);
 
 		for($y = 0; $y < 8; ++$y){
-			$subChunks[$y] = new SubChunk(Block::EMPTY_STATE_ID, [$this->palettizeLegacySubChunkFromColumn(
+			$subChunks[$y] = new SubChunk(Block::EMPTY_STATE_ID, $this->palettizeLegacySubChunkFromColumn(
 				$fullIds,
 				$fullData,
 				$y,
 				new \quark\log\SourceLogger($logger, "Subchunk y=$y"),
-			)], clone $biomes3d);
+			), null, clone $biomes3d);
 		}
 		for($y = Chunk::MIN_SUBCHUNK_INDEX; $y <= Chunk::MAX_SUBCHUNK_INDEX; ++$y){
 			if(!isset($subChunks[$y])){
-				$subChunks[$y] = new SubChunk(Block::EMPTY_STATE_ID, [], clone $biomes3d);
+				$subChunks[$y] = new SubChunk(Block::EMPTY_STATE_ID, null, null, clone $biomes3d);
 			}
 		}
 

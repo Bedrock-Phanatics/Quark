@@ -41,7 +41,7 @@ final class LeavesTest extends TestCase{
 		$this->world = new SimpleChunkManager(World::Y_MIN, World::Y_MAX);
 		foreach([-1, 0] as $chunkX){
 			foreach([-1, 0] as $chunkZ){
-				$subChunks = [4 => new SubChunk($air, [new PalettedBlockArray($air)], new PalettedBlockArray(BiomeIds::PLAINS))];
+				$subChunks = [4 => new SubChunk($air, new PalettedBlockArray($air), null, new PalettedBlockArray(BiomeIds::PLAINS))];
 				$this->world->setChunk($chunkX, $chunkZ, new Chunk($subChunks, true));
 			}
 		}

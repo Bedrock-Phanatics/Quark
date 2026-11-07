@@ -164,7 +164,7 @@ final class CustomBlockWorldTest extends TestCase{
 				for($i = 0; $i < 900; ++$i){
 					$layer->set(mt_rand(0, 15), mt_rand(0, 15), mt_rand(0, 15), $pool[mt_rand(0, 3)]);
 				}
-				$subChunks[$y] = new SubChunk($air, [$layer], new PalettedBlockArray(BiomeIds::PLAINS));
+				$subChunks[$y] = new SubChunk($air, $layer, null, new PalettedBlockArray(BiomeIds::PLAINS));
 			}
 			return new Chunk($subChunks, true);
 		};

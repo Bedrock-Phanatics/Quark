@@ -67,7 +67,7 @@ final class WorldLightTest extends TestCase{
 					for($i = 0; $i < 300; ++$i){
 						$layer->set(mt_rand(0, 15), mt_rand(0, 15), mt_rand(0, 15), $pool[mt_rand(0, 9)]);
 					}
-					$subChunks[$y] = new SubChunk($air, [$layer], new PalettedBlockArray(BiomeIds::PLAINS));
+					$subChunks[$y] = new SubChunk($air, $layer, null, new PalettedBlockArray(BiomeIds::PLAINS));
 				}
 				$chunk = new Chunk($subChunks, true);
 				$chunk->setLightPopulated();

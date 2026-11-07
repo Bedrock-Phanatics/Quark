@@ -126,10 +126,12 @@ final class FastChunkSerializer{
 			//TODO: why the heck are we using big-endian here?
 			$airBlockId = BE::readUnsignedInt($stream);
 
-			$layers = [];
-			for($i = 0, $layerCount = Byte::readUnsigned($stream); $i < $layerCount; ++$i){
-				$layers[] = self::deserializePalettedArray($stream, Byte::readUnsigned($stream));
+			$layerCount = Byte::readUnsigned($stream);
+			if($layerCount > 2){
+				throw new \UnexpectedValueException("Expected at most 2 block layers, but got $layerCount");
 			}
+			$layer0 = $layerCount >= 1 ? self::deserializePalettedArray($stream, Byte::readUnsigned($stream)) : null;
+			$layer1 = $layerCount === 2 ? self::deserializePalettedArray($stream, Byte::readUnsigned($stream)) : null;
 			$biomeBitsPerBlock = Byte::readUnsigned($stream);
 			if($biomeBitsPerBlock === self::REPEATED_BIOMES){
 				//every subchunk needs its own copy, since biomes can be changed
@@ -137,7 +139,7 @@ final class FastChunkSerializer{
 			}else{
 				$biomeArray = $previousBiomes = self::deserializePalettedArray($stream, $biomeBitsPerBlock);
 			}
-			$subChunks[$y] = new SubChunk($airBlockId, $layers, $biomeArray);
+			$subChunks[$y] = new SubChunk($airBlockId, $layer0, $layer1, $biomeArray);
 		}
 
 		return new Chunk($subChunks, $terrainPopulated);

@@ -105,7 +105,7 @@ final class ChunkSerializerTest extends TestCase{
 		$chunk->setBlockStateId(3, 80, 3, $stone);
 		$waterLayer = new PalettedBlockArray($air);
 		$waterLayer->set(3, 0, 3, $water);
-		$chunk->setSubChunk(5, new SubChunk($air, [...$chunk->getSubChunk(5)->getBlockLayers(), $waterLayer], new PalettedBlockArray(BiomeIds::PLAINS)));
+		$chunk->setSubChunk(5, new SubChunk($air, $chunk->getSubChunk(5)->getBlockLayer0(), $waterLayer, new PalettedBlockArray(BiomeIds::PLAINS)));
 		$chunk->setBiomeId(0, 0, 0, 1000);
 
 		$count = ChunkSerializer::getSubChunkCount($chunk, DimensionIds::OVERWORLD);
@@ -150,7 +150,7 @@ final class ChunkSerializerTest extends TestCase{
 		foreach($states as $i => $state){
 			$layer->set($i & 0xf, ($i >> 4) & 0xf, $i >> 8, $state);
 		}
-		$chunk = new Chunk([0 => new SubChunk($air, [$layer], new PalettedBlockArray(BiomeIds::PLAINS))], false);
+		$chunk = new Chunk([0 => new SubChunk($air, $layer, null, new PalettedBlockArray(BiomeIds::PLAINS))], false);
 
 		$count = ChunkSerializer::getSubChunkCount($chunk, DimensionIds::OVERWORLD);
 		$payload = ChunkSerializer::serializeFullChunk($chunk, DimensionIds::OVERWORLD, TypeConverter::getInstance()->getBlockTranslator(), "");
