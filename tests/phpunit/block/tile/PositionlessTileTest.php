@@ -26,6 +26,7 @@ namespace quark\block\tile;
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
 use quark\Server;
 use quark\utils\ReversePriorityQueue;
@@ -34,6 +35,8 @@ use quark\world\format\io\ChunkData;
 use quark\world\format\io\WritableWorldProvider;
 use quark\world\Position;
 use quark\world\World;
+use function gc_disable;
+use function gc_enable;
 
 final class PositionlessTileTest extends TestCase{
 
@@ -154,7 +157,39 @@ final class PositionlessTileTest extends TestCase{
 		$furnace->getInventory()->setItem(1, VanillaItems::CHARCOAL());
 	}
 
+	public function testItemDataCannotPairAPlacedChestWithADistantOne() : void{
+		$world = $this->createMock(World::class);
+		$world->method("isLoaded")->willReturn(true);
+		$chest = new Chest();
+		$chest->attach(new Position(0, 64, 0, $world));
+
+		$item = VanillaBlocks::CHEST()->asItem()->setCustomBlockData(CompoundTag::create()->setInt(Chest::TAG_PAIRX, 100)->setInt(Chest::TAG_PAIRZ, 100));
+		$chest->copyDataFromItem($item);
+		self::assertFalse($chest->isPaired());
+	}
+
+	public function testReattachedTilesSpawnAtTheirNewPosition() : void{
+		$world = $this->world();
+		$sign = new Sign();
+		$world->addTile($sign, new Vector3(1, 64, 1));
+		self::assertSame(1, $sign->getSerializedSpawnCompound()->getRoot()->getInt(Tile::TAG_X));
+
+		$world->removeTile($sign);
+		$world->addTile($sign, new Vector3(7, 64, 1));
+		self::assertSame(7, $sign->getSerializedSpawnCompound()->getRoot()->getInt(Tile::TAG_X));
+	}
+
 	public function testInventoryListenersDoNotKeepTilesAlive() : void{
+		//with the cycle collector off, only a missing reference cycle lets the tiles go
+		gc_disable();
+		try{
+			$this->assertTilesAreFreed();
+		}finally{
+			gc_enable();
+		}
+	}
+
+	private function assertTilesAreFreed() : void{
 		foreach([
 			static fn() => new NormalFurnace(),
 			static fn() => new BrewingStand(),

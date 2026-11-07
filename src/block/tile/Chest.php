@@ -57,6 +57,9 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 		if(($pairXTag = $nbt->getTag(self::TAG_PAIRX)) instanceof IntTag && ($pairZTag = $nbt->getTag(self::TAG_PAIRZ)) instanceof IntTag){
 			$this->pairX = $pairXTag->getValue();
 			$this->pairZ = $pairZTag->getValue();
+			if($this->isAttached()){
+				$this->dropDistantPair($this->getPosition());
+			}
 		}
 		$this->loadName($nbt);
 		$this->loadItems($nbt);
@@ -82,7 +85,13 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 
 	public function attach(Position $position) : void{
 		parent::attach($position);
-		//pairs are saved as absolute coordinates, so a chest loaded or moved elsewhere can't keep one that isn't next to it
+		$this->dropDistantPair($position);
+	}
+
+	/**
+	 * Pairs are saved as absolute coordinates, so loaded, moved or item-supplied data can point at a chest that isn't next to this one.
+	 */
+	private function dropDistantPair(Position $position) : void{
 		if($this->pairX !== null && $this->pairZ !== null && abs($position->getFloorX() - $this->pairX) + abs($position->getFloorZ() - $this->pairZ) !== 1){
 			$this->pairX = $this->pairZ = null;
 		}

@@ -29,6 +29,7 @@ use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use quark\block\Block;
+use quark\world\Position;
 use function get_class;
 
 abstract class Spawnable extends Tile{
@@ -49,7 +50,13 @@ abstract class Spawnable extends Tile{
 		$this->clearSpawnCompoundCache();
 	}
 
-	public function clearSpawnCompoundCache() : void{
+	public function attach(Position $position) : void{
+		parent::attach($position);
+		//the cached spawn data carries the old coordinates
+		$this->spawnCompoundCache = null;
+	}
+
+		public function clearSpawnCompoundCache() : void{
 		$this->spawnCompoundCache = null;
 	}
 
