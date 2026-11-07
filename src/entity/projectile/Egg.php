@@ -29,7 +29,7 @@ use quark\item\VanillaItems;
 use quark\world\particle\ItemBreakParticle;
 
 class Egg extends Throwable{
-	public static function getNetworkTypeId() : string{ return EntityIds::EGG; }
+	public function getNetworkTypeId() : string{ return EntityIds::EGG; }
 
 	//TODO: spawn chickens on collision
 

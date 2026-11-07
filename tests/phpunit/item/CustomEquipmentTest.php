@@ -283,7 +283,7 @@ final class EquipmentTestVictim extends Living{
 		$this->setHealth(20);
 	}
 
-	public static function getNetworkTypeId() : string{ return "minecraft:zombie"; }
+	public function getNetworkTypeId() : string{ return "minecraft:zombie"; }
 
 	protected function getInitialSizeInfo() : EntitySizeInfo{ return new EntitySizeInfo(1.8, 0.6); }
 

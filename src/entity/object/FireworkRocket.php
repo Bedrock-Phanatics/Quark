@@ -49,7 +49,7 @@ use function sqrt;
 
 class FireworkRocket extends Entity implements Explosive, NeverSavedWithChunkEntity{
 
-	public static function getNetworkTypeId() : string{ return EntityIds::FIREWORKS_ROCKET; }
+	public function getNetworkTypeId() : string{ return EntityIds::FIREWORKS_ROCKET; }
 
 	protected int $maxFlightTimeTicks;
 

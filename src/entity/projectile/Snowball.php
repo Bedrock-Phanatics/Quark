@@ -28,7 +28,7 @@ use quark\event\entity\ProjectileHitEvent;
 use quark\world\particle\SnowballPoofParticle;
 
 class Snowball extends Throwable{
-	public static function getNetworkTypeId() : string{ return EntityIds::SNOWBALL; }
+	public function getNetworkTypeId() : string{ return EntityIds::SNOWBALL; }
 
 	protected function onHit(ProjectileHitEvent $event) : void{
 		$world = $this->getWorld();

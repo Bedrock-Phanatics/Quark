@@ -241,7 +241,7 @@ final class EffectTestEntity extends Living implements NeverSavedWithChunkEntity
 
 	public function getName() : string{ return "Test"; }
 
-	public static function getNetworkTypeId() : string{ return "minecraft:zombie"; }
+	public function getNetworkTypeId() : string{ return "minecraft:zombie"; }
 
 	protected function getInitialSizeInfo() : EntitySizeInfo{ return new EntitySizeInfo(1.8, 0.6); }
 

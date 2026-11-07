@@ -154,6 +154,10 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 
 - `Item::addEnchantment()` takes the enchantment and level directly: `addEnchantment(VanillaEnchantments::SHARPNESS(), 5)` instead of `addEnchantment(new EnchantmentInstance(...))`. The level defaults to 1.
 
+### Entities
+
+- `Entity::getNetworkTypeId()` is an instance method. Remove the `static` keyword from custom entities, so one class can report different network types.
+
 ### Player Data
 
 Player data storage is asynchronous so a provider backed by SQL or a remote service never blocks the main thread.

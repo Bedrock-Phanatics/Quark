@@ -45,7 +45,7 @@ class PrimedTNT extends Entity implements Explosive{
 
 	private const TAG_FUSE = "Fuse"; //TAG_Short
 
-	public static function getNetworkTypeId() : string{ return EntityIds::TNT; }
+	public function getNetworkTypeId() : string{ return EntityIds::TNT; }
 
 	public function __construct(Location $location, ?CompoundTag $nbt = null){
 		parent::__construct($location, $nbt);

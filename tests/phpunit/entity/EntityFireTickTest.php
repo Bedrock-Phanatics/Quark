@@ -123,7 +123,7 @@ final class FireTickTestEntity extends Entity{
 
 	public function __destruct(){}
 
-	public static function getNetworkTypeId() : string{ return "test"; }
+	public function getNetworkTypeId() : string{ return "test"; }
 
 	protected function getInitialSizeInfo() : EntitySizeInfo{ return new EntitySizeInfo(1, 1); }
 
