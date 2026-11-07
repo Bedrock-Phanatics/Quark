@@ -40,16 +40,49 @@ use function count;
 
 final class RedstoneBlockUtils{
 
+	private const int READ_CACHE_LIMIT = 32768;
+
+	/** @var array<int, Block>|null */
+	private static ?array $readCache = null;
+	private static ?World $readCacheWorld = null;
+
+	/**
+	 * Shares side lookups in the world until endReadCache(), which is only safe while nothing writes to it.
+	 * The world's own block cache is too small for large circuits, so without this most lookups clone a fresh block.
+	 * Returns false when a cache is already active, in which case the caller must not end it.
+	 */
+	public static function beginReadCache(World $world) : bool{
+		if(self::$readCache !== null){
+			return false;
+		}
+		self::$readCache = [];
+		self::$readCacheWorld = $world;
+		return true;
+	}
+
+	public static function endReadCache() : void{
+		self::$readCache = null;
+		self::$readCacheWorld = null;
+	}
+
 	public static function getBlockAtSide(Position $position, int $side, int $step = 1) : Block{
 		[$offsetX, $offsetY, $offsetZ] = Facing::OFFSET[$side];
-		$x = (int) $position->x;
-		$y = (int) $position->y;
-		$z = (int) $position->z;
-		return $position->getWorld()->getBlockAt(
-			$x + ($offsetX * $step),
-			$y + ($offsetY * $step),
-			$z + ($offsetZ * $step)
-		);
+		$x = (int) $position->x + ($offsetX * $step);
+		$y = (int) $position->y + ($offsetY * $step);
+		$z = (int) $position->z + ($offsetZ * $step);
+		$world = $position->getWorld();
+		if(self::$readCache === null || self::$readCacheWorld !== $world){
+			return $world->getBlockAt($x, $y, $z);
+		}
+		$hash = World::blockHash($x, $y, $z);
+		if(isset(self::$readCache[$hash])){
+			return self::$readCache[$hash];
+		}
+		if(count(self::$readCache) >= self::READ_CACHE_LIMIT){
+			return $world->getBlockAt($x, $y, $z);
+		}
+		//kept out of the world's cache, which would otherwise keep trimming itself
+		return self::$readCache[$hash] = $world->getBlockAt($x, $y, $z, addToCache: false);
 	}
 
 	/**

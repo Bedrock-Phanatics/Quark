@@ -129,10 +129,6 @@ trait RedstoneWireBehavior{
 		return true;
 	}
 
-	/**
-	 * Resolves the complete connected wire component once. Power is propagated from
-	 * external sources through 16 strength buckets, avoiding convergence rescans.
-	 */
 	/** @param list<Block> $seeds */
 	private function updatePowerLevels(array $seeds) : void{
 		if(!Pulse::isRecording()){
@@ -144,6 +140,37 @@ trait RedstoneWireBehavior{
 
 	/** @param list<Block> $seeds */
 	private function updatePowerLevelsInternal(array $seeds) : void{
+		$cached = RedstoneBlockUtils::beginReadCache($this->position->getWorld());
+		try{
+			$network = $this->resolveNetwork($seeds);
+		}finally{
+			if($cached){
+				RedstoneBlockUtils::endReadCache();
+			}
+		}
+		if($network === null){
+			return;
+		}
+		[$wires, $levels, $others] = $network;
+		foreach($wires as $hash => $wire){
+			if($wire->signalStrength !== $levels[$hash]){
+				$wire->signalStrength = $levels[$hash];
+				$wire->position->getWorld()->setBlockAt((int) $wire->position->x, (int) $wire->position->y, (int) $wire->position->z, $wire, false);
+			}
+		}
+		foreach($others as $block){
+			$block->power($this);
+		}
+	}
+
+	/**
+	 * Resolves the complete connected wire component once, without writing to the world. Power is propagated
+	 * from external sources through 16 strength buckets, avoiding convergence rescans.
+	 *
+	 * @param list<Block> $seeds
+	 * @return array{array<int, self>, array<int, int>, array<int, Transmittable>}|null null when the network is over the size limit
+	 */
+	private function resolveNetwork(array $seeds) : ?array{
 		$queue = [];
 		$manager = RedstoneManager::getInstance();
 		foreach($seeds as $seed){
@@ -164,7 +191,7 @@ trait RedstoneWireBehavior{
 				continue;
 			}
 			if(count($wires) >= $limit){
-				return;
+				return null;
 			}
 			$wires[$hash] = $wire;
 			$adjacency[$hash] = [];
@@ -206,16 +233,7 @@ trait RedstoneWireBehavior{
 				}
 			}
 		}
-
-		foreach($wires as $hash => $wire){
-			if($wire->signalStrength !== $levels[$hash]){
-				$wire->signalStrength = $levels[$hash];
-				$wire->position->getWorld()->setBlockAt((int) $wire->position->x, (int) $wire->position->y, (int) $wire->position->z, $wire, false);
-			}
-		}
-		foreach($others as $block){
-			$block->power($this);
-		}
+		return [$wires, $levels, $others];
 	}
 
 	public function power(PowerSource $source) : void{
