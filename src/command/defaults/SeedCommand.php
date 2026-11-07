@@ -27,11 +27,11 @@ use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\world\WorldManager;
+use quark\Server;
 
 class SeedCommand extends VanillaCommand{
 
-	public function __construct(private WorldManager $worldManager){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"seed",
 			KnownTranslationFactory::quark_command_seed_description()
@@ -43,7 +43,7 @@ class SeedCommand extends VanillaCommand{
 		if($sender instanceof Player){
 			$seed = $sender->getPosition()->getWorld()->getSeed();
 		}else{
-			$seed = $this->worldManager->getDefaultWorld()->getSeed();
+			$seed = $this->server->getWorldManager()->getDefaultWorld()->getSeed();
 		}
 		$sender->sendMessage(KnownTranslationFactory::commands_seed_success((string) $seed));
 

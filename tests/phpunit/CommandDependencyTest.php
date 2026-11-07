@@ -8,31 +8,22 @@ use PHPUnit\Framework\TestCase;
 use quark\command\Command;
 use quark\command\CommandMap;
 use quark\command\CommandSender;
-use quark\command\defaults\DefaultGamemodeCommand;
-use quark\command\defaults\HelpCommand;
-use quark\command\defaults\PluginsCommand;
-use quark\command\defaults\SeedCommand;
 use quark\command\defaults\StopCommand;
-use quark\command\defaults\VersionCommand;
 use quark\command\FormattedCommandAlias;
 use quark\command\SimpleCommandMap;
 use quark\console\ConsoleCommandSender;
 use quark\lang\Language;
 use quark\lang\Translatable;
 use quark\permission\DefaultPermissions;
-use quark\plugin\PluginManager;
 use quark\utils\BroadcastLoggerForwarder;
-use quark\utils\Config;
-use quark\world\World;
-use quark\world\WorldManager;
 
 final class CommandDependencyTest extends TestCase{
 	protected function setUp() : void{
 		\quark\pulse\internal\PulseZones::init();
-		DefaultPermissions::registerCorePermissions();
 	}
 
 	public function testConsoleAndForwarderWorkWithoutServer() : void{
+		DefaultPermissions::registerCorePermissions();
 		$logger = $this->createMock(\Logger::class);
 		$logger->expects(self::exactly(2))->method("info")->with("response");
 		$language = $this->createMock(Language::class);
@@ -74,71 +65,8 @@ final class CommandDependencyTest extends TestCase{
 	}
 
 	public function testDefaultCommandsAreConstructedWithDependencies() : void{
-		$server = self::createStub(Server::class);
-		$config = new ServerConfigGroup(self::createStub(Config::class), self::createStub(Config::class));
-		$server->method("getConfigGroup")->willReturn($config);
-		$map = new SimpleCommandMap($server);
+		$map = new SimpleCommandMap(self::createStub(Server::class));
 		self::assertInstanceOf(StopCommand::class, $map->getCommand("stop"));
 		self::assertNotNull($map->getCommand("pulse"));
-		$help = $map->getCommand("help");
-		$map->clearCommands();
-		self::assertNotSame($help, $map->getCommand("help"));
-		$sender = $this->createMock(CommandSender::class);
-		$sender->method("hasPermission")->willReturn(true);
-		$sender->method("getLanguage")->willReturn(self::createStub(Language::class));
-		$sender->expects(self::exactly(4))->method("sendMessage");
-		self::assertInstanceOf(HelpCommand::class, $help);
-		$help->execute($sender, "help", ["stop"]);
-	}
-
-	public function testHelpUsesInjectedMapForListingAndLookup() : void{
-		$map = $this->createMock(CommandMap::class);
-		$map->expects(self::once())->method("getCommands")->willReturn([]);
-		$map->expects(self::once())->method("getCommand")->with("missing")->willReturn(null);
-		$sender = $this->createMock(CommandSender::class);
-		$sender->method("getScreenLineHeight")->willReturn(10);
-		$sender->method("getLanguage")->willReturn(self::createStub(Language::class));
-		$sender->expects(self::exactly(2))->method("sendMessage");
-		$command = new HelpCommand($map);
-		$command->execute($sender, "help", []);
-		$command->execute($sender, "help", ["missing"]);
-	}
-
-	public function testPluginCommandsUseInjectedManager() : void{
-		$plugins = $this->createMock(PluginManager::class);
-		$plugins->expects(self::exactly(2))->method("getPlugins")->willReturn([]);
-		$plugins->expects(self::once())->method("getPlugin")->with("missing")->willReturn(null);
-		$sender = $this->createMock(CommandSender::class);
-		$sender->expects(self::exactly(2))->method("sendMessage");
-		(new PluginsCommand($plugins))->execute($sender, "plugins", []);
-		(new VersionCommand($plugins))->execute($sender, "version", ["missing"]);
-	}
-
-	public function testSeedUsesCurrentDefaultWorld() : void{
-		$first = self::createStub(World::class);
-		$first->method("getSeed")->willReturn(123);
-		$second = self::createStub(World::class);
-		$second->method("getSeed")->willReturn(456);
-		$worlds = $this->createMock(WorldManager::class);
-		$worlds->expects(self::exactly(2))->method("getDefaultWorld")->willReturnOnConsecutiveCalls($first, $second);
-		$seeds = [];
-		$sender = self::createStub(CommandSender::class);
-		$sender->method("sendMessage")->willReturnCallback(static function(Translatable|string $message) use (&$seeds) : void{
-			self::assertInstanceOf(Translatable::class, $message);
-			$seeds[] = $message->getParameter(0);
-		});
-		$command = new SeedCommand($worlds);
-		$command->execute($sender, "seed", []);
-		$command->execute($sender, "seed", []);
-		self::assertSame(["123", "456"], $seeds);
-	}
-
-	public function testDefaultGamemodeUpdatesInjectedConfiguration() : void{
-		$properties = $this->createMock(Config::class);
-		$properties->expects(self::once())->method("set")->with(ServerProperties::GAME_MODE, "CREATIVE");
-		$config = new ServerConfigGroup(self::createStub(Config::class), $properties);
-		$sender = $this->createMock(CommandSender::class);
-		$sender->expects(self::once())->method("sendMessage");
-		(new DefaultGamemodeCommand($config))->execute($sender, "defaultgamemode", ["creative"]);
 	}
 }

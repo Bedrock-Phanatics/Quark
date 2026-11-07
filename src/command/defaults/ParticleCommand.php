@@ -33,6 +33,7 @@ use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use quark\utils\Random;
 use quark\utils\TextFormat;
 use quark\world\particle\AngryVillagerParticle;
@@ -66,7 +67,6 @@ use quark\world\particle\TerrainParticle;
 use quark\world\particle\WaterDripParticle;
 use quark\world\particle\WaterParticle;
 use quark\world\World;
-use quark\world\WorldManager;
 use function count;
 use function explode;
 use function max;
@@ -76,7 +76,7 @@ use function strtolower;
 
 class ParticleCommand extends VanillaCommand{
 
-	public function __construct(private WorldManager $worldManager){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"particle",
 			KnownTranslationFactory::quark_command_particle_description(),
@@ -99,7 +99,7 @@ class ParticleCommand extends VanillaCommand{
 				$this->getRelativeDouble($senderPos->getZ(), $sender, $args[3])
 			);
 		}else{
-			$world = $this->worldManager->getDefaultWorld();
+			$world = $this->server->getWorldManager()->getDefaultWorld();
 			$pos = new Vector3((float) $args[1], (float) $args[2], (float) $args[3]);
 		}
 

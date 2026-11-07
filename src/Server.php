@@ -1171,6 +1171,7 @@ class Server{
 
 			DefaultPermissions::registerCorePermissions();
 
+			$this->commandMap = new SimpleCommandMap($this);
 			$redstoneEnabled = $this->configGroup->getPropertyBool(Yml::REDSTONE_ENABLED, true);
 			$redstoneWorlds = $this->configGroup->getProperty(Yml::REDSTONE_WORLDS, []);
 			RedstoneConfig::configure(
@@ -1236,7 +1237,6 @@ class Server{
 			}
 
 			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
-			$this->commandMap = new SimpleCommandMap($this);
 			$this->worldManager->removeInterruptedWorldFiles();
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));

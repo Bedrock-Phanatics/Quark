@@ -38,7 +38,4 @@ interface CommandMap{
 
 	public function getCommand(string $name) : ?Command;
 
-	/** @return array<string, Command> */
-	public function getCommands() : array;
-
 }
