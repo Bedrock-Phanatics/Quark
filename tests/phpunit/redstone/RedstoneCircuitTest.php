@@ -33,6 +33,8 @@ use quark\block\RedstoneWire;
 use quark\block\utils\LeverFacing;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
+use quark\world\Explosion;
+use quark\world\Position;
 
 final class RedstoneCircuitTest extends TestCase{
 
@@ -101,6 +103,22 @@ final class RedstoneCircuitTest extends TestCase{
 		$this->h->breakBlock(2, 1, 0);
 		$this->h->tick(10);
 		self::assertFalse($this->lampLit(0, 1, 0), "breaking an active lever releases blocks powered through its support");
+	}
+
+	public function testExplodedLeverReleasesBlocksPoweredThroughItsSupport() : void{
+		$this->h->set(1, 1, 0, VanillaBlocks::STONE());
+		$this->h->place(2, 1, 0, VanillaBlocks::LEVER()->setFacing(LeverFacing::EAST)->setActivated(true));
+		$this->h->place(0, 1, 0, VanillaBlocks::REDSTONE_LAMP());
+		$this->h->tick(5);
+		self::assertTrue($this->lampLit(0, 1, 0));
+
+		$explosion = new Explosion(new Position(2.5, 1.5, 0.5, $this->h->world), 1.5);
+		self::assertTrue($explosion->explodeA());
+		self::assertTrue($explosion->explodeB());
+		self::assertSame(VanillaBlocks::AIR()->getTypeId(), $this->h->get(2, 1, 0)->getTypeId());
+		self::assertSame(VanillaBlocks::STONE()->getTypeId(), $this->h->get(1, 1, 0)->getTypeId());
+		$this->h->tick(10);
+		self::assertFalse($this->lampLit(0, 1, 0));
 	}
 
 	public function testBreakingLitTorchReleasesBlockAbove() : void{

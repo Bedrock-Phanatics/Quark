@@ -30,6 +30,7 @@ use pocketmine\math\VoxelRayTrace;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\TNT;
+use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\SupportType;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
@@ -242,31 +243,36 @@ class Explosion{
 		$airBlock = VanillaBlocks::AIR();
 		$fireBlock = VanillaBlocks::FIRE();
 
+		$powerSources = [];
 		foreach($this->affectedBlocks as $hash => $block){
 			$pos = $block->getPosition();
 			if($block instanceof TNT){
 				if(!$block->ignite(mt_rand(10, 30))){
 					$this->world->setBlockAt((int) $pos->x, (int) $pos->y, (int) $pos->z, $airBlock);
 				}
+			}elseif($block instanceof PowerSource){
+				$powerSources[$hash] = $block;
 			}else{
-				if(mt_rand(0, 100) < $yield){
-					$drops = $block->getBreakInfo()->isExplosionHarvestable() ?
-						$block->getDropsForCompatibleTool($air) :
-						$block->getDrops($air);
-					foreach($drops as $drop){
-						$this->world->dropItem($pos->add(0.5, 0.5, 0.5), $drop);
-					}
-				}
+				$this->dropBlock($block, $yield);
 				if(($t = $this->world->getTileAt($pos->x, $pos->y, $pos->z)) !== null){
 					$t->onBlockDestroyed(); //needed to create drops for inventories
 				}
-				$targetBlock =
-					isset($this->fireIgnitions[$hash]) &&
-					$block->getSide(Facing::DOWN)->getSupportType(Facing::UP) === SupportType::FULL ?
-						$fireBlock :
-						$airBlock;
+				$this->world->setBlockAt($pos->x, $pos->y, $pos->z, $this->isFireIgnited($hash, $block) ? $fireBlock : $airBlock);
+			}
+		}
 
-				$this->world->setBlockAt($pos->x, $pos->y, $pos->z, $targetBlock);
+		//breaking these lets circuits react, which must only happen once the rest of the terrain is gone,
+		//otherwise a piston could move a block the explosion has already dropped
+		foreach($powerSources as $hash => $affected){
+			$pos = $affected->getPosition();
+			$block = $this->world->getBlockAt((int) $pos->x, (int) $pos->y, (int) $pos->z);
+			if(!$block->hasSameTypeId($affected)){
+				continue;
+			}
+			$this->dropBlock($block, $yield);
+			$block->onBreak($air);
+			if($this->isFireIgnited($hash, $block) && $this->world->getBlockAt((int) $pos->x, (int) $pos->y, (int) $pos->z)->canBeReplaced()){
+				$this->world->setBlockAt((int) $pos->x, (int) $pos->y, (int) $pos->z, $fireBlock);
 			}
 		}
 
@@ -274,6 +280,22 @@ class Explosion{
 		$this->world->addSound($source, new ExplodeSound());
 
 		return true;
+	}
+
+	private function dropBlock(Block $block, float $yield) : void{
+		if(mt_rand(0, 100) < $yield){
+			$air = VanillaItems::AIR();
+			$drops = $block->getBreakInfo()->isExplosionHarvestable() ?
+				$block->getDropsForCompatibleTool($air) :
+				$block->getDrops($air);
+			foreach($drops as $drop){
+				$this->world->dropItem($block->getPosition()->add(0.5, 0.5, 0.5), $drop);
+			}
+		}
+	}
+
+	private function isFireIgnited(int $hash, Block $block) : bool{
+		return isset($this->fireIgnitions[$hash]) && $block->getSide(Facing::DOWN)->getSupportType(Facing::UP) === SupportType::FULL;
 	}
 
 	/**

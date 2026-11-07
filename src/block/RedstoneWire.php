@@ -98,7 +98,7 @@ class RedstoneWire extends Flowable implements AnalogRedstoneSignalEmitter, Powe
 
 	/**
 	 * Wires stepping up or down to this one aren't direct neighbours, so they don't get a block update when it changes.
-	 * TODO: this isn't done when the wire is removed without being broken (e.g. by explosions)
+	 * Removals that skip onBreak(), such as a plain setBlock(), don't do this.
 	 */
 	private function updateDiagonalWires() : void{
 		$world = $this->position->getWorld();
