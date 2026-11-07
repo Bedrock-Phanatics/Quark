@@ -31,17 +31,24 @@ class SubChunk{
 	public const COORD_MASK = ~(~0 << self::COORD_BIT_SIZE);
 	public const EDGE_LENGTH = 1 << self::COORD_BIT_SIZE;
 
+	private ?PalettedBlockArray $blockLayer0;
+	private ?PalettedBlockArray $blockLayer1;
+
 	/**
 	 * Bedrock only ever uses two block layers, the second one holding waterlogged liquids.
+	 * Layer 1 only exists when layer 0 does, so a lone layer 1 is stored as layer 0.
 	 */
 	public function __construct(
 		private int $emptyBlockId,
-		private ?PalettedBlockArray $blockLayer0,
-		private ?PalettedBlockArray $blockLayer1,
+		?PalettedBlockArray $blockLayer0,
+		?PalettedBlockArray $blockLayer1,
 		private PalettedBlockArray $biomes,
 		private ?LightArray $skyLight = null,
 		private ?LightArray $blockLight = null
-	){}
+	){
+		$this->blockLayer0 = $blockLayer0 ?? $blockLayer1;
+		$this->blockLayer1 = $blockLayer0 === null ? null : $blockLayer1;
+	}
 
 	/**
 	 * Returns whether this subchunk contains any non-air blocks.
@@ -58,7 +65,7 @@ class SubChunk{
 	 * This may report non-empty erroneously if the chunk has been modified and not garbage-collected.
 	 */
 	public function isEmptyFast() : bool{
-		return $this->blockLayer0 === null && $this->blockLayer1 === null;
+		return $this->blockLayer0 === null;
 	}
 
 	/**
@@ -87,7 +94,7 @@ class SubChunk{
 	 */
 	public function getBlockLayers() : array{
 		if($this->blockLayer0 === null){
-			return $this->blockLayer1 === null ? [] : [$this->blockLayer1];
+			return [];
 		}
 		return $this->blockLayer1 === null ? [$this->blockLayer0] : [$this->blockLayer0, $this->blockLayer1];
 	}

@@ -80,15 +80,25 @@ class SubChunkTest extends TestCase{
 		self::assertSame([], $sub->getBlockLayers());
 	}
 
-	public function testSetBlockCreatesFirstLayerBeforeSecond() : void{
+	public function testLoneSecondLayerIsStoredAsFirst() : void{
+		$layer = new PalettedBlockArray(0);
+		$layer->set(0, 0, 0, 5);
+		$sub = new SubChunk(0, null, $layer, new PalettedBlockArray(BiomeIds::OCEAN));
+
+		self::assertSame($layer, $sub->getBlockLayer0());
+		self::assertNull($sub->getBlockLayer1());
+		self::assertSame(5, $sub->getBlockStateId(0, 0, 0));
+		self::assertSame([$layer], $sub->getBlockLayers());
+	}
+
+	public function testSetBlockLeavesSecondLayerAlone() : void{
 		$layer1 = new PalettedBlockArray(0);
 		$layer1->set(0, 0, 0, 5);
-		$sub = new SubChunk(0, null, $layer1, new PalettedBlockArray(BiomeIds::OCEAN));
+		$sub = new SubChunk(0, new PalettedBlockArray(0), $layer1, new PalettedBlockArray(BiomeIds::OCEAN));
 
-		self::assertSame(0, $sub->getBlockStateId(0, 0, 0));
 		$sub->setBlockStateId(0, 0, 0, 3);
 
-		self::assertSame(3, $sub->getBlockLayer0()?->get(0, 0, 0));
+		self::assertSame(3, $sub->getBlockStateId(0, 0, 0));
 		self::assertSame(5, $sub->getBlockLayer1()?->get(0, 0, 0));
 		self::assertSame(0, $sub->getHighestBlockAt(0, 0));
 	}

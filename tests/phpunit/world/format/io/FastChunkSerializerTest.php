@@ -55,10 +55,11 @@ final class FastChunkSerializerTest extends TestCase{
 
 	public function testRoundTripKeepsBothBlockLayers() : void{
 		$air = VanillaBlocks::AIR()->getStateId();
+		$stone = new PalettedBlockArray($air);
+		$stone->set(1, 2, 3, VanillaBlocks::STONE()->getStateId());
 		$water = new PalettedBlockArray($air);
 		$water->set(1, 2, 3, VanillaBlocks::WATER()->getStateId());
-		$chunk = new Chunk([0 => new SubChunk($air, null, $water, new PalettedBlockArray(BiomeIds::OCEAN))], false);
-		$chunk->setBlockStateId(1, 2, 3, VanillaBlocks::STONE()->getStateId());
+		$chunk = new Chunk([0 => new SubChunk($air, $stone, $water, new PalettedBlockArray(BiomeIds::OCEAN))], false);
 
 		$serialized = FastChunkSerializer::serializeTerrain($chunk);
 		$sub = FastChunkSerializer::deserializeTerrain($serialized)->getSubChunk(0);

@@ -27,13 +27,16 @@ use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\world\format\PalettedBlockArray;
 use quark\block\utils\DyeColor;
 use quark\block\VanillaBlocks;
+use quark\data\bedrock\BiomeIds;
 use quark\utils\Filesystem;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\WorldInUseException;
+use quark\world\format\SubChunk;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function bin2hex;
@@ -121,6 +124,25 @@ final class LevelDBTest extends TestCase{
 		self::assertNotNull($loaded);
 		self::assertSameChunk($expected, $loaded->getData());
 		$fresh->close();
+	}
+
+	public function testSecondBlockLayerRoundTrips() : void{
+		$air = VanillaBlocks::AIR()->getStateId();
+		$stone = new PalettedBlockArray($air);
+		$stone->set(1, 2, 3, VanillaBlocks::STONE()->getStateId());
+		$water = new PalettedBlockArray($air);
+		$water->set(1, 2, 3, VanillaBlocks::WATER()->getStateId());
+		$chunk = new Chunk([0 => new SubChunk($air, $stone, $water, new PalettedBlockArray(BiomeIds::OCEAN))], true);
+
+		$provider = $this->open();
+		$provider->saveChunk(0, 0, new ChunkData($chunk->getSubChunks(), true, [], []), Chunk::DIRTY_FLAGS_ALL);
+		$loaded = $provider->loadChunk(0, 0);
+		$provider->close();
+
+		self::assertNotNull($loaded);
+		$sub = $loaded->getData()->getSubChunks()[0];
+		self::assertSame(VanillaBlocks::STONE()->getStateId(), $sub->getBlockLayer0()?->get(1, 2, 3));
+		self::assertSame(VanillaBlocks::WATER()->getStateId(), $sub->getBlockLayer1()?->get(1, 2, 3));
 	}
 
 	public function testChunkReadsIgnoreNeighboursAndOtherDimensions() : void{
