@@ -69,7 +69,8 @@ class EffectManager extends EffectCollection{
 		}
 
 		$ev->call();
-		if($ev->isCancelled()){
+		$effect = $ev->getEffect();
+		if($ev->isCancelled() || !$this->canAdd($effect)){
 			return false;
 		}
 

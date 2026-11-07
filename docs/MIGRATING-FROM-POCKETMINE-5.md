@@ -122,6 +122,7 @@ $player->sendForm($form);
 - `EffectInstance::getDuration()` is the duration the effect was created with. Use `EffectManager::getRemainingDuration()` for the ticks left on an active effect.
 - `Effect::canTick()` has been removed. Implement `getApplyInterval()` instead.
 - `EntityEffectRemoveEvent::isExpired()` tells whether the effect ran out.
+- `EntityEffectAddEvent::getEffect()` no longer allows in-place changes. Call `setEffect()` with a modified copy of the same effect type.
 
 ### Removed Mechanics
 
