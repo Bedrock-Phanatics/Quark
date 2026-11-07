@@ -28,14 +28,13 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\utils\TextFormat;
 use function count;
 use function implode;
 
 class MeCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"me",
 			KnownTranslationFactory::quark_command_me_description(),
@@ -49,7 +48,7 @@ class MeCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$this->server->broadcastMessage(KnownTranslationFactory::chat_type_emote($sender instanceof Player ? $sender->getDisplayName() : $sender->getName(), TextFormat::RESET . implode(" ", $args)));
+		$sender->getServer()->broadcastMessage(KnownTranslationFactory::chat_type_emote($sender instanceof Player ? $sender->getDisplayName() : $sender->getName(), TextFormat::RESET . implode(" ", $args)));
 
 		return true;
 	}

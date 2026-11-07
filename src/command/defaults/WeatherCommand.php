@@ -28,7 +28,6 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\utils\TextFormat;
 use quark\world\Weather;
 use function count;
@@ -38,7 +37,7 @@ use function strtolower;
 final class WeatherCommand extends VanillaCommand{
 	public const MAX_DURATION = 1000000;
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct("weather", "Changes the weather", "/weather <clear|rain|thunder> [duration in ticks] OR /weather query");
 		$this->setPermission(DefaultPermissionNames::COMMAND_WEATHER);
 	}
@@ -50,7 +49,7 @@ final class WeatherCommand extends VanillaCommand{
 
 		$mode = strtolower($args[0]);
 		if($mode === "query"){
-			$world = $sender instanceof Player ? $sender->getWorld() : $this->server->getWorldManager()->getDefaultWorld();
+			$world = $sender instanceof Player ? $sender->getWorld() : $sender->getServer()->getWorldManager()->getDefaultWorld();
 			if($world === null || count($args) !== 1){
 				throw new InvalidCommandSyntaxException();
 			}
@@ -73,7 +72,7 @@ final class WeatherCommand extends VanillaCommand{
 			}
 		}
 
-		$worlds = $sender instanceof Player ? [$sender->getWorld()] : $this->server->getWorldManager()->getWorlds();
+		$worlds = $sender instanceof Player ? [$sender->getWorld()] : $sender->getServer()->getWorldManager()->getWorlds();
 		$changed = 0;
 		foreach($worlds as $world){
 			if($world->setWeather($weather, $duration)){
@@ -84,7 +83,7 @@ final class WeatherCommand extends VanillaCommand{
 			$sender->sendMessage(TextFormat::RED . "The weather change was cancelled");
 			return true;
 		}
-		Command::broadcastCommandMessage($this->server, $sender, "Changed the weather to " . $mode);
+		Command::broadcastCommandMessage($sender, "Changed the weather to " . $mode);
 		return true;
 	}
 }

@@ -27,7 +27,6 @@ use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory as l10n;
 use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use quark\utils\Process;
 use quark\utils\TextFormat;
 use function count;
@@ -39,7 +38,7 @@ use function strval;
 
 class StatusCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"status",
 			l10n::quark_command_status_description()
@@ -67,7 +66,7 @@ class StatusCommand extends VanillaCommand{
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		$mUsage = Process::getAdvancedMemoryUsage();
 
-		$server = $this->server;
+		$server = $sender->getServer();
 		$sender->sendMessage(l10n::quark_command_status_header()->format(
 			TextFormat::GREEN . "---- " . TextFormat::RESET,
 			TextFormat::GREEN . " ----" . TextFormat::RESET

@@ -29,7 +29,6 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\utils\TextFormat;
 use function array_shift;
 use function count;
@@ -38,7 +37,7 @@ use function trim;
 
 class KickCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"kick",
 			KnownTranslationFactory::quark_command_kick_description(),
@@ -55,12 +54,12 @@ class KickCommand extends VanillaCommand{
 		$name = array_shift($args);
 		$reason = trim(implode(" ", $args));
 
-		if(($player = $this->server->getPlayerByPrefix($name)) instanceof Player){
+		if(($player = $sender->getServer()->getPlayerByPrefix($name)) instanceof Player){
 			$player->kick($reason !== "" ? KnownTranslationFactory::quark_disconnect_kick($reason) : KnownTranslationFactory::quark_disconnect_kick_noReason());
 			if($reason !== ""){
-				Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_kick_success_reason($player->getName(), $reason));
+				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_kick_success_reason($player->getName(), $reason));
 			}else{
-				Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_kick_success($player->getName()));
+				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_kick_success($player->getName()));
 			}
 		}else{
 			$sender->sendMessage(KnownTranslationFactory::commands_generic_player_notFound()->prefix(TextFormat::RED));

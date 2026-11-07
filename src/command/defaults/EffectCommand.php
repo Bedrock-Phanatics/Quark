@@ -30,14 +30,13 @@ use quark\entity\effect\EffectInstance;
 use quark\entity\effect\StringToEffectParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use quark\utils\TextFormat;
 use function count;
 use function strtolower;
 
 class EffectCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"effect",
 			KnownTranslationFactory::quark_command_effect_description(),
@@ -54,7 +53,7 @@ class EffectCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$player = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[0], DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER);
+		$player = $this->fetchPermittedPlayerTarget($sender, $args[0], DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER);
 		if($player === null){
 			return true;
 		}
@@ -122,9 +121,9 @@ class EffectCommand extends VanillaCommand{
 			$effectManager->add($instance);
 
 			if($infinite){
-				self::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_effect_success_infinite($effect->getName(), (string) $instance->getAmplifier(), $player->getDisplayName()));
+				self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_effect_success_infinite($effect->getName(), (string) $instance->getAmplifier(), $player->getDisplayName()));
 			}else{
-				self::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_effect_success($effect->getName(), (string) $instance->getAmplifier(), $player->getDisplayName(), (string) ($instance->getDuration() / 20)));
+				self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_effect_success($effect->getName(), (string) $instance->getAmplifier(), $player->getDisplayName(), (string) ($instance->getDuration() / 20)));
 			}
 		}
 

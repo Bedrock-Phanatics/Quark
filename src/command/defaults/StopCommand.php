@@ -27,11 +27,10 @@ use quark\command\Command;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 
 class StopCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"stop",
 			KnownTranslationFactory::quark_command_stop_description()
@@ -40,9 +39,9 @@ class StopCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_stop_start());
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_stop_start());
 
-		$this->server->shutdown();
+		$sender->getServer()->shutdown();
 
 		return true;
 	}

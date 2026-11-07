@@ -29,12 +29,11 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\event\entity\EntityDamageEvent;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use function count;
 
 class KillCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"kill",
 			KnownTranslationFactory::quark_command_kill_description(),
@@ -49,7 +48,7 @@ class KillCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$player = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_KILL_SELF, DefaultPermissionNames::COMMAND_KILL_OTHER);
+		$player = $this->fetchPermittedPlayerTarget($sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_KILL_SELF, DefaultPermissionNames::COMMAND_KILL_OTHER);
 		if($player === null){
 			return true;
 		}
@@ -58,7 +57,7 @@ class KillCommand extends VanillaCommand{
 		if($player === $sender){
 			$sender->sendMessage(KnownTranslationFactory::commands_kill_successful($sender->getName()));
 		}else{
-			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_kill_successful($player->getName()));
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_kill_successful($player->getName()));
 		}
 
 		return true;

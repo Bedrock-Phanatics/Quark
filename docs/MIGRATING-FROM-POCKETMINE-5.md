@@ -141,13 +141,6 @@ $player->sendForm($form);
 - `getResourceFolder()` and `getResourcePath()` return the plugin's read-only `resources` folder and a file inside it.
 - `saveResource()` returns `false` for directories and for names that resolve outside the resources or data folder.
 
-### Commands
-
-- `CommandSender::getServer()` has been removed. Commands that need the server take it in their constructor.
-- `Command::broadcastCommandMessage()` takes the `Server` as its first argument.
-- `FormattedCommandAlias` takes the `CommandMap` as its third constructor argument.
-- `ConsoleCommandSender` takes a `Logger` instead of the `Server`.
-
 ### Compression
 
 - Compression algorithm is configurable rather than fixed to zlib.

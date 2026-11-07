@@ -235,7 +235,9 @@ final class LoggingPipelineTest extends TestCase{
 		try{
 			$plugin = new PluginLogger($logger, "Economy");
 			$plugin->warning("§6Database delayed");
-			$sender = new ConsoleCommandSender($logger, $this->createMock(Language::class));
+			$server = $this->createMock(Server::class);
+			$server->method("getLogger")->willReturn($logger);
+			$sender = new ConsoleCommandSender($server, $this->createMock(Language::class));
 			$sender->sendMessage("§aThere are 0 players online\nNext line");
 			$logger->debug("disabled debug");
 			$logger->debug("enabled debug", true);

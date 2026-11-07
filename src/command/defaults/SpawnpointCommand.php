@@ -29,7 +29,6 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\world\Position;
 use quark\world\World;
 use function count;
@@ -37,7 +36,7 @@ use function round;
 
 class SpawnpointCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"spawnpoint",
 			KnownTranslationFactory::quark_command_spawnpoint_description(),
@@ -50,7 +49,7 @@ class SpawnpointCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$target = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF, DefaultPermissionNames::COMMAND_SPAWNPOINT_OTHER);
+		$target = $this->fetchPermittedPlayerTarget($sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF, DefaultPermissionNames::COMMAND_SPAWNPOINT_OTHER);
 		if($target === null){
 			return true;
 		}
@@ -63,7 +62,7 @@ class SpawnpointCommand extends VanillaCommand{
 			$z = $this->getRelativeDouble($pos->z, $sender, $args[3]);
 			$target->setSpawn(new Position($x, $y, $z, $world));
 
-			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($x, 2), (string) round($y, 2), (string) round($z, 2)));
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($x, 2), (string) round($y, 2), (string) round($z, 2)));
 
 			return true;
 		}elseif(count($args) <= 1 && $sender instanceof Player){
@@ -71,7 +70,7 @@ class SpawnpointCommand extends VanillaCommand{
 			$pos = Position::fromObject($cpos->floor(), $cpos->getWorld());
 			$target->setSpawn($pos);
 
-			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($pos->x, 2), (string) round($pos->y, 2), (string) round($pos->z, 2)));
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($pos->x, 2), (string) round($pos->y, 2), (string) round($pos->z, 2)));
 			return true;
 		}
 

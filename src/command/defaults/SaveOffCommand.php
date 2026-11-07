@@ -27,11 +27,10 @@ use quark\command\Command;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 
 class SaveOffCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"save-off",
 			KnownTranslationFactory::quark_command_saveoff_description()
@@ -40,9 +39,9 @@ class SaveOffCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$this->server->getWorldManager()->setAutoSave(false);
+		$sender->getServer()->getWorldManager()->setAutoSave(false);
 
-		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_save_disabled());
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_save_disabled());
 
 		return true;
 	}

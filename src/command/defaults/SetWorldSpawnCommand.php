@@ -30,14 +30,13 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\utils\TextFormat;
 use quark\world\World;
 use function count;
 
 class SetWorldSpawnCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"setworldspawn",
 			KnownTranslationFactory::quark_command_setworldspawn_description(),
@@ -63,7 +62,7 @@ class SetWorldSpawnCommand extends VanillaCommand{
 				$world = $base->getWorld();
 			}else{
 				$base = new Vector3(0.0, 0.0, 0.0);
-				$world = $this->server->getWorldManager()->getDefaultWorld();
+				$world = $sender->getServer()->getWorldManager()->getDefaultWorld();
 			}
 			$pos = (new Vector3(
 				$this->getRelativeDouble($base->x, $sender, $args[0]),
@@ -76,7 +75,7 @@ class SetWorldSpawnCommand extends VanillaCommand{
 
 		$world->setSpawnLocation($pos);
 
-		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_setworldspawn_success((string) $pos->x, (string) $pos->y, (string) $pos->z));
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_setworldspawn_success((string) $pos->x, (string) $pos->y, (string) $pos->z));
 
 		return true;
 	}

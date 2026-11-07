@@ -29,7 +29,6 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use function array_shift;
 use function count;
 use function implode;
@@ -37,7 +36,7 @@ use function inet_pton;
 
 class BanIpCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"ban-ip",
 			KnownTranslationFactory::quark_command_ban_ip_description(),
@@ -57,13 +56,13 @@ class BanIpCommand extends VanillaCommand{
 		if(inet_pton($value) !== false){
 			$this->processIPBan($value, $sender, $reason);
 
-			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_banip_success($value));
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_banip_success($value));
 		}else{
-			if(($player = $this->server->getPlayerByPrefix($value)) instanceof Player){
+			if(($player = $sender->getServer()->getPlayerByPrefix($value)) instanceof Player){
 				$ip = $player->getNetworkSession()->getIp();
 				$this->processIPBan($ip, $sender, $reason);
 
-				Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_banip_success_players($ip, $player->getName()));
+				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_banip_success_players($ip, $player->getName()));
 			}else{
 				$sender->sendMessage(KnownTranslationFactory::commands_banip_invalid());
 
@@ -75,14 +74,14 @@ class BanIpCommand extends VanillaCommand{
 	}
 
 	private function processIPBan(string $ip, CommandSender $sender, string $reason) : void{
-		$this->server->getIPBans()->addBan($ip, $reason, null, $sender->getName());
+		$sender->getServer()->getIPBans()->addBan($ip, $reason, null, $sender->getName());
 
-		foreach($this->server->getOnlinePlayers() as $player){
+		foreach($sender->getServer()->getOnlinePlayers() as $player){
 			if($player->getNetworkSession()->getIp() === $ip){
 				$player->kick(KnownTranslationFactory::quark_disconnect_ban($reason !== "" ? $reason : KnownTranslationFactory::quark_disconnect_ban_ip()));
 			}
 		}
 
-		$this->server->getNetwork()->blockAddress($ip, -1);
+		$sender->getServer()->getNetwork()->blockAddress($ip, -1);
 	}
 }

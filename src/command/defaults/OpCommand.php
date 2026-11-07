@@ -29,14 +29,13 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\utils\TextFormat;
 use function array_shift;
 use function count;
 
 class OpCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"op",
 			KnownTranslationFactory::quark_command_op_description(),
@@ -55,11 +54,11 @@ class OpCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$this->server->addOp($name);
-		if(($player = $this->server->getPlayerExact($name)) !== null){
+		$sender->getServer()->addOp($name);
+		if(($player = $sender->getServer()->getPlayerExact($name)) !== null){
 			$player->sendMessage(KnownTranslationFactory::commands_op_message()->prefix(TextFormat::GRAY));
 		}
-		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_op_success($name));
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_op_success($name));
 		return true;
 	}
 }

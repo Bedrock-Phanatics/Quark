@@ -27,7 +27,6 @@ use quark\command\Command;
 use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use quark\utils\TextFormat;
 use function array_shift;
 use function count;
@@ -40,7 +39,7 @@ use function strlen;
 use function strtolower;
 
 final class PulseCommand extends VanillaCommand{
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct("pulse", "Record and report server performance", "/pulse <start [time]|stop|status|top|report|reset|help>");
 		$this->setPermission(DefaultPermissionNames::COMMAND_PULSE);
 	}
@@ -85,37 +84,38 @@ final class PulseCommand extends VanillaCommand{
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		$mode = strtolower(array_shift($args) ?? "status");
-		$pulse = $this->server->getPulse();
+		$server = $sender->getServer();
+		$pulse = $server->getPulse();
 		try{
 			switch($mode){
 				case "start":
 					$duration = self::parseDuration($args);
 					$pulse->start($duration, self::SPIKE_THRESHOLD_NS, self::MAX_SPIKES);
-					Command::broadcastCommandMessage($this->server, $sender, self::msg(TextFormat::GREEN . "Recording " . TextFormat::GRAY . ($duration === 0 ? "until stopped" : "for " . self::seconds($duration))));
+					Command::broadcastCommandMessage($sender, self::msg(TextFormat::GREEN . "Recording " . TextFormat::GRAY . ($duration === 0 ? "until stopped" : "for " . self::seconds($duration))));
 					$sender->sendMessage(self::msg("Run " . self::cmd("/pulse stop") . " to stop and save the report"));
 					break;
 				case "stop":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
 					if($pulse->getSession() === null){ self::sendIdle($sender); break; }
 					$pulse->stop();
-					Command::broadcastCommandMessage($this->server, $sender, self::msg(TextFormat::YELLOW . "Stopped"));
-					$this->sendStatus($sender);
-					$this->saveReport($sender);
+					Command::broadcastCommandMessage($sender, self::msg(TextFormat::YELLOW . "Stopped"));
+					self::sendStatus($sender);
+					self::saveReport($sender);
 					break;
 				case "reset":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
 					$pulse->reset();
-					Command::broadcastCommandMessage($this->server, $sender, self::msg($pulse->isRecording() ? "Reset, recording restarted" :
+					Command::broadcastCommandMessage($sender, self::msg($pulse->isRecording() ? "Reset, recording restarted" :
 						"Cleared" . ($pulse->getPendingOperations() > 0 ? ", waiting for workers to finish" : "")));
 					break;
 				case "status":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
-					$this->sendStatus($sender);
+					self::sendStatus($sender);
 					break;
 				case "top":
 					if(count($args) > 1 || (isset($args[0]) && preg_match('/^(?:[1-9]|10)$/D', $args[0]) !== 1)){ throw new InvalidCommandSyntaxException(); }
 					$session = $pulse->getSession();
-					if($session === null){ $this->sendStatus($sender); break; }
+					if($session === null){ self::sendStatus($sender); break; }
 					$top = $session->getTopZones(isset($args[0]) ? (int) $args[0] : 5);
 					if(count($top) === 0){ $sender->sendMessage(self::msg("No completed measurements yet")); break; }
 					$sender->sendMessage(self::msg("Top main-thread costs " . TextFormat::DARK_GRAY . "(self time)"));
@@ -127,7 +127,7 @@ final class PulseCommand extends VanillaCommand{
 					break;
 				case "report":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
-					$this->saveReport($sender);
+					self::saveReport($sender);
 					break;
 				case "help":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
@@ -155,8 +155,8 @@ final class PulseCommand extends VanillaCommand{
 		$sender->sendMessage(self::msg("Pulse is idle. Run " . self::cmd("/pulse start [time]")));
 	}
 
-	private function sendStatus(CommandSender $sender) : void{
-		$pulse = $this->server->getPulse();
+	private static function sendStatus(CommandSender $sender) : void{
+		$pulse = $sender->getServer()->getPulse();
 		$session = $pulse->getSession();
 		$pending = $pulse->getPendingOperations();
 		if($session === null){
@@ -179,11 +179,11 @@ final class PulseCommand extends VanillaCommand{
 		}
 	}
 
-	private function saveReport(CommandSender $sender) : void{
-		$promise = $this->server->createPulseReport();
+	private static function saveReport(CommandSender $sender) : void{
+		$promise = $sender->getServer()->createPulseReport();
 		$sender->sendMessage(self::msg("Collecting report from all threads..."));
 		$promise->observe(
-			fn(string $file) => Command::broadcastCommandMessage($this->server, $sender, self::msg(TextFormat::GREEN . "Report saved " . TextFormat::GRAY . "to " . self::value($file))),
+			fn(string $file) => Command::broadcastCommandMessage($sender, self::msg(TextFormat::GREEN . "Report saved " . TextFormat::GRAY . "to " . self::value($file))),
 			fn(\Throwable $e) => $sender->sendMessage(self::msg(TextFormat::RED . "Report failed: " . $e->getMessage() . TextFormat::GRAY . " (session kept)"))
 		);
 	}
