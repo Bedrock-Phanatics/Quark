@@ -34,10 +34,15 @@ use quark\player\Player;
 
 trait PressurePlateTrait{
 
-	public function writeStateToWorld() : void{
-		parent::writeStateToWorld();
-		foreach($this->getRelyingBlocks() as $block){
-			$block->power($this);
+	//notifying from writeStateToWorld() would let dependants read the old plate from the block cache
+	public function onScheduledUpdate() : void{
+		$power = $this->getPowerLevel();
+		parent::onScheduledUpdate();
+		$plate = $this->position->getWorld()->getBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
+		if($plate instanceof self && $plate->getPowerLevel() !== $power){
+			foreach($plate->getRelyingBlocks() as $block){
+				$block->power($plate);
+			}
 		}
 	}
 

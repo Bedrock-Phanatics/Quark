@@ -32,6 +32,8 @@ use quark\block\RedstoneRepeater;
 use quark\block\RedstoneWire;
 use quark\block\utils\LeverFacing;
 use quark\block\VanillaBlocks;
+use quark\entity\Location;
+use quark\entity\object\ItemEntity;
 use quark\item\VanillaItems;
 use quark\world\Explosion;
 use quark\world\Position;
@@ -119,6 +121,22 @@ final class RedstoneCircuitTest extends TestCase{
 		self::assertSame(VanillaBlocks::STONE()->getTypeId(), $this->h->get(1, 1, 0)->getTypeId());
 		$this->h->tick(10);
 		self::assertFalse($this->lampLit(0, 1, 0));
+	}
+
+	public function testPressurePlatePowersThroughItsSupport() : void{
+		$this->h->set(0, 1, 0, VanillaBlocks::STONE());
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE_LAMP());
+		$this->h->place(0, 2, 0, VanillaBlocks::OAK_PRESSURE_PLATE());
+		$this->h->tick();
+		$item = new ItemEntity(Location::fromObject(new Vector3(0.5, 2.0, 0.5), $this->h->world), VanillaItems::STICK());
+		$this->h->get(0, 2, 0)->onScheduledUpdate();
+		$this->h->tick(5);
+		self::assertTrue($this->lampLit(1, 1, 0));
+
+		$item->close();
+		$this->h->get(0, 2, 0)->onScheduledUpdate();
+		$this->h->tick(10);
+		self::assertFalse($this->lampLit(1, 1, 0));
 	}
 
 	public function testBreakingLitTorchReleasesBlockAbove() : void{
