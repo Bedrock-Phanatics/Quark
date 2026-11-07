@@ -38,6 +38,8 @@ use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\ObjectSet;
+use Vow\CancelledException;
+use Vow\Deferred;
 use function strlen;
 
 final class NetworkSessionTest extends TestCase{
@@ -147,6 +149,56 @@ final class NetworkSessionTest extends TestCase{
 		}
 		$this->expectException(PacketHandlingException::class);
 		$this->session(static function() : void{})->handleEncoded($batch);
+	}
+
+	public function testQueuedBatchesWaitForPendingCompressionInOrder() : void{
+		/** @var \ArrayObject<int, string> $sent */
+		$sent = new \ArrayObject();
+		$session = $this->session(static function(NetworkSession $session, string $batch) use ($sent) : void{ $sent[] = $batch; });
+		/** @var Deferred<string> $first */
+		$first = new Deferred();
+		$session->queueCompressed($first->promise);
+		$session->queueCompressed("second");
+		self::assertCount(0, $sent);
+
+		$first->resolve("first");
+		self::assertSame(["first", "second"], $sent->getArrayCopy());
+	}
+
+	public function testRejectedBatchDisconnectsWithoutSkippingAhead() : void{
+		$sent = [];
+		$session = $this->session(static function(NetworkSession $session, string $batch) use (&$sent) : void{ $sent[] = $batch; });
+		/** @var Deferred<string> $first */
+		$first = new Deferred();
+		$session->queueCompressed($first->promise);
+		$session->queueCompressed("second");
+
+		$first->reject(new \RuntimeException("compression failed"));
+		self::assertFalse($session->isConnected());
+		self::assertNotContains("second", $sent);
+	}
+
+	public function testDisconnectCancelsReceiptsAndDropsLateBatches() : void{
+		$sent = [];
+		$session = $this->session(static function(NetworkSession $session, string $batch) use (&$sent) : void{ $sent[] = $batch; });
+		/** @var Deferred<string> $pending */
+		$pending = new Deferred();
+		$session->queueCompressed($pending->promise);
+		$receipt = $session->sendDataPacketWithReceipt(SetTimePacket::create(1), true);
+		self::assertTrue($receipt->isPending());
+
+		$session->disconnect("test");
+		self::assertInstanceOf(CancelledException::class, $receipt->reason());
+		self::assertInstanceOf(CancelledException::class, $session->sendDataPacketWithReceipt(SetTimePacket::create(2))->reason());
+
+		$pending->resolve("late");
+		self::assertSame([], $sent);
+	}
+
+	public function testReceiptResolvesOnceQueued() : void{
+		$session = $this->session(static function() : void{});
+		$receipt = $session->sendDataPacketWithReceipt(SetTimePacket::create(1), true);
+		self::assertTrue($receipt->isFulfilled());
 	}
 
 	public function testNegativeWindowTypesEncode() : void{
