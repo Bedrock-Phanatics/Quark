@@ -116,6 +116,13 @@ $player->sendForm($form);
 - Expanded protected-damage and final-damage access in `EntityDamageEvent`.
 - Some damage modifier constants have changed integer values. Use named constants instead of hardcoded values.
 
+### Effects
+
+- `EffectInstance` is immutable, so one instance can be applied to any number of entities. `setDuration()`, `decreaseDuration()`, `hasExpired()`, `setAmplifier()`, `setVisible()`, `setAmbient()`, `setColor()` and `resetColor()` have been removed. Construct a new instance, or use `withDuration()`.
+- `EffectInstance::getDuration()` is the duration the effect was created with. Use `EffectManager::getRemainingDuration()` for the ticks left on an active effect.
+- `Effect::canTick()` has been removed. Implement `getApplyInterval()` instead.
+- `EntityEffectRemoveEvent::isExpired()` tells whether the effect ran out.
+
 ### Removed Mechanics
 
 - Thorns and Frost Walker no longer function or appear through normal acquisition.

@@ -23,12 +23,26 @@ declare(strict_types=1);
 
 namespace quark\event\entity;
 
+use quark\entity\effect\EffectInstance;
+use quark\entity\Entity;
+
 /**
  * Called when an effect is removed from an entity.
  */
 class EntityEffectRemoveEvent extends EntityEffectEvent{
+	public function __construct(Entity $entity, EffectInstance $effect, private readonly bool $expired = false){
+		parent::__construct($entity, $effect);
+	}
+
+	/**
+	 * Returns whether the effect is being removed because it ran out.
+	 */
+	public function isExpired() : bool{
+		return $this->expired;
+	}
+
 	public function cancel() : void{
-		if($this->getEffect()->getDuration() <= 0){
+		if($this->expired){
 			throw new \LogicException("Removal of expired effects cannot be cancelled");
 		}
 		parent::cancel();

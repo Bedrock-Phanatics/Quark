@@ -32,8 +32,14 @@ use function spl_object_id;
 
 class EffectCollection{
 
-	/** @var EffectInstance[] */
+	/** @var array<int, EffectInstance> */
 	protected array $effects = [];
+
+	/**
+	 * Ticks left on each effect, indexed like {@see self::$effects}.
+	 * @var array<int, int>
+	 */
+	protected array $durations = [];
 
 	/**
 	 * @var \Closure[]|ObjectSet
@@ -91,7 +97,7 @@ class EffectCollection{
 		if(isset($this->effects[$index])){
 			$effect = $this->effects[$index];
 
-			unset($this->effects[$index]);
+			unset($this->effects[$index], $this->durations[$index]);
 			foreach($this->effectRemoveHooks as $hook){
 				$hook($effect);
 			}
@@ -106,6 +112,13 @@ class EffectCollection{
 	 */
 	public function get(Effect $effect) : ?EffectInstance{
 		return $this->effects[spl_object_id($effect)] ?? null;
+	}
+
+	/**
+	 * Returns the number of ticks left on the specified effect, or 0 if it is not active.
+	 */
+	public function getRemainingDuration(Effect $effect) : int{
+		return $this->durations[spl_object_id($effect)] ?? 0;
 	}
 
 	/**
@@ -126,7 +139,7 @@ class EffectCollection{
 			$oldEffect = $this->effects[$index];
 			if(
 				abs($effect->getAmplifier()) < $oldEffect->getAmplifier()
-				|| (abs($effect->getAmplifier()) === abs($oldEffect->getAmplifier()) && $effect->getDuration() < $oldEffect->getDuration())
+				|| (abs($effect->getAmplifier()) === abs($oldEffect->getAmplifier()) && $effect->getDuration() < $this->durations[$index])
 			){
 				return false;
 			}
@@ -146,6 +159,7 @@ class EffectCollection{
 			$replacesOldEffect = isset($this->effects[$index]);
 
 			$this->effects[$index] = $effect;
+			$this->durations[$index] = $effect->getDuration();
 			foreach($this->effectAddHooks as $hook){
 				$hook($effect, $replacesOldEffect);
 			}

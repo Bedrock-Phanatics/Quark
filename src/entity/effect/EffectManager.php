@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\entity\effect;
 
+use pocketmine\utils\Limits;
 use quark\entity\Living;
 use quark\event\entity\EntityEffectAddEvent;
 use quark\event\entity\EntityEffectRemoveEvent;
@@ -44,7 +45,7 @@ class EffectManager extends EffectCollection{
 		$index = spl_object_id($effectType);
 		if(isset($this->effects[$index])){
 			$effect = $this->effects[$index];
-			$ev = new EntityEffectRemoveEvent($this->entity, $effect);
+			$ev = new EntityEffectRemoveEvent($this->entity, $effect, $this->durations[$index] <= 0);
 			$ev->call();
 			if($ev->isCancelled()){
 				foreach($this->effectAddHooks as $hook){
@@ -82,14 +83,30 @@ class EffectManager extends EffectCollection{
 	}
 
 	public function tick(int $tickDiff = 1) : bool{
-		foreach($this->effects as $instance){
+		foreach($this->effects as $index => $instance){
+			$remaining = $this->durations[$index] ?? null;
+			if($remaining === null){ //removed by an earlier effect this tick
+				continue;
+			}
+
 			$type = $instance->getType();
-			if($type->canTick($instance)){
+			$interval = $type->getApplyInterval($instance);
+			if($interval > 0 && $remaining % $interval === 0){
 				$type->applyEffect($this->entity, $instance);
 			}
-			$instance->decreaseDuration($tickDiff);
-			if($instance->hasExpired()){
-				$this->remove($instance->getType());
+
+			if(!isset($this->durations[$index])){ //cleared by its own tick
+				continue;
+			}
+
+			$remaining -= $tickDiff;
+			if($remaining <= 0){
+				//infinite effects wrap around because periodic effects rely on the duration to know when to tick
+				$remaining = $instance->isInfinite() ? $remaining + Limits::INT32_MAX : 0;
+			}
+			$this->durations[$index] = $remaining;
+			if($remaining <= 0){
+				$this->remove($type);
 			}
 		}
 
