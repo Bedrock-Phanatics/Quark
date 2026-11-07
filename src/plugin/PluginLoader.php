@@ -34,9 +34,9 @@ interface PluginLoader{
 	public function canLoadPlugin(string $path) : bool;
 
 	/**
-	 * Loads the plugin contained in $file
+	 * Loads the plugin contained in $file, using the description already read by getPluginDescription()
 	 */
-	public function loadPlugin(string $file) : void;
+	public function loadPlugin(string $file, PluginDescription $description) : void;
 
 	/**
 	 * Gets the PluginDescription from the file

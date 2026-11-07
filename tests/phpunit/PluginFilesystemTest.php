@@ -268,6 +268,36 @@ final class PluginFilesystemTest extends TestCase{
 		self::assertFileDoesNotExist($this->paths->pluginData() . "/Modern/config.yml");
 	}
 
+	public function testPharDescriptionIsReadOncePerPlugin() : void{
+		$classLoader = new ThreadSafeClassLoader();
+		$classLoader->register(true);
+		$name = "PharOnce" . bin2hex(random_bytes(4));
+		$source = $this->root . "/src-$name";
+		foreach([
+			"plugin.yml" => "name: Once\nmain: $name\\Main\nsrc-namespace-prefix: $name\nversion: 1.0.0\napi: 6.0.0\n",
+			"src/Main.php" => "<?php\nnamespace $name;\nfinal class Main extends \\quark\\plugin\\PluginBase {}\n"
+		] as $path => $contents){
+			@mkdir(dirname("$source/$path"), 0777, true);
+			file_put_contents("$source/$path", $contents);
+		}
+		exec(escapeshellarg(PHP_BINARY) . " -n -d phar.readonly=0 " . escapeshellarg(dirname(__DIR__) . "/build-plugin-phar.php") . " " . escapeshellarg($source) . " " . escapeshellarg($this->paths->plugins . "/$name.phar") . " 2>&1", $output, $status);
+		self::assertSame(0, $status, implode("\n", $output));
+		$loader = new class($classLoader) extends PharPluginLoader{
+			public int $reads = 0;
+
+			public function getPluginDescription(string $file) : ?PluginDescription{
+				$this->reads++;
+				return parent::getPluginDescription($file);
+			}
+		};
+		$manager = $this->manager();
+		$manager->registerInterface($loader);
+		$errors = 0;
+		self::assertSame(["Once"], array_keys($manager->loadPlugins($this->paths->plugins, $errors)));
+		self::assertSame(0, $errors);
+		self::assertSame(1, $loader->reads);
+	}
+
 	public function testResourcesAreScopedToTheResourceFolder() : void{
 		$classLoader = new ThreadSafeClassLoader();
 		$classLoader->register(true);

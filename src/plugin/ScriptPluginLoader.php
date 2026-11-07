@@ -46,10 +46,7 @@ class ScriptPluginLoader implements PluginLoader{
 		return is_file($path) && str_ends_with($path, ".php");
 	}
 
-	/**
-	 * Loads the plugin contained in $file
-	 */
-	public function loadPlugin(string $file) : void{
+	public function loadPlugin(string $file, PluginDescription $description) : void{
 		include_once $file;
 	}
 
