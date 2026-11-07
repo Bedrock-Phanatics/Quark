@@ -25,6 +25,7 @@ namespace quark\command\defaults;
 
 use quark\command\Command;
 use quark\command\CommandSender;
+use quark\command\SimpleCommandMap;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
@@ -74,8 +75,10 @@ class HelpCommand extends VanillaCommand{
 
 		if($commandName === ""){
 			$commands = [];
-			foreach($sender->getServer()->getCommandMap()->getCommands() as $command){
-				if($command->testPermissionSilent($sender)){
+			$commandMap = $sender->getServer()->getCommandMap();
+			foreach($commandMap->getCommands() as $command){
+				//a server alias can take over the label
+				if($commandMap->getCommand($command->getLabel()) === $command && SimpleCommandMap::isOwnerEnabled($command) && $command->testPermissionSilent($sender)){
 					$commands[$command->getLabel()] = $command;
 				}
 			}
@@ -98,7 +101,7 @@ class HelpCommand extends VanillaCommand{
 			return true;
 		}else{
 			if(($cmd = $sender->getServer()->getCommandMap()->getCommand(strtolower($commandName))) instanceof Command){
-				if($cmd->testPermissionSilent($sender)){
+				if(SimpleCommandMap::isOwnerEnabled($cmd) && $cmd->testPermissionSilent($sender)){
 					$lang = $sender->getLanguage();
 					$description = $cmd->getDescription();
 					$descriptionString = $description instanceof Translatable ? $lang->translate($description) : $description;

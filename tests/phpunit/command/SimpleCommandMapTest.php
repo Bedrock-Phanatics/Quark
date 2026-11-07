@@ -27,10 +27,12 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use quark\command\argument\IntegerArgument;
 use quark\command\argument\StringArgument;
+use quark\command\defaults\HelpCommand;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\server\CommandEvent;
+use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\Permission;
 use quark\permission\PermissionManager;
@@ -44,6 +46,7 @@ use quark\scheduler\ClosureTask;
 use quark\scheduler\TaskScheduler;
 use quark\Server;
 use quark\thread\log\AttachableThreadSafeLogger;
+use function implode;
 
 final class SimpleCommandMapTest extends TestCase{
 	private Server&Stub $server;
@@ -403,6 +406,51 @@ final class SimpleCommandMapTest extends TestCase{
 		$quiet = $this->plugin($enabled, null, $scheduler);
 		$this->expectExceptionMessage("scheduler failed");
 		$manager->disablePlugin($quiet);
+	}
+
+	public function testHelpHidesCommandsOfDisabledPlugins() : void{
+		$enabled = true;
+		$plugin = $this->plugin($enabled);
+		$command = new PluginCommand("manifest", $plugin, self::createStub(CommandExecutor::class));
+		$command->setPermission("test.root");
+		$this->map->register("owner", $command);
+		$this->server->method("getCommandMap")->willReturn($this->map);
+		$sender = $this->sender();
+		$sender->setBasePermission(DefaultPermissionNames::COMMAND_HELP, true);
+		$help = new HelpCommand();
+
+		$help->execute($sender, "help", []);
+		self::assertStringContainsString("/manifest", implode("\n", $sender->messages));
+		$sender->messages = [];
+		$help->execute($sender, "help", ["manifest"]);
+		self::assertStringNotContainsString("not found", implode("\n", $sender->messages));
+
+		$enabled = false;
+		$sender->messages = [];
+		$help->execute($sender, "help", []);
+		self::assertStringNotContainsString("/manifest", implode("\n", $sender->messages));
+		$sender->messages = [];
+		$help->execute($sender, "help", ["manifest"]);
+		self::assertSame(["Unknown command: manifest. Use /help for a list of available commands."], $sender->messages);
+	}
+
+	public function testHelpListsTheAliasInsteadOfTheCommandItShadows() : void{
+		$original = new class("foo", "original description", null, ["f"]) extends Command{
+			public function execute(CommandSender $sender, string $commandLabel, array $args){
+				return true;
+			}
+		};
+		$original->setPermission("test.root");
+		$this->map->register("test", $original);
+		$this->map->register("test", $this->legacy("open"));
+		$this->server->method("getCommandMap")->willReturn($this->map);
+		$this->installAliases(["foo" => ["open \$1"]]);
+		$sender = $this->sender();
+
+		(new HelpCommand())->execute($sender, "help", []);
+		$output = implode("\n", $sender->messages);
+		self::assertStringContainsString("/foo: User-defined custom command", $output);
+		self::assertStringNotContainsString("original description", $output);
 	}
 
 	public function testPluginCanDisableItselfWhileExecuting() : void{
