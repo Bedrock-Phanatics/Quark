@@ -192,6 +192,7 @@ use function spl_object_id;
 use function sprintf;
 use function str_repeat;
 use function str_replace;
+use function strcasecmp;
 use function strlen;
 use function strncasecmp;
 use function strtolower;
@@ -742,24 +743,80 @@ class Server{
 	 * @phpstan-return Promise<null>
 	 */
 	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag) : Promise{
-		$ev = new PlayerDataSaveEvent($nbtTag, $name, $this->getPlayerExact($name));
-		if(!$this->shouldSavePlayerData()){
-			$ev->cancel();
-		}
-
-		$ev->call();
-
-		if($ev->isCancelled()){
+		$data = $this->callPlayerDataSaveEvent($name, $nbtTag);
+		if($data === null){
 			return Promise::resolved(null);
 		}
 
-		$data = $ev->getSaveData();
 		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $data)))
 			->catch(function(\Throwable $e) use ($name) : null{
 				$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
 				$this->logger->logException($e);
 				return null;
 			});
+	}
+
+	/**
+	 * Loads the player's saved data, passes it to $update and saves the result as one step, so a login can't read
+	 * the data in between and later overwrite the changes.
+	 *
+	 * Resolves with false without saving if the player is online or connecting, has no saved data, or the save is
+	 * cancelled. Rejects if the data can't be loaded or saved.
+	 *
+	 * @phpstan-param \Closure(OfflinePlayer) : void $update
+	 * @phpstan-return Promise<bool>
+	 */
+	public function updateOfflinePlayer(string $name, \Closure $update) : Promise{
+		$name = strtolower($name);
+		if($this->isPlayerConnected($name)){
+			return Promise::resolved(false);
+		}
+
+		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataLoad->time(fn() => $this->playerDataProvider->loadData($name))
+			->then(function(?CompoundTag $loaded) use ($name, $update) : Promise{
+				if($loaded === null){
+					return Promise::resolved(false);
+				}
+				$player = new OfflinePlayer($name, $loaded);
+				$update($player);
+
+				$data = $this->callPlayerDataSaveEvent($name, $player->getSaveData() ?? $loaded);
+				if($data === null){
+					return Promise::resolved(false);
+				}
+				return PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $data))->then(fn() => true);
+			})
+		);
+	}
+
+	/**
+	 * Returns the data to save, or null if saving was cancelled.
+	 */
+	private function callPlayerDataSaveEvent(string $name, CompoundTag $data) : ?CompoundTag{
+		$ev = new PlayerDataSaveEvent($data, $name, $this->getPlayerExact($name));
+		if(!$this->shouldSavePlayerData()){
+			$ev->cancel();
+		}
+
+		$ev->call();
+
+		return $ev->isCancelled() ? null : $ev->getSaveData();
+	}
+
+	/**
+	 * Returns whether the player is online or has a session that may already have read their saved data.
+	 */
+	private function isPlayerConnected(string $name) : bool{
+		if($this->getPlayerExact($name) !== null){
+			return true;
+		}
+		foreach($this->network->getSessionManager()->getSessions() as $session){
+			$info = $session->getPlayerInfo();
+			if($info !== null && strcasecmp($info->getUsername(), $name) === 0){
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

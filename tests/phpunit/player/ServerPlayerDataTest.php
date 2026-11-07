@@ -25,25 +25,33 @@ namespace quark\player;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\entity\Skin;
+use quark\item\VanillaItems;
 use quark\lang\Language;
+use quark\network\mcpe\NetworkSession;
+use quark\network\Network;
+use quark\network\NetworkSessionManager;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\ServerConfigGroup;
 use quark\thread\log\AttachableThreadSafeLogger;
 use quark\utils\Config;
 use quark\utils\Filesystem;
+use Ramsey\Uuid\Uuid;
 use Symfony\Component\Filesystem\Path;
 use Vow\Deferred;
 use Vow\Promise;
 use function bin2hex;
 use function mkdir;
 use function random_bytes;
+use function str_repeat;
 use function sys_get_temp_dir;
 
 final class ServerPlayerDataTest extends TestCase{
 
 	private ManualPlayerDataProvider $provider;
 	private Server $server;
+	private Network $network;
 	private string $path;
 
 	public function setUp() : void{
@@ -70,6 +78,11 @@ final class ServerPlayerDataTest extends TestCase{
 		$config = new Config(Path::join($this->path, "config.json"), Config::JSON);
 		$reflection->getProperty("configGroup")->setValue($this->server, new ServerConfigGroup($config, $config));
 		$reflection->getProperty("language")->setValue($this->server, self::createStub(Language::class));
+
+		$networkReflection = new \ReflectionClass(Network::class);
+		$this->network = $networkReflection->newInstanceWithoutConstructor();
+		$networkReflection->getProperty("sessionManager")->setValue($this->network, new NetworkSessionManager());
+		$reflection->getProperty("network")->setValue($this->server, $this->network);
 	}
 
 	public function tearDown() : void{
@@ -166,12 +179,71 @@ final class ServerPlayerDataTest extends TestCase{
 		self::assertSame("steve", $player->getName());
 		self::assertNotNull($player->getFirstPlayed());
 	}
+
+	public function testUpdateSavesInventoryChangesAndKeepsOtherData() : void{
+		$result = $this->server->updateOfflinePlayer("Steve", function(OfflinePlayer $player) : void{
+			$player->getInventory()->addItem(VanillaItems::DIAMOND()->setCount(3));
+		});
+		$this->provider->settle("load:steve", CompoundTag::create()->setLong(Player::TAG_FIRST_PLAYED, 1700000000000));
+		self::assertSame(["load:steve", "save:steve"], $this->provider->calls);
+
+		$saved = $this->provider->saved["steve"];
+		self::assertSame(1700000000000, $saved->getLong(Player::TAG_FIRST_PLAYED));
+		self::assertTrue(VanillaItems::DIAMOND()->setCount(3)->equalsExact(new OfflinePlayer("steve", $saved)->getInventory()->getItem(0)));
+
+		self::assertTrue($result->isPending());
+		$this->provider->settle("save:steve");
+		self::assertTrue($result->value());
+		self::assertSame([], $this->tails());
+	}
+
+	public function testLoginDuringUpdateLoadsTheUpdatedData() : void{
+		$this->server->updateOfflinePlayer("Steve", fn(OfflinePlayer $player) => $player->getEnderInventory()->setItem(0, VanillaItems::APPLE()))->observe(null);
+		$this->server->getOfflinePlayerData("Steve")->observe(null);
+
+		$this->provider->settle("load:steve", CompoundTag::create());
+		self::assertSame(["load:steve", "save:steve"], $this->provider->calls);
+		$this->provider->settle("save:steve");
+		self::assertSame(["load:steve", "save:steve", "load:Steve"], $this->provider->calls);
+	}
+
+	public function testUpdateSkipsPlayersWithoutData() : void{
+		$called = false;
+		$result = $this->server->updateOfflinePlayer("Steve", function() use (&$called) : void{ $called = true; });
+		$this->provider->settle("load:steve");
+
+		self::assertFalse($result->value());
+		self::assertFalse($called);
+		self::assertSame(["load:steve"], $this->provider->calls);
+	}
+
+	public function testUpdateRefusesConnectingPlayers() : void{
+		$session = self::createStub(NetworkSession::class);
+		$session->method("getPlayerInfo")->willReturn(new PlayerInfo("STEVE", Uuid::uuid4(), new Skin("test", str_repeat("\0", 64 * 32 * 4)), "en_US"));
+		$this->network->getSessionManager()->add($session);
+
+		$result = $this->server->updateOfflinePlayer("steve", fn() => null);
+
+		self::assertFalse($result->value());
+		self::assertSame([], $this->provider->calls);
+	}
+
+	public function testUpdateFailureRejectsAndReleasesQueue() : void{
+		$result = $this->server->updateOfflinePlayer("Steve", fn() => throw new \RuntimeException("plugin bug"));
+		$this->provider->settle("load:steve", CompoundTag::create());
+
+		self::assertTrue($result->isRejected());
+		$result->observe(null, static fn() => null);
+		self::assertSame([], $this->tails());
+	}
 }
 
 final class ManualPlayerDataProvider implements PlayerDataProvider{
 	/** @var list<string> */
 	public array $calls = [];
 	public ?\Throwable $throws = null;
+	/** @var array<string, CompoundTag> */
+	public array $saved = [];
 	/** @var array<string, Deferred<mixed>> */
 	private array $pending = [];
 
@@ -205,6 +277,7 @@ final class ManualPlayerDataProvider implements PlayerDataProvider{
 	}
 
 	public function saveData(string $name, CompoundTag $data) : Promise{
+		$this->saved[$name] = $data;
 		return $this->begin("save", $name);
 	}
 }

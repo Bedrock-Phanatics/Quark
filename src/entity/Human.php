@@ -302,6 +302,77 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		$inventory->getListeners()->add(...$listeners);
 	}
 
+	/**
+	 * Fills the inventories from saved human data without notifying their listeners.
+	 *
+	 * @internal
+	 */
+	public static function readInventories(CompoundTag $nbt, Inventory $inventory, Inventory $armorInventory, Inventory $offHandInventory, Inventory $enderInventory) : void{
+		$inventoryTag = $nbt->getListTag(self::TAG_INVENTORY, CompoundTag::class);
+		if($inventoryTag !== null){
+			$inventoryItems = [];
+			$armorInventoryItems = [];
+
+			foreach($inventoryTag as $item){
+				$slot = $item->getByte(SavedItemStackData::TAG_SLOT, -1);
+				if($slot >= 100 && $slot < 100 + $armorInventory->getSize()){
+					$armorSlot = $slot - 100;
+					$armorInventoryItems[$armorSlot] = Item::safeNbtDeserialize($item, "Human armor slot $armorSlot");
+				}elseif($slot >= Hotbar::SIZE && $slot < $inventory->getSize() + Hotbar::SIZE){
+					$inventorySlot = $slot - Hotbar::SIZE;
+					$inventoryItems[$inventorySlot] = Item::safeNbtDeserialize($item, "Human inventory slot $inventorySlot");
+				}
+			}
+
+			self::populateInventoryFromListTag($inventory, $inventoryItems);
+			self::populateInventoryFromListTag($armorInventory, $armorInventoryItems);
+		}
+
+		$offHand = $nbt->getCompoundTag(self::TAG_OFF_HAND_ITEM);
+		if($offHand !== null){
+			self::populateInventoryFromListTag($offHandInventory, [0 => Item::safeNbtDeserialize($offHand, "Human off-hand item")]);
+		}
+
+		$enderChestInventoryTag = $nbt->getListTag(self::TAG_ENDER_CHEST_INVENTORY, CompoundTag::class);
+		if($enderChestInventoryTag !== null){
+			$enderChestInventoryItems = [];
+			foreach($enderChestInventoryTag as $item){
+				$slot = $item->getByte(SavedItemStackData::TAG_SLOT, -1);
+				if($slot >= 0 && $slot < $enderInventory->getSize()){
+					$enderChestInventoryItems[$slot] = Item::safeNbtDeserialize($item, "Human ender chest slot $slot");
+				}
+			}
+			self::populateInventoryFromListTag($enderInventory, $enderChestInventoryItems);
+		}
+	}
+
+	/**
+	 * @internal
+	 */
+	public static function writeInventories(CompoundTag $nbt, Inventory $inventory, Inventory $armorInventory, Inventory $offHandInventory, Inventory $enderInventory) : void{
+		$inventoryTag = new ListTag([], NBT::TAG_Compound);
+		foreach($inventory->getContents() as $slot => $item){
+			$inventoryTag->push($item->nbtSerialize($slot + Hotbar::SIZE));
+		}
+		foreach($armorInventory->getContents() as $slot => $item){
+			$inventoryTag->push($item->nbtSerialize($slot + 100));
+		}
+		$nbt->setTag(self::TAG_INVENTORY, $inventoryTag);
+
+		$offHandItem = $offHandInventory->getItem(0);
+		if($offHandItem->isNull()){
+			$nbt->removeTag(self::TAG_OFF_HAND_ITEM);
+		}else{
+			$nbt->setTag(self::TAG_OFF_HAND_ITEM, $offHandItem->nbtSerialize());
+		}
+
+		$enderItems = [];
+		foreach($enderInventory->getContents() as $slot => $item){
+			$enderItems[] = $item->nbtSerialize($slot);
+		}
+		$nbt->setTag(self::TAG_ENDER_CHEST_INVENTORY, new ListTag($enderItems, NBT::TAG_Compound));
+	}
+
 	protected function initEntity(CompoundTag $nbt) : void{
 		parent::initEntity($nbt);
 
@@ -331,47 +402,12 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		$this->enderInventory = new SimpleInventory(27);
 		$this->initHumanData($nbt);
 
-		$inventoryTag = $nbt->getListTag(self::TAG_INVENTORY, CompoundTag::class);
-		if($inventoryTag !== null){
-			$inventoryItems = [];
-			$armorInventoryItems = [];
-
-			foreach($inventoryTag as $i => $item){
-				$slot = $item->getByte(SavedItemStackData::TAG_SLOT);
-				if($slot >= 0 && $slot < 9){ //Hotbar
-					//Old hotbar saving stuff, ignore it
-				}elseif($slot >= 100 && $slot < 104){ //Armor
-					$armorSlot = $slot - 100;
-					$armorInventoryItems[$armorSlot] = Item::safeNbtDeserialize($item, "Human armor slot $armorSlot");
-				}elseif($slot >= 9 && $slot < $this->inventory->getSize() + 9){
-					$inventorySlot = $slot - 9;
-					$inventoryItems[$inventorySlot] = Item::safeNbtDeserialize($item, "Human inventory slot $inventorySlot");
-				}
-			}
-
-			self::populateInventoryFromListTag($this->inventory, $inventoryItems);
-			self::populateInventoryFromListTag($this->armorInventory, $armorInventoryItems);
-		}
-		$offHand = $nbt->getCompoundTag(self::TAG_OFF_HAND_ITEM);
-		if($offHand !== null){
-			$this->setOffHandItem(Item::safeNbtDeserialize($offHand, "Human off-hand item"));
-		}
+		self::readInventories($nbt, $this->inventory, $this->armorInventory, $this->offHandInventory, $this->enderInventory);
 		$this->offHandInventorySyncListener = CallbackInventoryListener::onAnyChange(fn() => NetworkBroadcastUtils::broadcastEntityEvent(
 			$this->getViewers(),
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onMobOffHandItemChange($recipients, $this)
 		));
 		$this->offHandInventory->getListeners()->add($this->offHandInventorySyncListener);
-
-		$enderChestInventoryTag = $nbt->getListTag(self::TAG_ENDER_CHEST_INVENTORY, CompoundTag::class);
-		if($enderChestInventoryTag !== null){
-			$enderChestInventoryItems = [];
-
-			foreach($enderChestInventoryTag as $item){
-				$slot = $item->getByte(SavedItemStackData::TAG_SLOT);
-				$enderChestInventoryItems[$slot] = Item::safeNbtDeserialize($item, "Human ender chest slot $slot");
-			}
-			self::populateInventoryFromListTag($this->enderInventory, $enderChestInventoryItems);
-		}
 
 		$selectedSlot = $nbt->getInt(self::TAG_SELECTED_INVENTORY_SLOT, 0);
 		$this->hotbar->setSelectedIndex($this->hotbar->isHotbarSlot($selectedSlot) ? $selectedSlot : 0);
@@ -469,45 +505,8 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		$nbt->setInt(self::TAG_LIFETIME_XP_TOTAL, $this->xpManager->getLifetimeTotalXp());
 		$nbt->setInt(self::TAG_XP_SEED, $this->xpSeed);
 
-		$inventoryTag = new ListTag([], NBT::TAG_Compound);
-		$nbt->setTag(self::TAG_INVENTORY, $inventoryTag);
-
-		//Normal inventory
-		$slotCount = $this->inventory->getSize() + $this->hotbar->getSize();
-		for($slot = $this->hotbar->getSize(); $slot < $slotCount; ++$slot){
-			$item = $this->inventory->getItem($slot - 9);
-			if(!$item->isNull()){
-				$inventoryTag->push($item->nbtSerialize($slot));
-			}
-		}
-
-		//Armor
-		for($slot = 100; $slot < 104; ++$slot){
-			$item = $this->armorInventory->getItem($slot - 100);
-			if(!$item->isNull()){
-				$inventoryTag->push($item->nbtSerialize($slot));
-			}
-		}
-
+		self::writeInventories($nbt, $this->inventory, $this->armorInventory, $this->offHandInventory, $this->enderInventory);
 		$nbt->setInt(self::TAG_SELECTED_INVENTORY_SLOT, $this->hotbar->getSelectedIndex());
-
-		$offHandItem = $this->getOffHandItem();
-		if(!$offHandItem->isNull()){
-			$nbt->setTag(self::TAG_OFF_HAND_ITEM, $offHandItem->nbtSerialize());
-		}
-
-		/** @var CompoundTag[] $items */
-		$items = [];
-
-		$slotCount = $this->enderInventory->getSize();
-		for($slot = 0; $slot < $slotCount; ++$slot){
-			$item = $this->enderInventory->getItem($slot);
-			if(!$item->isNull()){
-				$items[] = $item->nbtSerialize($slot);
-			}
-		}
-
-		$nbt->setTag(self::TAG_ENDER_CHEST_INVENTORY, new ListTag($items, NBT::TAG_Compound));
 
 		$nbt->setTag(self::TAG_SKIN, CompoundTag::create()
 			->setString(self::TAG_SKIN_NAME, $this->skin->getSkinId())

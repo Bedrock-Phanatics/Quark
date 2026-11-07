@@ -148,6 +148,7 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 - `PlayerDataProvider::hasData()`, `loadData()` and `saveData()` return a `Vow\Promise`. A failed load rejects with `PlayerDataLoadException` and a failed save with `PlayerDataSaveException`. Operations for the same player run one at a time in call order, so providers don't have to order them.
 - `Server::getOfflinePlayer()`, `getOfflinePlayerData()`, `hasOfflinePlayerData()`, `saveOfflinePlayerData()` and `Player::save()` return promises too. Saves never reject, failures are logged.
+- `OfflinePlayer` exposes `getInventory()`, `getArmorInventory()`, `getOffHandInventory()` and `getEnderInventory()` read from the saved data. To change them, use `Server::updateOfflinePlayer($name, fn(OfflinePlayer $player) => ...)`, which loads, updates and saves as one queued step so a joining player can't overwrite the change. It resolves with `false` without saving if the player is online or connecting, or has no saved data.
 - The server waits up to 30 seconds for pending saves on shutdown.
 
 ### Removed Mechanics

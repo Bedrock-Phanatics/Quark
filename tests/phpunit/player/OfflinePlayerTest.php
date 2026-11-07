@@ -25,6 +25,9 @@ namespace quark\player;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
+use quark\item\VanillaItems;
+use function array_keys;
 
 final class OfflinePlayerTest extends TestCase{
 	public function testPlayTimesAreMillisecondTimestamps() : void{
@@ -43,6 +46,44 @@ final class OfflinePlayerTest extends TestCase{
 		self::assertNull($player->getFirstPlayed());
 		self::assertNull($player->getLastPlayed());
 		self::assertFalse($player->hasPlayedBefore());
+	}
+
+	public function testInventoriesRoundTripThroughSaveData() : void{
+		$player = new OfflinePlayer("Steve", CompoundTag::create()->setString("rank", "admin"));
+		$player->getInventory()->setItem(35, VanillaItems::DIAMOND());
+		$player->getArmorInventory()->setHelmet(VanillaItems::IRON_HELMET());
+		$player->getOffHandInventory()->setItem(0, VanillaItems::TOTEM());
+		$player->getEnderInventory()->setItem(26, VanillaItems::APPLE()->setCount(5));
+
+		$data = $player->getSaveData();
+		self::assertNotNull($data);
+		self::assertSame("admin", $data->getString("rank"));
+		$copy = new OfflinePlayer("Steve", $data);
+		self::assertTrue(VanillaItems::DIAMOND()->equalsExact($copy->getInventory()->getItem(35)));
+		self::assertTrue(VanillaItems::IRON_HELMET()->equalsExact($copy->getArmorInventory()->getHelmet()));
+		self::assertTrue(VanillaItems::TOTEM()->equalsExact($copy->getOffHandInventory()->getItem(0)));
+		self::assertTrue(VanillaItems::APPLE()->setCount(5)->equalsExact($copy->getEnderInventory()->getItem(26)));
+
+		$copy->getOffHandInventory()->clearAll();
+		$cleared = new OfflinePlayer("Steve", $copy->getSaveData());
+		self::assertTrue($cleared->getOffHandInventory()->getItem(0)->isNull());
+	}
+
+	public function testSaveDataIsUnchangedWhenInventoriesAreNotRead() : void{
+		$data = CompoundTag::create();
+		self::assertSame($data, new OfflinePlayer("Steve", $data)->getSaveData());
+	}
+
+	public function testOutOfRangeEnderChestSlotsAreIgnored() : void{
+		$data = CompoundTag::create()->setTag("EnderChestInventory", new ListTag([
+			VanillaItems::APPLE()->nbtSerialize(-2),
+			VanillaItems::APPLE()->nbtSerialize(),
+			VanillaItems::APPLE()->nbtSerialize(27),
+			VanillaItems::DIAMOND()->nbtSerialize(3),
+		]));
+
+		$inventory = new OfflinePlayer("Steve", $data)->getEnderInventory();
+		self::assertSame([3], array_keys($inventory->getContents()));
 	}
 
 	public function testMissingTagsHaveNoPlayTimes() : void{
