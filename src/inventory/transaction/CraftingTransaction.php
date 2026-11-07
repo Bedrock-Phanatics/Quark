@@ -23,13 +23,14 @@ declare(strict_types=1);
 
 namespace quark\inventory\transaction;
 
+use quark\block\inventory\window\CraftingTableInventoryWindow;
 use quark\crafting\CraftingGrid;
 use quark\crafting\CraftingManager;
 use quark\crafting\CraftingRecipe;
 use quark\crafting\RecipeIngredient;
 use quark\event\inventory\CraftItemEvent;
-use quark\inventory\Inventory;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\utils\Utils;
 use function array_fill_keys;
@@ -72,7 +73,7 @@ class CraftingTransaction extends InventoryTransaction{
 
 	private CraftingManager $craftingManager;
 	private CraftingGrid $craftingGrid;
-	private ?Inventory $expectedWindow;
+	private ?InventoryWindow $expectedWindow;
 
 	public function __construct(Player $source, CraftingManager $craftingManager, array $actions = [], ?CraftingRecipe $recipe = null, ?int $repetitions = null, ?CraftingGrid $craftingGrid = null){
 		parent::__construct($source, $actions);
@@ -80,7 +81,7 @@ class CraftingTransaction extends InventoryTransaction{
 		$this->recipe = $recipe;
 		$this->repetitions = $repetitions;
 		$this->expectedWindow = $source->getCurrentWindow();
-		$this->craftingGrid = $craftingGrid ?? ($this->expectedWindow instanceof CraftingGrid ? $this->expectedWindow : $source->getCraftingGrid());
+		$this->craftingGrid = $craftingGrid ?? ($this->expectedWindow instanceof CraftingTableInventoryWindow ? $this->expectedWindow->getCraftingGrid() : $source->getCraftingGrid());
 	}
 
 	/**

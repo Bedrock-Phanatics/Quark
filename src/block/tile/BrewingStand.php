@@ -26,12 +26,13 @@ namespace quark\block\tile;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
-use quark\block\inventory\BrewingStandInventory;
+use quark\block\inventory\window\BrewingStandInventoryWindow;
 use quark\crafting\BrewingRecipe;
 use quark\event\block\BrewingFuelUseEvent;
 use quark\event\block\BrewItemEvent;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\player\Player;
@@ -40,11 +41,11 @@ use quark\world\World;
 use function array_map;
 use function count;
 
-class BrewingStand extends Spawnable implements Container, Nameable{
+class BrewingStand extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait {
 		addAdditionalSpawnData as addNameSpawnData;
 	}
-	use ContainerTrait;
+	use ContainerTileTrait;
 
 	public const BREW_TIME_TICKS = 400; // Brew time in ticks
 
@@ -54,7 +55,7 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 	private const TAG_REMAINING_FUEL_TIME = "Fuel"; //TAG_Byte
 	private const TAG_REMAINING_FUEL_TIME_PE = "FuelAmount"; //TAG_Short
 
-	private BrewingStandInventory $inventory;
+	private Inventory $inventory;
 
 	private int $brewTime = 0;
 	private int $maxFuelTime = 0;
@@ -62,7 +63,7 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new BrewingStandInventory($this->position);
+		$this->inventory = new SimpleInventory(5);
 		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(static function(Inventory $unused) use ($world, $pos) : void{
 			$world->scheduleDelayedBlockUpdate($pos, 1);
 		}));
@@ -106,17 +107,13 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 
 	public function close() : void{
 		if(!$this->closed){
-			$this->inventory->removeAllViewers();
+			$this->inventory->removeAllWindows();
 
 			parent::close();
 		}
 	}
 
-	public function getInventory() : BrewingStandInventory{
-		return $this->inventory;
-	}
-
-	public function getRealInventory() : BrewingStandInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 
@@ -132,7 +129,7 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 		}
 
 		$item->pop();
-		$this->inventory->setItem(BrewingStandInventory::SLOT_FUEL, $item);
+		$this->inventory->setItem(BrewingStandInventoryWindow::SLOT_FUEL, $item);
 
 		$this->maxFuelTime = $this->remainingFuelTime = $ev->getFuelTime();
 	}
@@ -142,14 +139,14 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 	 * @phpstan-return array<int, BrewingRecipe>
 	 */
 	private function getBrewableRecipes() : array{
-		$ingredient = $this->inventory->getItem(BrewingStandInventory::SLOT_INGREDIENT);
+		$ingredient = $this->inventory->getItem(BrewingStandInventoryWindow::SLOT_INGREDIENT);
 		if($ingredient->isNull()){
 			return [];
 		}
 
 		$recipes = [];
 		$craftingManager = $this->position->getWorld()->getServer()->getCraftingManager();
-		foreach([BrewingStandInventory::SLOT_BOTTLE_LEFT, BrewingStandInventory::SLOT_BOTTLE_MIDDLE, BrewingStandInventory::SLOT_BOTTLE_RIGHT] as $slot){
+		foreach([BrewingStandInventoryWindow::SLOT_BOTTLE_LEFT, BrewingStandInventoryWindow::SLOT_BOTTLE_MIDDLE, BrewingStandInventoryWindow::SLOT_BOTTLE_RIGHT] as $slot){
 			$input = $this->inventory->getItem($slot);
 			if($input->isNull()){
 				continue;
@@ -176,8 +173,8 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 
 		$ret = false;
 
-		$fuel = $this->inventory->getItem(BrewingStandInventory::SLOT_FUEL);
-		$ingredient = $this->inventory->getItem(BrewingStandInventory::SLOT_INGREDIENT);
+		$fuel = $this->inventory->getItem(BrewingStandInventoryWindow::SLOT_FUEL);
+		$ingredient = $this->inventory->getItem(BrewingStandInventoryWindow::SLOT_INGREDIENT);
 
 		$recipes = $this->getBrewableRecipes();
 		$canBrew = count($recipes) !== 0;
@@ -219,7 +216,7 @@ class BrewingStand extends Spawnable implements Container, Nameable{
 					}
 
 					$ingredient->pop();
-					$this->inventory->setItem(BrewingStandInventory::SLOT_INGREDIENT, $ingredient);
+					$this->inventory->setItem(BrewingStandInventoryWindow::SLOT_INGREDIENT, $ingredient);
 
 					$this->brewTime = 0;
 				}else{

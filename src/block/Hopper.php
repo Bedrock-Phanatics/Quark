@@ -26,16 +26,22 @@ namespace quark\block;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use quark\block\tile\Hopper as TileHopper;
+use quark\block\inventory\window\HopperInventoryWindow;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\block\utils\PoweredByRedstone;
 use quark\block\utils\PoweredByRedstoneTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\inventory\Inventory;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\world\BlockTransaction;
+use quark\world\Position;
 
-class Hopper extends Transparent implements PoweredByRedstone{
+class Hopper extends Transparent implements Container, PoweredByRedstone{
+	use ContainerTrait;
 	use PoweredByRedstoneTrait;
 
 	private int $facing = Facing::DOWN;
@@ -81,20 +87,13 @@ class Hopper extends Transparent implements PoweredByRedstone{
 		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player !== null){
-			$tile = $this->position->getWorld()->getTile($this->position);
-			if($tile instanceof TileHopper){ //TODO: find a way to have inventories open on click without this boilerplate in every block
-				$player->setCurrentWindow($tile->getInventory());
-			}
-			return true;
-		}
-		return false;
-	}
-
 	public function onScheduledUpdate() : void{
 		//TODO
 	}
 
 	//TODO: redstone logic, sucking logic
+
+	protected function newMenu(Player $player, Inventory $inventory, Position $position) : InventoryWindow{
+		return new HopperInventoryWindow($player, $inventory, $position);
+	}
 }

@@ -27,35 +27,36 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\Furnace as BlockFurnace;
-use quark\block\inventory\FurnaceInventory;
+use quark\block\inventory\window\FurnaceInventoryWindow;
 use quark\crafting\FurnaceRecipe;
 use quark\crafting\FurnaceType;
 use quark\event\inventory\FurnaceBurnEvent;
 use quark\event\inventory\FurnaceSmeltEvent;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\World;
 use function array_map;
 use function max;
 
-abstract class Furnace extends Spawnable implements Container, Nameable{
+abstract class Furnace extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait;
-	use ContainerTrait;
+	use ContainerTileTrait;
 
 	public const TAG_BURN_TIME = "BurnTime";
 	public const TAG_COOK_TIME = "CookTime";
 	public const TAG_MAX_TIME = "MaxTime";
 
-	protected FurnaceInventory $inventory;
+	protected Inventory $inventory;
 	private int $remainingFuelTime = 0;
 	private int $cookTime = 0;
 	private int $maxFuelTime = 0;
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new FurnaceInventory($this->position, $this->getFurnaceType());
+		$this->inventory = new SimpleInventory(3);
 		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(
 			static function(Inventory $unused) use ($world, $pos) : void{
 				$world->scheduleDelayedBlockUpdate($pos, 1);
@@ -98,18 +99,14 @@ abstract class Furnace extends Spawnable implements Container, Nameable{
 
 	public function close() : void{
 		if(!$this->closed){
-			$this->inventory->removeAllViewers();
+			$this->inventory->removeAllWindows();
 
 			parent::close();
 		}
 	}
 
-	public function getInventory() : FurnaceInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
-	}
-
-	public function getRealInventory() : FurnaceInventory{
-		return $this->getInventory();
 	}
 
 	protected function checkFuel(Item $fuel) : void{
@@ -123,7 +120,7 @@ abstract class Furnace extends Spawnable implements Container, Nameable{
 		$this->onStartSmelting();
 
 		if($this->remainingFuelTime > 0 && $ev->isBurning()){
-			$this->inventory->setFuel($fuel->getFuelResidue());
+			$this->inventory->setItem(FurnaceInventoryWindow::SLOT_FUEL, $fuel->getFuelResidue());
 		}
 	}
 
@@ -159,9 +156,9 @@ abstract class Furnace extends Spawnable implements Container, Nameable{
 
 		$ret = false;
 
-		$fuel = $this->inventory->getFuel();
-		$raw = $this->inventory->getSmelting();
-		$product = $this->inventory->getResult();
+		$fuel = $this->inventory->getItem(FurnaceInventoryWindow::SLOT_FUEL);
+		$raw = $this->inventory->getItem(FurnaceInventoryWindow::SLOT_INPUT);
+		$product = $this->inventory->getItem(FurnaceInventoryWindow::SLOT_RESULT);
 
 		$furnaceType = $this->getFurnaceType();
 		$smelt = $this->position->getWorld()->getServer()->getCraftingManager()->getFurnaceRecipeManager($furnaceType)->match($raw);
@@ -184,9 +181,9 @@ abstract class Furnace extends Spawnable implements Container, Nameable{
 					$ev->call();
 
 					if(!$ev->isCancelled()){
-						$this->inventory->setResult($ev->getResult());
+						$this->inventory->setItem(FurnaceInventoryWindow::SLOT_RESULT, $ev->getResult());
 						$raw->pop();
-						$this->inventory->setSmelting($raw);
+						$this->inventory->setItem(FurnaceInventoryWindow::SLOT_INPUT, $raw);
 					}
 
 					$this->cookTime -= $furnaceType->getCookDurationTicks();

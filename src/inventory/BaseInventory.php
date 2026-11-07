@@ -25,7 +25,7 @@ namespace quark\inventory;
 
 use quark\item\Item;
 use quark\item\VanillaItems;
-use quark\player\Player;
+use quark\player\InventoryWindow;
 use quark\utils\ObjectSet;
 use quark\utils\Utils;
 use function array_slice;
@@ -42,10 +42,10 @@ use function spl_object_id;
 abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 	protected int $maxStackSize = Inventory::MAX_STACK;
 	/**
-	 * @var Player[]
-	 * @phpstan-var array<int, Player>
+	 * @var InventoryWindow[]
+	 * @phpstan-var array<int, InventoryWindow>
 	 */
-	protected array $viewers = [];
+	protected array $windows = [];
 	/**
 	 * @var InventoryListener[]|ObjectSet
 	 * @phpstan-var ObjectSet<InventoryListener>
@@ -102,24 +102,20 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 
 		$listeners = $this->listeners->toArray();
 		$this->listeners->clear();
-		$viewers = $this->viewers;
-		$this->viewers = [];
 
-		$this->internalSetContents($items);
-
-		$this->listeners->add(...$listeners); //don't directly write, in case listeners were added while operation was in progress
-		foreach($viewers as $id => $viewer){
-			$this->viewers[$id] = $viewer;
+		try{
+			$this->internalSetContents($items);
+		}finally{
+			$this->listeners->add(...$listeners); //don't directly write, in case listeners were added while operation was in progress
 		}
 
 		$this->onContentChange($oldContents);
 	}
 
 	/**
-	 * Helper for utility functions which search the inventory.
-	 * TODO: make this abstract instead of providing a slow default implementation (BC break)
+	 * Slow default implementation, storage-backed inventories should override this.
 	 */
-	protected function getMatchingItemCount(int $slot, Item $test, bool $checkTags) : int{
+	public function getMatchingItemCount(int $slot, Item $test, bool $checkTags) : int{
 		$item = $this->getItem($slot);
 		return $item->equals($test, true, $checkTags) ? $item->getCount() : 0;
 	}
@@ -177,8 +173,7 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 	}
 
 	/**
-	 * TODO: make this abstract and force implementations to implement it properly (BC break)
-	 * This default implementation works, but is slow.
+	 * Slow default implementation, storage-backed inventories should override this.
 	 */
 	public function isSlotEmpty(int $index) : bool{
 		return $this->getItem($index)->isNull();
@@ -339,43 +334,40 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 		$this->setItem($slot2, $i1);
 	}
 
-	/**
-	 * @return Player[]
-	 */
 	public function getViewers() : array{
-		return $this->viewers;
+		$viewers = [];
+		foreach($this->windows as $window){
+			$player = $window->getViewer();
+			$viewers[spl_object_id($player)] = $player;
+		}
+		return $viewers;
 	}
 
-	/**
-	 * Removes the inventory window from all players currently viewing it.
-	 */
-	public function removeAllViewers() : void{
-		foreach($this->viewers as $hash => $viewer){
-			if($viewer->getCurrentWindow() === $this){ //this might not be the case for the player's own inventory
+	public function removeAllWindows() : void{
+		//a window must never outlive its inventory's holder, or the viewer could keep moving items in and out of storage
+		//that no longer exists in the world
+		foreach($this->windows as $id => $window){
+			$viewer = $window->getViewer();
+			if($viewer->getCurrentWindow() === $window){
 				$viewer->removeCurrentWindow();
 			}
-			unset($this->viewers[$hash]);
+			unset($this->windows[$id]);
 		}
 	}
 
-	public function onOpen(Player $who) : void{
-		$this->viewers[spl_object_id($who)] = $who;
+	public function onOpen(InventoryWindow $window) : void{
+		$this->windows[spl_object_id($window)] = $window;
 	}
 
-	public function onClose(Player $who) : void{
-		unset($this->viewers[spl_object_id($who)]);
+	public function onClose(InventoryWindow $window) : void{
+		unset($this->windows[spl_object_id($window)]);
 	}
 
 	protected function onSlotChange(int $index, Item $before) : void{
 		foreach($this->listeners as $listener){
-			$listener->onSlotChange($this, $index, $before);
-		}
-		foreach($this->viewers as $viewer){
-			$invManager = $viewer->getNetworkSession()->getInvManager();
-			if($invManager === null){
-				continue;
+			if($this->listeners->contains($listener)){
+				$listener->onSlotChange($this, $index, $before);
 			}
-			$invManager->onSlotChange($this, $index);
 		}
 	}
 
@@ -385,15 +377,9 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 	 */
 	protected function onContentChange(array $itemsBefore) : void{
 		foreach($this->listeners as $listener){
-			$listener->onContentChange($this, $itemsBefore);
-		}
-
-		foreach($this->getViewers() as $viewer){
-			$invManager = $viewer->getNetworkSession()->getInvManager();
-			if($invManager === null){
-				continue;
+			if($this->listeners->contains($listener)){
+				$listener->onContentChange($this, $itemsBefore);
 			}
-			$invManager->syncContents($this);
 		}
 	}
 

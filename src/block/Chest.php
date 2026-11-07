@@ -25,16 +25,30 @@ namespace quark\block;
 
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use quark\block\inventory\window\BlockInventoryWindow;
+use quark\block\inventory\window\DoubleChestInventoryWindow;
 use quark\block\tile\Chest as TileChest;
+use quark\block\utils\AnimatedContainerLike;
+use quark\block\utils\AnimatedContainerLikeTrait;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\SupportType;
 use quark\event\block\ChestPairEvent;
-use quark\item\Item;
+use quark\inventory\CombinedInventoryProxy;
+use quark\inventory\Inventory;
 use quark\player\Player;
+use quark\world\Position;
+use quark\world\sound\ChestCloseSound;
+use quark\world\sound\ChestOpenSound;
+use quark\world\sound\Sound;
 
-class Chest extends Transparent implements HorizontalFacing{
+class Chest extends Transparent implements AnimatedContainerLike, Container, HorizontalFacing{
+	use AnimatedContainerLikeTrait;
+	use ContainerTrait;
 	use FacesOppositePlacingPlayerTrait;
 
 	protected function recalculateCollisionBoxes() : array{
@@ -70,24 +84,82 @@ class Chest extends Transparent implements HorizontalFacing{
 		}
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
+	public function isOpeningObstructed() : bool{
+		if(!$this->getSide(Facing::UP)->isTransparent()){
+			return true;
+		}
+		$pair = $this->getTile()?->getPair();
+		return $pair !== null && !$pair->getBlock()->getSide(Facing::UP)->isTransparent();
+	}
 
-			$chest = $this->position->getWorld()->getTile($this->position);
-			if($chest instanceof TileChest){
-				if(
-					!$this->getSide(Facing::UP)->isTransparent() ||
-					(($pair = $chest->getPair()) !== null && !$pair->getBlock()->getSide(Facing::UP)->isTransparent()) ||
-					!$chest->canOpenWith($item->getCustomName())
-				){
-					return true;
-				}
+	private function getTile() : ?TileChest{
+		$tile = $this->position->getWorld()->getTile($this->position);
+		return $tile instanceof TileChest ? $tile : null;
+	}
 
-				$player->setCurrentWindow($chest->getInventory());
+	/**
+	 * Returns both halves of a double chest in the order the client lays them out, or just this half if unpaired.
+	 *
+	 * @phpstan-return array{TileChest, ?TileChest}|null
+	 */
+	private function getHalves() : ?array{
+		$tile = $this->getTile();
+		if($tile === null){
+			return null;
+		}
+		$pair = $tile->getPair();
+		if($pair === null){
+			return [$tile, null];
+		}
+		$pairPos = $pair->getPosition();
+		return ($pairPos->x + ($pairPos->z << 15)) > ($this->position->x + ($this->position->z << 15)) ? [$pair, $tile] : [$tile, $pair];
+	}
+
+	/**
+	 * Returns the chest's contents, combined with the other half's if this is a double chest. A new combined view is
+	 * created on every call, so don't rely on its identity.
+	 */
+	public function getInventory() : ?Inventory{
+		$halves = $this->getHalves();
+		if($halves === null){
+			return null;
+		}
+		[$left, $right] = $halves;
+		return $right === null ? $left->getInventory() : new CombinedInventoryProxy([$left->getInventory(), $right->getInventory()]);
+	}
+
+	public function openToUnchecked(Player $player) : bool{
+		$halves = $this->getHalves();
+		if($halves === null){
+			return false;
+		}
+		[$left, $right] = $halves;
+		$window = $right === null ?
+			new BlockInventoryWindow($player, $left->getInventory(), $this->position) :
+			new DoubleChestInventoryWindow($player, new CombinedInventoryProxy([$left->getInventory(), $right->getInventory()]), $left->getPosition(), $right->getPosition());
+		return $player->setCurrentWindow($window);
+	}
+
+	protected function getOpenSound() : Sound{
+		return new ChestOpenSound();
+	}
+
+	protected function getCloseSound() : Sound{
+		return new ChestCloseSound();
+	}
+
+	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
+		//event ID is always 1 for a chest
+		$position->getWorld()->broadcastPacketToViewers($position, BlockEventPacket::create(BlockPosition::fromVector3($position), 1, $isOpen ? 1 : 0));
+	}
+
+	protected function doAnimationEffects(bool $isOpen) : void{
+		foreach($this->getHalves() ?? [] as $half){
+			if($half !== null){
+				$this->playAnimationVisual($half->getPosition(), $isOpen);
+				$this->playAnimationSound($half->getPosition(), $isOpen);
 			}
 		}
-
-		return true;
 	}
 
 	public function getFuelTime() : int{

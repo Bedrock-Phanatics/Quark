@@ -84,7 +84,7 @@ class SimpleInventory extends BaseInventory{
 		}
 	}
 
-	protected function getMatchingItemCount(int $slot, Item $test, bool $checkTags) : int{
+	public function getMatchingItemCount(int $slot, Item $test, bool $checkTags) : int{
 		$slotItem = $this->slots[$slot];
 		return $slotItem !== null && $slotItem->equals($test, true, $checkTags) ? $slotItem->getCount() : 0;
 	}

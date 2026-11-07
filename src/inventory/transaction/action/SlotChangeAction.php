@@ -23,18 +23,21 @@ declare(strict_types=1);
 
 namespace quark\inventory\transaction\action;
 
+use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\Inventory;
 use quark\inventory\SlotValidatedInventory;
 use quark\inventory\transaction\TransactionValidationException;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\player\PlayerInventoryWindow;
 
 /**
  * Represents an action causing a change in an inventory slot.
  */
 class SlotChangeAction extends InventoryAction{
 	public function __construct(
-		protected Inventory $inventory,
+		protected InventoryWindow $inventoryWindow,
 		private int $inventorySlot,
 		Item $sourceItem,
 		Item $targetItem
@@ -43,10 +46,17 @@ class SlotChangeAction extends InventoryAction{
 	}
 
 	/**
+	 * Returns the window the change was made through, which says whose inventory it is and where it was opened from.
+	 */
+	public function getInventoryWindow() : InventoryWindow{
+		return $this->inventoryWindow;
+	}
+
+	/**
 	 * Returns the inventory involved in this action.
 	 */
 	public function getInventory() : Inventory{
-		return $this->inventory;
+		return $this->inventoryWindow->getInventory();
 	}
 
 	/**
@@ -62,21 +72,41 @@ class SlotChangeAction extends InventoryAction{
 	 * @throws TransactionValidationException
 	 */
 	public function validate(Player $source) : void{
-		if(!$this->inventory->slotExists($this->inventorySlot)){
+		if($this->inventoryWindow->getViewer() !== $source){
+			throw new TransactionValidationException("Window belongs to another player");
+		}
+		if($this->inventoryWindow instanceof PlayerInventoryWindow){
+			$isOpen = ($source->getPermanentWindows()[$this->inventoryWindow->getType()->name] ?? null) === $this->inventoryWindow;
+		}else{
+			$isOpen = $source->getCurrentWindow() === $this->inventoryWindow;
+		}
+		if(!$isOpen){
+			throw new TransactionValidationException("Window is no longer open");
+		}
+		$inventory = $this->inventoryWindow->getInventory();
+		if(!$inventory->slotExists($this->inventorySlot)){
 			throw new TransactionValidationException("Slot does not exist");
 		}
-		if(!$this->inventory->getItem($this->inventorySlot)->equalsExact($this->sourceItem)){
+		if(!$inventory->getItem($this->inventorySlot)->equalsExact($this->sourceItem)){
 			throw new TransactionValidationException("Slot does not contain expected original item");
 		}
 		if($this->targetItem->getCount() > $this->targetItem->getMaxStackSize()){
 			throw new TransactionValidationException("Target item exceeds item type max stack size");
 		}
-		if($this->targetItem->getCount() > $this->inventory->getMaxStackSize()){
+		$this->validateTarget($inventory, $this->inventorySlot);
+		if($inventory instanceof CombinedInventoryProxy){
+			$backing = $inventory->getBackingInventory($this->inventorySlot, $localSlot);
+			$this->validateTarget($backing, $localSlot);
+		}
+	}
+
+	private function validateTarget(Inventory $inventory, int $slot) : void{
+		if($this->targetItem->getCount() > $inventory->getMaxStackSize()){
 			throw new TransactionValidationException("Target item exceeds inventory max stack size");
 		}
-		if($this->inventory instanceof SlotValidatedInventory && !$this->targetItem->isNull()){
-			foreach($this->inventory->getSlotValidators() as $validator){
-				$ret = $validator->validate($this->inventory, $this->targetItem, $this->inventorySlot);
+		if($inventory instanceof SlotValidatedInventory && !$this->targetItem->isNull()){
+			foreach($inventory->getSlotValidators() as $validator){
+				$ret = $validator->validate($inventory, $this->targetItem, $slot);
 				if($ret !== null){
 					throw new TransactionValidationException("Target item is not accepted by the inventory at slot #" . $this->inventorySlot . ": " . $ret->getMessage(), 0, $ret);
 				}
@@ -88,6 +118,6 @@ class SlotChangeAction extends InventoryAction{
 	 * Sets the item into the target inventory.
 	 */
 	public function execute(Player $source) : void{
-		$this->inventory->setItem($this->inventorySlot, $this->targetItem);
+		$this->inventoryWindow->getInventory()->setItem($this->inventorySlot, $this->targetItem);
 	}
 }

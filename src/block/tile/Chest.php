@@ -26,17 +26,16 @@ namespace quark\block\tile;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use quark\block\inventory\ChestInventory;
-use quark\block\inventory\DoubleChestInventory;
-use quark\world\format\Chunk;
+use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\world\World;
 use function abs;
 
-class Chest extends Spawnable implements Container, Nameable{
+class Chest extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait {
 		addAdditionalSpawnData as addNameSpawnData;
 	}
-	use ContainerTrait {
+	use ContainerTileTrait {
 		onBlockDestroyedHook as containerTraitBlockDestroyedHook;
 	}
 
@@ -44,15 +43,14 @@ class Chest extends Spawnable implements Container, Nameable{
 	public const TAG_PAIRZ = "pairz";
 	public const TAG_PAIR_LEAD = "pairlead";
 
-	protected ChestInventory $inventory;
-	protected ?DoubleChestInventory $doubleInventory = null;
+	protected Inventory $inventory;
 
 	private ?int $pairX = null;
 	private ?int $pairZ = null;
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new ChestInventory($this->position);
+		$this->inventory = new SimpleInventory(27);
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
@@ -93,63 +91,21 @@ class Chest extends Spawnable implements Container, Nameable{
 
 	public function close() : void{
 		if(!$this->closed){
-			$this->inventory->removeAllViewers();
-
-			if($this->doubleInventory !== null){
-				if($this->isPaired() && $this->position->getWorld()->isChunkLoaded($this->pairX >> Chunk::COORD_BIT_SIZE, $this->pairZ >> Chunk::COORD_BIT_SIZE)){
-					$this->doubleInventory->removeAllViewers();
-					if(($pair = $this->getPair()) !== null){
-						$pair->doubleInventory = null;
-					}
-				}
-				$this->doubleInventory = null;
-			}
-
+			$this->inventory->removeAllWindows();
 			parent::close();
 		}
 	}
 
 	protected function onBlockDestroyedHook() : void{
-		$this->unpair();
 		$this->containerTraitBlockDestroyedHook();
+		$this->unpair();
 	}
 
-	public function getInventory() : ChestInventory|DoubleChestInventory{
-		if($this->isPaired() && $this->doubleInventory === null){
-			$this->checkPairing();
-		}
-		return $this->doubleInventory instanceof DoubleChestInventory ? $this->doubleInventory : $this->inventory;
-	}
-
-	public function getRealInventory() : ChestInventory{
+	/**
+	 * Returns this half's own contents. Use the Chest block to get the combined contents of a double chest.
+	 */
+	public function getInventory() : Inventory{
 		return $this->inventory;
-	}
-
-	protected function checkPairing() : void{
-		if($this->isPaired() && !$this->position->getWorld()->isInLoadedTerrain(new Vector3($this->pairX, $this->position->y, $this->pairZ))){
-			//paired to a tile in an unloaded chunk
-			$this->doubleInventory = null;
-
-		}elseif(($pair = $this->getPair()) instanceof Chest){
-			if(!$pair->isPaired()){
-				$pair->createPair($this);
-				$pair->checkPairing();
-			}
-			if($this->doubleInventory === null){
-				if($pair->doubleInventory !== null){
-					$this->doubleInventory = $pair->doubleInventory;
-				}else{
-					if(($pair->position->x + ($pair->position->z << 15)) > ($this->position->x + ($this->position->z << 15))){ //Order them correctly
-						$this->doubleInventory = $pair->doubleInventory = new DoubleChestInventory($pair->inventory, $this->inventory);
-					}else{
-						$this->doubleInventory = $pair->doubleInventory = new DoubleChestInventory($this->inventory, $pair->inventory);
-					}
-				}
-			}
-		}else{
-			$this->doubleInventory = null;
-			$this->pairX = $this->pairZ = null;
-		}
 	}
 
 	public function getDefaultName() : string{
@@ -160,19 +116,36 @@ class Chest extends Spawnable implements Container, Nameable{
 		return $this->pairX !== null && $this->pairZ !== null;
 	}
 
+	/**
+	 * Returns the other half of the double chest, if it's loaded and agrees that it's paired with this chest.
+	 */
 	public function getPair() : ?Chest{
-		if($this->isPaired()){
-			$tile = $this->position->getWorld()->getTileAt($this->pairX, $this->position->y, $this->pairZ);
-			if($tile instanceof Chest){
-				return $tile;
-			}
+		if(!$this->isPaired()){
+			return null;
 		}
-
-		return null;
+		$world = $this->position->getWorld();
+		if(!$world->isInLoadedTerrain(new Vector3($this->pairX, $this->position->y, $this->pairZ))){
+			return null;
+		}
+		$tile = $world->getTileAt($this->pairX, $this->position->y, $this->pairZ);
+		if(!$tile instanceof Chest){
+			$this->pairX = $this->pairZ = null;
+			$this->clearSpawnCompoundCache();
+			return null;
+		}
+		if(!$tile->isPaired()){
+			//repair one-sided pairings left behind by old worlds
+			$tile->createPair($this);
+			$tile->clearSpawnCompoundCache();
+		}elseif($tile->pairX !== $this->position->x || $tile->pairZ !== $this->position->z){
+			//two chests claiming the same partner would otherwise both expose its contents as part of themselves
+			return null;
+		}
+		return $tile;
 	}
 
 	public function pairWith(Chest $tile) : bool{
-		if($this->isPaired() || $tile->isPaired()){
+		if($tile === $this || $this->isPaired() || $tile->isPaired()){
 			return false;
 		}
 
@@ -180,7 +153,6 @@ class Chest extends Spawnable implements Container, Nameable{
 
 		$this->clearSpawnCompoundCache();
 		$tile->clearSpawnCompoundCache();
-		$this->checkPairing();
 
 		return true;
 	}
@@ -205,10 +177,8 @@ class Chest extends Spawnable implements Container, Nameable{
 
 		if($tile instanceof Chest){
 			$tile->pairX = $tile->pairZ = null;
-			$tile->checkPairing();
 			$tile->clearSpawnCompoundCache();
 		}
-		$this->checkPairing();
 
 		return true;
 	}

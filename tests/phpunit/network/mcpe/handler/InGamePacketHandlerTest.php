@@ -54,7 +54,7 @@ use pocketmine\network\mcpe\protocol\types\PlayMode;
 use pocketmine\utils\Limits;
 use quark\entity\Entity;
 use quark\entity\Location;
-use quark\inventory\PlayerInventory;
+use quark\inventory\SimpleInventory;
 use quark\item\VanillaItems;
 use quark\item\WritableBookBase;
 use quark\network\mcpe\InventoryManager;
@@ -229,7 +229,7 @@ final class InGamePacketHandlerTest extends TestCase{
 	 */
 	public function testRejectsBookPagesPastTheLastOneBeforeEditing(BookEditPacket $packet) : void{
 		$book = VanillaItems::WRITABLE_BOOK();
-		$inventory = $this->createMock(PlayerInventory::class);
+		$inventory = $this->createMock(SimpleInventory::class);
 		$inventory->method("slotExists")->willReturn(true);
 		$inventory->method("getItem")->willReturn($book);
 		$player = $this->player();

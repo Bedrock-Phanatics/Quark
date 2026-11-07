@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
-use quark\inventory\Inventory;
+use quark\player\InventoryWindow;
 
 final class InventoryManagerEntry{
 	/**
@@ -46,7 +46,7 @@ final class InventoryManagerEntry{
 	public array $pendingSyncs = [];
 
 	public function __construct(
-		public Inventory $inventory,
-		public ?ComplexInventoryMapEntry $complexSlotMap = null
+		public InventoryWindow $window,
+		public ?ComplexWindowMapEntry $complexSlotMap = null
 	){}
 }

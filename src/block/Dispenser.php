@@ -26,22 +26,29 @@ namespace quark\block;
 use pocketmine\math\Facing;
 
 use pocketmine\math\Vector3;
+use quark\block\inventory\window\DispenserInventoryWindow;
 use quark\block\tile\dispenser\Dispenser as DispenserTile;
 use quark\block\utils\AnyFacing;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\block\utils\PoweredByRedstone;
 use quark\block\utils\PoweredByRedstoneTrait;
 use quark\block\utils\redstone\Powerable;
 use quark\block\utils\redstone\PowerableTrait;
 use quark\block\utils\redstone\RedstoneBlockAccessTrait;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\inventory\Inventory;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\world\BlockTransaction;
+use quark\world\Position;
 use function abs;
 
-class Dispenser extends Opaque implements AnyFacing, Powerable, PoweredByRedstone{
+class Dispenser extends Opaque implements Container, AnyFacing, Powerable, PoweredByRedstone{
+	use ContainerTrait;
 	use RedstoneBlockAccessTrait;
 	use PowerableTrait;
 	use PoweredByRedstoneTrait;
@@ -81,16 +88,6 @@ class Dispenser extends Opaque implements AnyFacing, Powerable, PoweredByRedston
 		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			$tile = $this->position->getWorld()->getTileAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
-			if($tile instanceof DispenserTile){
-				$player->setCurrentWindow($tile->getInventory());
-			}
-		}
-		return true;
-	}
-
 	public function acceptsPowerFromSide(int $side) : bool{
 		return $side !== $this->facing;
 	}
@@ -119,5 +116,9 @@ class Dispenser extends Opaque implements AnyFacing, Powerable, PoweredByRedston
 				}
 			}
 		}
+	}
+
+	protected function newMenu(Player $player, Inventory $inventory, Position $position) : InventoryWindow{
+		return new DispenserInventoryWindow($player, $inventory, $position);
 	}
 }

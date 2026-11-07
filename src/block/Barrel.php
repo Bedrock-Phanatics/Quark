@@ -25,16 +25,25 @@ namespace quark\block;
 
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use quark\block\tile\Barrel as TileBarrel;
+use quark\block\utils\AnimatedContainerLike;
+use quark\block\utils\AnimatedContainerLikeTrait;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\AnyFacingTrait;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
+use quark\world\Position;
+use quark\world\sound\BarrelCloseSound;
+use quark\world\sound\BarrelOpenSound;
+use quark\world\sound\Sound;
 use function abs;
 
-class Barrel extends Opaque implements AnyFacing{
+class Barrel extends Opaque implements AnimatedContainerLike, Container, AnyFacing{
+	use AnimatedContainerLikeTrait;
+	use ContainerTrait;
 	use AnyFacingTrait;
 
 	protected bool $open = false;
@@ -74,22 +83,23 @@ class Barrel extends Opaque implements AnyFacing{
 		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			$barrel = $this->position->getWorld()->getTile($this->position);
-			if($barrel instanceof TileBarrel){
-				if(!$barrel->canOpenWith($item->getCustomName())){
-					return true;
-				}
-
-				$player->setCurrentWindow($barrel->getInventory());
-			}
-		}
-
-		return true;
-	}
-
 	public function getFuelTime() : int{
 		return 300;
+	}
+
+	protected function getOpenSound() : Sound{
+		return new BarrelOpenSound();
+	}
+
+	protected function getCloseSound() : Sound{
+		return new BarrelCloseSound();
+	}
+
+	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
+		$world = $position->getWorld();
+		$block = $world->getBlock($position);
+		if($block instanceof Barrel){
+			$world->setBlock($position, $block->setOpen($isOpen));
+		}
 	}
 }

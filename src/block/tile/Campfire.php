@@ -27,15 +27,15 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use quark\block\Campfire as BlockCampfire;
-use quark\block\inventory\CampfireInventory;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\world\World;
 
-class Campfire extends Spawnable implements Container{
-	use ContainerTrait;
+class Campfire extends Spawnable implements ContainerTile{
+	use ContainerTileTrait;
 
 	private const TAG_FIRST_INPUT_ITEM = "Item1"; //TAG_Compound
 	private const TAG_SECOND_INPUT_ITEM = "Item2"; //TAG_Compound
@@ -47,13 +47,14 @@ class Campfire extends Spawnable implements Container{
 	private const TAG_THIRD_COOKING_TIME = "ItemTime3"; //TAG_Int
 	private const TAG_FOURTH_COOKING_TIME = "ItemTime4"; //TAG_Int
 
-	protected CampfireInventory $inventory;
+	protected Inventory $inventory;
 	/** @var array<int, int> */
 	private array $cookingTimes = [];
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new CampfireInventory($this->position);
+		$this->inventory = new SimpleInventory(4);
+		$this->inventory->setMaxStackSize(1);
 		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(
 			static function(Inventory $unused) use ($world, $pos) : void{
 				$block = $world->getBlock($pos);
@@ -64,11 +65,7 @@ class Campfire extends Spawnable implements Container{
 		);
 	}
 
-	public function getInventory() : CampfireInventory{
-		return $this->inventory;
-	}
-
-	public function getRealInventory() : CampfireInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 

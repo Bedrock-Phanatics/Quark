@@ -62,7 +62,8 @@ final class ItemStackResponseBuilder{
 		if($windowAndSlot === null){
 			return null;
 		}
-		[$inventory, $slot] = $windowAndSlot;
+		[$window, $slot] = $windowAndSlot;
+		$inventory = $window->getInventory();
 		if(!$inventory->slotExists($slot)){
 			return null;
 		}

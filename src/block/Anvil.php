@@ -26,23 +26,28 @@ namespace quark\block;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use quark\block\inventory\AnvilInventory;
+use quark\block\inventory\window\AnvilInventoryWindow;
 use quark\block\utils\Fallable;
 use quark\block\utils\FallableTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
+use quark\block\utils\MenuAccessor;
+use quark\block\utils\MenuAccessorTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\object\FallingBlock;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\utils\Utils;
 use quark\world\BlockTransaction;
+use quark\world\Position;
 use quark\world\sound\AnvilFallSound;
 use quark\world\sound\Sound;
 use function round;
 
-class Anvil extends Transparent implements Fallable, HorizontalFacing{
+class Anvil extends Transparent implements MenuAccessor, Fallable, HorizontalFacing{
+	use MenuAccessorTrait;
 	use FallableTrait;
 	use HorizontalFacingTrait;
 
@@ -79,14 +84,6 @@ class Anvil extends Transparent implements Fallable, HorizontalFacing{
 		return SupportType::NONE;
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			$player->setCurrentWindow(new AnvilInventory($this->position));
-		}
-
-		return true;
-	}
-
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$this->facing = Facing::rotateY($player->getHorizontalFacing(), false);
@@ -115,5 +112,9 @@ class Anvil extends Transparent implements Fallable, HorizontalFacing{
 
 	public function getLandSound() : ?Sound{
 		return new AnvilFallSound();
+	}
+
+	protected function newMenu(Player $player, Position $position) : InventoryWindow{
+		return new AnvilInventoryWindow($player, $position);
 	}
 }

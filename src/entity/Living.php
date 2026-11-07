@@ -114,6 +114,7 @@ abstract class Living extends Entity{
 	protected EffectManager $effectManager;
 
 	protected ArmorInventory $armorInventory;
+	private CallbackInventoryListener $armorInventorySyncListener;
 
 	protected bool $breathing = true;
 	protected int $breathTicks = self::DEFAULT_BREATH_TICKS;
@@ -146,12 +147,13 @@ abstract class Living extends Entity{
 		$this->effectManager->getEffectAddHooks()->add(function() : void{ $this->networkPropertiesDirty = true; });
 		$this->effectManager->getEffectRemoveHooks()->add(function() : void{ $this->networkPropertiesDirty = true; });
 
-		$this->armorInventory = new ArmorInventory($this);
+		$this->armorInventory = new ArmorInventory();
 		//TODO: load/save armor inventory contents
-		$this->armorInventory->getListeners()->add(CallbackInventoryListener::onAnyChange(fn() => NetworkBroadcastUtils::broadcastEntityEvent(
+		$this->armorInventorySyncListener = CallbackInventoryListener::onAnyChange(fn() => NetworkBroadcastUtils::broadcastEntityEvent(
 			$this->getViewers(),
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onMobArmorChange($recipients, $this)
-		)));
+		));
+		$this->armorInventory->getListeners()->add($this->armorInventorySyncListener);
 
 		$health = $this->getMaxHealth();
 
@@ -927,7 +929,8 @@ abstract class Living extends Entity{
 	}
 
 	protected function onDispose() : void{
-		$this->armorInventory->removeAllViewers();
+		$this->armorInventory->removeAllWindows();
+		$this->armorInventory->getListeners()->remove($this->armorInventorySyncListener);
 		$this->effectManager->getEffectAddHooks()->clear();
 		$this->effectManager->getEffectRemoveHooks()->clear();
 		parent::onDispose();
@@ -936,6 +939,7 @@ abstract class Living extends Entity{
 	protected function destroyCycles() : void{
 		unset(
 			$this->armorInventory,
+			$this->armorInventorySyncListener,
 			$this->effectManager
 		);
 		parent::destroyCycles();

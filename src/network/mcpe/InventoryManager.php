@@ -45,21 +45,22 @@ use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 use pocketmine\utils\Binary;
 use pocketmine\utils\Limits;
-use quark\block\inventory\AnvilInventory;
-use quark\block\inventory\BlockInventory;
-use quark\block\inventory\BrewingStandInventory;
-use quark\block\inventory\CartographyTableInventory;
-use quark\block\inventory\CraftingTableInventory;
-use quark\block\inventory\EnchantInventory;
-use quark\block\inventory\FurnaceInventory;
-use quark\block\inventory\HopperInventory;
-use quark\block\inventory\LoomInventory;
-use quark\block\inventory\SmithingTableInventory;
-use quark\block\inventory\StonecutterInventory;
+use quark\block\inventory\window\AnvilInventoryWindow;
+use quark\block\inventory\window\BlockInventoryWindow;
+use quark\block\inventory\window\BrewingStandInventoryWindow;
+use quark\block\inventory\window\CartographyTableInventoryWindow;
+use quark\block\inventory\window\CraftingTableInventoryWindow;
+use quark\block\inventory\window\DispenserInventoryWindow;
+use quark\block\inventory\window\EnchantingTableInventoryWindow;
+use quark\block\inventory\window\FurnaceInventoryWindow;
+use quark\block\inventory\window\HopperInventoryWindow;
+use quark\block\inventory\window\LoomInventoryWindow;
+use quark\block\inventory\window\SmithingTableInventoryWindow;
+use quark\block\inventory\window\StonecutterInventoryWindow;
 use quark\crafting\FurnaceType;
 use quark\data\bedrock\EnchantmentIdMap;
-use quark\inventory\BlockInventoryWindow;
 use quark\inventory\Inventory;
+use quark\inventory\InventoryListener;
 use quark\inventory\transaction\action\SlotChangeAction;
 use quark\inventory\transaction\InventoryTransaction;
 use quark\item\enchantment\EnchantingOption;
@@ -67,7 +68,9 @@ use quark\item\enchantment\EnchantmentInstance;
 use quark\item\Item;
 use quark\network\mcpe\cache\CreativeInventoryCache;
 use quark\network\PacketHandlingException;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\player\PlayerInventoryType;
 use quark\utils\AssumptionFailedError;
 use quark\utils\ObjectSet;
 use function array_fill_keys;
@@ -82,25 +85,25 @@ use function max;
 use function spl_object_id;
 
 /**
- * @phpstan-type ContainerOpenClosure \Closure(int $id, Inventory $inventory) : (list<ClientboundPacket>|null)
+ * @phpstan-type ContainerOpenClosure \Closure(int $id, InventoryWindow $window) : (list<ClientboundPacket>|null)
  */
-class InventoryManager{
+class InventoryManager implements InventoryListener{
 	/**
 	 * @var InventoryManagerEntry[] spl_object_id(Inventory) => InventoryManagerEntry
 	 * @phpstan-var array<int, InventoryManagerEntry>
 	 */
-	private array $inventories = [];
+	private array $entries = [];
 
 	/**
-	 * @var Inventory[] network window ID => Inventory
-	 * @phpstan-var array<int, Inventory>
+	 * @var InventoryWindow[] network window ID => InventoryWindow
+	 * @phpstan-var array<int, InventoryWindow>
 	 */
-	private array $networkIdToInventoryMap = [];
+	private array $networkIdToWindowMap = [];
 	/**
-	 * @var ComplexInventoryMapEntry[] net slot ID => ComplexWindowMapEntry
-	 * @phpstan-var array<int, ComplexInventoryMapEntry>
+	 * @var ComplexWindowMapEntry[] net slot ID => ComplexWindowMapEntry
+	 * @phpstan-var array<int, ComplexWindowMapEntry>
 	 */
-	private array $complexSlotToInventoryMap = [];
+	private array $complexSlotToWindowMap = [];
 
 	private int $lastInventoryNetworkId = ContainerIds::FIRST;
 	private int $currentWindowType = WindowTypes::CONTAINER;
@@ -125,6 +128,9 @@ class InventoryManager{
 	//conflict with regular recipes
 	private int $nextEnchantingTableOptionId = 100000;
 
+	/** @phpstan-var \Closure(int $oldIndex) : void */
+	private \Closure $hotbarListener;
+
 	public function __construct(
 		private Player $player,
 		private NetworkSession $session
@@ -132,17 +138,37 @@ class InventoryManager{
 		$this->containerOpenCallbacks = new ObjectSet();
 		$this->containerOpenCallbacks->add(self::createContainerOpen(...));
 
-		$this->add(ContainerIds::INVENTORY, $this->player->getInventory());
-		$this->add(ContainerIds::OFFHAND, $this->player->getOffHandInventory());
-		$this->add(ContainerIds::ARMOR, $this->player->getArmorInventory());
-		$this->addComplex(UIInventorySlotOffset::CURSOR, $this->player->getCursorInventory());
-		$this->addComplex(UIInventorySlotOffset::CRAFTING2X2_INPUT, $this->player->getCraftingGrid());
+		foreach($this->player->getPermanentWindows() as $window){
+			match($window->getType()){
+				PlayerInventoryType::INVENTORY => $this->add(ContainerIds::INVENTORY, $window),
+				PlayerInventoryType::OFFHAND => $this->add(ContainerIds::OFFHAND, $window),
+				PlayerInventoryType::ARMOR => $this->add(ContainerIds::ARMOR, $window),
+				PlayerInventoryType::CURSOR => $this->addComplex(UIInventorySlotOffset::CURSOR, $window),
+				PlayerInventoryType::CRAFTING => $this->addComplex(UIInventorySlotOffset::CRAFTING2X2_INPUT, $window),
+			};
+		}
 
-		$this->player->getInventory()->getHeldItemIndexChangeListeners()->add($this->syncSelectedHotbarSlot(...));
+		$this->hotbarListener = fn() => $this->syncSelectedHotbarSlot();
+		$this->player->getHotbar()->getSelectedIndexChangeListeners()->add($this->hotbarListener);
 	}
 
-	private function associateIdWithInventory(int $id, Inventory $inventory) : void{
-		$this->networkIdToInventoryMap[$id] = $inventory;
+	/**
+	 * Stops listening to every inventory. Called when the session is torn down, so an inventory that outlives the
+	 * player (like a chest) can't keep the session alive.
+	 */
+	public function dispose() : void{
+		foreach($this->entries as $entry){
+			$entry->window->getInventory()->getListeners()->remove($this);
+		}
+		$this->entries = [];
+		$this->networkIdToWindowMap = [];
+		$this->complexSlotToWindowMap = [];
+		$this->pendingOpenWindowCallback = null;
+		$this->player->getHotbar()->getSelectedIndexChangeListeners()->remove($this->hotbarListener);
+	}
+
+	private function associateIdWithWindow(int $id, InventoryWindow $window) : void{
+		$this->networkIdToWindowMap[$id] = $window;
 	}
 
 	private function getNewWindowId() : int{
@@ -150,17 +176,35 @@ class InventoryManager{
 		return $this->lastInventoryNetworkId;
 	}
 
-	private function add(int $id, Inventory $inventory) : void{
-		if(isset($this->inventories[spl_object_id($inventory)])){
-			throw new \InvalidArgumentException("Inventory " . get_class($inventory) . " is already tracked");
-		}
-		$this->inventories[spl_object_id($inventory)] = new InventoryManagerEntry($inventory);
-		$this->associateIdWithInventory($id, $inventory);
+	private function getEntry(Inventory $inventory) : ?InventoryManagerEntry{
+		return $this->entries[spl_object_id($inventory)] ?? null;
 	}
 
-	private function addDynamic(Inventory $inventory) : int{
+	/**
+	 * Returns the window this player has open on the given inventory, if any.
+	 */
+	public function getInventoryWindow(Inventory $inventory) : ?InventoryWindow{
+		return $this->getEntry($inventory)?->window;
+	}
+
+	private function track(InventoryWindow $window, ?ComplexWindowMapEntry $complexSlotMap) : void{
+		$inventory = $window->getInventory();
+		$id = spl_object_id($inventory);
+		if(isset($this->entries[$id])){
+			throw new \InvalidArgumentException("Inventory " . get_class($inventory) . " is already tracked");
+		}
+		$this->entries[$id] = new InventoryManagerEntry($window, $complexSlotMap);
+		$inventory->getListeners()->add($this);
+	}
+
+	private function add(int $id, InventoryWindow $window) : void{
+		$this->track($window, null);
+		$this->associateIdWithWindow($id, $window);
+	}
+
+	private function addDynamic(InventoryWindow $window) : int{
 		$id = $this->getNewWindowId();
-		$this->add($id, $inventory);
+		$this->add($id, $window);
 		return $id;
 	}
 
@@ -168,17 +212,11 @@ class InventoryManager{
 	 * @param int[]|int $slotMap
 	 * @phpstan-param array<int, int>|int $slotMap
 	 */
-	private function addComplex(array|int $slotMap, Inventory $inventory) : void{
-		if(isset($this->inventories[spl_object_id($inventory)])){
-			throw new \InvalidArgumentException("Inventory " . get_class($inventory) . " is already tracked");
-		}
-		$complexSlotMap = new ComplexInventoryMapEntry($inventory, is_int($slotMap) ? [$slotMap => 0] : $slotMap);
-		$this->inventories[spl_object_id($inventory)] = new InventoryManagerEntry(
-			$inventory,
-			$complexSlotMap
-		);
+	private function addComplex(array|int $slotMap, InventoryWindow $window) : void{
+		$complexSlotMap = new ComplexWindowMapEntry($window, is_int($slotMap) ? [$slotMap => 0] : $slotMap);
+		$this->track($window, $complexSlotMap);
 		foreach($complexSlotMap->getSlotMap() as $netSlot => $coreSlot){
-			$this->complexSlotToInventoryMap[$netSlot] = $complexSlotMap;
+			$this->complexSlotToWindowMap[$netSlot] = $complexSlotMap;
 		}
 	}
 
@@ -186,28 +224,30 @@ class InventoryManager{
 	 * @param int[]|int $slotMap
 	 * @phpstan-param array<int, int>|int $slotMap
 	 */
-	private function addComplexDynamic(array|int $slotMap, Inventory $inventory) : int{
-		$this->addComplex($slotMap, $inventory);
+	private function addComplexDynamic(array|int $slotMap, InventoryWindow $window) : int{
+		$this->addComplex($slotMap, $window);
 		$id = $this->getNewWindowId();
-		$this->associateIdWithInventory($id, $inventory);
+		$this->associateIdWithWindow($id, $window);
 		return $id;
 	}
 
 	private function remove(int $id) : void{
-		$inventory = $this->networkIdToInventoryMap[$id];
-		unset($this->networkIdToInventoryMap[$id]);
-		if($this->getWindowId($inventory) === null){
-			unset($this->inventories[spl_object_id($inventory)]);
-			foreach($this->complexSlotToInventoryMap as $netSlot => $entry){
-				if($entry->getInventory() === $inventory){
-					unset($this->complexSlotToInventoryMap[$netSlot]);
+		$window = $this->networkIdToWindowMap[$id];
+		unset($this->networkIdToWindowMap[$id]);
+		if($this->getWindowId($window) === null){
+			$inventory = $window->getInventory();
+			$inventory->getListeners()->remove($this);
+			unset($this->entries[spl_object_id($inventory)]);
+			foreach($this->complexSlotToWindowMap as $netSlot => $entry){
+				if($entry->getWindow() === $window){
+					unset($this->complexSlotToWindowMap[$netSlot]);
 				}
 			}
 		}
 	}
 
-	public function getWindowId(Inventory $inventory) : ?int{
-		return ($id = array_search($inventory, $this->networkIdToInventoryMap, true)) !== false ? $id : null;
+	public function getWindowId(InventoryWindow $window) : ?int{
+		return ($id = array_search($window, $this->networkIdToWindowMap, true)) !== false ? $id : null;
 	}
 
 	public function getCurrentWindowId() : int{
@@ -215,33 +255,37 @@ class InventoryManager{
 	}
 
 	/**
-	 * @phpstan-return array{Inventory, int}|null
+	 * @phpstan-return array{InventoryWindow, int}|null
 	 */
 	public function locateWindowAndSlot(int $windowId, int $netSlotId) : ?array{
 		if($windowId === ContainerIds::UI){
-			$entry = $this->complexSlotToInventoryMap[$netSlotId] ?? null;
+			$entry = $this->complexSlotToWindowMap[$netSlotId] ?? null;
 			if($entry === null){
 				return null;
 			}
-			$inventory = $entry->getInventory();
+			$window = $entry->getWindow();
 			$coreSlotId = $entry->mapNetToCore($netSlotId);
-			return $coreSlotId !== null && $inventory->slotExists($coreSlotId) ? [$inventory, $coreSlotId] : null;
+			return $coreSlotId !== null && $window->getInventory()->slotExists($coreSlotId) ? [$window, $coreSlotId] : null;
 		}
-		$inventory = $this->networkIdToInventoryMap[$windowId] ?? null;
-		if($inventory !== null && $inventory->slotExists($netSlotId)){
-			return [$inventory, $netSlotId];
+		$window = $this->networkIdToWindowMap[$windowId] ?? null;
+		if($window !== null && $window->getInventory()->slotExists($netSlotId)){
+			return [$window, $netSlotId];
 		}
 		return null;
 	}
 
-	private function addPredictedSlotChangeInternal(Inventory $inventory, int $slot, ItemStack $item) : void{
-		$this->inventories[spl_object_id($inventory)]->predictions[$slot] = $item;
+	private function addPredictedSlotChangeInternal(InventoryWindow $window, int $slot, ItemStack $item) : void{
+		$entry = $this->getEntry($window->getInventory());
+		//a window that isn't ours, or was closed in the meantime, has nothing on the client to predict
+		if($entry !== null && $entry->window === $window){
+			$entry->predictions[$slot] = $item;
+		}
 	}
 
-	public function addPredictedSlotChange(Inventory $inventory, int $slot, Item $item) : void{
+	public function addPredictedSlotChange(InventoryWindow $window, int $slot, Item $item) : void{
 		$typeConverter = $this->session->getTypeConverter();
 		$itemStack = $typeConverter->coreItemStackToNet($item);
-		$this->addPredictedSlotChangeInternal($inventory, $slot, $itemStack);
+		$this->addPredictedSlotChangeInternal($window, $slot, $itemStack);
 	}
 
 	public function addTransactionPredictedSlotChanges(InventoryTransaction $tx) : void{
@@ -249,7 +293,7 @@ class InventoryManager{
 			if($action instanceof SlotChangeAction){
 				//TODO: ItemStackRequestExecutor can probably build these predictions with much lower overhead
 				$this->addPredictedSlotChange(
-					$action->getInventory(),
+					$action->getInventoryWindow(),
 					$action->getSlot(),
 					$action->getTargetItem()
 				);
@@ -283,8 +327,8 @@ class InventoryManager{
 				continue;
 			}
 
-			[$inventory, $slot] = $info;
-			$this->addPredictedSlotChangeInternal($inventory, $slot, $action->newItem->getItemStack());
+			[$window, $slot] = $info;
+			$this->addPredictedSlotChangeInternal($window, $slot, $action->newItem->getItemStack());
 		}
 	}
 
@@ -319,43 +363,52 @@ class InventoryManager{
 	 * @return int[]|null
 	 * @phpstan-return array<int, int>|null
 	 */
-	private function createComplexSlotMapping(Inventory $inventory) : ?array{
+	private function createComplexSlotMapping(InventoryWindow $window) : ?array{
 		//TODO: make this dynamic so plugins can add mappings for stuff not implemented by PM
 		return match(true){
-			$inventory instanceof AnvilInventory => UIInventorySlotOffset::ANVIL,
-			$inventory instanceof EnchantInventory => UIInventorySlotOffset::ENCHANTING_TABLE,
-			$inventory instanceof LoomInventory => UIInventorySlotOffset::LOOM,
-			$inventory instanceof StonecutterInventory => [UIInventorySlotOffset::STONE_CUTTER_INPUT => StonecutterInventory::SLOT_INPUT],
-			$inventory instanceof CraftingTableInventory => UIInventorySlotOffset::CRAFTING3X3_INPUT,
-			$inventory instanceof CartographyTableInventory => UIInventorySlotOffset::CARTOGRAPHY_TABLE,
-			$inventory instanceof SmithingTableInventory => UIInventorySlotOffset::SMITHING_TABLE,
+			$window instanceof AnvilInventoryWindow => UIInventorySlotOffset::ANVIL,
+			$window instanceof EnchantingTableInventoryWindow => UIInventorySlotOffset::ENCHANTING_TABLE,
+			$window instanceof LoomInventoryWindow => UIInventorySlotOffset::LOOM,
+			$window instanceof StonecutterInventoryWindow => [UIInventorySlotOffset::STONE_CUTTER_INPUT => StonecutterInventoryWindow::SLOT_INPUT],
+			$window instanceof CraftingTableInventoryWindow => UIInventorySlotOffset::CRAFTING3X3_INPUT,
+			$window instanceof CartographyTableInventoryWindow => UIInventorySlotOffset::CARTOGRAPHY_TABLE,
+			$window instanceof SmithingTableInventoryWindow => UIInventorySlotOffset::SMITHING_TABLE,
 			default => null,
 		};
 	}
 
-	public function onCurrentWindowChange(Inventory $inventory) : void{
+	public function onCurrentWindowChange(InventoryWindow $window) : void{
 		$this->onCurrentWindowRemove();
 
-		$this->openWindowDeferred(function() use ($inventory) : void{
-			if(($slotMap = $this->createComplexSlotMapping($inventory)) !== null){
-				$windowId = $this->addComplexDynamic($slotMap, $inventory);
+		$this->openWindowDeferred(function() use ($window) : void{
+			if($this->player->getCurrentWindow() !== $window){
+				//replaced or closed while we were waiting for the client to close the previous window
+				return;
+			}
+			if(($slotMap = $this->createComplexSlotMapping($window)) !== null){
+				$windowId = $this->addComplexDynamic($slotMap, $window);
 			}else{
-				$windowId = $this->addDynamic($inventory);
+				$windowId = $this->addDynamic($window);
 			}
 
 			foreach($this->containerOpenCallbacks as $callback){
-				$pks = $callback($windowId, $inventory);
+				$pks = $callback($windowId, $window);
+				if($this->player->getCurrentWindow() !== $window){
+					return;
+				}
 				if($pks !== null){
-					$windowType = null;
+					$this->currentWindowType = WindowTypes::CONTAINER;
 					foreach($pks as $pk){
 						//Bedrock 1.21 requires ContainerClose packets to include the window type
 						if($pk instanceof ContainerOpenPacket){
-							$windowType = $pk->windowType;
+							$this->currentWindowType = $pk->windowType;
 						}
 						$this->session->sendDataPacket($pk);
+						if($this->player->getCurrentWindow() !== $window){
+							return;
+						}
 					}
-					$this->currentWindowType = $windowType ?? WindowTypes::CONTAINER;
-					$this->syncContents($inventory);
+					$this->syncContents($window->getInventory());
 					return;
 				}
 			}
@@ -370,28 +423,28 @@ class InventoryManager{
 	 * @return ClientboundPacket[]|null
 	 * @phpstan-return list<ClientboundPacket>|null
 	 */
-	protected static function createContainerOpen(int $id, Inventory $inv) : ?array{
+	protected static function createContainerOpen(int $id, InventoryWindow $window) : ?array{
 		//TODO: we should be using some kind of tagging system to identify the types. Instanceof is flaky especially
 		//if the class isn't final, not to mention being inflexible.
-		if($inv instanceof BlockInventory){
-			$blockPosition = BlockPosition::fromVector3($inv->getHolder());
+		if($window instanceof BlockInventoryWindow){
+			$blockPosition = BlockPosition::fromVector3($window->getHolder());
 			$windowType = match(true){
-				$inv instanceof BlockInventoryWindow => $inv->getNetworkWindowType(),
-				$inv instanceof LoomInventory => WindowTypes::LOOM,
-				$inv instanceof FurnaceInventory => match($inv->getFurnaceType()){
+				$window instanceof LoomInventoryWindow => WindowTypes::LOOM,
+				$window instanceof FurnaceInventoryWindow => match($window->getFurnaceType()){
 						FurnaceType::FURNACE => WindowTypes::FURNACE,
 						FurnaceType::BLAST_FURNACE => WindowTypes::BLAST_FURNACE,
 						FurnaceType::SMOKER => WindowTypes::SMOKER,
 						FurnaceType::CAMPFIRE, FurnaceType::SOUL_CAMPFIRE => throw new \LogicException("Campfire inventory cannot be displayed to a player")
 					},
-				$inv instanceof EnchantInventory => WindowTypes::ENCHANTMENT,
-				$inv instanceof BrewingStandInventory => WindowTypes::BREWING_STAND,
-				$inv instanceof AnvilInventory => WindowTypes::ANVIL,
-				$inv instanceof HopperInventory => WindowTypes::HOPPER,
-				$inv instanceof CraftingTableInventory => WindowTypes::WORKBENCH,
-				$inv instanceof StonecutterInventory => WindowTypes::STONECUTTER,
-				$inv instanceof CartographyTableInventory => WindowTypes::CARTOGRAPHY,
-				$inv instanceof SmithingTableInventory => WindowTypes::SMITHING_TABLE,
+				$window instanceof EnchantingTableInventoryWindow => WindowTypes::ENCHANTMENT,
+				$window instanceof BrewingStandInventoryWindow => WindowTypes::BREWING_STAND,
+				$window instanceof AnvilInventoryWindow => WindowTypes::ANVIL,
+				$window instanceof HopperInventoryWindow => WindowTypes::HOPPER,
+				$window instanceof DispenserInventoryWindow => WindowTypes::DISPENSER,
+				$window instanceof CraftingTableInventoryWindow => WindowTypes::WORKBENCH,
+				$window instanceof StonecutterInventoryWindow => WindowTypes::STONECUTTER,
+				$window instanceof CartographyTableInventoryWindow => WindowTypes::CARTOGRAPHY,
+				$window instanceof SmithingTableInventoryWindow => WindowTypes::SMITHING_TABLE,
 				default => WindowTypes::CONTAINER
 			};
 			return [ContainerOpenPacket::blockInv($id, $windowType, $blockPosition)];
@@ -404,7 +457,8 @@ class InventoryManager{
 
 		$this->openWindowDeferred(function() : void{
 			$windowId = $this->getNewWindowId();
-			$this->associateIdWithInventory($windowId, $this->player->getInventory());
+			$window = $this->getInventoryWindow($this->player->getInventory()) ?? throw new AssumptionFailedError("Player inventory should always be tracked");
+			$this->associateIdWithWindow($windowId, $window);
 			$this->currentWindowType = WindowTypes::INVENTORY;
 
 			$this->session->sendDataPacket(ContainerOpenPacket::entityInv(
@@ -418,14 +472,14 @@ class InventoryManager{
 	public function onCurrentWindowRemove() : void{
 		//a window still waiting on a close ack was closed server-side before it opened
 		$this->pendingOpenWindowCallback = null;
-		if(isset($this->networkIdToInventoryMap[$this->lastInventoryNetworkId])){
+		if(isset($this->networkIdToWindowMap[$this->lastInventoryNetworkId])){
 			$this->remove($this->lastInventoryNetworkId);
-			$this->session->sendDataPacket(ContainerClosePacket::create($this->lastInventoryNetworkId, $this->currentWindowType, true));
 			if($this->pendingCloseWindowId !== null){
 				throw new AssumptionFailedError("We should not have opened a new window while a window was waiting to be closed");
 			}
 			$this->pendingCloseWindowId = $this->lastInventoryNetworkId;
 			$this->enchantingTableOptions = [];
+			$this->session->sendDataPacket(ContainerClosePacket::create($this->lastInventoryNetworkId, $this->currentWindowType, true));
 		}
 	}
 
@@ -440,7 +494,7 @@ class InventoryManager{
 			$id = $this->lastInventoryNetworkId;
 		}
 		if($id === $this->lastInventoryNetworkId){
-			if(isset($this->networkIdToInventoryMap[$id]) && $id !== $this->pendingCloseWindowId){
+			if(isset($this->networkIdToWindowMap[$id]) && $id !== $this->pendingCloseWindowId){
 				$this->remove($id);
 				$this->player->removeCurrentWindow();
 			}
@@ -456,8 +510,9 @@ class InventoryManager{
 			$this->pendingCloseWindowId = null;
 			if($this->pendingOpenWindowCallback !== null){
 				$this->session->getLogger()->debug("Opening deferred window after close ack of window $id");
-				($this->pendingOpenWindowCallback)();
+				$callback = $this->pendingOpenWindowCallback;
 				$this->pendingOpenWindowCallback = null;
+				$callback();
 			}
 		}
 	}
@@ -502,8 +557,15 @@ class InventoryManager{
 			$this->itemStackExtraDataEqual($left, $right);
 	}
 
-	public function onSlotChange(Inventory $inventory, int $slot) : void{
-		$inventoryEntry = $this->inventories[spl_object_id($inventory)] ?? null;
+	public function onSlotChange(Inventory $inventory, int $slot, Item $oldItem) : void{
+		$this->requestSyncSlot($inventory, $slot);
+	}
+
+	/**
+	 * Schedules the slot to be sent to the client, unless the client already predicted its current contents.
+	 */
+	public function requestSyncSlot(Inventory $inventory, int $slot) : void{
+		$inventoryEntry = $this->getEntry($inventory);
 		if($inventoryEntry === null){
 			//this can happen when an inventory changed during InventoryCloseEvent, or when a temporary inventory
 			//is cleared before removal.
@@ -518,6 +580,7 @@ class InventoryManager{
 		}else{
 			//correctly predicted - associate the change with the currently active itemstack request
 			$this->trackItemStack($inventoryEntry, $slot, $currentItem, $this->currentItemStackRequestId);
+			unset($inventoryEntry->pendingSyncs[$slot]);
 		}
 
 		unset($inventoryEntry->predictions[$slot]);
@@ -573,8 +636,12 @@ class InventoryManager{
 		$this->session->sendDataPacket(InventoryContentPacket::create($windowId, $itemStackWrappers, new FullContainerName(0, null), new ItemStackWrapper(0, ItemStack::null())));
 	}
 
+	public function onContentChange(Inventory $inventory, array $oldContents) : void{
+		$this->syncContents($inventory);
+	}
+
 	public function syncSlot(Inventory $inventory, int $slot, ItemStack $itemStack) : void{
-		$entry = $this->inventories[spl_object_id($inventory)] ?? null;
+		$entry = $this->getEntry($inventory);
 		if($entry === null){
 			throw new \LogicException("Cannot sync an untracked inventory");
 		}
@@ -586,7 +653,7 @@ class InventoryManager{
 			$windowId = ContainerIds::UI;
 			$netSlot = $entry->complexSlotMap->mapCoreToNet($slot) ?? throw new AssumptionFailedError("We already have an ItemStackInfo, so this should not be null");
 		}else{
-			$windowId = $this->getWindowId($inventory) ?? throw new AssumptionFailedError("We already have an ItemStackInfo, so this should not be null");
+			$windowId = $this->getWindowId($entry->window) ?? throw new AssumptionFailedError("We already have an ItemStackInfo, so this should not be null");
 			$netSlot = $slot;
 		}
 
@@ -605,7 +672,7 @@ class InventoryManager{
 	}
 
 	public function syncContents(Inventory $inventory) : void{
-		$entry = $this->inventories[spl_object_id($inventory)] ?? null;
+		$entry = $this->getEntry($inventory);
 		if($entry === null){
 			//this can happen when an inventory changed during InventoryCloseEvent, or when a temporary inventory
 			//is cleared before removal.
@@ -614,7 +681,7 @@ class InventoryManager{
 		if($entry->complexSlotMap !== null){
 			$windowId = ContainerIds::UI;
 		}else{
-			$windowId = $this->getWindowId($inventory);
+			$windowId = $this->getWindowId($entry->window);
 		}
 		if($windowId !== null){
 			$entry->predictions = [];
@@ -641,8 +708,8 @@ class InventoryManager{
 	}
 
 	public function syncAll() : void{
-		foreach($this->inventories as $entry){
-			$this->syncContents($entry->inventory);
+		foreach($this->entries as $entry){
+			$this->syncContents($entry->window->getInventory());
 		}
 	}
 
@@ -652,8 +719,8 @@ class InventoryManager{
 
 	public function syncMismatchedPredictedSlotChanges() : void{
 		$typeConverter = $this->session->getTypeConverter();
-		foreach($this->inventories as $entry){
-			$inventory = $entry->inventory;
+		foreach($this->entries as $entry){
+			$inventory = $entry->window->getInventory();
 			foreach($entry->predictions as $slot => $expectedItem){
 				if(!$inventory->slotExists($slot) || $entry->itemStackInfos[$slot] === null){
 					continue; //TODO: size desync ???
@@ -671,14 +738,14 @@ class InventoryManager{
 	public function flushPendingUpdates() : void{
 		if($this->fullSyncRequested){
 			$this->fullSyncRequested = false;
-			$this->session->getLogger()->debug("Full inventory sync requested, sending contents of " . count($this->inventories) . " inventories");
+			$this->session->getLogger()->debug("Full inventory sync requested, sending contents of " . count($this->entries) . " inventories");
 			$this->syncAll();
 		}else{
-			foreach($this->inventories as $entry){
+			foreach($this->entries as $entry){
 				if(count($entry->pendingSyncs) === 0){
 					continue;
 				}
-				$inventory = $entry->inventory;
+				$inventory = $entry->window->getInventory();
 				$this->session->getLogger()->debug("Syncing slots " . implode(", ", array_keys($entry->pendingSyncs)) . " in inventory " . get_class($inventory) . "#" . spl_object_id($inventory));
 				foreach($entry->pendingSyncs as $slot => $itemStack){
 					$this->syncSlot($inventory, $slot, $itemStack);
@@ -689,7 +756,8 @@ class InventoryManager{
 	}
 
 	public function syncData(Inventory $inventory, int $propertyId, int $value) : void{
-		$windowId = $this->getWindowId($inventory);
+		$window = $this->getInventoryWindow($inventory);
+		$windowId = $window !== null ? $this->getWindowId($window) : null;
 		if($windowId !== null){
 			$this->session->sendDataPacket(ContainerSetDataPacket::create($windowId, $propertyId, $value));
 		}
@@ -700,10 +768,9 @@ class InventoryManager{
 	}
 
 	public function syncSelectedHotbarSlot() : void{
-		$playerInventory = $this->player->getInventory();
-		$selected = $playerInventory->getHeldItemIndex();
+		$selected = $this->player->getHotbar()->getSelectedIndex();
 		if($selected !== $this->clientSelectedHotbarSlot){
-			$inventoryEntry = $this->inventories[spl_object_id($playerInventory)] ?? null;
+			$inventoryEntry = $this->getEntry($this->player->getInventory());
 			if($inventoryEntry === null){
 				throw new AssumptionFailedError("Player inventory should always be tracked");
 			}
@@ -714,7 +781,7 @@ class InventoryManager{
 
 			$this->session->sendDataPacket(MobEquipmentPacket::create(
 				$this->player->getId(),
-				new ItemStackWrapper($itemStackInfo->getStackId(), $this->session->getTypeConverter()->coreItemStackToNet($playerInventory->getItemInHand())),
+				new ItemStackWrapper($itemStackInfo->getStackId(), $this->session->getTypeConverter()->coreItemStackToNet($this->player->getMainHandItem())),
 				$selected,
 				$selected,
 				ContainerIds::INVENTORY
@@ -732,6 +799,7 @@ class InventoryManager{
 	 * @phpstan-param list<EnchantingOption> $options
 	 */
 	public function syncEnchantingTableOptions(array $options) : void{
+		$this->enchantingTableOptions = [];
 		$protocolOptions = [];
 		//only the latest options can be selected, older ids would index into the new list
 		$this->enchantingTableOptions = [];
@@ -770,8 +838,7 @@ class InventoryManager{
 	}
 
 	public function getItemStackInfo(Inventory $inventory, int $slot) : ?ItemStackInfo{
-		$entry = $this->inventories[spl_object_id($inventory)] ?? null;
-		return $entry?->itemStackInfos[$slot] ?? null;
+		return $this->getEntry($inventory)?->itemStackInfos[$slot] ?? null;
 	}
 
 	private function trackItemStack(InventoryManagerEntry $entry, int $slotId, ItemStack $itemStack, ?int $itemStackRequestId) : ItemStackInfo{

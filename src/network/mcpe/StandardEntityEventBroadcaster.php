@@ -104,12 +104,12 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 
 	public function onMobMainHandItemChange(array $recipients, Human $mob) : void{
 		//TODO: we could send zero for slot here because remote players don't need to know which slot was selected
-		$inv = $mob->getInventory();
+		$selected = $mob->getHotbar()->getSelectedIndex();
 		$this->sendDataPacket($recipients, MobEquipmentPacket::create(
 			$mob->getId(),
-			ItemStackWrapper::legacy($this->typeConverter->coreItemStackToNet($inv->getItemInHand())),
-			$inv->getHeldItemIndex(),
-			$inv->getHeldItemIndex(),
+			ItemStackWrapper::legacy($this->typeConverter->coreItemStackToNet($mob->getMainHandItem())),
+			$selected,
+			$selected,
 			ContainerIds::INVENTORY
 		));
 	}

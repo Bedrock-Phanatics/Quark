@@ -42,8 +42,8 @@ use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\SwapStackReque
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\TakeStackRequestAction;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
 use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
-use quark\block\inventory\EnchantInventory;
-use quark\crafting\CraftingGrid;
+use quark\block\inventory\window\CraftingTableInventoryWindow;
+use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\crafting\ShapedRecipe;
 use quark\inventory\Inventory;
 use quark\inventory\transaction\action\CreateItemAction;
@@ -52,13 +52,15 @@ use quark\inventory\transaction\action\DropItemAction;
 use quark\inventory\transaction\CraftingTransaction;
 use quark\inventory\transaction\EnchantingTransaction;
 use quark\inventory\transaction\InventoryTransaction;
+use quark\inventory\transaction\SlotChangeActionBuilder;
 use quark\inventory\transaction\TransactionBuilder;
-use quark\inventory\transaction\TransactionBuilderInventory;
 use quark\item\Durable;
 use quark\item\Item;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\InventoryManager;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\player\PlayerInventoryType;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Utils;
 use function array_key_first;
@@ -88,9 +90,12 @@ class ItemStackRequestExecutor{
 		$this->builder = new TransactionBuilder();
 	}
 
-	protected function prettyInventoryAndSlot(Inventory $inventory, int $slot) : string{
-		if($inventory instanceof TransactionBuilderInventory){
-			$inventory = $inventory->getActualInventory();
+	protected function prettyInventoryAndSlot(Inventory|InventoryWindow $inventory, int $slot) : string{
+		if($inventory instanceof SlotChangeActionBuilder){
+			$inventory = $inventory->getInventoryWindow();
+		}
+		if($inventory instanceof InventoryWindow){
+			$inventory = $inventory->getInventory();
 		}
 		return (new \ReflectionClass($inventory))->getShortName() . "#" . spl_object_id($inventory) . ", slot: $slot";
 	}
@@ -114,7 +119,7 @@ class ItemStackRequestExecutor{
 	}
 
 	/**
-	 * @phpstan-return array{TransactionBuilderInventory, int}
+	 * @phpstan-return array{SlotChangeActionBuilder, int}
 	 *
 	 * @throws ItemStackRequestProcessException
 	 */
@@ -124,7 +129,8 @@ class ItemStackRequestExecutor{
 		if($windowAndSlot === null){
 			throw new ItemStackRequestProcessException("No open inventory matches container UI ID: " . $info->getContainerName()->getContainerId() . ", slot ID: " . $info->getSlotId());
 		}
-		[$inventory, $slot] = $windowAndSlot;
+		[$window, $slot] = $windowAndSlot;
+		$inventory = $window->getInventory();
 		if(!$inventory->slotExists($slot)){
 			throw new ItemStackRequestProcessException("No such inventory slot :" . $this->prettyInventoryAndSlot($inventory, $slot));
 		}
@@ -133,7 +139,7 @@ class ItemStackRequestExecutor{
 			$this->matchItemStack($inventory, $slot, $info->getStackId());
 		}
 
-		return [$this->builder->getInventory($inventory), $slot];
+		return [$this->builder->getActionBuilder($window), $slot];
 	}
 
 	/**
@@ -241,10 +247,10 @@ class ItemStackRequestExecutor{
 			throw new ItemStackRequestProcessException("Cannot craft a recipe more than 256 times");
 		}
 		$currentWindow = $this->player->getCurrentWindow();
-		if($currentWindow !== null && !$currentWindow instanceof CraftingGrid){
+		if($currentWindow !== null && !$currentWindow instanceof CraftingTableInventoryWindow){
 			throw new ItemStackRequestProcessException("Crafting recipes cannot be used while another workstation is open");
 		}
-		$craftingGrid = $currentWindow ?? $this->player->getCraftingGrid();
+		$craftingGrid = $currentWindow?->getCraftingGrid() ?? $this->player->getCraftingGrid();
 
 		$craftingManager = $this->player->getServer()->getCraftingManager();
 		$recipeIndex = $recipeId - CraftingDataCache::RECIPE_ID_OFFSET;
@@ -353,7 +359,7 @@ class ItemStackRequestExecutor{
 			$this->setNextCreatedItem($item, true);
 		}elseif($action instanceof CraftRecipeStackRequestAction){
 			$window = $this->player->getCurrentWindow();
-			if($window instanceof EnchantInventory){
+			if($window instanceof EnchantingTableInventoryWindow){
 				if($this->specialTransaction !== null){
 					throw new ItemStackRequestProcessException("Another special transaction is already in progress");
 				}
@@ -388,12 +394,11 @@ class ItemStackRequestExecutor{
 		}elseif($action instanceof MineBlockStackRequestAction){
 			$slot = $action->getHotbarSlot();
 			$this->requestSlotInfos[] = new ItemStackRequestSlotInfo(new FullContainerName(ContainerUIIds::HOTBAR), $slot, $action->getStackId());
-			$inventory = $this->player->getInventory();
-			$usedItem = $inventory->slotExists($slot) ? $inventory->getItem($slot) : null;
+			$usedItem = $this->player->getHotbar()->isHotbarSlot($slot) ? $this->player->getInventory()->getItem($slot) : null;
 			$predictedDamage = $action->getPredictedDurability();
 			if($usedItem instanceof Durable && $predictedDamage >= 0 && $predictedDamage <= $usedItem->getMaxDurability()){
 				$usedItem->setDamage($predictedDamage);
-				$this->inventoryManager->addPredictedSlotChange($inventory, $slot, $usedItem);
+				$this->inventoryManager->addPredictedSlotChange($this->player->getPermanentWindow(PlayerInventoryType::INVENTORY), $slot, $usedItem);
 			}
 		}else{
 			throw new ItemStackRequestProcessException("Unhandled item stack request action");

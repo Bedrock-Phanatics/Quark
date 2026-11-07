@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\inventory\transaction;
 
-use quark\block\inventory\EnchantInventory;
+use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\event\player\PlayerItemEnchantEvent;
 use quark\inventory\transaction\action\SlotChangeAction;
 use quark\item\enchantment\EnchantingHelper;
@@ -39,21 +39,21 @@ class EnchantingTransaction extends InventoryTransaction{
 
 	private ?Item $inputItem = null;
 	private ?Item $outputItem = null;
-	private readonly ?EnchantInventory $inventory;
+	private readonly ?EnchantingTableInventoryWindow $window;
 
 	public function __construct(
 		Player $source,
 		private readonly EnchantingOption $option,
 		private readonly int $cost,
-		?EnchantInventory $inventory = null
+		?EnchantingTableInventoryWindow $window = null
 	){
 		parent::__construct($source);
 		$currentWindow = $source->getCurrentWindow();
-		$this->inventory = $inventory ?? ($currentWindow instanceof EnchantInventory ? $currentWindow : null);
+		$this->window = $window ?? ($currentWindow instanceof EnchantingTableInventoryWindow ? $currentWindow : null);
 	}
 
 	private function validateWorkstationInputs() : void{
-		if($this->inventory === null || $this->source->getCurrentWindow() !== $this->inventory){
+		if($this->window === null || $this->source->getCurrentWindow() !== $this->window){
 			throw new TransactionValidationException("The enchanting table is no longer open");
 		}
 		if($this->inputItem === null){
@@ -63,7 +63,7 @@ class EnchantingTransaction extends InventoryTransaction{
 		$inputConsumed = null;
 		$lapisConsumed = 0;
 		foreach($this->actions as $action){
-			if(!$action instanceof SlotChangeAction || $action->getInventory() !== $this->inventory){
+			if(!$action instanceof SlotChangeAction || $action->getInventoryWindow() !== $this->window){
 				continue;
 			}
 
@@ -77,9 +77,9 @@ class EnchantingTransaction extends InventoryTransaction{
 				continue;
 			}
 
-			if($action->getSlot() === EnchantInventory::SLOT_INPUT){
+			if($action->getSlot() === EnchantingTableInventoryWindow::SLOT_INPUT){
 				$inputConsumed = (clone $sourceItem)->setCount($consumedCount);
-			}elseif($action->getSlot() === EnchantInventory::SLOT_LAPIS && $sourceItem->getTypeId() === ItemTypeIds::LAPIS_LAZULI){
+			}elseif($action->getSlot() === EnchantingTableInventoryWindow::SLOT_LAPIS && $sourceItem->getTypeId() === ItemTypeIds::LAPIS_LAZULI){
 				$lapisConsumed += $consumedCount;
 			}
 		}
@@ -167,9 +167,7 @@ class EnchantingTransaction extends InventoryTransaction{
 		}
 	}
 
-	public function execute() : void{
-		parent::execute();
-
+	protected function onExecuteSuccess() : void{
 		if($this->source->hasFiniteResources()){
 			//If the required XP level is less than the XP cost, the option can be selected with less XP than the cost.
 			//In this case, as much XP as possible will be taken.

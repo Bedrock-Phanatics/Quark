@@ -23,41 +23,43 @@ declare(strict_types=1);
 
 namespace quark\block\tile\comparator;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
-use quark\block\inventory\BlockInventory;
 use quark\block\RedstoneComparator;
 use quark\inventory\Inventory;
 use quark\inventory\InventoryListener;
 use quark\item\Item;
+use quark\world\Position;
 
+/**
+ * Tells a comparator when the container it reads from changes. Removes itself once the comparator is gone.
+ */
 final class ComparatorInventoryListener implements InventoryListener{
 
-	public static function instance(int $facing) : self{
-		static $instances = [];;
-		return $instances[$facing] ??= new self(Vector3::zero()->getSide(Facing::opposite($facing)));
-	}
-
 	private function __construct(
-		readonly public Vector3 $facing
+		private readonly Position $comparator
 	){}
 
+	/**
+	 * Starts notifying the comparator at the given position about changes to the inventory, if it isn't already.
+	 */
+	public static function attach(Inventory $inventory, Position $comparator) : void{
+		foreach($inventory->getListeners() as $listener){
+			if($listener instanceof self && $listener->comparator->getWorld() === $comparator->getWorld() && $listener->comparator->equals($comparator)){
+				return;
+			}
+		}
+		$listener = new self(Position::fromObject($comparator->floor(), $comparator->getWorld()));
+		$inventory->getListeners()->add($listener);
+		$listener->update($inventory);
+	}
+
 	public function update(Inventory $inventory) : void{
-		if(!($inventory instanceof BlockInventory)){
+		$comparator = $this->comparator;
+		$block = $comparator->isValid() ? $comparator->getWorld()->getBlockAt($comparator->getFloorX(), $comparator->getFloorY(), $comparator->getFloorZ()) : null;
+		if(!$block instanceof RedstoneComparator){
 			$inventory->getListeners()->remove($this);
 			return;
 		}
-		$holder = $inventory->getHolder();
-		if($holder->world === null){
-			$inventory->getListeners()->remove($this);
-			return;
-		}
-		$comparator = $holder->world->getBlockAt((int) ($holder->x + $this->facing->x), (int) ($holder->y + $this->facing->y), (int) ($holder->z + $this->facing->z));
-		if(!($comparator instanceof RedstoneComparator)){
-			$inventory->getListeners()->remove($this);
-			return;
-		}
-		$comparator->onContainerInputChange();
+		$block->onContainerInputChange();
 	}
 
 	public function onSlotChange(Inventory $inventory, int $slot, Item $oldItem) : void{

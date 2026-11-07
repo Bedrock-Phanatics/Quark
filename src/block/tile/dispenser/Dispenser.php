@@ -27,12 +27,13 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
-use quark\block\tile\Container;
-use quark\block\tile\ContainerTrait;
+use quark\block\tile\ContainerTile;
+use quark\block\tile\ContainerTileTrait;
 use quark\block\tile\Nameable;
 use quark\block\tile\NameableTrait;
 use quark\block\tile\Spawnable;
-use quark\inventory\DispenserInventory;
+use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\player\Player;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
@@ -40,17 +41,17 @@ use quark\world\World;
 use function array_rand;
 use function count;
 
-class Dispenser extends Spawnable implements Container, Nameable{
-	use ContainerTrait;
+class Dispenser extends Spawnable implements ContainerTile, Nameable{
+	use ContainerTileTrait;
 	use NameableTrait {
 		addAdditionalSpawnData as addNameSpawnData;
 	}
 
-	private DispenserInventory $inventory;
+	private Inventory $inventory;
 
 	public function __construct(World $world, Vector3 $pos){
 		parent::__construct($world, $pos);
-		$this->inventory = new DispenserInventory($this->position);
+		$this->inventory = new SimpleInventory(9);
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
@@ -65,16 +66,12 @@ class Dispenser extends Spawnable implements Container, Nameable{
 
 	public function close() : void{
 		if(!$this->closed){
-			$this->inventory->removeAllViewers();
+			$this->inventory->removeAllWindows();
 			parent::close();
 		}
 	}
 
-	public function getInventory() : DispenserInventory{
-		return $this->inventory;
-	}
-
-	public function getRealInventory() : DispenserInventory{
+	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 

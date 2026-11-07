@@ -23,7 +23,7 @@ use quark\event\RegisteredListener;
 use quark\inventory\ArmorInventory;
 use quark\inventory\CallbackInventoryListener;
 use quark\inventory\CreativeInventory;
-use quark\inventory\PlayerInventory;
+use quark\inventory\Hotbar;
 use quark\inventory\SimpleInventory;
 use quark\inventory\transaction\action\CreateItemAction;
 use quark\inventory\transaction\action\SlotChangeAction;
@@ -34,6 +34,8 @@ use quark\item\enchantment\ItemEnchantmentTags;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\player\GameMode;
 use quark\player\Player;
+use quark\player\PlayerInventoryType;
+use quark\player\PlayerInventoryWindow;
 use quark\plugin\Plugin;
 use quark\pulse\Pulse;
 use quark\Server;
@@ -82,13 +84,13 @@ final class CustomEquipmentTest extends TestCase{
 	}
 
 	public function testAttackRunsOnceAndConsumesDurabilityOnce() : void{
-		$this->attacker->getInventory()->setItemInHand($this->sword());
+		$this->attacker->setMainHandItem($this->sword());
 		$calls = 0;
 		$this->listen(static function(EntityDamageByEntityEvent $event) use (&$calls) : void{ ++$calls; });
 		self::assertTrue($this->attacker->attackEntity($this->victim));
 		self::assertSame(11.0, $this->victim->getHealth());
 		self::assertSame(1, $calls);
-		$item = $this->attacker->getInventory()->getItemInHand();
+		$item = $this->attacker->getMainHandItem();
 		self::assertInstanceOf(CustomSword::class, $item);
 		self::assertSame(1, $item->getDamage());
 		self::assertSame(1, $this->victim->knockbacks);
@@ -97,28 +99,28 @@ final class CustomEquipmentTest extends TestCase{
 	public function testCancelledAttackPreservesBothInventoriesAndHealth() : void{
 		$sword = $this->sword();
 		$armor = $this->helmet();
-		$this->attacker->getInventory()->setItemInHand($sword);
+		$this->attacker->setMainHandItem($sword);
 		$this->victim->getArmorInventory()->setHelmet($armor);
 		$this->listen(static function(EntityDamageByEntityEvent $event) : void{ $event->cancel(); });
 		self::assertFalse($this->attacker->attackEntity($this->victim));
 		self::assertSame(20.0, $this->victim->getHealth());
-		self::assertTrue($sword->equalsExact($this->attacker->getInventory()->getItemInHand()));
+		self::assertTrue($sword->equalsExact($this->attacker->getMainHandItem()));
 		self::assertTrue($armor->equalsExact($this->victim->getArmorInventory()->getHelmet()));
 		self::assertSame(0, $this->victim->knockbacks);
 	}
 
 	public function testEquipmentChangedDuringEventIsNotOverwritten() : void{
-		$this->attacker->getInventory()->setItemInHand($this->sword());
+		$this->attacker->setMainHandItem($this->sword());
 		$replacement = VanillaItems::STICK();
-		$this->listen(function(EntityDamageByEntityEvent $event) use ($replacement) : void{ $this->attacker->getInventory()->setItemInHand($replacement); });
+		$this->listen(function(EntityDamageByEntityEvent $event) use ($replacement) : void{ $this->attacker->setMainHandItem($replacement); });
 		self::assertTrue($this->attacker->attackEntity($this->victim));
 		self::assertSame(11.0, $this->victim->getHealth());
-		self::assertTrue($replacement->equalsExact($this->attacker->getInventory()->getItemInHand()));
+		self::assertTrue($replacement->equalsExact($this->attacker->getMainHandItem()));
 	}
 
 	public function testCriticalHitAndSharpnessUseExistingModifiers() : void{
 		$sword = $this->sword()->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 2));
-		$this->attacker->getInventory()->setItemInHand($sword);
+		$this->attacker->setMainHandItem($sword);
 		$this->attacker->fallDistance = 1;
 		$event = null;
 		$this->listen(static function(EntityDamageByEntityEvent $source) use (&$event) : void{ $event = $source; });
@@ -162,11 +164,11 @@ final class CustomEquipmentTest extends TestCase{
 	}
 
 	public function testDamageCooldownRejectsRepeatedHitWithoutDurabilityCost() : void{
-		$this->attacker->getInventory()->setItemInHand($this->sword());
+		$this->attacker->setMainHandItem($this->sword());
 		self::assertTrue($this->attacker->attackEntity($this->victim));
 		self::assertFalse($this->attacker->attackEntity($this->victim));
 		self::assertSame(11.0, $this->victim->getHealth());
-		$held = $this->attacker->getInventory()->getItemInHand();
+		$held = $this->attacker->getMainHandItem();
 		self::assertInstanceOf(CustomSword::class, $held);
 		self::assertSame(1, $held->getDamage());
 	}
@@ -174,13 +176,15 @@ final class CustomEquipmentTest extends TestCase{
 	public function testWrongSlotAndOverstackedArmorFailTransactionValidation() : void{
 		$armor = $this->helmet();
 		$inventory = $this->victim->getArmorInventory();
+		$window = new PlayerInventoryWindow($this->attacker, $inventory, PlayerInventoryType::ARMOR);
+		new \ReflectionProperty(Player::class, "permanentWindows")->setValue($this->attacker, [PlayerInventoryType::ARMOR->name => $window]);
 		foreach([[ArmorInventory::SLOT_CHEST, $armor], [ArmorInventory::SLOT_HEAD, (clone $armor)->setCount(2)]] as [$slot, $target]){
 			try{
-				(new SlotChangeAction($inventory, $slot, VanillaItems::AIR(), $target))->validate($this->attacker);
+				(new SlotChangeAction($window, $slot, VanillaItems::AIR(), $target))->validate($this->attacker);
 				self::fail("Invalid armor equip accepted");
 			}catch(TransactionValidationException){ }
 		}
-		(new SlotChangeAction($inventory, ArmorInventory::SLOT_HEAD, VanillaItems::AIR(), $armor))->validate($this->attacker);
+		(new SlotChangeAction($window, ArmorInventory::SLOT_HEAD, VanillaItems::AIR(), $armor))->validate($this->attacker);
 		self::assertTrue($inventory->getHelmet()->isNull());
 	}
 
@@ -196,11 +200,11 @@ final class CustomEquipmentTest extends TestCase{
 
 	public function testArmorEquipsFromHandWithNativeSound() : void{
 		$helmet = $this->helmet();
-		$this->attacker->getInventory()->setItemInHand($helmet);
+		$this->attacker->setMainHandItem($helmet);
 		$returned = [];
 		self::assertSame(ItemUseResult::SUCCESS, $helmet->onClickAir($this->attacker, new Vector3(0, 0, 1), $returned));
 		self::assertTrue($helmet->equalsExact($this->attacker->getArmorInventory()->getHelmet()));
-		self::assertTrue($this->attacker->getInventory()->getItemInHand()->isNull());
+		self::assertTrue($this->attacker->getMainHandItem()->isNull());
 		self::assertSame(1, $this->attacker->sounds);
 		self::assertSame([], $returned);
 	}
@@ -208,9 +212,9 @@ final class CustomEquipmentTest extends TestCase{
 	public function testWeaponBreaksOnceOnSuccessfulHit() : void{
 		$weapon = $this->sword();
 		$weapon->setDamage(99);
-		$this->attacker->getInventory()->setItemInHand($weapon);
+		$this->attacker->setMainHandItem($weapon);
 		self::assertTrue($this->attacker->attackEntity($this->victim));
-		self::assertTrue($this->attacker->getInventory()->getItemInHand()->isNull());
+		self::assertTrue($this->attacker->getMainHandItem()->isNull());
 		self::assertSame(11.0, $this->victim->getHealth());
 	}
 
@@ -238,8 +242,9 @@ final class EquipmentTestPlayer extends Player{
 		$this->attributeMap = new AttributeMap();
 		$this->addAttributes();
 		$this->effectManager = new EffectManager($this);
-		$this->inventory = new PlayerInventory($this);
-		$this->armorInventory = new ArmorInventory($this);
+		$this->inventory = new SimpleInventory(36);
+		$this->hotbar = new Hotbar();
+		$this->armorInventory = new ArmorInventory();
 		$this->hungerManager = new HungerManager($this);
 		$this->creativeInventory = CreativeInventory::getInstance();
 	}
@@ -267,7 +272,7 @@ final class EquipmentTestVictim extends Living{
 		$this->attributeMap = new AttributeMap();
 		$this->addAttributes();
 		$this->effectManager = new EffectManager($this);
-		$this->armorInventory = new ArmorInventory($this);
+		$this->armorInventory = new ArmorInventory();
 	}
 
 	public function getName() : string{ return "Victim"; }

@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\inventory;
 
 use quark\block\BlockTypeIds;
-use quark\entity\Living;
 use quark\inventory\transaction\action\validator\CallbackSlotValidator;
 use quark\inventory\transaction\TransactionValidationException;
 use quark\item\Armor;
@@ -37,16 +36,10 @@ class ArmorInventory extends SimpleInventory{
 	public const SLOT_LEGS = 2;
 	public const SLOT_FEET = 3;
 
-	public function __construct(
-		protected Living $holder
-	){
+	public function __construct(){
 		parent::__construct(4);
 
 		$this->validators->add(new CallbackSlotValidator(self::validate(...)));
-	}
-
-	public function getHolder() : Living{
-		return $this->holder;
 	}
 
 	public function getHelmet() : Item{

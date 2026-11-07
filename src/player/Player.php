@@ -101,11 +101,10 @@ use quark\event\player\PlayerViewDistanceChangeEvent;
 use quark\form\Form;
 use quark\form\FormValidationException;
 use quark\inventory\CallbackInventoryListener;
+use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\CreativeInventory;
 use quark\inventory\Inventory;
-use quark\inventory\PlayerCraftingInventory;
-use quark\inventory\PlayerCursorInventory;
-use quark\inventory\TemporaryInventory;
+use quark\inventory\SimpleInventory;
 use quark\inventory\transaction\action\DropItemAction;
 use quark\inventory\transaction\InventoryTransaction;
 use quark\inventory\transaction\TransactionBuilder;
@@ -235,11 +234,16 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	protected bool $authenticated;
 	protected PlayerInfo $playerInfo;
 
-	protected ?Inventory $currentWindow = null;
-	/** @var Inventory[] */
+	protected ?InventoryWindow $currentWindow = null;
+	private bool $evacuatingInventories = false;
+	private CallbackInventoryListener $itemHeldListener;
+	/**
+	 * @var PlayerInventoryWindow[]
+	 * @phpstan-var array<string, PlayerInventoryWindow>
+	 */
 	protected array $permanentWindows = [];
-	protected PlayerCursorInventory $cursorInventory;
-	protected PlayerCraftingInventory $craftingGrid;
+	protected Inventory $cursorInventory;
+	protected CraftingGrid $craftingGrid;
 	protected CreativeInventory $creativeInventory;
 
 	protected int $messageCounter = 2;
@@ -378,7 +382,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	private function callDummyItemHeldEvent() : void{
-		$slot = $this->inventory->getHeldItemIndex();
+		$slot = $this->hotbar->getSelectedIndex();
 
 		$event = new PlayerItemHeldEvent($this, $this->inventory->getItem($slot), $slot);
 		$event->call();
@@ -391,9 +395,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		parent::initEntity($nbt);
 		$this->addDefaultWindows();
 
-		$this->inventory->getListeners()->add(new CallbackInventoryListener(
+		$this->itemHeldListener = new CallbackInventoryListener(
 			function(Inventory $unused, int $slot) : void{
-				if($slot === $this->inventory->getHeldItemIndex()){
+				if($slot === $this->hotbar->getSelectedIndex()){
 					$this->setUsingItem(false);
 
 					$this->callDummyItemHeldEvent();
@@ -403,7 +407,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$this->setUsingItem(false);
 				$this->callDummyItemHeldEvent();
 			}
-		));
+		);
+		$this->inventory->getListeners()->add($this->itemHeldListener);
 
 		$this->firstPlayed = $nbt->getLong(self::TAG_FIRST_PLAYED, $now = (int) (microtime(true) * 1000));
 		$this->lastPlayed = $nbt->getLong(self::TAG_LAST_PLAYED, $now);
@@ -1703,7 +1708,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$this->blockBreakHandler = null;
 			}
 
-			if($this->isUsingItem() && $this->getItemUseDuration() % 4 === 0 && ($item = $this->inventory->getItemInHand()) instanceof ConsumableItem){
+			if($this->isUsingItem() && $this->getItemUseDuration() % 4 === 0 && ($item = $this->getMainHandItem()) instanceof ConsumableItem){
 				$this->broadcastAnimation(new ConsumingItemAnimation($this, $item));
 			}
 		}
@@ -1781,10 +1786,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	public function selectHotbarSlot(int $hotbarSlot) : bool{
-		if(!$this->inventory->isHotbarSlot($hotbarSlot)){ //TODO: exception here?
+		if(!$this->hotbar->isHotbarSlot($hotbarSlot)){ //TODO: exception here?
 			return false;
 		}
-		if($hotbarSlot === $this->inventory->getHeldItemIndex()){
+		if($hotbarSlot === $this->hotbar->getSelectedIndex()){
 			return true;
 		}
 
@@ -1794,7 +1799,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 
-		$this->inventory->setHeldItemIndex($hotbarSlot);
+		$this->hotbar->setSelectedIndex($hotbarSlot);
 		$this->setUsingItem(false);
 
 		return true;
@@ -1806,7 +1811,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	private function returnItemsFromAction(Item $oldHeldItem, Item $newHeldItem, array $extraReturnedItems) : void{
 		$heldItemChanged = false;
 
-		if(!$newHeldItem->equalsExact($oldHeldItem) && $oldHeldItem->equalsExact($this->inventory->getItemInHand())){
+		if(!$newHeldItem->equalsExact($oldHeldItem) && $oldHeldItem->equalsExact($this->getMainHandItem())){
 			//determine if the item was changed in some meaningful way, or just damaged/changed count
 			//if it was really changed we always need to set it, whether we have finite resources or not
 			$newReplica = clone $oldHeldItem;
@@ -1823,7 +1828,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				if($newHeldItem instanceof Durable && $newHeldItem->isBroken()){
 					$this->broadcastSound(new ItemBreakSound());
 				}
-				$this->inventory->setItemInHand($newHeldItem);
+				$this->setMainHandItem($newHeldItem);
 				$heldItemChanged = true;
 			}
 		}
@@ -1833,7 +1838,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 
 		if($heldItemChanged && count($extraReturnedItems) > 0 && $newHeldItem->isNull()){
-			$this->inventory->setItemInHand(array_shift($extraReturnedItems));
+			$this->setMainHandItem(array_shift($extraReturnedItems));
 		}
 		foreach($this->inventory->addItem(...$extraReturnedItems) as $drop){
 			//TODO: we can't generate a transaction for this since the items aren't coming from an inventory :(
@@ -1855,7 +1860,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 */
 	public function useHeldItem() : bool{
 		$directionVector = $this->getDirectionVector();
-		$item = $this->inventory->getItemInHand();
+		$item = $this->getMainHandItem();
 		$oldItem = clone $item;
 
 		$ev = new PlayerItemUseEvent($this, $item, $directionVector);
@@ -1889,7 +1894,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @return bool if the consumption succeeded.
 	 */
 	public function consumeHeldItem() : bool{
-		$slot = $this->inventory->getItemInHand();
+		$slot = $this->getMainHandItem();
 		if($slot instanceof ConsumableItem){
 			$oldItem = clone $slot;
 
@@ -1923,7 +1928,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 */
 	public function releaseHeldItem() : bool{
 		try{
-			$item = $this->inventory->getItemInHand();
+			$item = $this->getMainHandItem();
 			if(!$this->isUsingItem() || $this->hasItemCooldown($item)){
 				return false;
 			}
@@ -1995,21 +2000,21 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	private function equipOrAddPickedItem(int $existingSlot, Item $item) : void{
 		if($existingSlot !== -1){
-			if($existingSlot < $this->inventory->getHotbarSize()){
-				$this->inventory->setHeldItemIndex($existingSlot);
+			if($existingSlot < $this->hotbar->getSize()){
+				$this->hotbar->setSelectedIndex($existingSlot);
 			}else{
-				$this->inventory->swap($this->inventory->getHeldItemIndex(), $existingSlot);
+				$this->inventory->swap($this->hotbar->getSelectedIndex(), $existingSlot);
 			}
 		}else{
 			$firstEmpty = $this->inventory->firstEmpty();
 			if($firstEmpty === -1){ //full inventory
-				$this->inventory->setItemInHand($item);
-			}elseif($firstEmpty < $this->inventory->getHotbarSize()){
+				$this->setMainHandItem($item);
+			}elseif($firstEmpty < $this->hotbar->getSize()){
 				$this->inventory->setItem($firstEmpty, $item);
-				$this->inventory->setHeldItemIndex($firstEmpty);
+				$this->hotbar->setSelectedIndex($firstEmpty);
 			}else{
-				$this->inventory->swap($this->inventory->getHeldItemIndex(), $firstEmpty);
-				$this->inventory->setItemInHand($item);
+				$this->inventory->swap($this->hotbar->getSelectedIndex(), $firstEmpty);
+				$this->setMainHandItem($item);
 			}
 		}
 	}
@@ -2026,7 +2031,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		$target = $this->getWorld()->getBlock($pos);
 
-		$ev = new PlayerInteractEvent($this, $this->inventory->getItemInHand(), $target, null, $face, PlayerInteractEvent::LEFT_CLICK_BLOCK);
+		$ev = new PlayerInteractEvent($this, $this->getMainHandItem(), $target, null, $face, PlayerInteractEvent::LEFT_CLICK_BLOCK);
 		if($this->isSpectator()){
 			$ev->cancel();
 		}
@@ -2035,7 +2040,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 		$this->broadcastAnimation(new ArmSwingAnimation($this), $this->getViewers());
-		if($target->onAttack($this->inventory->getItemInHand(), $face, $this)){
+		if($target->onAttack($this->getMainHandItem(), $face, $this)){
 			return true;
 		}
 
@@ -2076,7 +2081,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		if($this->canInteract($pos->add(0.5, 0.5, 0.5), $this->isCreative() ? self::MAX_REACH_DISTANCE_CREATIVE : self::MAX_REACH_DISTANCE_SURVIVAL)){
 			$this->broadcastAnimation(new ArmSwingAnimation($this), $this->getViewers());
 			$this->stopBreakBlock($pos);
-			$item = $this->inventory->getItemInHand();
+			$item = $this->getMainHandItem();
 			$oldItem = clone $item;
 			$returnedItems = [];
 			if($this->getWorld()->useBreakOn($pos, $item, $this, true, $returnedItems)){
@@ -2101,7 +2106,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		if($this->canInteract($pos->add(0.5, 0.5, 0.5), $this->isCreative() ? self::MAX_REACH_DISTANCE_CREATIVE : self::MAX_REACH_DISTANCE_SURVIVAL)){
 			$this->broadcastAnimation(new ArmSwingAnimation($this), $this->getViewers());
-			$item = $this->inventory->getItemInHand(); //this is a copy of the real item
+			$item = $this->getMainHandItem(); //this is a copy of the real item
 			$oldItem = clone $item;
 			$returnedItems = [];
 			if($this->getWorld()->useItemOn($pos, $item, $face, $clickOffset, $this, true, $returnedItems)){
@@ -2130,7 +2135,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 
-		$heldItem = $this->inventory->getItemInHand();
+		$heldItem = $this->getMainHandItem();
 		$oldItem = clone $heldItem;
 
 		$ev = new EntityDamageByEntityEvent($this, $entity, EntityDamageEvent::CAUSE_ENTITY_ATTACK, $heldItem->getAttackPoints());
@@ -2227,15 +2232,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		$ev->call();
 
-		$item = $this->inventory->getItemInHand();
+		$item = $this->getMainHandItem();
 		$oldItem = clone $item;
 		if(!$ev->isCancelled()){
 			if($item->onInteractEntity($this, $entity, $clickPos)){
-				if($this->hasFiniteResources() && !$item->equalsExact($oldItem) && $oldItem->equalsExact($this->inventory->getItemInHand())){
+				if($this->hasFiniteResources() && !$item->equalsExact($oldItem) && $oldItem->equalsExact($this->getMainHandItem())){
 					if($item instanceof Durable && $item->isBroken()){
 						$this->broadcastSound(new ItemBreakSound());
 					}
-					$this->inventory->setItemInHand($item);
+					$this->setMainHandItem($item);
 				}
 			}
 			return $entity->onInteract($this, $clickPos);
@@ -2591,7 +2596,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$this->loadQueue = [];
 
 		$this->removeCurrentWindow();
-		$this->removePermanentInventories();
+		$this->removePermanentWindows();
 
 		$this->perm->getPermissionRecalculationCallbacks()->clear();
 
@@ -2600,12 +2605,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	protected function onDispose() : void{
 		$this->disconnect("Player destroyed");
-		$this->cursorInventory->removeAllViewers();
-		$this->craftingGrid->removeAllViewers();
+		$this->inventory->getListeners()->remove($this->itemHeldListener);
+		$this->cursorInventory->removeAllWindows();
+		$this->craftingGrid->removeAllWindows();
 		parent::onDispose();
 	}
 
 	protected function destroyCycles() : void{
+		unset($this->itemHeldListener);
 		$this->forms = [];
 		$this->networkSession = null;
 		unset($this->cursorInventory);
@@ -2690,7 +2697,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			}
 
 			$clearInventory = fn(Inventory $inventory) => $inventory->setContents(array_filter($inventory->getContents(), fn(Item $item) => $item->keepOnDeath()));
-			$this->inventory->setHeldItemIndex(0);
+			$this->hotbar->setSelectedIndex(0);
 			$clearInventory($this->inventory);
 			$clearInventory($this->armorInventory);
 			$clearInventory($this->offHandInventory);
@@ -2907,15 +2914,19 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function addDefaultWindows() : void{
-		$this->cursorInventory = new PlayerCursorInventory($this);
-		$this->craftingGrid = new PlayerCraftingInventory($this);
+		$this->cursorInventory = new SimpleInventory(1);
+		$this->craftingGrid = new CraftingGrid(CraftingGrid::SIZE_SMALL);
 
-		$this->addPermanentInventories($this->inventory, $this->armorInventory, $this->cursorInventory, $this->offHandInventory, $this->craftingGrid);
-
-		//TODO: more windows
+		$this->addPermanentWindows([
+			new PlayerInventoryWindow($this, $this->inventory, PlayerInventoryType::INVENTORY),
+			new PlayerInventoryWindow($this, $this->armorInventory, PlayerInventoryType::ARMOR),
+			new PlayerInventoryWindow($this, $this->cursorInventory, PlayerInventoryType::CURSOR),
+			new PlayerInventoryWindow($this, $this->offHandInventory, PlayerInventoryType::OFFHAND),
+			new PlayerInventoryWindow($this, $this->craftingGrid, PlayerInventoryType::CRAFTING),
+		]);
 	}
 
-	public function getCursorInventory() : PlayerCursorInventory{
+	public function getCursorInventory() : Inventory{
 		return $this->cursorInventory;
 	}
 
@@ -2942,104 +2953,188 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	/**
-	 * @internal Called to clean up crafting grid and cursor inventory when it is detected that the player closed their
-	 * inventory.
+	 * Moves everything out of the crafting grid, cursor and any temporary window back into the inventory, dropping
+	 * what doesn't fit. Called whenever the player's inventory screen closes.
 	 */
-	private function doCloseInventory() : void{
-		$inventories = [$this->craftingGrid, $this->cursorInventory];
-		if($this->currentWindow instanceof TemporaryInventory){
-			$inventories[] = $this->currentWindow;
+	private function doCloseInventory(?InventoryWindow $currentWindow) : void{
+		if($this->evacuatingInventories){
+			return;
 		}
-
-		$builder = new TransactionBuilder();
-		foreach($inventories as $inventory){
-			$contents = $inventory->getContents();
-
-			if(count($contents) > 0){
-				$drops = $builder->getInventory($this->inventory)->addItem(...$contents);
-				foreach($drops as $drop){
-					$builder->addAction(new DropItemAction($drop));
-				}
-
-				$builder->getInventory($inventory)->clearAll();
+		$this->evacuatingInventories = true;
+		try{
+			$mainWindow = $this->permanentWindows[PlayerInventoryType::INVENTORY->name] ?? null;
+			if($mainWindow === null){
+				return;
 			}
-		}
-
-		$actions = $builder->generateActions();
-		if(count($actions) !== 0){
-			$transaction = new InventoryTransaction($this, $actions);
-			try{
-				$transaction->execute();
-				$this->logger->debug("Successfully evacuated items from temporary inventories");
-			}catch(TransactionCancelledException){
-				$this->logger->debug("Plugin cancelled transaction evacuating items from temporary inventories; items will be destroyed");
-				foreach($inventories as $inventory){
-					$inventory->clearAll();
+			$windows = [];
+			foreach([PlayerInventoryType::CRAFTING, PlayerInventoryType::CURSOR] as $type){
+				if(isset($this->permanentWindows[$type->name])){
+					$windows[] = $this->permanentWindows[$type->name];
 				}
-			}catch(TransactionValidationException $e){
-				throw new AssumptionFailedError("This server-generated transaction should never be invalid", 0, $e);
 			}
+			if($currentWindow instanceof TemporaryInventoryWindow){
+				$windows[] = $currentWindow;
+			}
+
+			$builder = new TransactionBuilder();
+			foreach($windows as $window){
+				$contents = $window->getInventory()->getContents();
+
+				if(count($contents) > 0){
+					$drops = $builder->getActionBuilder($mainWindow)->addItem(...$contents);
+					foreach($drops as $drop){
+						$builder->addAction(new DropItemAction($drop));
+					}
+
+					$builder->getActionBuilder($window)->clearAll();
+				}
+			}
+
+			$actions = $builder->generateActions();
+			if(count($actions) !== 0){
+				$transaction = new InventoryTransaction($this, $actions);
+				try{
+					$transaction->execute();
+					$this->logger->debug("Successfully evacuated items from temporary inventories");
+				}catch(TransactionCancelledException){
+					$this->logger->debug("Plugin cancelled transaction evacuating items from temporary inventories; items will be destroyed");
+					foreach($windows as $window){
+						$window->getInventory()->clearAll();
+					}
+				}catch(TransactionValidationException $e){
+					$this->logger->debug("Rebuilding inventory cleanup after a plugin changed its inputs: " . $e->getMessage());
+					foreach($windows as $window){
+						$inventory = $window->getInventory();
+						$contents = $inventory->getContents();
+						$inventory->clearAll();
+						foreach($mainWindow->getInventory()->addItem(...$contents) as $drop){
+							$action = new DropItemAction($drop);
+							if($action->onPreExecute($this)){
+								$action->execute($this);
+							}
+						}
+					}
+				}
+			}
+		}finally{
+			$this->evacuatingInventories = false;
 		}
 	}
 
 	/**
-	 * Returns the inventory the player is currently viewing. This might be a chest, furnace, or any other container.
+	 * Returns the window the player is currently viewing, like a chest or furnace, or null if none is open. The player's
+	 * own inventories are always open and never returned here, see getPermanentWindow() for those.
 	 */
-	public function getCurrentWindow() : ?Inventory{
+	public function getCurrentWindow() : ?InventoryWindow{
 		return $this->currentWindow;
 	}
 
 	/**
-	 * Opens an inventory window to the player. Returns if it was successful.
+	 * Opens a window to the player, closing the current one. Returns false if it couldn't be opened, e.g. the open event
+	 * was cancelled or an event handler opened another window first.
+	 *
+	 * Windows can't be reused, create a new one each time.
+	 *
+	 * @throws \InvalidArgumentException if the window belongs to someone else, or its inventory is already open
 	 */
-	public function setCurrentWindow(Inventory $inventory) : bool{
-		if($inventory === $this->currentWindow){
+	public function setCurrentWindow(InventoryWindow $window) : bool{
+		if($window === $this->currentWindow){
 			return true;
 		}
-		$ev = new InventoryOpenEvent($inventory, $this);
+		if($window->getViewer() !== $this){
+			throw new \InvalidArgumentException("Cannot reuse InventoryWindow instances, please create a new one for each player");
+		}
+		if($window instanceof PlayerInventoryWindow){
+			throw new \InvalidArgumentException("Player inventory windows are always open");
+		}
+		$inventoryManager = $this->getNetworkSession()->getInvManager() ?? throw new \InvalidArgumentException("Player cannot open inventories in this state");
+		$inventory = $window->getInventory();
+		$inventories = $inventory instanceof CombinedInventoryProxy ? [$inventory, ...$inventory->getBackingInventories()] : [$inventory];
+		foreach($inventories as $backing){
+			$openWindow = $inventoryManager->getInventoryWindow($backing);
+			if($openWindow !== null && $openWindow !== $this->currentWindow){
+				//one inventory can only be tracked once per player, a second window would desync its slots
+				throw new \InvalidArgumentException("This inventory is already open in another of the player's windows");
+			}
+		}
+
+		$previousWindow = $this->currentWindow;
+		$ev = new InventoryOpenEvent($window);
 		$ev->call();
-		if($ev->isCancelled()){
+		if($ev->isCancelled() || $this->currentWindow !== $previousWindow || !$this->isConnected()){
 			return false;
 		}
 
 		$this->removeCurrentWindow();
-
-		if(($inventoryManager = $this->getNetworkSession()->getInvManager()) === null){
-			throw new \InvalidArgumentException("Player cannot open inventories in this state");
+		if($this->currentWindow !== null || !$this->isConnected()){
+			//a close event handler opened something else or kicked the player, opening ours now would leak that window
+			return false;
 		}
-		$this->logger->debug("Opening inventory " . get_class($inventory) . "#" . spl_object_id($inventory));
-		$inventoryManager->onCurrentWindowChange($inventory);
-		$inventory->onOpen($this);
-		$this->currentWindow = $inventory;
-		return true;
+		$inventoryManager = $this->getNetworkSession()->getInvManager();
+		if($inventoryManager === null){
+			return false;
+		}
+
+		$this->logger->debug("Opening inventory window " . get_class($window) . "#" . spl_object_id($window));
+		$this->currentWindow = $window;
+		$window->onOpen();
+		if($this->currentWindow !== $window || !$this->isConnected()){
+			return false;
+		}
+		$inventoryManager->onCurrentWindowChange($window);
+		return $this->currentWindow === $window && $this->isConnected();
 	}
 
 	public function removeCurrentWindow() : void{
-		$this->doCloseInventory();
-		if($this->currentWindow !== null){
-			$currentWindow = $this->currentWindow;
-			$this->logger->debug("Closing inventory " . get_class($this->currentWindow) . "#" . spl_object_id($this->currentWindow));
-			$this->currentWindow->onClose($this);
-			if(($inventoryManager = $this->getNetworkSession()->getInvManager()) !== null){
-				$inventoryManager->onCurrentWindowRemove();
+		$window = $this->currentWindow;
+		$this->doCloseInventory($window);
+		if($window === null || $this->currentWindow !== $window){
+			//nothing to close, or an event handler during the clean-up already closed or replaced it
+			return;
+		}
+		$this->logger->debug("Closing inventory window " . get_class($window) . "#" . spl_object_id($window));
+		$this->currentWindow = null;
+		$window->onClose();
+		$this->getNetworkSession()->getInvManager()?->onCurrentWindowRemove();
+		(new InventoryCloseEvent($window))->call();
+	}
+
+	/**
+	 * @param PlayerInventoryWindow[] $windows
+	 */
+	protected function addPermanentWindows(array $windows) : void{
+		foreach($windows as $window){
+			$type = $window->getType()->name;
+			if(isset($this->permanentWindows[$type])){
+				throw new \InvalidArgumentException("A permanent window of type $type is already open");
 			}
-			$this->currentWindow = null;
-			(new InventoryCloseEvent($currentWindow, $this))->call();
+			$window->onOpen();
+			$this->permanentWindows[$type] = $window;
 		}
 	}
 
-	protected function addPermanentInventories(Inventory ...$inventories) : void{
-		foreach($inventories as $inventory){
-			$inventory->onOpen($this);
-			$this->permanentWindows[spl_object_id($inventory)] = $inventory;
-		}
-	}
-
-	protected function removePermanentInventories() : void{
-		foreach($this->permanentWindows as $inventory){
-			$inventory->onClose($this);
+	protected function removePermanentWindows() : void{
+		foreach($this->permanentWindows as $window){
+			$window->onClose();
 		}
 		$this->permanentWindows = [];
+	}
+
+	/**
+	 * Returns the windows of the player's own inventories, which stay open while the player is online.
+	 *
+	 * @return PlayerInventoryWindow[]
+	 * @phpstan-return array<string, PlayerInventoryWindow>
+	 */
+	public function getPermanentWindows() : array{
+		return $this->permanentWindows;
+	}
+
+	/**
+	 * Returns the window of one of the player's own inventories. Use it to build transactions on those inventories.
+	 */
+	public function getPermanentWindow(PlayerInventoryType $type) : PlayerInventoryWindow{
+		return $this->permanentWindows[$type->name] ?? throw new \LogicException("The player's inventory windows have been closed");
 	}
 
 	/**

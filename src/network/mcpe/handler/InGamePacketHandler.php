@@ -95,6 +95,7 @@ use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;
 use quark\network\PacketHandlingException;
 use quark\player\Player;
+use quark\player\PlayerInventoryType;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
@@ -367,9 +368,9 @@ class InGamePacketHandler extends PacketHandler{
 			foreach($packet->requestChangedSlots as $containerInfo){
 				foreach($containerInfo->getChangedSlotIndexes() as $netSlot){
 					[$windowId, $slot] = ItemStackContainerIdTranslator::translate($containerInfo->getContainerId(), $this->inventoryManager->getCurrentWindowId(), $netSlot);
-					$inventoryAndSlot = $this->inventoryManager->locateWindowAndSlot($windowId, $slot);
-					if($inventoryAndSlot !== null){ //trigger the normal slot sync logic
-						$this->inventoryManager->onSlotChange($inventoryAndSlot[0], $inventoryAndSlot[1]);
+					$windowAndSlot = $this->inventoryManager->locateWindowAndSlot($windowId, $slot);
+					if($windowAndSlot !== null){ //trigger the normal slot sync logic
+						$this->inventoryManager->requestSyncSlot($windowAndSlot[0]->getInventory(), $windowAndSlot[1]);
 					}
 				}
 			}
@@ -476,7 +477,7 @@ class InGamePacketHandler extends PacketHandler{
 		$droppedItem = $sourceSlotItem->pop($droppedCount);
 
 		$builder = new TransactionBuilder();
-		$builder->getInventory($inventory)->setItem($sourceSlot, $sourceSlotItem);
+		$builder->getActionBuilder($this->player->getPermanentWindow(PlayerInventoryType::INVENTORY))->setItem($sourceSlot, $sourceSlotItem);
 		$builder->addAction(new DropItemAction($droppedItem));
 
 		$transaction = new InventoryTransaction($this->player, $builder->generateActions());

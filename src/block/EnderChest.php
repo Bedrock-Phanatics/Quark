@@ -25,16 +25,31 @@ namespace quark\block;
 
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
-use quark\block\inventory\EnderChestInventory;
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use quark\block\inventory\window\BlockInventoryWindow;
 use quark\block\tile\EnderChest as TileEnderChest;
+use quark\block\utils\AnimatedContainerLike;
+use quark\block\utils\AnimatedContainerLikeTrait;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
+use quark\block\utils\MenuAccessorTrait;
 use quark\block\utils\SupportType;
 use quark\item\Item;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
+use quark\world\sound\EnderChestCloseSound;
+use quark\world\sound\EnderChestOpenSound;
+use quark\world\sound\Sound;
+use function max;
 
-class EnderChest extends Transparent implements HorizontalFacing{
+class EnderChest extends Transparent implements AnimatedContainerLike, HorizontalFacing{
+	use AnimatedContainerLikeTrait {
+		onViewerAdded as private animatedOnViewerAdded;
+		onViewerRemoved as private animatedOnViewerRemoved;
+	}
+	use MenuAccessorTrait;
 	use FacesOppositePlacingPlayerTrait;
 
 	public function getLightLevel() : int{
@@ -50,18 +65,6 @@ class EnderChest extends Transparent implements HorizontalFacing{
 		return SupportType::NONE;
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-			$enderChest = $this->position->getWorld()->getTile($this->position);
-			if($enderChest instanceof TileEnderChest && $this->getSide(Facing::UP)->isTransparent()){
-				$enderChest->setViewerCount($enderChest->getViewerCount() + 1);
-				$player->setCurrentWindow(new EnderChestInventory($this->position, $player->getEnderInventory()));
-			}
-		}
-
-		return true;
-	}
-
 	public function getDropsForCompatibleTool(Item $item) : array{
 		return [
 			VanillaBlocks::OBSIDIAN()->asItem()->setCount(8)
@@ -70,5 +73,50 @@ class EnderChest extends Transparent implements HorizontalFacing{
 
 	public function isAffectedBySilkTouch() : bool{
 		return true;
+	}
+
+	public function isOpeningObstructed() : bool{
+		return !$this->getSide(Facing::UP)->isTransparent();
+	}
+
+	protected function newMenu(Player $player, Position $position) : InventoryWindow{
+		return new BlockInventoryWindow($player, $player->getEnderInventory(), $position);
+	}
+
+	//every player sees their own contents, so viewers are counted on the tile instead of the inventory
+	protected function getViewerCount() : int{
+		$tile = $this->position->getWorld()->getTile($this->position);
+		return $tile instanceof TileEnderChest ? $tile->getViewerCount() : 0;
+	}
+
+	private function updateViewerCount(int $delta) : void{
+		$tile = $this->position->getWorld()->getTile($this->position);
+		if($tile instanceof TileEnderChest){
+			//the tile may have been replaced while someone had it open, so never go below zero
+			$tile->setViewerCount(max(0, $tile->getViewerCount() + $delta));
+		}
+	}
+
+	public function onViewerAdded() : void{
+		$this->updateViewerCount(1);
+		$this->animatedOnViewerAdded();
+	}
+
+	public function onViewerRemoved() : void{
+		$this->animatedOnViewerRemoved();
+		$this->updateViewerCount(-1);
+	}
+
+	protected function getOpenSound() : Sound{
+		return new EnderChestOpenSound();
+	}
+
+	protected function getCloseSound() : Sound{
+		return new EnderChestCloseSound();
+	}
+
+	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
+		//event ID is always 1 for a chest
+		$position->getWorld()->broadcastPacketToViewers($position, BlockEventPacket::create(BlockPosition::fromVector3($position), 1, $isOpen ? 1 : 0));
 	}
 }

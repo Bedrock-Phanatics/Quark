@@ -30,8 +30,8 @@ use quark\block\Block;
 use quark\block\tile\Tile;
 use quark\block\tile\TileFactory;
 use quark\block\VanillaBlocks;
-use quark\inventory\BaseInventory;
 use quark\inventory\Inventory;
+use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\world\Position;
@@ -64,9 +64,14 @@ final class RedstoneBlockUtils{
 	}
 
 	/**
+	 * Returns the inventory's items without cloning them, so they must not be modified.
+	 *
 	 * @return array<int, Item>
 	 */
 	public static function fastReadOnlyInventoryContents(Inventory $inventory, bool $include_empty = false) : array{
+		if(!$inventory instanceof SimpleInventory){
+			return $inventory->getContents($include_empty);
+		}
 		static $inventoryContentsReader = null;
 		if($inventoryContentsReader === null){
 			$air = VanillaItems::AIR();
@@ -80,7 +85,7 @@ final class RedstoneBlockUtils{
 					}
 				}
 				return $contents;
-			})->bindTo(null, BaseInventory::class);
+			})->bindTo(null, SimpleInventory::class);
 		}
 		return $inventoryContentsReader($inventory, $include_empty);
 	}

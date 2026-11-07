@@ -85,6 +85,24 @@ $player->sendForm($form);
 
 - `PlayerExhaustEvent` → `EntityExhaustEvent` (Replace `getPlayer()` with `getEntity()`, returning the affected `Human`).
 
+### Inventories
+
+Inventories now only store items. Who is looking at one and where it was opened from lives in an `InventoryWindow`, which is created each time a player opens something and thrown away when it closes. See [inventories.md](inventories.md) for the full guide.
+
+- `Player->setCurrentWindow()` takes an `InventoryWindow` and `getCurrentWindow()` returns one. Create a new window every time, windows can't be reused or shared between players.
+- Open block menus with `$block->openToUnchecked($player)` on any `MenuAccessor` block instead of passing the tile's inventory.
+- `InventoryOpenEvent`, `InventoryCloseEvent`, `InventoryTransactionEvent` actions and `SlotChangeAction` expose the window (`getWindow()` / `getInventoryWindow()`). `getInventory()` still returns the storage. `InventoryOpenEvent` and `InventoryCloseEvent` no longer take a `Player` argument.
+- `InventoryTransaction->getInventories()` → `getInventoryWindows()`.
+- Removed `PlayerInventory`, `PlayerOffHandInventory`, `PlayerCursorInventory`, `PlayerCraftingInventory`, `PlayerEnderInventory`, `DelegateInventory`, `TemporaryInventory`, `DispenserInventory` and every `block\inventory\*Inventory` class. Tiles use `SimpleInventory`, check the window type (`PlayerInventoryWindow::getType()`, `FurnaceInventoryWindow`, ...) or the block instead of the inventory class.
+- Hotbar: `$human->getInventory()->getHeldItemIndex()` → `$human->getHotbar()->getSelectedIndex()`, `getItemInHand()`/`setItemInHand()` → `$human->getMainHandItem()`/`setMainHandItem()`, `getOffHandInventory()->getItem(0)` → `getOffHandItem()`.
+- `ArmorInventory`, inventories and block windows no longer have `getHolder()`. `BlockInventoryWindow::getHolder()` returns the block position.
+- `DoubleChestInventory` → `CombinedInventoryProxy`, created on demand by `Chest->getInventory()`. The chest tile's `getInventory()` returns only its own half, `getRealInventory()` is gone.
+- `tile\Container` → `tile\ContainerTile`, `tile\ContainerTrait` → `tile\ContainerTileTrait`. `block\utils\Container` is the new block-level interface.
+- `TransactionBuilder->getInventory()` → `getActionBuilder(InventoryWindow)`, `TransactionBuilderInventory` → `SlotChangeActionBuilder`.
+- `Inventory->removeAllViewers()` → `removeAllWindows()`, and `onOpen()`/`onClose()` take a window. Use `Player->setCurrentWindow()` rather than calling them.
+- `PlayerEnchantingOptionsRequestEvent->getInventory()` → `getWindow()`.
+- Shulker boxes now reject other shulker boxes through slot validation. `addItem()` doesn't run slot validators.
+
 ### Enums
 
 - `LegacyEnumShimTrait` has been removed from all migrated native enums (`DyeColor`, `WoodType`, `GameMode`, `ToolTier`, `PotionType`, etc.).
@@ -171,7 +189,7 @@ Migration stops on invalid or conflicting values. Resolve the reported configura
 
 1. Back up worlds, player data, plugins, and configurations.
 2. Update plugin namespaces, metadata, and Composer dependencies.
-3. Review form, event, TNT, damage, redstone, armor, and compression compatibility.
+3. Review form, event, inventory, TNT, damage, redstone, armor, and compression compatibility.
 4. Install the required PHP runtime and native extensions.
 5. Migrate legacy configurations and review both TOML files.
 6. Test plugins and production world copies under representative load.

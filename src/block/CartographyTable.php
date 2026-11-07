@@ -23,22 +23,21 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Vector3;
-use quark\block\inventory\CartographyTableInventory;
-use quark\item\Item;
+use quark\block\inventory\window\CartographyTableInventoryWindow;
+use quark\block\utils\MenuAccessor;
+use quark\block\utils\MenuAccessorTrait;
+use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\world\Position;
 
-final class CartographyTable extends Opaque{
-
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player !== null){
-			$player->setCurrentWindow(new CartographyTableInventory($this->position));
-		}
-
-		return true;
-	}
+final class CartographyTable extends Opaque implements MenuAccessor{
+	use MenuAccessorTrait;
 
 	public function getFuelTime() : int{
 		return 300;
+	}
+
+	protected function newMenu(Player $player, Position $position) : InventoryWindow{
+		return new CartographyTableInventoryWindow($player, $position);
 	}
 }

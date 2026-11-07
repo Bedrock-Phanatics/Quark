@@ -24,16 +24,28 @@ declare(strict_types=1);
 namespace quark\block;
 
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\BlockEventPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
+use quark\block\utils\AnimatedContainerLike;
+use quark\block\utils\AnimatedContainerLikeTrait;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\AnyFacingTrait;
+use quark\block\utils\Container;
+use quark\block\utils\ContainerTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
+use quark\world\Position;
+use quark\world\sound\ShulkerBoxCloseSound;
+use quark\world\sound\ShulkerBoxOpenSound;
+use quark\world\sound\Sound;
 
-class ShulkerBox extends Opaque implements AnyFacing{
+class ShulkerBox extends Opaque implements AnimatedContainerLike, Container, AnyFacing{
+	use AnimatedContainerLikeTrait;
+	use ContainerTrait;
 	use AnyFacingTrait;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
@@ -94,26 +106,24 @@ class ShulkerBox extends Opaque implements AnyFacing{
 		return $result;
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($player instanceof Player){
-
-			$shulker = $this->position->getWorld()->getTile($this->position);
-			if($shulker instanceof TileShulkerBox){
-				if(
-					$this->getSide($this->facing)->isSolid() ||
-					!$shulker->canOpenWith($item->getCustomName())
-				){
-					return true;
-				}
-
-				$player->setCurrentWindow($shulker->getInventory());
-			}
-		}
-
-		return true;
-	}
-
 	public function getSupportType(int $facing) : SupportType{
 		return SupportType::NONE;
+	}
+
+	public function isOpeningObstructed() : bool{
+		return $this->getSide($this->facing)->isSolid();
+	}
+
+	protected function getOpenSound() : Sound{
+		return new ShulkerBoxOpenSound();
+	}
+
+	protected function getCloseSound() : Sound{
+		return new ShulkerBoxCloseSound();
+	}
+
+	protected function playAnimationVisual(Position $position, bool $isOpen) : void{
+		//event ID is always 1 for a chest
+		$position->getWorld()->broadcastPacketToViewers($position, BlockEventPacket::create(BlockPosition::fromVector3($position), 1, $isOpen ? 1 : 0));
 	}
 }
