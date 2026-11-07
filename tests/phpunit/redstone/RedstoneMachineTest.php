@@ -35,6 +35,7 @@ use quark\inventory\Inventory;
 use quark\item\VanillaItems;
 use quark\player\Player;
 use quark\world\Position;
+use function array_values;
 
 final class RedstoneMachineTest extends TestCase{
 
@@ -104,5 +105,28 @@ final class RedstoneMachineTest extends TestCase{
 
 		$this->h->tick(10);
 		self::assertSame(2, $counter->fired, "a held signal doesn't refire");
+	}
+
+	public function testDispenserFillsBucketFromLiquidSource() : void{
+		DispensableItemManager::init();
+		foreach(Facing::HORIZONTAL as $side){
+			$pos = (new Vector3(0, 2, 0))->getSide($side);
+			$this->h->set((int) $pos->x, 2, (int) $pos->z, VanillaBlocks::STONE());
+		}
+		$this->h->set(0, 3, 0, VanillaBlocks::STONE());
+		$this->h->place(0, 1, 0, VanillaBlocks::DISPENSER()->setFacing(Facing::UP));
+		$this->h->set(0, 2, 0, VanillaBlocks::WATER());
+		$tile = $this->h->world->getTileAt(0, 1, 0);
+		self::assertInstanceOf(DispenserTile::class, $tile);
+		$tile->getInventory()->setItem(0, VanillaItems::BUCKET());
+		$this->h->tick(2);
+
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(2);
+		self::assertSame(VanillaBlocks::AIR()->getTypeId(), $this->h->get(0, 2, 0)->getTypeId());
+		$contents = $tile->getInventory()->getContents();
+		self::assertCount(1, $contents);
+		$filled = array_values($contents)[0];
+		self::assertTrue($filled->equalsExact(VanillaItems::WATER_BUCKET()), "picked up liquid becomes a filled bucket, not a liquid block item");
 	}
 }
