@@ -30,7 +30,6 @@ use pmmp\encoding\VarInt;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
@@ -47,7 +46,6 @@ use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerStartItemCooldownPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketAssembler;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
@@ -62,10 +60,6 @@ use pocketmine\network\mcpe\protocol\TransferPacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
-use pocketmine\network\mcpe\protocol\types\command\CommandData;
-use pocketmine\network\mcpe\protocol\types\command\CommandHardEnum;
-use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
-use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
@@ -88,6 +82,7 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\cache\ChunkCache;
+use quark\network\mcpe\command\CommandMetadataAdapter;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
 use quark\network\mcpe\convert\TypeConverter;
@@ -143,19 +138,15 @@ use function bin2hex;
 use function chr;
 use function count;
 use function implode;
-use function in_array;
 use function is_string;
 use function json_encode;
-use function mb_strcut;
 use function ord;
 use function random_bytes;
 use function str_split;
 use function strcasecmp;
 use function strlen;
-use function strtolower;
 use function substr;
 use function time;
-use function ucfirst;
 use const JSON_THROW_ON_ERROR;
 
 class NetworkSession{
@@ -177,7 +168,6 @@ class NetworkSession{
 		ProtocolInfo::PLAYER_AUTH_INPUT_PACKET => 128 * 1024,
 		ProtocolInfo::ITEM_STACK_REQUEST_PACKET => 256 * 1024,
 	];
-	private const int MAX_COMMAND_TEXT_BYTES = 1000;
 
 	private PacketRateLimiter $packetBatchLimiter;
 	private PacketRateLimiter $gamePacketLimiter;
@@ -1582,41 +1572,10 @@ class NetworkSession{
 	}
 
 	public function syncAvailableCommands() : void{
-		$commandData = [];
-		foreach($this->server->getCommandMap()->getCommands() as $command){
-			if(isset($commandData[$command->getLabel()]) || $command->getLabel() === "help" || strlen($command->getLabel()) > self::MAX_COMMAND_TEXT_BYTES || !$command->testPermissionSilent($this->player)){
-				continue;
-			}
-
-			$lname = strtolower($command->getLabel());
-			$aliases = $command->getAliases();
-			$aliasObj = null;
-			if(count($aliases) > 0){
-				if(!in_array($lname, $aliases, true)){
-					//work around a client bug which makes the original name not show when aliases are used
-					$aliases[] = $lname;
-				}
-				$aliasObj = new CommandHardEnum(ucfirst($command->getLabel()) . "Aliases", $aliases);
-			}
-
-			$description = $command->getDescription();
-			if($description instanceof Translatable){
-				$description = $this->player->getLanguage()->translate($description);
-			}
-			$commandData[$command->getLabel()] = new CommandData(
-				$lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
-				strlen($description) > self::MAX_COMMAND_TEXT_BYTES ? mb_strcut($description, 0, self::MAX_COMMAND_TEXT_BYTES, "UTF-8") : $description,
-				0,
-				CommandPermissions::NORMAL,
-				$aliasObj,
-				[
-					new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])
-				],
-				chainedSubCommandData: []
-			);
+		if($this->player === null){
+			throw new \LogicException("Cannot sync available commands before the player is created");
 		}
-
-		$this->sendDataPacket(AvailableCommandsPacketAssembler::assemble(array_values($commandData), [], []));
+		$this->sendDataPacket(CommandMetadataAdapter::createPacket($this->server->getCommandMap()->getCommands(), $this->player));
 	}
 
 	/**

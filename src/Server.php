@@ -2076,6 +2076,15 @@ class Server{
 			$this->worldManager->tick($this->tickCounter);
 			$this->redstoneWorldManager?->tick();
 
+			//one resync per tick for any number of command map changes
+			if($this->commandMap->consumeClientMetadataChanges()){
+				foreach($this->getOnlinePlayers() as $player){
+					if($player->isConnected()){
+						$player->getNetworkSession()->syncAvailableCommands();
+					}
+				}
+			}
+
 			$connectionScope = PulseZones::$connection->start();
 			$this->network->tick();
 			PulseZones::$connection->stop($connectionScope);
