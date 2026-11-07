@@ -59,6 +59,8 @@ jobs:
 
       - name: Run PHPUnit
         if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        # The suite takes about 1.5 minutes; a hang should fail fast instead of holding the runner for the job timeout
+        timeout-minutes: 10
         run: php vendor/bin/phpunit --bootstrap vendor/autoload.php --fail-on-warning --display-warnings tests/phpunit
 
       # make-server removes development dependencies, so integration must run last.
