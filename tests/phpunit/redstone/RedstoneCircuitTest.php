@@ -27,6 +27,7 @@ use PHPUnit\Framework\TestCase;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\Door;
+use quark\block\Hopper;
 use quark\block\RedstoneComparator;
 use quark\block\RedstoneLamp;
 use quark\block\RedstoneRepeater;
@@ -243,6 +244,21 @@ final class RedstoneCircuitTest extends TestCase{
 		$this->h->tick(5);
 		self::assertFalse($this->doorOpen(), "losing power closes it");
 		self::assertSame(0, $this->h->state()->getDataChunkCount());
+	}
+
+	public function testPoweredHopperLocks() : void{
+		$this->h->place(0, 1, 0, VanillaBlocks::HOPPER());
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(2);
+		$hopper = $this->h->get(0, 1, 0);
+		self::assertInstanceOf(Hopper::class, $hopper);
+		self::assertTrue($hopper->isPowered());
+
+		$this->h->breakBlock(1, 1, 0);
+		$this->h->tick(2);
+		$hopper = $this->h->get(0, 1, 0);
+		self::assertInstanceOf(Hopper::class, $hopper);
+		self::assertFalse($hopper->isPowered());
 	}
 
 	public function testBreakingLitTorchReleasesBlockAbove() : void{

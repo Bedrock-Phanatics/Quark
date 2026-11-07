@@ -31,6 +31,9 @@ use quark\block\utils\Container;
 use quark\block\utils\ContainerTrait;
 use quark\block\utils\PoweredByRedstone;
 use quark\block\utils\PoweredByRedstoneTrait;
+use quark\block\utils\redstone\Powerable;
+use quark\block\utils\redstone\PowerableTrait;
+use quark\block\utils\redstone\RedstoneBlockAccessTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\inventory\Inventory;
@@ -40,9 +43,15 @@ use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\Position;
 
-class Hopper extends Transparent implements Container, PoweredByRedstone{
+class Hopper extends Transparent implements Container, PoweredByRedstone, Powerable{
 	use ContainerTrait;
 	use PoweredByRedstoneTrait;
+	use RedstoneBlockAccessTrait;
+	use PowerableTrait;
+
+	private(set) int $activation_delay = 0;
+	private(set) int $deactivation_delay = 0;
+	private(set) bool $requires_strong_power = false;
 
 	private int $facing = Facing::DOWN;
 
@@ -91,7 +100,15 @@ class Hopper extends Transparent implements Container, PoweredByRedstone{
 		//TODO
 	}
 
-	//TODO: redstone logic, sucking logic
+	//a powered hopper is locked, which the client shows through the toggle bit
+	protected function onReceivePower(int $power) : void{
+		$powered = $power > 0;
+		if($powered !== $this->powered){
+			$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setPowered($powered), false);
+		}
+	}
+
+	//TODO: item transfer, which must skip locked hoppers
 
 	protected function newMenu(Player $player, Inventory $inventory, Position $position) : InventoryWindow{
 		return new HopperInventoryWindow($player, $inventory, $position);
