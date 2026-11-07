@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0322582a534f46282844f3c55ce442e5",
+    "content-hash": "80b1ab189953b9acd456ceb54fff3994",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -397,21 +397,21 @@
         },
         {
             "name": "pocketmine/callback-validator",
-            "version": "1.0.4",
+            "version": "dev-rewrite",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/CallbackValidator.git",
-                "reference": "143fa6e13254f1ab90c31b223982016f95635c37"
+                "reference": "431c7aa5685d4d756bc74a78e5cd130a54d6fdf8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/CallbackValidator/zipball/143fa6e13254f1ab90c31b223982016f95635c37",
-                "reference": "143fa6e13254f1ab90c31b223982016f95635c37",
+                "url": "https://api.github.com/repos/pmmp/CallbackValidator/zipball/431c7aa5685d4d756bc74a78e5cd130a54d6fdf8",
+                "reference": "431c7aa5685d4d756bc74a78e5cd130a54d6fdf8",
                 "shasum": ""
             },
             "require": {
                 "ext-reflection": "*",
-                "php": "^8.0"
+                "php": "^8.1"
             },
             "replace": {
                 "daverandom/callback-validator": "*"
@@ -441,10 +441,10 @@
             "description": "Fork of daverandom/callback-validator - Tools for validating callback signatures",
             "support": {
                 "issues": "https://github.com/pmmp/CallbackValidator/issues",
-                "source": "https://github.com/pmmp/CallbackValidator/tree/1.0.4"
+                "source": "https://github.com/pmmp/CallbackValidator/tree/rewrite"
             },
             "abandoned": true,
-            "time": "2025-12-24T01:25:05+00:00"
+            "time": "2025-10-11T15:05:09+00:00"
         },
         {
             "name": "pocketmine/color",
@@ -2882,7 +2882,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "axolotl-pm/bedrock-protocol": 20
+        "axolotl-pm/bedrock-protocol": 20,
+        "pocketmine/callback-validator": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

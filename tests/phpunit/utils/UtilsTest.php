@@ -185,4 +185,50 @@ class UtilsTest extends TestCase{
 		$this->expectException(\InvalidArgumentException::class);
 		Utils::testValidInstance($className, $baseName); //@phpstan-ignore-line
 	}
+
+	/**
+	 * @return list<array{anyClosure, anyClosure}>
+	 */
+	public static function compatibleCallableSignatureProvider() : array{
+		return [
+			[fn(int $a) : int => 0, fn(int|string $a) : int => 0],
+			[fn(TestInstantiableClass $a) : TestInterface => $a, fn(TestInterface $a) : TestSubclassOfInstantiableClass => new TestSubclassOfInstantiableClass()],
+			[fn(int $a) : int|string => die(), fn(int $a, int $b = 0) : int => 0],
+			[fn() : ?TestInterface => null, fn() : TestInstantiableClass&TestInterface => new TestInstantiableClass()],
+			[function() : void{}, fn() : bool => true],
+		];
+	}
+
+	/**
+	 * @dataProvider compatibleCallableSignatureProvider
+	 * @phpstan-param anyClosure $signature
+	 * @phpstan-param anyClosure $subject
+	 */
+	public function testCompatibleCallableSignature(\Closure $signature, \Closure $subject) : void{
+		Utils::validateCallableSignature($signature, $subject);
+		$this->addToAssertionCount(1);
+	}
+
+	/**
+	 * @return list<array{anyClosure, anyClosure}>
+	 */
+	public static function incompatibleCallableSignatureProvider() : array{
+		return [
+			[fn(int|string $a) : int => 0, fn(int $a) : int => 0],
+			[fn() : int|string => die(), fn() : array => []],
+			[fn() : int => 0, fn() : ?int => null],
+			[fn(int $a) : int => 0, fn(int $a, int $b) : int => 0],
+			[fn(TestInterface $a) : int => 0, fn(TestInstantiableClass $a) : int => 0],
+		];
+	}
+
+	/**
+	 * @dataProvider incompatibleCallableSignatureProvider
+	 * @phpstan-param anyClosure $signature
+	 * @phpstan-param anyClosure $subject
+	 */
+	public function testIncompatibleCallableSignature(\Closure $signature, \Closure $subject) : void{
+		$this->expectException(\TypeError::class);
+		Utils::validateCallableSignature($signature, $subject);
+	}
 }

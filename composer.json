@@ -43,7 +43,7 @@
       "axolotl-pm/xoroshiro128pp": "^0.1.0",
       "netresearch/jsonmapper": "~v6.0.0",
       "pocketmine/binaryutils": "^0.2.1",
-      "pocketmine/callback-validator": "~1.0.4",
+      "pocketmine/callback-validator": "dev-rewrite",
       "pocketmine/color": "^0.3.0",
       "pocketmine/errorhandler": "^0.7.0",
       "pocketmine/log": "^0.4.0",
