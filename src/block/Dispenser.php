@@ -45,6 +45,8 @@ use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\world\BlockTransaction;
 use quark\world\Position;
+use quark\world\redstone\RedstoneConfig;
+use quark\world\redstone\RedstoneManager;
 use function abs;
 
 class Dispenser extends Opaque implements Container, AnyFacing, Powerable, PoweredByRedstone{
@@ -107,6 +109,14 @@ class Dispenser extends Opaque implements Container, AnyFacing, Powerable, Power
 	private function handleReceivedPower(int $power) : void{
 		$powered = $power > 0;
 		if($powered !== $this->powered){
+			if($powered && RedstoneConfig::areDispensersEnabled()){
+				$world = RedstoneManager::getInstance()->get($this->position->getWorld());
+				if(!$world->tryDispenserAction()){
+					//staying unpowered makes the retry see a rising edge again
+					$world->scheduleWaitableUpdate($this, 1);
+					return;
+				}
+			}
 			$this->powered = $powered;
 			$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this, false);
 			if($powered){

@@ -81,7 +81,7 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 
 	public function onPower(int $facing, ?Player $player = null) : void{
 		$manager = RedstoneManager::getInstance();
-		if(!$manager->isEnabledAt($this->position) || !RedstoneConfig::areDispensersEnabled() || !$manager->get($this->position->getWorld())->tryDispenserAction()){ return; }
+		if(!$manager->isEnabledAt($this->position) || !RedstoneConfig::areDispensersEnabled()){ return; }
 		static $faces = [
 			0 => 40,
 			1 => 13,

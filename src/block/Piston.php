@@ -396,7 +396,7 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 
 	private function handleReceivedPower(int $power) : void{
 		$manager = RedstoneManager::getInstance();
-		if(!$manager->isEnabledAt($this->position) || !RedstoneConfig::arePistonsEnabled() || !$manager->get($this->position->getWorld())->tryPistonAction()){ return; }
+		if(!$manager->isEnabledAt($this->position) || !RedstoneConfig::arePistonsEnabled()){ return; }
 		if($power > 0){
 			if($this->state !== self::STATE_CONTRACT_BEGIN && $this->state !== self::STATE_CONTRACT_IDLE && $this->state !== self::STATE_RETRACT_BEGIN){
 				$next_state = self::STATE_CONTRACT_BEGIN;
@@ -410,9 +410,16 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 				$next_state = null;
 			}
 		}
-		if($next_state !== null){
-			$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setState($next_state), false);
+		if($next_state === null){
+			return;
 		}
+		$world = $manager->get($this->position->getWorld());
+		if(!$world->tryPistonAction()){
+			//over budget, so look at the input again next tick instead of losing the change
+			$world->scheduleWaitableUpdate($this, 1);
+			return;
+		}
+		$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setState($next_state), false);
 	}
 
 	public function onScheduledUpdate() : void{
