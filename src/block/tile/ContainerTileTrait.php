@@ -55,7 +55,7 @@ trait ContainerTileTrait{
 			$inventory->getListeners()->remove(...$listeners); //prevent any events being fired by initialization
 
 			$newContents = [];
-			$errorLogContext = "Container (" . $this->getPosition() . ")";
+			$errorLogContext = "Container";
 			foreach($inventoryTag as $itemNBT){
 				$slotId = $itemNBT->getByte(SavedItemStackData::TAG_SLOT);
 				$newContents[$slotId] = Item::safeNbtDeserialize($itemNBT, "$errorLogContext slot $slotId");

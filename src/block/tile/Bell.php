@@ -88,6 +88,6 @@ final class Bell extends Spawnable{
 			default => throw new AssumptionFailedError("Unreachable")
 		});
 		$nbt->setInt(self::TAG_TICKS, 0);
-		return BlockActorDataPacket::create(BlockPosition::fromVector3($this->position), new CacheableNbt($nbt));
+		return BlockActorDataPacket::create(BlockPosition::fromVector3($this->getPosition()), new CacheableNbt($nbt));
 	}
 }

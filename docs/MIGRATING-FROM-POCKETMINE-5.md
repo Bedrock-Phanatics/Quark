@@ -103,6 +103,14 @@ Inventories now only store items. Who is looking at one and where it was opened 
 - `PlayerEnchantingOptionsRequestEvent->getInventory()` → `getWindow()`.
 - Shulker boxes now reject other shulker boxes through slot validation. `addItem()` doesn't run slot validators.
 
+### Tiles
+
+Tiles no longer need a position to exist, so their data can be built, copied or moved without a world.
+
+- `new MyTile()` takes no arguments. Blocks still create their tiles automatically. Internally `World->addTile($tile, $pos)` attaches a tile and `World->removeTile($tile)` detaches it without closing it.
+- `Tile->getPosition()` throws while the tile isn't in a world. Check `Tile->isAttached()` first. `Tile->$position` is private.
+- `Tile->saveNBT()` no longer writes `x`/`y`/`z`, and `TileFactory->createFromData($nbt)` doesn't take a world. Copy a tile with `TileFactory::getInstance()->createFromData($tile->saveNBT())`.
+
 ### Enums
 
 - `LegacyEnumShimTrait` has been removed from all migrated native enums (`DyeColor`, `WoodType`, `GameMode`, `ToolTier`, `PotionType`, etc.).

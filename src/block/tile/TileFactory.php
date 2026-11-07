@@ -23,13 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\data\SavedDataLoadingException;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
-use quark\world\World;
 use function assert;
 use function in_array;
 use function is_a;
@@ -126,10 +124,11 @@ final class TileFactory{
 	}
 
 	/**
-	 * @internal
+	 * Creates a tile from Tile->saveNBT() data without placing it anywhere. Returns null if the tile ID isn't registered.
+	 *
 	 * @throws SavedDataLoadingException
 	 */
-	public function createFromData(World $world, CompoundTag $nbt) : ?Tile{
+	public function createFromData(CompoundTag $nbt) : ?Tile{
 		try{
 			$type = $nbt->getString(Tile::TAG_ID, "");
 			if(!isset($this->knownTiles[$type])){
@@ -141,7 +140,7 @@ final class TileFactory{
 			 * @var Tile $tile
 			 * @see Tile::__construct()
 			 */
-			$tile = new $class($world, new Vector3($nbt->getInt(Tile::TAG_X), $nbt->getInt(Tile::TAG_Y), $nbt->getInt(Tile::TAG_Z)));
+			$tile = new $class();
 			$tile->readSaveData($nbt);
 		}catch(NbtException $e){
 			throw new SavedDataLoadingException($e->getMessage(), 0, $e);

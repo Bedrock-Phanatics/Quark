@@ -27,7 +27,6 @@ use Generator;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\Block;
-use quark\block\tile\Tile;
 use quark\block\tile\TileFactory;
 use quark\block\VanillaBlocks;
 use quark\inventory\Inventory;
@@ -136,15 +135,10 @@ final class RedstoneBlockUtils{
 		if($tileNbt !== null){
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
 			$existingTile = $world->getTileAt($destinationX, $destinationY, $destinationZ);
-			if($existingTile !== null){
-				$world->removeTile($existingTile);
-			}
-			$tileNbt->setInt(Tile::TAG_X, $destinationX);
-			$tileNbt->setInt(Tile::TAG_Y, $destinationY);
-			$tileNbt->setInt(Tile::TAG_Z, $destinationZ);
-			$movedTile = TileFactory::getInstance()->createFromData($world, $tileNbt);
+			$existingTile?->close();
+			$movedTile = TileFactory::getInstance()->createFromData($tileNbt);
 			if($movedTile !== null){
-				$world->addTile($movedTile);
+				$world->addTile($movedTile, new Vector3($destinationX, $destinationY, $destinationZ));
 			}
 		}else{
 			$world->useBreakOn($destination);

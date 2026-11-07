@@ -24,14 +24,12 @@ declare(strict_types=1);
 namespace quark\block\tile;
 
 use pocketmine\color\Color;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\utils\Binary;
 use quark\block\utils\SignText;
-use quark\world\World;
 use function array_pad;
 use function array_slice;
 use function explode;
@@ -75,10 +73,10 @@ class Sign extends Spawnable{
 
 	protected ?int $editorEntityRuntimeId = null;
 
-	public function __construct(World $world, Vector3 $pos){
+	public function __construct(){
 		$this->text = new SignText();
 		$this->backText = new SignText();
-		parent::__construct($world, $pos);
+		parent::__construct();
 	}
 
 	private function readTextTag(CompoundTag $nbt, bool $lightingBugResolved) : SignText{

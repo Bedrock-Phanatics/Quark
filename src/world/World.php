@@ -30,6 +30,7 @@ use Bedwire\Nbt as NativeNbt;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
@@ -140,7 +141,6 @@ use function array_keys;
 use function array_map;
 use function array_merge;
 use function array_sum;
-use function array_values;
 use function assert;
 use function cos;
 use function count;
@@ -1750,7 +1750,14 @@ class World implements ChunkManager{
 
 	private function saveChunk(int $chunkX, int $chunkZ, int $chunkHash, Chunk $chunk) : void{
 		$entities = self::saveChunkEntities($this->getChunkEntities($chunkX, $chunkZ));
-		$tiles = array_map(fn(Tile $t) => $t->saveNBT(), array_values($chunk->getTiles()));
+		$tiles = [];
+		foreach($chunk->getTiles() as $tile){
+			$pos = $tile->getPosition();
+			$tiles[] = $tile->saveNBT()
+				->setInt(Tile::TAG_X, $pos->getFloorX())
+				->setInt(Tile::TAG_Y, $pos->getFloorY())
+				->setInt(Tile::TAG_Z, $pos->getFloorZ());
+		}
 		$state = self::chunkSaveState($chunk->isPopulated(), $entities, $tiles);
 		if($chunk->getTerrainDirtyFlags() === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state){
 			return;
@@ -3357,39 +3364,48 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * @internal Tiles are now bound with blocks, and their creation is automatic. They should not be directly added.
+	 * Places a tile that isn't in a world yet at the given position.
+	 *
+	 * @internal Tiles are bound with blocks, and their creation is automatic. They should not be directly added.
 	 * @throws \InvalidArgumentException
 	 */
-	public function addTile(Tile $tile) : void{
+	public function addTile(Tile $tile, Vector3 $pos) : void{
 		if($tile->isClosed()){
 			throw new \InvalidArgumentException("Attempted to add a garbage closed Tile to world");
 		}
-		$pos = $tile->getPosition();
-		if(!$pos->isValid() || $pos->getWorld() !== $this){
-			throw new \InvalidArgumentException("Invalid Tile world");
+		if($tile->isAttached()){
+			throw new \InvalidArgumentException("Tile is already in a world");
 		}
-		if(!$this->isInWorld($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ())){
+		$x = $pos->getFloorX();
+		$y = $pos->getFloorY();
+		$z = $pos->getFloorZ();
+		if(!$this->isInWorld($x, $y, $z)){
 			throw new \InvalidArgumentException("Tile position is outside the world bounds");
 		}
 		if(!TileFactory::getInstance()->isRegistered($tile::class)){
 			throw new \LogicException("Tile " . $tile::class . " is not registered for a save ID in TileFactory");
 		}
 
-		$chunkX = $pos->getFloorX() >> Chunk::COORD_BIT_SIZE;
-		$chunkZ = $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE;
+		$chunkX = $x >> Chunk::COORD_BIT_SIZE;
+		$chunkZ = $z >> Chunk::COORD_BIT_SIZE;
+		$chunk = $this->chunks[World::chunkHash($chunkX, $chunkZ)] ?? throw new \InvalidArgumentException("Attempted to create tile " . get_class($tile) . " in unloaded chunk $chunkX $chunkZ");
 
-		if(isset($this->chunks[$hash = World::chunkHash($chunkX, $chunkZ)])){
-			$this->chunks[$hash]->addTile($tile);
-		}else{
-			throw new \InvalidArgumentException("Attempted to create tile " . get_class($tile) . " in unloaded chunk $chunkX $chunkZ");
+		$tile->attach(new Position($x, $y, $z, $this));
+		try{
+			$chunk->addTile($tile);
+		}catch(\InvalidArgumentException $e){
+			$tile->detach();
+			throw $e;
 		}
 
 		//delegate tile ticking to the corresponding block
-		$this->scheduleDelayedBlockUpdate($pos->asVector3(), 1);
+		$this->scheduleDelayedBlockUpdate(new Vector3($x, $y, $z), 1);
 	}
 
 	/**
-	 * @internal Tiles are now bound with blocks, and their removal is automatic. They should not be directly removed.
+	 * Takes a tile out of the world without closing it, so it can be added again elsewhere.
+	 *
+	 * @internal Tiles are bound with blocks, and their removal is automatic. They should not be directly removed.
 	 * @throws \InvalidArgumentException
 	 */
 	public function removeTile(Tile $tile) : void{
@@ -3404,6 +3420,7 @@ class World implements ChunkManager{
 		if(isset($this->chunks[$hash = World::chunkHash($chunkX, $chunkZ)])){
 			$this->chunks[$hash]->removeTile($tile);
 		}
+		$tile->detach();
 		foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
 			$listener->onBlockChanged($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
 		}
@@ -3543,8 +3560,9 @@ class World implements ChunkManager{
 			$deletedTiles = [];
 			foreach($chunkData->getTileNBT() as $k => $nbt){
 				try{
-					$tile = $tileFactory->createFromData($this, $nbt);
-				}catch(SavedDataLoadingException $e){
+					$tilePosition = new Vector3($nbt->getInt(Tile::TAG_X), $nbt->getInt(Tile::TAG_Y), $nbt->getInt(Tile::TAG_Z));
+					$tile = $tileFactory->createFromData($nbt);
+				}catch(SavedDataLoadingException|NbtException $e){
 					$logger->error("Bad tile entity data at list position $k: " . $e->getMessage());
 					$logger->logException($e);
 					continue;
@@ -3555,7 +3573,6 @@ class World implements ChunkManager{
 					continue;
 				}
 
-				$tilePosition = $tile->getPosition();
 				if(!$this->isChunkLoaded($tilePosition->getFloorX() >> Chunk::COORD_BIT_SIZE, $tilePosition->getFloorZ() >> Chunk::COORD_BIT_SIZE)){
 					$logger->error("Found tile saved on wrong chunk - unable to fix due to correct chunk not loaded");
 				}elseif(!$this->isInWorld($tilePosition->getFloorX(), $tilePosition->getFloorY(), $tilePosition->getFloorZ())){
@@ -3563,7 +3580,7 @@ class World implements ChunkManager{
 				}elseif($this->getTile($tilePosition) !== null){
 					$logger->error("Cannot add tile at x=$tilePosition->x,y=$tilePosition->y,z=$tilePosition->z: Another tile is already at that position");
 				}else{
-					$this->addTile($tile);
+					$this->addTile($tile, $tilePosition);
 				}
 				$expectedStateId = $chunk->getBlockStateId($tilePosition->getFloorX() & Chunk::COORD_MASK, $tilePosition->getFloorY(), $tilePosition->getFloorZ() & Chunk::COORD_MASK);
 				$actualStateId = $this->getBlock($tilePosition)->getStateId();

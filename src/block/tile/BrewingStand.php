@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\inventory\window\BrewingStandInventoryWindow;
@@ -37,7 +36,6 @@ use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\player\Player;
 use quark\world\sound\PotionFinishBrewingSound;
-use quark\world\World;
 use function array_map;
 use function count;
 
@@ -61,11 +59,17 @@ class BrewingStand extends Spawnable implements ContainerTile, Nameable{
 	private int $maxFuelTime = 0;
 	private int $remainingFuelTime = 0;
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(5);
-		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(static function(Inventory $unused) use ($world, $pos) : void{
-			$world->scheduleDelayedBlockUpdate($pos, 1);
+		//a weak reference keeps the listener from tying the tile into a reference cycle
+		$tile = \WeakReference::create($this);
+		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(static function(Inventory $unused) use ($tile) : void{
+			$brewingStand = $tile->get();
+			if($brewingStand !== null && $brewingStand->isAttached()){
+				$pos = $brewingStand->getPosition();
+				$pos->getWorld()->scheduleDelayedBlockUpdate($pos, 1);
+			}
 		}));
 	}
 
@@ -145,7 +149,7 @@ class BrewingStand extends Spawnable implements ContainerTile, Nameable{
 		}
 
 		$recipes = [];
-		$craftingManager = $this->position->getWorld()->getServer()->getCraftingManager();
+		$craftingManager = $this->getPosition()->getWorld()->getServer()->getCraftingManager();
 		foreach([BrewingStandInventoryWindow::SLOT_BOTTLE_LEFT, BrewingStandInventoryWindow::SLOT_BOTTLE_MIDDLE, BrewingStandInventoryWindow::SLOT_BOTTLE_RIGHT] as $slot){
 			$input = $this->inventory->getItem($slot);
 			if($input->isNull()){
@@ -212,7 +216,8 @@ class BrewingStand extends Spawnable implements ContainerTile, Nameable{
 					}
 
 					if($anythingBrewed){
-						$this->position->getWorld()->addSound($this->position->add(0.5, 0.5, 0.5), new PotionFinishBrewingSound());
+						$pos = $this->getPosition();
+						$pos->getWorld()->addSound($pos->add(0.5, 0.5, 0.5), new PotionFinishBrewingSound());
 					}
 
 					$ingredient->pop();

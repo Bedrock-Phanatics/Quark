@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile\dispenser;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
@@ -37,7 +36,6 @@ use quark\inventory\SimpleInventory;
 use quark\player\Player;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
-use quark\world\World;
 use function array_rand;
 use function count;
 
@@ -49,8 +47,8 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 
 	private Inventory $inventory;
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(9);
 	}
 
@@ -81,7 +79,8 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 
 	public function onPower(int $facing, ?Player $player = null) : void{
 		$manager = RedstoneManager::getInstance();
-		if(!$manager->isEnabledAt($this->position) || !RedstoneConfig::areDispensersEnabled()){ return; }
+		$tilePos = $this->getPosition();
+		if(!$manager->isEnabledAt($tilePos) || !RedstoneConfig::areDispensersEnabled()){ return; }
 		static $faces = [
 			0 => 40,
 			1 => 13,
@@ -96,7 +95,7 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 		$dispenser_pos = $dispenser->getPosition();
 
 		$side_block = $dispenser_pos->getSide($facing);
-		$world = $this->position->getWorld();
+		$world = $tilePos->getWorld();
 		$sideX = (int) $side_block->x;
 		$sideY = (int) $side_block->y;
 		$sideZ = (int) $side_block->z;
@@ -106,15 +105,15 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 
 		$contents = \quark\block\utils\redstone\RedstoneBlockUtils::fastReadOnlyInventoryContents($this->inventory);
 		if(count($contents) === 0){
-			$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
+			$tilePos->getWorld()->broadcastPacketToViewers($tilePos, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $tilePos));
 		}else{
 			/** @var int $slot */
 			$slot = array_rand($contents);
-			if(!DispensableItemManager::get($this->inventory->getItem($slot))->dispense($this->position, $this->inventory, $slot, $side_block, $facing, $player)){
-				$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $this->position));
+			if(!DispensableItemManager::get($this->inventory->getItem($slot))->dispense($tilePos, $this->inventory, $slot, $side_block, $facing, $player)){
+				$tilePos->getWorld()->broadcastPacketToViewers($tilePos, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $tilePos));
 			}else{
-				$this->position->getWorld()->broadcastPacketToViewers($this->position, LevelEventPacket::create(LevelEvent::SOUND_CLICK, 0, $this->position));
-				$this->position->getWorld()->broadcastPacketToViewers($pos, LevelEventPacket::create(LevelEvent::PARTICLE_SHOOT, $faces[$dispenser->getFacing()], $pos));
+				$tilePos->getWorld()->broadcastPacketToViewers($tilePos, LevelEventPacket::create(LevelEvent::SOUND_CLICK, 0, $tilePos));
+				$tilePos->getWorld()->broadcastPacketToViewers($pos, LevelEventPacket::create(LevelEvent::PARTICLE_SHOOT, $faces[$dispenser->getFacing()], $pos));
 			}
 		}
 	}

@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use quark\block\Campfire as BlockCampfire;
@@ -32,7 +31,6 @@ use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\world\World;
 
 class Campfire extends Spawnable implements ContainerTile{
 	use ContainerTileTrait;
@@ -51,12 +49,20 @@ class Campfire extends Spawnable implements ContainerTile{
 	/** @var array<int, int> */
 	private array $cookingTimes = [];
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(4);
 		$this->inventory->setMaxStackSize(1);
+		//a weak reference keeps the listener from tying the tile into a reference cycle
+		$tile = \WeakReference::create($this);
 		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(
-			static function(Inventory $unused) use ($world, $pos) : void{
+			static function(Inventory $unused) use ($tile) : void{
+				$campfire = $tile->get();
+				if($campfire === null || !$campfire->isAttached()){
+					return;
+				}
+				$pos = $campfire->getPosition();
+				$world = $pos->getWorld();
 				$block = $world->getBlock($pos);
 				if($block instanceof BlockCampfire){
 					$world->setBlock($pos, $block);
@@ -90,7 +96,7 @@ class Campfire extends Spawnable implements ContainerTile{
 		$listeners = $this->inventory->getListeners()->toArray();
 		$this->inventory->getListeners()->remove(...$listeners); //prevent any events being fired by initialization
 
-		$baseErrorContext = "Campfire ($this->position)";
+		$baseErrorContext = "Campfire";
 		foreach([
 			[0, self::TAG_FIRST_INPUT_ITEM, self::TAG_FIRST_COOKING_TIME],
 			[1, self::TAG_SECOND_INPUT_ITEM, self::TAG_SECOND_COOKING_TIME],

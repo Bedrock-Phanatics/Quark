@@ -23,13 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\network\mcpe\convert\TypeConverter;
-use quark\world\World;
 
 /**
  * @deprecated
@@ -44,14 +42,14 @@ class ItemFrame extends Spawnable{
 	private int $itemRotation = 0;
 	private float $itemDropChance = 1.0;
 
-	public function __construct(World $world, Vector3 $pos){
+	public function __construct(){
 		$this->item = VanillaItems::AIR();
-		parent::__construct($world, $pos);
+		parent::__construct();
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
 		if(($itemTag = $nbt->getCompoundTag(self::TAG_ITEM)) !== null){
-			$this->item = Item::safeNbtDeserialize($itemTag, "ItemFrame ($this->position) framed item");
+			$this->item = Item::safeNbtDeserialize($itemTag, "ItemFrame framed item");
 		}
 		if($nbt->getTag(self::TAG_ITEM_ROTATION) instanceof FloatTag){
 			$this->itemRotation = (int) ($nbt->getFloat(self::TAG_ITEM_ROTATION, $this->itemRotation * 45) / 45);

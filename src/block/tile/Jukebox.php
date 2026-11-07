@@ -44,7 +44,7 @@ class Jukebox extends Spawnable{
 
 	public function readSaveData(CompoundTag $nbt) : void{
 		if(($tag = $nbt->getCompoundTag(self::TAG_RECORD)) !== null){
-			$record = Item::safeNbtDeserialize($tag, "Jukebox ($this->position) record");
+			$record = Item::safeNbtDeserialize($tag, "Jukebox record");
 			if($record instanceof Record){
 				$this->record = $record;
 			}
@@ -65,6 +65,7 @@ class Jukebox extends Spawnable{
 	}
 
 	protected function onBlockDestroyedHook() : void{
-		$this->position->getWorld()->addSound($this->position, new RecordStopSound());
+		$pos = $this->getPosition();
+		$pos->getWorld()->addSound($pos, new RecordStopSound());
 	}
 }

@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\player;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
@@ -359,8 +358,10 @@ final class InventoryWindowLifecycleTest extends TestCase{
 	public function testBreakingADoubleChestClosesTheWindowBeforeUnpairing() : void{
 		$world = $this->createMock(World::class);
 		$world->method("isLoaded")->willReturn(true);
-		$left = new Chest($world, new Vector3(0, 64, 0));
-		$right = new Chest($world, new Vector3(1, 64, 0));
+		$left = new Chest();
+		$left->attach(new Position(0, 64, 0, $world));
+		$right = new Chest();
+		$right->attach(new Position(1, 64, 0, $world));
 		$world->method("isInLoadedTerrain")->willReturn(true);
 		$world->method("getTileAt")->willReturnCallback(static fn(int $x) => $x === 0 ? $left : $right);
 		self::assertTrue($left->pairWith($right));

@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 use quark\block\Furnace as BlockFurnace;
@@ -37,7 +36,6 @@ use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\player\Player;
-use quark\world\World;
 use function array_map;
 use function max;
 
@@ -54,12 +52,18 @@ abstract class Furnace extends Spawnable implements ContainerTile, Nameable{
 	private int $cookTime = 0;
 	private int $maxFuelTime = 0;
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(3);
+		//a weak reference keeps the listener from tying the tile into a reference cycle
+		$tile = \WeakReference::create($this);
 		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(
-			static function(Inventory $unused) use ($world, $pos) : void{
-				$world->scheduleDelayedBlockUpdate($pos, 1);
+			static function(Inventory $unused) use ($tile) : void{
+				$furnace = $tile->get();
+				if($furnace !== null && $furnace->isAttached()){
+					$pos = $furnace->getPosition();
+					$pos->getWorld()->scheduleDelayedBlockUpdate($pos, 1);
+				}
 			})
 		);
 	}
@@ -79,10 +83,6 @@ abstract class Furnace extends Spawnable implements ContainerTile, Nameable{
 
 		$this->loadName($nbt);
 		$this->loadItems($nbt);
-
-		if($this->remainingFuelTime > 0){
-			$this->position->getWorld()->scheduleDelayedBlockUpdate($this->position, 1);
-		}
 	}
 
 	protected function writeSaveData(CompoundTag $nbt) : void{
@@ -128,7 +128,7 @@ abstract class Furnace extends Spawnable implements ContainerTile, Nameable{
 		$block = $this->getBlock();
 		if($block instanceof BlockFurnace && !$block->isLit()){
 			$block->setLit(true);
-			$this->position->getWorld()->setBlock($block->getPosition(), $block);
+			$this->getPosition()->getWorld()->setBlock($block->getPosition(), $block);
 		}
 	}
 
@@ -136,7 +136,7 @@ abstract class Furnace extends Spawnable implements ContainerTile, Nameable{
 		$block = $this->getBlock();
 		if($block instanceof BlockFurnace && $block->isLit()){
 			$block->setLit(false);
-			$this->position->getWorld()->setBlock($block->getPosition(), $block);
+			$this->getPosition()->getWorld()->setBlock($block->getPosition(), $block);
 		}
 	}
 
@@ -161,7 +161,7 @@ abstract class Furnace extends Spawnable implements ContainerTile, Nameable{
 		$product = $this->inventory->getItem(FurnaceInventoryWindow::SLOT_RESULT);
 
 		$furnaceType = $this->getFurnaceType();
-		$smelt = $this->position->getWorld()->getServer()->getCraftingManager()->getFurnaceRecipeManager($furnaceType)->match($raw);
+		$smelt = $this->getPosition()->getWorld()->getServer()->getCraftingManager()->getFurnaceRecipeManager($furnaceType)->match($raw);
 		$canSmelt = ($smelt instanceof FurnaceRecipe && $raw->getCount() > 0 && (($smelt->getResult()->canStackWith($product) && $product->getCount() < $product->getMaxStackSize()) || $product->isNull()));
 
 		if($this->remainingFuelTime <= 0 && $canSmelt && $fuel->getFuelTime() > 0 && $fuel->getCount() > 0){

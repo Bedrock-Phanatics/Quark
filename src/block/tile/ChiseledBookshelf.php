@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
@@ -34,7 +33,6 @@ use quark\data\bedrock\item\SavedItemData;
 use quark\data\bedrock\item\SavedItemStackData;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
-use quark\world\World;
 use function count;
 
 class ChiseledBookshelf extends Tile implements ContainerTile{
@@ -46,8 +44,8 @@ class ChiseledBookshelf extends Tile implements ContainerTile{
 
 	private ?ChiseledBookshelfSlot $lastInteractedSlot = null;
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(count(ChiseledBookshelfSlot::cases()));
 	}
 
@@ -94,7 +92,7 @@ class ChiseledBookshelf extends Tile implements ContainerTile{
 			$inventory->getListeners()->remove(...$listeners); //prevent any events being fired by initialization
 
 			$newContents = [];
-			$errorLogContext = "ChiseledBookshelf ($this->position)";
+			$errorLogContext = "ChiseledBookshelf";
 			foreach($inventoryTag as $slot => $itemNBT){
 				$count = $itemNBT->getByte(SavedItemStackData::TAG_COUNT);
 				if($count === 0){

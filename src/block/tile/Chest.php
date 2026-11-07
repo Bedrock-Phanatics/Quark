@@ -28,7 +28,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
-use quark\world\World;
+use quark\world\Position;
 use function abs;
 
 class Chest extends Spawnable implements ContainerTile, Nameable{
@@ -48,24 +48,15 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 	private ?int $pairX = null;
 	private ?int $pairZ = null;
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(27);
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
 		if(($pairXTag = $nbt->getTag(self::TAG_PAIRX)) instanceof IntTag && ($pairZTag = $nbt->getTag(self::TAG_PAIRZ)) instanceof IntTag){
-			$pairX = $pairXTag->getValue();
-			$pairZ = $pairZTag->getValue();
-			if(
-				($this->position->x === $pairX && abs($this->position->z - $pairZ) === 1) ||
-				($this->position->z === $pairZ && abs($this->position->x - $pairX) === 1)
-			){
-				$this->pairX = $pairX;
-				$this->pairZ = $pairZ;
-			}else{
-				$this->pairX = $this->pairZ = null;
-			}
+			$this->pairX = $pairXTag->getValue();
+			$this->pairZ = $pairZTag->getValue();
 		}
 		$this->loadName($nbt);
 		$this->loadItems($nbt);
@@ -87,6 +78,14 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 			$tag->removeTag(self::TAG_PAIRX, self::TAG_PAIRZ);
 		}
 		return $tag;
+	}
+
+	public function attach(Position $position) : void{
+		parent::attach($position);
+		//pairs are saved as absolute coordinates, so a chest loaded or moved elsewhere can't keep one that isn't next to it
+		if($this->pairX !== null && $this->pairZ !== null && abs($position->getFloorX() - $this->pairX) + abs($position->getFloorZ() - $this->pairZ) !== 1){
+			$this->pairX = $this->pairZ = null;
+		}
 	}
 
 	public function close() : void{
@@ -123,11 +122,12 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 		if(!$this->isPaired()){
 			return null;
 		}
-		$world = $this->position->getWorld();
-		if(!$world->isInLoadedTerrain(new Vector3($this->pairX, $this->position->y, $this->pairZ))){
+		$pos = $this->getPosition();
+		$world = $pos->getWorld();
+		if(!$world->isInLoadedTerrain(new Vector3($this->pairX, $pos->y, $this->pairZ))){
 			return null;
 		}
-		$tile = $world->getTileAt($this->pairX, $this->position->y, $this->pairZ);
+		$tile = $world->getTileAt($this->pairX, $pos->getFloorY(), $this->pairZ);
 		if(!$tile instanceof Chest){
 			$this->pairX = $this->pairZ = null;
 			$this->clearSpawnCompoundCache();
@@ -137,7 +137,7 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 			//repair one-sided pairings left behind by old worlds
 			$tile->createPair($this);
 			$tile->clearSpawnCompoundCache();
-		}elseif($tile->pairX !== $this->position->x || $tile->pairZ !== $this->position->z){
+		}elseif($tile->pairX !== $pos->getFloorX() || $tile->pairZ !== $pos->getFloorZ()){
 			//two chests claiming the same partner would otherwise both expose its contents as part of themselves
 			return null;
 		}
@@ -158,11 +158,11 @@ class Chest extends Spawnable implements ContainerTile, Nameable{
 	}
 
 	private function createPair(Chest $tile) : void{
-		$this->pairX = $tile->getPosition()->x;
-		$this->pairZ = $tile->getPosition()->z;
+		$this->pairX = $tile->getPosition()->getFloorX();
+		$this->pairZ = $tile->getPosition()->getFloorZ();
 
-		$tile->pairX = $this->getPosition()->x;
-		$tile->pairZ = $this->getPosition()->z;
+		$tile->pairX = $this->getPosition()->getFloorX();
+		$tile->pairZ = $this->getPosition()->getFloorZ();
 	}
 
 	public function unpair() : bool{

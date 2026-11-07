@@ -23,11 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
-use quark\world\World;
 
 class Barrel extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait;
@@ -35,8 +33,8 @@ class Barrel extends Spawnable implements ContainerTile, Nameable{
 
 	protected Inventory $inventory;
 
-	public function __construct(World $world, Vector3 $pos){
-		parent::__construct($world, $pos);
+	public function __construct(){
+		parent::__construct();
 		$this->inventory = new SimpleInventory(27);
 	}
 

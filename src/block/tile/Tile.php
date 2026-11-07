@@ -27,7 +27,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\block\Block;
@@ -36,9 +35,11 @@ use quark\pulse\internal\PulseZones;
 use quark\pulse\PulseZone;
 use quark\VersionInfo;
 use quark\world\Position;
-use quark\world\World;
 use function get_class;
 
+/**
+ * Tiles are created without a position and get one when added to a world with World->addTile().
+ */
 abstract class Tile{
 
 	public const TAG_ID = "id";
@@ -46,12 +47,11 @@ abstract class Tile{
 	public const TAG_Y = "y";
 	public const TAG_Z = "z";
 
-	protected Position $position;
+	private ?Position $position = null;
 	public bool $closed = false;
 	protected PulseZone $pulse;
 
-	public function __construct(World $world, Vector3 $pos){
-		$this->position = Position::fromObject($pos, $world);
+	public function __construct(){
 		$this->pulse = PulseZones::getTileEntityZone($this);
 	}
 
@@ -67,12 +67,12 @@ abstract class Tile{
 	 */
 	abstract protected function writeSaveData(CompoundTag $nbt) : void;
 
+	/**
+	 * Returns the tile's ID and data without coordinates, so it can be loaded anywhere with TileFactory->createFromData().
+	 */
 	public function saveNBT() : CompoundTag{
 		$nbt = CompoundTag::create()
 			->setString(self::TAG_ID, TileFactory::getInstance()->getSaveId(get_class($this)))
-			->setInt(self::TAG_X, $this->position->getFloorX())
-			->setInt(self::TAG_Y, $this->position->getFloorY())
-			->setInt(self::TAG_Z, $this->position->getFloorZ())
 			->setLong(VersionInfo::TAG_WORLD_DATA_VERSION, VersionInfo::WORLD_DATA_VERSION);
 		$this->writeSaveData($nbt);
 
@@ -96,11 +96,33 @@ abstract class Tile{
 	}
 
 	public function getBlock() : Block{
-		return $this->position->getWorld()->getBlock($this->position);
+		$position = $this->getPosition();
+		return $position->getWorld()->getBlock($position);
 	}
 
+	public function isAttached() : bool{
+		return $this->position !== null;
+	}
+
+	/**
+	 * @throws \LogicException if the tile isn't in a world
+	 */
 	public function getPosition() : Position{
-		return $this->position;
+		return $this->position ?? throw new \LogicException("Tile is not in a world");
+	}
+
+	/**
+	 * @internal Use World->addTile()
+	 */
+	public function attach(Position $position) : void{
+		$this->position = $position;
+	}
+
+	/**
+	 * @internal Use World->removeTile()
+	 */
+	public function detach() : void{
+		$this->position = null;
 	}
 
 	public function isClosed() : bool{
@@ -130,8 +152,9 @@ abstract class Tile{
 		if(!$this->closed){
 			$this->closed = true;
 
-			if($this->position->isValid()){
-				$this->position->getWorld()->removeTile($this);
+			$position = $this->position;
+			if($position !== null && $position->isValid()){
+				$position->getWorld()->removeTile($this);
 			}
 		}
 	}
