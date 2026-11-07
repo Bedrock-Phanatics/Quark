@@ -166,6 +166,7 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 - `PluginBase::getResource()` has been removed because it returned a handle that had to be closed with `fclose()`. Use `file_get_contents($this->getResourcePath($name))` or `fopen()` on the same path instead.
 - `ResourceProvider` and `DiskResourceProvider` have been removed, and the `Plugin` constructor no longer takes a resource provider.
 - `getResourceFolder()` and `getResourcePath()` return the plugin's read-only `resources` folder and a file inside it.
+- `PluginBase::saveDefaultConfig()` is no longer public. `getConfig()` and `reloadConfig()` already write the default config on first use, so remove the call.
 - `saveResource()` returns `false` for directories and for names that resolve outside the resources or data folder.
 
 ### Compression
