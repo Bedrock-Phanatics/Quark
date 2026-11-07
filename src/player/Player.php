@@ -147,6 +147,7 @@ use quark\world\sound\Sound;
 use quark\world\World;
 use quark\YmlServerProperties;
 use Ramsey\Uuid\UuidInterface;
+use Vow\CancelledException;
 use function abs;
 use function array_filter;
 use function array_shift;
@@ -2778,7 +2779,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$this->getNetworkSession()->onServerRespawn();
 				$this->respawnLocked = false;
 			},
-			function() : void{
+			function(\Throwable $e) : void{
+				if(!$e instanceof CancelledException){
+					$this->logger->logException($e);
+				}
 				if($this->isConnected()){
 					$this->getNetworkSession()->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_respawn());
 				}

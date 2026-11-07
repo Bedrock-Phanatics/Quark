@@ -439,6 +439,10 @@ class LoginPacketHandler extends PacketHandler{
 
 		$authKeyProvider->getKey($keyId)->observe(
 			function(array $issuerAndKey) use ($token, $clientData, $authRequired) : void{
+				if(!$this->session->isConnected()){
+					//a key refresh can take seconds, so skip verifying logins that already left
+					return;
+				}
 				[$issuer, $mojangPublicKeyPem] = $issuerAndKey;
 				$this->server->getAsyncPool()->submitTask(new ProcessOpenIdLoginTask($token, $issuer, $mojangPublicKeyPem, $clientData, $authRequired, $this->authCallback));
 			},

@@ -333,6 +333,7 @@ class NetworkSession{
 			$this->onPlayerCreated(...),
 			function(\Throwable $e) : void{
 				if(!$e instanceof CancelledException){
+					$this->logger->logException($e);
 					$this->disconnectWithError(
 						reason: "Failed to create player: " . $e->getMessage(),
 						disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
@@ -1068,17 +1069,16 @@ class NetworkSession{
 			if(is_string($batch)){
 				$this->flushCompressedQueue();
 			}else{
-				$batch->observe(
-					function() : void{
-						if($this->connected){
-							$this->flushCompressedQueue();
-						}
-					},
-					function(\Throwable $e) : void{
+				//one closure for both outcomes, since every session queueing a broadcast batch registers it
+				$onSettled = function(string|\Throwable $result) : void{
+					if($result instanceof \Throwable){
 						//later batches can't skip this one without breaking packet order
-						$this->disconnectWithError("Failed to prepare a packet batch: " . $e->getMessage());
+						$this->disconnectWithError("Failed to prepare a packet batch: " . $result->getMessage());
+					}elseif($this->connected){
+						$this->flushCompressedQueue();
 					}
-				);
+				};
+				$batch->observe($onSettled, $onSettled);
 			}
 		}finally{
 			PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);

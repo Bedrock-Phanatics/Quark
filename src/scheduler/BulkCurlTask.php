@@ -42,7 +42,7 @@ class BulkCurlTask extends AsyncTask{
 
 	/**
 	 * @param BulkCurlTaskOperation[] $operations
-	 * @phpstan-param list<BulkCurlTaskOperation>                                 $operations
+	 * @phpstan-param list<BulkCurlTaskOperation>                             $operations
 	 * @phpstan-param Deferred<list<InternetRequestResult|InternetException>> $deferred
 	 */
 	public function __construct(array $operations, Deferred $deferred){
