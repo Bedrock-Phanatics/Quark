@@ -33,13 +33,19 @@ use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\RedstoneBlockUtils;
 use quark\block\utils\redstone\Waitable;
 use quark\pulse\internal\PulseZones;
+use quark\world\ChunkListener;
+use quark\world\ChunkListenerNoOpTrait;
 use quark\world\format\Chunk;
 use quark\world\World;
 use RangeException;
+use function count;
 use function intdiv;
 use function max;
 
-final class RedstoneWorldState{
+final class RedstoneWorldState implements ChunkListener{
+	use ChunkListenerNoOpTrait {
+		onChunkLoaded as private;
+	}
 
 	public const int WAITABLE_UPDATE_NORMAL_PRIORITY = 0;
 	public const int WAITABLE_UPDATE_LOW_PRIORITY = 1;
@@ -57,6 +63,10 @@ final class RedstoneWorldState{
 
 	/** @var array<int, RedstoneChunk|null> Extra redstone data for each loaded chunk. */
 	private array $chunks = [];
+
+	/** @var array<int, array<int, int>> chunk hash => block hash => priority */
+	private array $deferred = [];
+	private int $deferredCount = 0;
 
 	public function __construct(
 		readonly public World $world
@@ -80,14 +90,58 @@ final class RedstoneWorldState{
 		foreach($this->waitable_normal_priority->pop($tick, $normalLimit) as [$x, $y, $z]){
 			--$remaining;
 			if(!$manager->isChunkEnabled($this->world, $x >> 4, $z >> 4)){ continue; }
+			if($this->deferIfUnloaded($x, $y, $z, self::WAITABLE_UPDATE_NORMAL_PRIORITY)){ continue; }
 			$block = $this->world->getBlockAt($x, $y, $z);
 			if($block instanceof Waitable){ $block->onRedstoneTickReceive(); }
 		}
 		foreach($this->waitable_low_priority->pop($tick, $remaining) as [$x, $y, $z]){
 			--$remaining;
 			if(!$manager->isChunkEnabled($this->world, $x >> 4, $z >> 4)){ continue; }
+			if($this->deferIfUnloaded($x, $y, $z, self::WAITABLE_UPDATE_LOW_PRIORITY)){ continue; }
 			$block = $this->world->getBlockAt($x, $y, $z);
 			if($block instanceof Waitable){ $block->onRedstoneTickReceive(); }
+		}
+	}
+
+	//repeaters, torches and comparators read up to two blocks away
+	private function deferIfUnloaded(int $x, int $y, int $z, int $priority) : bool{
+		$chunkHash = $this->world->getUnloadedChunkNear($x, $z, 2);
+		if($chunkHash === null){
+			return false;
+		}
+		$blockHash = World::blockHash($x, $y, $z);
+		if(!isset($this->deferred[$chunkHash][$blockHash])){
+			if($this->deferredCount >= RedstoneConfig::getMaxScheduledUpdates()){
+				foreach($this->deferred as $stale => $updates){
+					$this->deferredCount -= count($updates);
+					unset($this->deferred[$stale]);
+					World::getXZ($stale, $staleX, $staleZ);
+					$this->world->unregisterChunkListener($this, $staleX, $staleZ);
+					break;
+				}
+			}
+			if(!isset($this->deferred[$chunkHash])){
+				World::getXZ($chunkHash, $chunkX, $chunkZ);
+				$this->world->registerChunkListener($this, $chunkX, $chunkZ);
+			}
+			++$this->deferredCount;
+		}
+		$this->deferred[$chunkHash][$blockHash] = $priority;
+		return true;
+	}
+
+	public function onChunkLoaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$updates = $this->deferred[$chunkHash] ?? null;
+		if($updates === null){
+			return;
+		}
+		unset($this->deferred[$chunkHash]);
+		$this->deferredCount -= count($updates);
+		$this->world->unregisterChunkListener($this, $chunkX, $chunkZ);
+		foreach($updates as $blockHash => $priority){
+			World::getBlockXYZ($blockHash, $x, $y, $z);
+			$this->scheduleWaitableUpdateAt($x, $y, $z, $this->tick + 1, $priority, false);
 		}
 	}
 

@@ -259,6 +259,11 @@ abstract class Liquid extends Transparent{
 		$y = $this->position->getFloorY();
 		$z = $this->position->getFloorZ();
 
+		//flow paths reach 5 blocks out and unloaded terrain reads as air
+		if($world->deferUpdateUntilLoaded($x, $y, $z, 5)){
+			return;
+		}
+
 		if(!$this->isSource()){
 			$smallestFlowDecay = -100;
 			$this->adjacentSources = 0;

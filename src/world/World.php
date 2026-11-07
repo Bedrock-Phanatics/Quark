@@ -204,6 +204,13 @@ class World implements ChunkManager{
 	//TODO: this could probably do with being a lot bigger
 	private const BLOCK_CACHE_SIZE_CAP = 2048;
 
+	private const DEFERRED_SCHEDULED = 1;
+	private const DEFERRED_NEIGHBOUR = 2;
+	private const MAX_DEFERRED_BLOCK_UPDATES = 65536;
+
+	public const CHUNK_UNLOAD_DELAY = 30.0;
+	private const UNLOAD_RETRY_DELAY = 5.0;
+
 	/**
 	 * @var Player[] entity runtime ID => Player
 	 * @phpstan-var array<int, Player>
@@ -307,7 +314,7 @@ class World implements ChunkManager{
 	private array $packetBuffersByChunk = [];
 
 	/**
-	 * @var float[] chunkHash => timestamp of request
+	 * @var float[] chunkHash => time the chunk may be unloaded
 	 * @phpstan-var array<ChunkPosHash, float>
 	 */
 	private array $unloadQueue = [];
@@ -372,6 +379,10 @@ class World implements ChunkManager{
 	 * @phpstan-var array<BlockPosHash, true>
 	 */
 	private array $neighbourBlockUpdateQueueIndex = [];
+
+	/** @phpstan-var array<ChunkPosHash, array<BlockPosHash, int>> */
+	private array $deferredBlockUpdates = [];
+	private int $deferredBlockUpdateCount = 0;
 
 	/**
 	 * @var bool[] chunkHash => isValid
@@ -923,15 +934,21 @@ class World implements ChunkManager{
 	public function registerChunkLoader(ChunkLoader $loader, int $chunkX, int $chunkZ, bool $autoLoad = true) : void{
 		$loaderId = spl_object_id($loader);
 
-		if(!isset($this->chunkLoaders[$chunkHash = World::chunkHash($chunkX, $chunkZ)])){
-			$this->chunkLoaders[$chunkHash] = [];
-		}elseif(isset($this->chunkLoaders[$chunkHash][$loaderId])){
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		if(isset($this->chunkLoaders[$chunkHash][$loaderId])){
 			return;
 		}
+		$firstLoader = !isset($this->chunkLoaders[$chunkHash]);
 
 		$this->chunkLoaders[$chunkHash][$loaderId] = $loader;
 
 		$this->cancelUnloadChunkRequest($chunkX, $chunkZ);
+
+		if($firstLoader && isset($this->chunks[$chunkHash])){
+			foreach($this->playerChunkListeners[$chunkHash] ?? [] as $player){
+				$player->onChunkInUse($chunkX, $chunkZ);
+			}
+		}
 
 		if($autoLoad){
 			$this->loadChunk($chunkX, $chunkZ);
@@ -1083,7 +1100,7 @@ class World implements ChunkManager{
 			/** @var Vector3 $vec */
 			$vec = $this->scheduledBlockUpdateQueue->extract()["data"];
 			unset($this->scheduledBlockUpdateQueueIndex[World::blockHash($vec->x, $vec->y, $vec->z)]);
-			if(!$this->isInLoadedTerrain($vec)){
+			if($this->deferIfUnloaded((int) $vec->x, (int) $vec->y, (int) $vec->z, 1, self::DEFERRED_SCHEDULED)){
 				continue;
 			}
 			$block = $this->getBlock($vec);
@@ -1097,7 +1114,7 @@ class World implements ChunkManager{
 			$index = $this->neighbourBlockUpdateQueue->dequeue();
 			unset($this->neighbourBlockUpdateQueueIndex[$index]);
 			World::getBlockXYZ($index, $x, $y, $z);
-			if(!$this->isChunkLoaded($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)){
+			if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
 				continue;
 			}
 
@@ -1764,6 +1781,66 @@ class World implements ChunkManager{
 		}
 		$this->scheduledBlockUpdateQueueIndex[$index] = $delay;
 		$this->scheduledBlockUpdateQueue->insert(new Vector3((int) $pos->x, (int) $pos->y, (int) $pos->z), $delay + $this->server->getTick());
+	}
+
+	/**
+	 * Unloaded terrain reads as air, so this holds the block's update until every chunk within $radius blocks is loaded.
+	 */
+	public function deferUpdateUntilLoaded(int $x, int $y, int $z, int $radius) : bool{
+		return $this->deferIfUnloaded($x, $y, $z, $radius, self::DEFERRED_SCHEDULED);
+	}
+
+	public function getUnloadedChunkNear(int $x, int $z, int $radius) : ?int{
+		$maxChunkX = ($x + $radius) >> Chunk::COORD_BIT_SIZE;
+		$maxChunkZ = ($z + $radius) >> Chunk::COORD_BIT_SIZE;
+		for($chunkX = ($x - $radius) >> Chunk::COORD_BIT_SIZE; $chunkX <= $maxChunkX; ++$chunkX){
+			for($chunkZ = ($z - $radius) >> Chunk::COORD_BIT_SIZE; $chunkZ <= $maxChunkZ; ++$chunkZ){
+				if(!isset($this->chunks[$chunkHash = World::chunkHash($chunkX, $chunkZ)])){
+					return $chunkHash;
+				}
+			}
+		}
+		return null;
+	}
+
+	private function deferIfUnloaded(int $x, int $y, int $z, int $radius, int $flag) : bool{
+		$chunkHash = $this->getUnloadedChunkNear($x, $z, $radius);
+		if($chunkHash === null){
+			return false;
+		}
+		$blockHash = World::blockHash($x, $y, $z);
+		$flags = $this->deferredBlockUpdates[$chunkHash][$blockHash] ?? 0;
+		if($flags === 0){
+			if($this->deferredBlockUpdateCount >= self::MAX_DEFERRED_BLOCK_UPDATES){
+				//drop the stalest bucket, it's usually waiting on terrain nobody is near anymore
+				foreach($this->deferredBlockUpdates as $stale => $updates){
+					$this->deferredBlockUpdateCount -= count($updates);
+					unset($this->deferredBlockUpdates[$stale]);
+					break;
+				}
+			}
+			++$this->deferredBlockUpdateCount;
+		}
+		$this->deferredBlockUpdates[$chunkHash][$blockHash] = $flags | $flag;
+		return true;
+	}
+
+	private function releaseDeferredBlockUpdates(int $chunkHash) : void{
+		$updates = $this->deferredBlockUpdates[$chunkHash] ?? null;
+		if($updates === null){
+			return;
+		}
+		unset($this->deferredBlockUpdates[$chunkHash]);
+		$this->deferredBlockUpdateCount -= count($updates);
+		foreach($updates as $blockHash => $flags){
+			World::getBlockXYZ($blockHash, $x, $y, $z);
+			if(($flags & self::DEFERRED_SCHEDULED) !== 0){
+				$this->scheduleDelayedBlockUpdate(new Vector3($x, $y, $z), 1);
+			}
+			if(($flags & self::DEFERRED_NEIGHBOUR) !== 0){
+				$this->tryAddToNeighbourUpdateQueue($x, $y, $z);
+			}
+		}
 	}
 
 	private function tryAddToNeighbourUpdateQueue(int $x, int $y, int $z) : void{
@@ -3090,6 +3167,7 @@ class World implements ChunkManager{
 			foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
 				$listener->onChunkLoaded($chunkX, $chunkZ, $chunk);
 			}
+			$this->releaseDeferredBlockUpdates($chunkHash);
 		}else{
 			foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
 				$listener->onChunkChanged($chunkX, $chunkZ, $chunk);
@@ -3241,6 +3319,12 @@ class World implements ChunkManager{
 		$newChunkZ = $newPosition->getFloorZ() >> Chunk::COORD_BIT_SIZE;
 
 		if($oldChunkX !== $newChunkX || $oldChunkZ !== $newChunkZ){
+			if(!($entity instanceof Player) && !isset($this->chunks[World::chunkHash($newChunkX, $newChunkZ)])){
+				//otherwise it falls through unloaded terrain
+				if($this->loadChunk($newChunkX, $newChunkZ) !== null){
+					$this->unloadChunkRequest($newChunkX, $newChunkZ);
+				}
+			}
 			$oldChunkHash = World::chunkHash($oldChunkX, $oldChunkZ);
 			if(isset($this->entitiesByChunk[$oldChunkHash][$entity->getId()])){
 				if(count($this->entitiesByChunk[$oldChunkHash]) === 1){
@@ -3321,6 +3405,21 @@ class World implements ChunkManager{
 		}
 	}
 
+	private function isChunkPinnedByViewers(int $chunkHash) : bool{
+		if(!isset($this->playerChunkListeners[$chunkHash])){
+			return false;
+		}
+		if(!$this->autoSave){
+			return true;
+		}
+		foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
+			if(!($entity instanceof Player) && !$entity->canSaveWithChunk() && !$entity->isFlaggedForDespawn()){
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public function isChunkInUse(int $x, int $z) : bool{
 		return isset($this->chunkLoaders[$index = World::chunkHash($x, $z)]) && count($this->chunkLoaders[$index]) > 0;
 	}
@@ -3389,6 +3488,7 @@ class World implements ChunkManager{
 			$listener->onChunkLoaded($x, $z, $this->chunks[$chunkHash]);
 		}
 		$this->markTickingChunkForRecheck($x, $z); //tickers may have been registered before the chunk was loaded
+		$this->releaseDeferredBlockUpdates($chunkHash);
 
 		$this->pulse->syncChunkLoad->stop($syncChunkLoadScope);
 
@@ -3480,16 +3580,16 @@ class World implements ChunkManager{
 		}
 	}
 
-	private function queueUnloadChunk(int $x, int $z) : void{
-		$this->unloadQueue[World::chunkHash($x, $z)] = microtime(true);
+	private function queueUnloadChunk(int $x, int $z, float $delay) : void{
+		$this->unloadQueue[World::chunkHash($x, $z)] = microtime(true) + $delay;
 	}
 
-	public function unloadChunkRequest(int $x, int $z, bool $safe = true) : bool{
+	public function unloadChunkRequest(int $x, int $z, bool $safe = true, float $delay = self::CHUNK_UNLOAD_DELAY) : bool{
 		if(($safe && $this->isChunkInUse($x, $z)) || $this->isSpawnChunk($x, $z)){
 			return false;
 		}
 
-		$this->queueUnloadChunk($x, $z);
+		$this->queueUnloadChunk($x, $z, $delay);
 
 		return true;
 	}
@@ -3499,7 +3599,7 @@ class World implements ChunkManager{
 	}
 
 	public function unloadChunk(int $x, int $z, bool $safe = true, bool $trySave = true) : bool{
-		if($safe && $this->isChunkInUse($x, $z)){
+		if($safe && ($this->isChunkInUse($x, $z) || $this->isChunkPinnedByViewers(World::chunkHash($x, $z)))){
 			return false;
 		}
 
@@ -4196,7 +4296,7 @@ class World implements ChunkManager{
 				if(!$force){
 					if($maxUnload <= 0){
 						break;
-					}elseif($time > ($now - 30)){
+					}elseif($time > $now){
 						continue;
 					}
 				}
@@ -4205,6 +4305,8 @@ class World implements ChunkManager{
 				if($this->unloadChunk($X, $Z, true)){
 					unset($this->unloadQueue[$index]);
 					--$maxUnload;
+				}elseif(!$force){
+					$this->unloadQueue[$index] = $now + self::UNLOAD_RETRY_DELAY;
 				}
 			}
 		}
