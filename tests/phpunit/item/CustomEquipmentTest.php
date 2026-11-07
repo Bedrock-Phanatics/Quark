@@ -29,7 +29,6 @@ use quark\inventory\transaction\action\CreateItemAction;
 use quark\inventory\transaction\action\SlotChangeAction;
 use quark\inventory\transaction\TransactionValidationException;
 use quark\item\custom\CustomSword;
-use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\ItemEnchantmentTags;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\player\GameMode;

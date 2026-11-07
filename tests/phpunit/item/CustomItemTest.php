@@ -31,7 +31,6 @@ use quark\item\custom\ItemComponents;
 use quark\item\custom\ItemDefinition;
 use quark\item\custom\ItemRegistry;
 use quark\item\custom\UnknownCustomItem;
-use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\network\mcpe\convert\TypeConversionException;
 use quark\network\mcpe\convert\TypeConverter;

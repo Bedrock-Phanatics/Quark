@@ -44,7 +44,6 @@ use quark\data\runtime\RuntimeDataDescriber;
 use quark\data\runtime\RuntimeDataWriter;
 use quark\data\SavedDataLoadingException;
 use quark\entity\Entity;
-use quark\item\enchantment\EnchantmentInstance;
 use quark\player\Player;
 use quark\utils\Utils;
 use quark\world\BlockTransaction;
