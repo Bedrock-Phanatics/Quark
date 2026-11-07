@@ -44,6 +44,8 @@ final class RedstoneHarness{
 
 	public readonly World $world;
 	public readonly RedstoneManager $manager;
+	/** @var list<string> */
+	public array $warnings = [];
 	private Server $server;
 
 	public function __construct(int $chunkRadius = 1){
@@ -60,6 +62,14 @@ final class RedstoneHarness{
 		$set("server", $this->server);
 		$set("folderName", "redstone_test");
 		$set("displayName", "redstone_test");
+		$set("logger", new class(function(string $message) : void{ $this->warnings[] = $message; }) extends \SimpleLogger{
+			/** @param \Closure(string) : void $onWarning */
+			public function __construct(private \Closure $onWarning){}
+
+			public function warning($message){
+				($this->onWarning)($message);
+			}
+		});
 		$set("worldId", 0x7fff0000 + spl_object_id($world));
 		$set("blockStateRegistry", RuntimeBlockStateRegistry::getInstance());
 		$set("minY", World::Y_MIN);

@@ -62,6 +62,9 @@ final class RedstoneWorldState implements ChunkListener{
 	private(set) int $tick = 0;
 	private int $pistonActionsThisTick = 0;
 	private int $dispenserActionsThisTick = 0;
+	/** Scheduled updates rejected or evicted because the configured limit was reached. */
+	private(set) int $droppedUpdates = 0;
+	private int $nextDropWarningTick = 0;
 
 	/** @var array<int, RedstoneChunk> Extra redstone data, only for loaded chunks that have any. */
 	private array $chunks = [];
@@ -116,6 +119,7 @@ final class RedstoneWorldState implements ChunkListener{
 			if($this->deferredCount >= RedstoneConfig::getMaxScheduledUpdates()){
 				foreach($this->deferred as $stale => $updates){
 					$this->deferredCount -= count($updates);
+					$this->onUpdatesDropped(count($updates));
 					unset($this->deferred[$stale]);
 					$this->releaseChunkListener($stale);
 					break;
@@ -162,12 +166,22 @@ final class RedstoneWorldState implements ChunkListener{
 
 	public function scheduleWaitableUpdateAt(int $x, int $y, int $z, int $full_tick, int $priority, bool $override) : void{
 		if(!RedstoneManager::getInstance()->isChunkEnabled($this->world, $x >> 4, $z >> 4)){ return; }
-		if($priority === self::WAITABLE_UPDATE_NORMAL_PRIORITY){
-			$this->waitable_normal_priority->push($x, $y, $z, $full_tick, $override, max(0, RedstoneConfig::getMaxScheduledUpdates() - $this->waitable_low_priority->getSize()));
-		}elseif($priority === self::WAITABLE_UPDATE_LOW_PRIORITY){
-			$this->waitable_low_priority->push($x, $y, $z, $full_tick, $override, max(0, RedstoneConfig::getMaxScheduledUpdates() - $this->waitable_normal_priority->getSize()));
-		}else{
-			throw new InvalidArgumentException("Unexpected priority: {$priority}");
+		$queued = match($priority){
+			self::WAITABLE_UPDATE_NORMAL_PRIORITY => $this->waitable_normal_priority->push($x, $y, $z, $full_tick, $override, max(0, RedstoneConfig::getMaxScheduledUpdates() - $this->waitable_low_priority->getSize())),
+			self::WAITABLE_UPDATE_LOW_PRIORITY => $this->waitable_low_priority->push($x, $y, $z, $full_tick, $override, max(0, RedstoneConfig::getMaxScheduledUpdates() - $this->waitable_normal_priority->getSize())),
+			default => throw new InvalidArgumentException("Unexpected priority: {$priority}")
+		};
+		if(!$queued){
+			$this->onUpdatesDropped(1);
+		}
+	}
+
+	//components re-arm on their next block update, but the circuit may sit stale until then
+	private function onUpdatesDropped(int $count) : void{
+		$this->droppedUpdates += $count;
+		if($this->tick >= $this->nextDropWarningTick){
+			$this->nextDropWarningTick = $this->tick + 1200;
+			$this->world->getLogger()->warning("Redstone dropped scheduled updates after reaching max-scheduled-updates (" . RedstoneConfig::getMaxScheduledUpdates() . "), {$this->droppedUpdates} so far");
 		}
 	}
 

@@ -23,8 +23,13 @@ declare(strict_types=1);
 
 namespace quark\world\redstone;
 
+use pocketmine\math\Vector3;
+use quark\block\RuntimeBlockStateRegistry;
+use quark\block\utils\redstone\PowerSource;
+use quark\block\utils\redstone\Transmittable;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
+use quark\world\format\Chunk;
 use quark\world\Position;
 use quark\world\World;
 
@@ -42,6 +47,8 @@ final class RedstoneManager{
 	private array $chunkOverrides = [];
 	/** @var array<int, int> Number of explicitly enabled chunks in each world. */
 	private array $enabledChunkOverrideCounts = [];
+	/** @var array<int, true>|null State IDs of blocks that take part in circuits. */
+	private static ?array $componentStateIds = null;
 	public function __construct(Server $server){
 		self::$instance = $this;
 		foreach($server->getWorldManager()->getWorlds() as $world){
@@ -65,12 +72,16 @@ final class RedstoneManager{
 
 	/** @api Runtime override; call from the main thread. */
 	public function setWorldEnabled(World $world, bool $enabled) : void{
+		$wasEnabled = $this->isWorldEnabled($world);
 		$this->worldOverrides[$world->getId()] = $enabled;
+		$this->reconcileWorld($world, $wasEnabled);
 	}
 
 	/** @api Removes the runtime override and restores the configured world policy. */
 	public function clearWorldOverride(World $world) : void{
+		$wasEnabled = $this->isWorldEnabled($world);
 		unset($this->worldOverrides[$world->getId()]);
+		$this->reconcileWorld($world, $wasEnabled);
 	}
 
 	/** @api Runtime override; chunk policy takes precedence over world policy. Call from the main thread. */
@@ -81,12 +92,16 @@ final class RedstoneManager{
 		if($previous === $enabled){
 			return;
 		}
+		$wasEnabled = $this->isChunkEnabled($world, $chunkX, $chunkZ);
 		if($previous === true){
 			--$this->enabledChunkOverrideCounts[$worldId];
 		}
 		$this->chunkOverrides[$worldId][$chunkHash] = $enabled;
 		if($enabled){
 			$this->enabledChunkOverrideCounts[$worldId] = ($this->enabledChunkOverrideCounts[$worldId] ?? 0) + 1;
+			if(!$wasEnabled){
+				$this->reconcileChunk($world, $chunkX, $chunkZ);
+			}
 		}
 	}
 
@@ -94,6 +109,7 @@ final class RedstoneManager{
 	public function clearChunkOverride(World $world, int $chunkX, int $chunkZ) : void{
 		$worldId = $world->getId();
 		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$wasEnabled = $this->isChunkEnabled($world, $chunkX, $chunkZ);
 		if(($this->chunkOverrides[$worldId][$chunkHash] ?? null) === true){
 			--$this->enabledChunkOverrideCounts[$worldId];
 		}
@@ -101,6 +117,73 @@ final class RedstoneManager{
 		if(($this->chunkOverrides[$worldId] ?? []) === []){
 			unset($this->chunkOverrides[$worldId], $this->enabledChunkOverrideCounts[$worldId]);
 		}
+		if(!$wasEnabled && $this->isChunkEnabled($world, $chunkX, $chunkZ)){
+			$this->reconcileChunk($world, $chunkX, $chunkZ);
+		}
+	}
+
+	private function reconcileWorld(World $world, bool $wasEnabled) : void{
+		if($wasEnabled || !$this->isWorldEnabled($world)){
+			return;
+		}
+		$overrides = $this->chunkOverrides[$world->getId()] ?? [];
+		foreach($world->getLoadedChunks() as $chunkHash => $chunk){
+			if(!isset($overrides[$chunkHash])){
+				World::getXZ($chunkHash, $chunkX, $chunkZ);
+				$this->reconcileChunk($world, $chunkX, $chunkZ, $chunk);
+			}
+		}
+	}
+
+	/**
+	 * Circuits ignored every change while disabled, so each component re-reads its inputs on the next block update.
+	 * ponytail: scans every loaded subchunk that holds a component, fine for an occasional admin toggle but not for frequent flipping.
+	 */
+	private function reconcileChunk(World $world, int $chunkX, int $chunkZ, ?Chunk $chunk = null) : void{
+		$chunk ??= $world->getChunk($chunkX, $chunkZ);
+		if($chunk === null){
+			return;
+		}
+		$components = self::$componentStateIds ??= self::findComponentStateIds();
+		$baseX = $chunkX << Chunk::COORD_BIT_SIZE;
+		$baseZ = $chunkZ << Chunk::COORD_BIT_SIZE;
+		foreach($chunk->getSubChunks() as $subChunkY => $subChunk){
+			$layer = $subChunk->getBlockLayer0();
+			if($layer === null){
+				continue;
+			}
+			$present = false;
+			foreach($layer->getPalette() as $stateId){
+				if(isset($components[$stateId])){
+					$present = true;
+					break;
+				}
+			}
+			if(!$present){
+				continue;
+			}
+			$baseY = $subChunkY << Chunk::COORD_BIT_SIZE;
+			for($x = 0; $x < Chunk::EDGE_LENGTH; ++$x){
+				for($y = 0; $y < Chunk::EDGE_LENGTH; ++$y){
+					for($z = 0; $z < Chunk::EDGE_LENGTH; ++$z){
+						if(isset($components[$layer->get($x, $y, $z)])){
+							$world->notifyNeighbourBlockUpdate(new Vector3($baseX + $x, $baseY + $y, $baseZ + $z));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/** @return array<int, true> */
+	private static function findComponentStateIds() : array{
+		$ids = [];
+		foreach(RuntimeBlockStateRegistry::getInstance()->getAllKnownStates() as $stateId => $block){
+			if($block instanceof PowerSource || $block instanceof Transmittable){
+				$ids[$stateId] = true;
+			}
+		}
+		return $ids;
 	}
 
 	/** @api Returns the configured or runtime-overridden world policy. */

@@ -109,6 +109,43 @@ final class RedstoneStateTest extends TestCase{
 		self::assertTrue($this->lampLit());
 	}
 
+	public function testReenabledChunkReconcilesItsCircuits() : void{
+		$this->h->manager->setChunkEnabled($this->h->world, 0, 0, false);
+		$this->placeRepeater();
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(10);
+		self::assertFalse($this->repeaterPowered(), "disabled chunks ignore their circuits");
+
+		$this->h->manager->setChunkEnabled($this->h->world, 0, 0, true);
+		$this->h->tick(10);
+		self::assertTrue($this->repeaterPowered());
+		self::assertTrue($this->lampLit());
+	}
+
+	public function testReenabledWorldReconcilesItsCircuits() : void{
+		$this->h->manager->setWorldEnabled($this->h->world, false);
+		$this->placeRepeater();
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(10);
+		self::assertFalse($this->repeaterPowered());
+
+		$this->h->manager->clearWorldOverride($this->h->world);
+		$this->h->tick(10);
+		self::assertTrue($this->lampLit());
+	}
+
+	public function testDroppedUpdatesAreCountedAndReported() : void{
+		RedstoneConfig::configure(65536, 1, 8192, true, true, 1024, 4096);
+		$state = $this->h->state();
+		$state->scheduleWaitableUpdateAt(0, 1, 0, $state->tick + 5, RedstoneWorldState::WAITABLE_UPDATE_NORMAL_PRIORITY, false);
+		$state->scheduleWaitableUpdateAt(0, 1, 0, $state->tick + 5, RedstoneWorldState::WAITABLE_UPDATE_NORMAL_PRIORITY, false);
+		self::assertSame(0, $state->droppedUpdates, "a repeat of a queued update isn't a drop");
+		$state->scheduleWaitableUpdateAt(0, 2, 0, $state->tick + 5, RedstoneWorldState::WAITABLE_UPDATE_LOW_PRIORITY, false);
+		$state->scheduleWaitableUpdateAt(0, 3, 0, $state->tick + 5, RedstoneWorldState::WAITABLE_UPDATE_NORMAL_PRIORITY, false);
+		self::assertSame(2, $state->droppedUpdates);
+		self::assertCount(1, $this->h->warnings, "warnings are rate limited");
+	}
+
 	public function testStaleRepeaterDataDoesNotFreezeTheRepeater() : void{
 		$this->placeRepeater();
 		$this->h->tick(5);
