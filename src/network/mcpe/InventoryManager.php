@@ -416,6 +416,8 @@ class InventoryManager{
 	}
 
 	public function onCurrentWindowRemove() : void{
+		//a window still waiting on a close ack was closed server-side before it opened
+		$this->pendingOpenWindowCallback = null;
 		if(isset($this->networkIdToInventoryMap[$this->lastInventoryNetworkId])){
 			$this->remove($this->lastInventoryNetworkId);
 			$this->session->sendDataPacket(ContainerClosePacket::create($this->lastInventoryNetworkId, $this->currentWindowType, true));
