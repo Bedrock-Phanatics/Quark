@@ -28,7 +28,6 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\BanEntry;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use function array_map;
 use function count;
 use function implode;
@@ -38,7 +37,7 @@ use const SORT_STRING;
 
 class BanListCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"banlist",
 			KnownTranslationFactory::quark_command_banlist_description(),
@@ -51,14 +50,14 @@ class BanListCommand extends VanillaCommand{
 		if(isset($args[0])){
 			$args[0] = strtolower($args[0]);
 			if($args[0] === "ips"){
-				$list = $this->server->getIPBans();
+				$list = $sender->getServer()->getIPBans();
 			}elseif($args[0] === "players"){
-				$list = $this->server->getNameBans();
+				$list = $sender->getServer()->getNameBans();
 			}else{
 				throw new InvalidCommandSyntaxException();
 			}
 		}else{
-			$list = $this->server->getNameBans();
+			$list = $sender->getServer()->getNameBans();
 			$args[0] = "players";
 		}
 

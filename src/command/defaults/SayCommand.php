@@ -29,14 +29,13 @@ use quark\console\ConsoleCommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\Server;
 use quark\utils\TextFormat;
 use function count;
 use function implode;
 
 class SayCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"say",
 			KnownTranslationFactory::quark_command_say_description(),
@@ -50,7 +49,7 @@ class SayCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$this->server->broadcastMessage(KnownTranslationFactory::chat_type_announcement(
+		$sender->getServer()->broadcastMessage(KnownTranslationFactory::chat_type_announcement(
 			$sender instanceof Player ? $sender->getDisplayName() : ($sender instanceof ConsoleCommandSender ? "Server" : $sender->getName()),
 			implode(" ", $args)
 		)->prefix(TextFormat::LIGHT_PURPLE));

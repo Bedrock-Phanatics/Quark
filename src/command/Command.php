@@ -242,8 +242,8 @@ abstract class Command{
 		$this->usageMessage = $usage;
 	}
 
-	public static function broadcastCommandMessage(Server $server, CommandSender $source, Translatable|string $message, bool $sendToSource = true) : void{
-		$users = $server->getBroadcastChannelSubscribers(Server::BROADCAST_CHANNEL_ADMINISTRATIVE);
+	public static function broadcastCommandMessage(CommandSender $source, Translatable|string $message, bool $sendToSource = true) : void{
+		$users = $source->getServer()->getBroadcastChannelSubscribers(Server::BROADCAST_CHANNEL_ADMINISTRATIVE);
 		$result = KnownTranslationFactory::chat_type_admin($source->getName(), $message);
 		$colored = $result->prefix(TextFormat::GRAY . TextFormat::ITALIC);
 

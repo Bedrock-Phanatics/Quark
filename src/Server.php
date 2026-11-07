@@ -1315,7 +1315,7 @@ class Server{
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_startFinished(strval(round(microtime(true) - $this->startTime, 3)))));
 
-			$forwarder = new BroadcastLoggerForwarder($this->logger, $this->language);
+			$forwarder = new BroadcastLoggerForwarder($this, $this->logger, $this->language);
 			$this->subscribeToBroadcastChannel(self::BROADCAST_CHANNEL_ADMINISTRATIVE, $forwarder);
 			$this->subscribeToBroadcastChannel(self::BROADCAST_CHANNEL_USERS, $forwarder);
 
@@ -2117,7 +2117,7 @@ class Server{
 			if($this->console !== null){
 				$serverCommandScope = PulseZones::$serverCommand->start();
 				while(($line = $this->console->readLine()) !== null){
-					$this->consoleSender ??= new ConsoleCommandSender($this->logger, $this->language);
+					$this->consoleSender ??= new ConsoleCommandSender($this, $this->language);
 					if($this->logger instanceof MainLogger){
 						$name = explode(" ", ltrim($line, "/"), 2)[0];
 						$command = $this->commandMap->getCommand($name);

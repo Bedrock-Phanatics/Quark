@@ -27,13 +27,12 @@ use quark\command\Command;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use function microtime;
 use function round;
 
 class SaveCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"save-all",
 			KnownTranslationFactory::quark_command_save_description()
@@ -42,18 +41,18 @@ class SaveCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::quark_save_start());
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_start());
 		$start = microtime(true);
 
-		foreach($this->server->getOnlinePlayers() as $player){
+		foreach($sender->getServer()->getOnlinePlayers() as $player){
 			$player->save();
 		}
 
-		foreach($this->server->getWorldManager()->getWorlds() as $world){
+		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
 			$world->save(true);
 		}
 
-		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::quark_save_success((string) round(microtime(true) - $start, 3)));
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_success((string) round(microtime(true) - $start, 3)));
 
 		return true;
 	}

@@ -28,13 +28,12 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use function count;
 use function inet_pton;
 
 class PardonIpCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"pardon-ip",
 			KnownTranslationFactory::quark_command_unban_ip_description(),
@@ -50,9 +49,9 @@ class PardonIpCommand extends VanillaCommand{
 		}
 
 		if(inet_pton($args[0]) !== false){
-			$this->server->getIPBans()->remove($args[0]);
-			$this->server->getNetwork()->unblockAddress($args[0]);
-			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_unbanip_success($args[0]));
+			$sender->getServer()->getIPBans()->remove($args[0]);
+			$sender->getServer()->getNetwork()->unblockAddress($args[0]);
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_unbanip_success($args[0]));
 		}else{
 			$sender->sendMessage(KnownTranslationFactory::commands_unbanip_invalid());
 		}

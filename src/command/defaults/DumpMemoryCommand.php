@@ -26,13 +26,12 @@ namespace quark\command\defaults;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use Symfony\Component\Filesystem\Path;
 use function date;
 
 class DumpMemoryCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"dumpmemory",
 			KnownTranslationFactory::quark_command_dumpmemory_description(),
@@ -42,7 +41,7 @@ class DumpMemoryCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$this->server->getMemoryManager()->dumpServerMemory($args[0] ?? (Path::join($this->server->getFilesystemPaths()->profiles(), "memory_dumps", date("D_M_j-H.i.s-T_Y"))), 48, 80);
+		$sender->getServer()->getMemoryManager()->dumpServerMemory($args[0] ?? (Path::join($sender->getServer()->getFilesystemPaths()->profiles(), "memory_dumps", date("D_M_j-H.i.s-T_Y"))), 48, 80);
 		return true;
 	}
 }

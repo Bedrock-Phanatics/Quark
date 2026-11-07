@@ -29,7 +29,6 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\entity\Attribute;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\Server;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
 use function abs;
@@ -39,7 +38,7 @@ use function substr;
 
 class XpCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		parent::__construct(
 			"xp",
 			KnownTranslationFactory::quark_command_xp_description(),
@@ -56,7 +55,7 @@ class XpCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$player = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[1] ?? null, DefaultPermissionNames::COMMAND_XP_SELF, DefaultPermissionNames::COMMAND_XP_OTHER);
+		$player = $this->fetchPermittedPlayerTarget($sender, $args[1] ?? null, DefaultPermissionNames::COMMAND_XP_SELF, DefaultPermissionNames::COMMAND_XP_OTHER);
 		if($player === null){
 			return true;
 		}
