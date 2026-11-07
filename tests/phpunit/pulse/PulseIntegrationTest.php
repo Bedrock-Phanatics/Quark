@@ -40,6 +40,7 @@ use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
 use quark\scheduler\PulseControlTask;
 use quark\Server;
+use quark\utils\TextFormat;
 use Vow\Promise;
 use function array_fill;
 use function count;
@@ -138,11 +139,11 @@ final class PulseIntegrationTest extends TestCase{
 		$sender->method("getName")->willReturn("test");
 		$sender->method("sendMessage")->willReturnCallback(static function(Translatable|string $message) use ($messages) : void{
 			self::assertIsString($message);
-			$messages[] = $message;
+			$messages[] = TextFormat::clean($message);
 		});
 		$command = new PulseCommand();
 		$command->execute($sender, "pulse", []);
-		self::assertStringContainsString("Pulse is idle", $messages[0] ?? "");
+		self::assertStringContainsString("Pulse » Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
 		$command->execute($sender, "pulse", ["help"]);
 		self::assertCount(4, $messages);
@@ -163,12 +164,12 @@ final class PulseIntegrationTest extends TestCase{
 		$command->execute($sender, "pulse", ["stop"]);
 		self::assertFalse($session->isRecording());
 		self::assertSame(1, $saves);
-		self::assertStringStartsWith("Collecting Pulse report", $messages[count($messages) - 2] ?? "");
-		self::assertSame("Pulse report saved to test.qpulse", $messages[count($messages) - 1]);
+		self::assertStringStartsWith("Pulse » Collecting report", $messages[count($messages) - 2] ?? "");
+		self::assertSame("Pulse » Report saved to test.qpulse", $messages[count($messages) - 1]);
 		foreach([["start", "60s", "1s"], ["start", "--spikes"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
 			$messages->exchangeArray([]);
 			$command->execute($sender, "pulse", $args);
-			self::assertStringStartsWith("Usage:", $messages[0] ?? "");
+			self::assertStringStartsWith("Pulse » Usage:", $messages[0] ?? "");
 			self::assertSame($session, $recorder->getSession());
 			self::assertFalse($session->isRecording());
 		}
@@ -325,7 +326,7 @@ final class PulseIntegrationTest extends TestCase{
 		$server->method("getPulse")->willReturn($recorder);
 		$sender = self::createMock(CommandSender::class);
 		$sender->method("getServer")->willReturn($server);
-		$sender->expects(self::once())->method("sendMessage")->with("Pulse is waiting for 1 worker operations");
+		$sender->expects(self::once())->method("sendMessage")->with(self::callback(static fn(string $m) : bool => TextFormat::clean($m) === "Pulse » Waiting for 1 worker operations"));
 		(new PulseCommand())->execute($sender, "pulse", ["status"]);
 		try{ $recorder->start(); self::fail("Restart must wait for worker reset"); }catch(\LogicException){}
 		self::assertInstanceOf(PulseControlTask::class, $task);
