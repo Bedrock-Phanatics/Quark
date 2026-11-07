@@ -1343,6 +1343,10 @@ class World implements ChunkManager{
 			if(!($b instanceof Vector3)){
 				throw new \TypeError("Expected Vector3 in blocks array, got " . (is_object($b) ? get_class($b) : gettype($b)));
 			}
+			//an unloaded chunk reads as air, which would punch holes into a released chunk the client still shows
+			if(!$this->isInLoadedTerrain($b)){
+				continue;
+			}
 
 			$fullBlock = $this->getBlockAt($b->x, $b->y, $b->z);
 			$blockPosition = BlockPosition::fromVector3($b);
@@ -3408,7 +3412,8 @@ class World implements ChunkManager{
 		if(!isset($this->playerChunkListeners[$chunkHash])){
 			return false;
 		}
-		if(!$this->autoSave){
+		//viewers keep released chunks, so block changes must be broadcast before the chunk goes
+		if(!$this->autoSave || isset($this->changedBlocks[$chunkHash])){
 			return true;
 		}
 		foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
