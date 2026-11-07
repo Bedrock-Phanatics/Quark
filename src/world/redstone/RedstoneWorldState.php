@@ -45,6 +45,8 @@ use function max;
 final class RedstoneWorldState implements ChunkListener{
 	use ChunkListenerNoOpTrait {
 		onChunkLoaded as private;
+		onChunkUnloaded as private;
+		onBlockChanged as private;
 	}
 
 	public const int WAITABLE_UPDATE_NORMAL_PRIORITY = 0;
@@ -61,7 +63,7 @@ final class RedstoneWorldState implements ChunkListener{
 	private int $pistonActionsThisTick = 0;
 	private int $dispenserActionsThisTick = 0;
 
-	/** @var array<int, RedstoneChunk|null> Extra redstone data for each loaded chunk. */
+	/** @var array<int, RedstoneChunk> Extra redstone data, only for loaded chunks that have any. */
 	private array $chunks = [];
 
 	/** @var array<int, array<int, int>> chunk hash => block hash => priority */
@@ -115,8 +117,7 @@ final class RedstoneWorldState implements ChunkListener{
 				foreach($this->deferred as $stale => $updates){
 					$this->deferredCount -= count($updates);
 					unset($this->deferred[$stale]);
-					World::getXZ($stale, $staleX, $staleZ);
-					$this->world->unregisterChunkListener($this, $staleX, $staleZ);
+					$this->releaseChunkListener($stale);
 					break;
 				}
 			}
@@ -138,7 +139,7 @@ final class RedstoneWorldState implements ChunkListener{
 		}
 		unset($this->deferred[$chunkHash]);
 		$this->deferredCount -= count($updates);
-		$this->world->unregisterChunkListener($this, $chunkX, $chunkZ);
+		$this->releaseChunkListener($chunkHash);
 		foreach($updates as $blockHash => $priority){
 			World::getBlockXYZ($blockHash, $x, $y, $z);
 			$this->scheduleWaitableUpdateAt($x, $y, $z, $this->tick + 1, $priority, false);
@@ -170,29 +171,63 @@ final class RedstoneWorldState implements ChunkListener{
 		}
 	}
 
-	public function loadChunk(int $chunkX, int $chunkZ) : void{
-		$this->chunks[World::chunkHash($chunkX, $chunkZ)] = null;
+	public function onChunkUnloaded(int $chunkX, int $chunkZ, Chunk $chunk) : void{
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		unset($this->chunks[$chunkHash]);
+		$this->releaseChunkListener($chunkHash);
 	}
 
-	public function unloadChunk(int $chunkX, int $chunkZ) : void{
-		unset($this->chunks[World::chunkHash($chunkX, $chunkZ)]);
+	//data is dropped as soon as something else takes the block's place, however it was removed
+	public function onBlockChanged(int $x, int $y, int $z) : void{
+		$chunkHash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
+		$data = ($this->chunks[$chunkHash] ?? null)?->getBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		if($data !== null && !$data->isValidFor($this->world->getBlockAt($x, $y, $z))){
+			$this->removeExtraDataAt($x, $y, $z);
+		}
 	}
 
-	public function getChunk(int $chunkX, int $chunkZ) : RedstoneChunk{
-		$index = World::chunkHash($chunkX, $chunkZ);
-		return $this->chunks[$index] ??= new RedstoneChunk();
+	private function releaseChunkListener(int $chunkHash) : void{
+		if(!isset($this->chunks[$chunkHash]) && !isset($this->deferred[$chunkHash])){
+			World::getXZ($chunkHash, $chunkX, $chunkZ);
+			$this->world->unregisterChunkListener($this, $chunkX, $chunkZ);
+		}
+	}
+
+	/** Number of loaded chunks currently holding redstone data. */
+	public function getDataChunkCount() : int{
+		return count($this->chunks);
 	}
 
 	public function setExtraDataAt(int $x, int $y, int $z, BlockData $data) : void{
-		$this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)->setBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK, $data);
+		$chunkX = $x >> Chunk::COORD_BIT_SIZE;
+		$chunkZ = $z >> Chunk::COORD_BIT_SIZE;
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$chunk = $this->chunks[$chunkHash] ?? null;
+		if($chunk === null){
+			if(!$this->world->isChunkLoaded($chunkX, $chunkZ)){
+				return;
+			}
+			$chunk = $this->chunks[$chunkHash] = new RedstoneChunk();
+			$this->world->registerChunkListener($this, $chunkX, $chunkZ);
+		}
+		$chunk->setBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK, $data);
 	}
 
 	public function removeExtraDataAt(int $x, int $y, int $z) : void{
-		$this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)->removeBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		$chunkHash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
+		$chunk = $this->chunks[$chunkHash] ?? null;
+		if($chunk === null){
+			return;
+		}
+		$chunk->removeBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		if($chunk->isEmpty()){
+			unset($this->chunks[$chunkHash]);
+			$this->releaseChunkListener($chunkHash);
+		}
 	}
 
 	public function getExtraDataAt(int $x, int $y, int $z) : ?BlockData{
-		return $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)->getBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		return ($this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null)?->getBlockData($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
 	}
 
 	/**

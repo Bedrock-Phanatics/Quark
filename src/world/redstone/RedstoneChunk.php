@@ -41,4 +41,8 @@ final class RedstoneChunk{
 	public function removeBlockData(int $x, int $y, int $z) : void{
 		unset($this->extra_data[World::chunkBlockHash($x, $y, $z)]);
 	}
+
+	public function isEmpty() : bool{
+		return $this->extra_data === [];
+	}
 }

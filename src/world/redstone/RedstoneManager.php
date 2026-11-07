@@ -124,11 +124,7 @@ final class RedstoneManager{
 		if(isset($this->worlds[$world->getId()])){
 			return;
 		}
-		$redstone_world = $this->worlds[$world->getId()] = new RedstoneWorldState($world);
-		foreach($world->getLoadedChunks() as $chunk_hash => $_){
-			World::getXZ($chunk_hash, $chunkX, $chunkZ);
-			$redstone_world->loadChunk($chunkX, $chunkZ);
-		}
+		$this->worlds[$world->getId()] = new RedstoneWorldState($world);
 		$world->addOnUnloadCallback(fn() => $this->unload($world));
 	}
 

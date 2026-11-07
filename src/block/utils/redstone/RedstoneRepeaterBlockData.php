@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils\redstone;
 
+use quark\block\Block;
+use quark\block\RedstoneRepeater;
 use quark\world\redstone\BlockData;
 
 final class RedstoneRepeaterBlockData implements BlockData{
@@ -37,4 +39,8 @@ final class RedstoneRepeaterBlockData implements BlockData{
 	public function __construct(
 		public int $operation
 	){}
+
+	public function isValidFor(Block $block) : bool{
+		return $block instanceof RedstoneRepeater;
+	}
 }

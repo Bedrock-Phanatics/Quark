@@ -103,14 +103,17 @@ final class RedstoneHarness{
 		$this->world->getBlockAt($x, $y, $z)->onBreak(VanillaItems::AIR());
 	}
 
-	public function unloadChunk(int $chunkX, int $chunkZ) : void{
+	/** Returns the unloaded chunk so it can be loaded back with its blocks. */
+	public function unloadChunk(int $chunkX, int $chunkZ) : Chunk{
+		$chunk = $this->world->getChunk($chunkX, $chunkZ) ?? throw new \RuntimeException("Chunk $chunkX $chunkZ is not loaded");
 		if(!$this->world->unloadChunk($chunkX, $chunkZ, false, false)){
 			throw new \RuntimeException("Chunk $chunkX $chunkZ did not unload");
 		}
+		return $chunk;
 	}
 
-	public function loadChunk(int $chunkX, int $chunkZ) : void{
-		$chunk = new Chunk([], true);
+	public function loadChunk(int $chunkX, int $chunkZ, ?Chunk $chunk = null) : void{
+		$chunk ??= new Chunk([], true);
 		\Closure::bind(function() use ($chunkX, $chunkZ, $chunk) : void{
 			$this->chunks[World::chunkHash($chunkX, $chunkZ)] = $chunk;
 		}, $this->world, World::class)();

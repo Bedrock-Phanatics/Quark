@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils\redstone;
 
+use quark\block\Block;
+use quark\block\RedstoneTorch;
 use quark\world\redstone\BlockData;
 
 final class RedstoneTorchBlockData implements BlockData{
@@ -41,6 +43,10 @@ final class RedstoneTorchBlockData implements BlockData{
 			$this->ticks[$this->head] = $tick;
 			$this->head = ($this->head + 1) % self::HISTORY_SIZE;
 		}
+	}
+
+	public function isValidFor(Block $block) : bool{
+		return $block instanceof RedstoneTorch;
 	}
 
 	public function isBurntOut(int $tick) : bool{

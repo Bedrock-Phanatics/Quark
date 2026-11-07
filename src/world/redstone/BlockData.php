@@ -23,5 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\redstone;
 
+use quark\block\Block;
+
 interface BlockData{
+
+	/** Returns whether this data still belongs to the block now at its position. */
+	public function isValidFor(Block $block) : bool;
 }

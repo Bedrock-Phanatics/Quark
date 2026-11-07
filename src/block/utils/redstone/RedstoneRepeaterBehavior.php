@@ -88,10 +88,10 @@ trait RedstoneRepeaterBehavior{
 
 		if(!$this->isLocked()){
 			$world = RedstoneManager::getInstance()->get($this->position->getWorld());
-			if($world->getExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z) instanceof RedstoneRepeaterBlockData){
-				return;
+			if(!($world->getExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z) instanceof RedstoneRepeaterBlockData)){
+				$world->setExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, new RedstoneRepeaterBlockData(RedstoneRepeaterBlockData::OPERATION_SWITCH_RECALCULATE));
 			}
-			$world->setExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, new RedstoneRepeaterBlockData(RedstoneRepeaterBlockData::OPERATION_SWITCH_RECALCULATE));
+			//a no-op when already queued, but re-arms a pending operation whose update was dropped
 			$world->scheduleWaitableUpdate($this, RedstoneWorldState::redstoneTicks($this->delay));
 		}
 	}
@@ -132,7 +132,9 @@ trait RedstoneRepeaterBehavior{
 		$world = RedstoneManager::getInstance()->get($this->position->getWorld());
 		$extra_data = $world->getExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
 		if(!($extra_data instanceof RedstoneRepeaterBlockData)){
-			return;
+			//the pending operation was lost, e.g. its chunk unloaded, so settle on the current input
+			$extra_data = new RedstoneRepeaterBlockData(RedstoneRepeaterBlockData::OPERATION_SWITCH_RECALCULATE);
+			$world->setExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $extra_data);
 		}
 		$this->runRepeaterState($world, $extra_data->operation);
 	}
