@@ -269,16 +269,6 @@ class AsyncPool{
 					$this->checkCrashedWorker($worker, $task);
 					throw new AssumptionFailedError("checkCrashedWorker() should have thrown an exception, making this unreachable");
 				}else{
-					/*
-					 * It's possible for a task to submit a progress update and then finish before the progress
-					 * update is detected by the parent thread, so here we consume any missed updates.
-					 *
-					 * When this happens, it's possible for a progress update to arrive between the previous
-					 * checkProgressUpdates() call and the next isGarbage() call, causing progress updates to be
-					 * lost. Thus, it's necessary to do one last check here to make sure all progress updates have
-					 * been consumed before completing.
-					 */
-					$this->checkTaskProgressUpdates($task);
 					if($task instanceof PulseControlTask || !Pulse::isRecording()){
 						$task->onCompletion();
 					}else{
@@ -288,7 +278,6 @@ class AsyncPool{
 					}
 				}
 			}else{
-				$this->checkTaskProgressUpdates($task);
 				$more = true;
 				break; //current task is still running, skip to next worker
 			}
@@ -337,15 +326,5 @@ class AsyncPool{
 			$this->eventLoop->removeNotifier($worker->sleeperNotifierId);
 		}
 		$this->workers = [];
-	}
-
-	private function checkTaskProgressUpdates(AsyncTask $task) : void{
-		if($task instanceof PulseControlTask || !Pulse::isRecording()){
-			$task->checkProgressUpdates();
-		}else{
-			PulseZones::getAsyncTaskProgressUpdateZone($task)->time(function() use ($task) : void{
-				$task->checkProgressUpdates();
-			});
-		}
 	}
 }

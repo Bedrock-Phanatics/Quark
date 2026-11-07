@@ -182,12 +182,6 @@ $pool = new AsyncPool(2, 256, new ThreadSafeClassLoader(), $logger, new SleeperH
 $recorder = new PulseRecorder($pool);
 Pulse::reset();
 try{
-	$pollTask = new class extends AsyncTask{ public function onRun() : void{} };
-	/** @var Closure(AsyncTask) : void $poll */
-	$poll = (new ReflectionMethod(AsyncPool::class, "checkTaskProgressUpdates"))->getClosure($pool);
-	benchmarkPulse(["Disabled worker poll" => static function(int $n) use ($poll, $pollTask) : void{
-		for($i = 0; $i < $n; ++$i){ $poll($pollTask); }
-	}], 200000);
 	foreach([false, true] as $recording){
 		if($recording){ $recorder->start(); }
 		for($worker = 0; $worker < 2; ++$worker){

@@ -183,7 +183,6 @@ final class PulseZones{
 
 	public static function getAsyncTaskRunZone(AsyncTask $task) : PulseZone{ return self::task($task, "run"); }
 	public static function getAsyncTaskCompletionZone(AsyncTask $task) : PulseZone{ return self::task($task, "complete"); }
-	public static function getAsyncTaskProgressUpdateZone(AsyncTask $task) : PulseZone{ return self::task($task, "progress"); }
 
 	private static function task(AsyncTask $task, string $phase) : PulseZone{
 		$zone = self::$tasks[$phase][$task::class] ?? null;
