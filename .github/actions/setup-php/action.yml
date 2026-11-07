@@ -32,11 +32,13 @@ runs:
         path: build/php/bin
         key: quark-runtime-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build/php/compile.sh', 'build/php/windows-compile-vs.ps1', 'build/php/native.py', 'build/php/versions.env', 'build/php/sources.sha256', 'build/php/windows-deps.sha256') }}
 
-    # Zig is only needed to compile the runtime
+    # Zig is only needed to compile the runtime. Its own cache is skipped: each saved copy is hundreds of MB and the
+    # repository is already over the Actions cache limit.
     - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
       if: steps.runtime.outputs.cache-hit != 'true'
       with:
         version: 0.17.0
+        use-cache: false
 
     - name: Build Linux runtime
       if: runner.os == 'Linux' && steps.runtime.outputs.cache-hit != 'true'
