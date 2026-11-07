@@ -45,7 +45,7 @@ use quark\plugin\PluginManager;
  * - `@notHandler`: Marks a function as NOT being an event handler. Only needed if the function meets the above criteria.
  * - `@handleCancelled`: Cancelled events will STILL invoke this handler.
  * - `@priority <PRIORITY>`: Sets the priority at which this event handler will receive events.
- *     Example: `@priority HIGHEST`
+ *     Example: `@priority LATEST`
  *     @see EventPriority for a list of possible options.
  *
  * Event handlers will receive any instanceof the Event class they have chosen to receive. For example, an

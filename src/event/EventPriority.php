@@ -28,12 +28,12 @@ use function mb_strtoupper;
 /**
  * List of event priorities
  *
- * Events will be called in this order:
- * LOWEST -> LOW -> NORMAL -> HIGH -> HIGHEST -> MONITOR
+ * Events will be called in this order, lowest value first:
+ * EARLIEST -> EARLY -> NORMAL -> LATE -> LATEST -> MONITOR
  *
  * MONITOR events should not change the event outcome or contents
  *
- * WARNING: If these values are changed, handler sorting in HandlerList::getListenerList() may need to be updated.
+ * WARNING: Handler sorting in HandlerList::getListenerList() relies on these values increasing in call order.
  */
 final class EventPriority{
 
@@ -42,54 +42,53 @@ final class EventPriority{
 	}
 
 	public const ALL = [
-		self::LOWEST,
-		self::LOW,
+		self::EARLIEST,
+		self::EARLY,
 		self::NORMAL,
-		self::HIGH,
-		self::HIGHEST,
+		self::LATE,
+		self::LATEST,
 		self::MONITOR
 	];
 
 	/**
-	 * Event call is of very low importance and should be ran first, to allow
-	 * other plugins to further customise the outcome
+	 * Event call is ran first, to allow other plugins to further customise the outcome
 	 */
-	public const LOWEST = 5;
+	public const EARLIEST = 0;
 	/**
-	 * Event call is of low importance
+	 * Event call is ran early
 	 */
-	public const LOW = 4;
+	public const EARLY = 1;
 	/**
-	 * Event call is neither important or unimportant, and may be ran normally.
+	 * Event call is neither early nor late, and may be ran normally.
 	 * This is the default priority.
 	 */
-	public const NORMAL = 3;
+	public const NORMAL = 2;
 	/**
-	 * Event call is of high importance
+	 * Event call is ran late
 	 */
-	public const HIGH = 2;
+	public const LATE = 3;
 	/**
-	 * Event call is critical and must have the final say in what happens
+	 * Event call is ran last before monitors and has the final say in what happens
 	 * to the event
 	 */
-	public const HIGHEST = 1;
+	public const LATEST = 4;
 	/**
 	 * Event is listened to purely for monitoring the outcome of an event.
 	 *
 	 * No modifications to the event should be made under this priority
 	 */
-	public const MONITOR = 0;
+	public const MONITOR = 5;
 
 	/**
 	 * @throws \InvalidArgumentException
 	 */
 	public static function fromString(string $name) : int{
 		$value = [
-			"LOWEST" => self::LOWEST,
-			"LOW" => self::LOW,
+			"EARLIEST" => self::EARLIEST,
+			"EARLY" => self::EARLY,
 			"NORMAL" => self::NORMAL,
-			"HIGH" => self::HIGH,
-			"HIGHEST" => self::HIGHEST,
+			"LATE" => self::LATE,
+			"LATEST" => self::LATEST,
 			"MONITOR" => self::MONITOR
 		][mb_strtoupper($name)] ?? null;
 		if($value !== null){

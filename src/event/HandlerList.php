@@ -25,7 +25,7 @@ namespace quark\event;
 
 use quark\plugin\Plugin;
 use function array_merge;
-use function krsort;
+use function ksort;
 use function spl_object_id;
 use const SORT_NUMERIC;
 
@@ -153,8 +153,7 @@ class HandlerList{
 			}
 		}
 
-		//TODO: why on earth do the priorities have higher values for lower priority?
-		krsort($listenersByPriority, SORT_NUMERIC);
+		ksort($listenersByPriority, SORT_NUMERIC);
 
 		return $this->handlerCache->list = array_merge(...$listenersByPriority);
 	}

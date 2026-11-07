@@ -34,6 +34,10 @@ use quark\event\fixtures\TestParentEvent;
 use quark\plugin\Plugin;
 use quark\plugin\PluginManager;
 use quark\Server;
+use function array_reverse;
+use function array_unique;
+use function array_values;
+use function sort;
 
 final class EventTest extends TestCase{
 
@@ -79,6 +83,40 @@ final class EventTest extends TestCase{
 		$event->call();
 
 		self::assertSame($expectedOrder, $actualOrder, "Expected event handlers to be called from most specific to least specific");
+	}
+
+	public function testPriorityOrder() : void{
+		$priorities = EventPriority::ALL;
+		self::assertSame($priorities, array_values(array_unique($priorities)));
+		$sorted = $priorities;
+		sort($sorted);
+		self::assertSame($sorted, $priorities, "Priority constants must increase in call order");
+
+		$shuffled = array_reverse($priorities);
+		$called = [];
+		foreach($shuffled as $priority){
+			$this->pluginManager->registerEvent(
+				TestParentEvent::class,
+				function(TestParentEvent $event) use (&$called, $priority) : void{
+					$called[] = $priority;
+				},
+				$priority,
+				$this->mockPlugin
+			);
+		}
+
+		new TestParentEvent()->call();
+
+		self::assertSame($priorities, $called);
+	}
+
+	public function testPriorityFromString() : void{
+		self::assertSame(EventPriority::EARLIEST, EventPriority::fromString("earliest"));
+		self::assertSame(EventPriority::LATE, EventPriority::fromString("Late"));
+		self::assertSame(EventPriority::MONITOR, EventPriority::fromString("MONITOR"));
+
+		$this->expectException(\InvalidArgumentException::class);
+		EventPriority::fromString("HIGHEST");
 	}
 
 	public function testHumanExhaustionEvent() : void{

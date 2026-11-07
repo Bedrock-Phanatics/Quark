@@ -84,6 +84,7 @@ $player->sendForm($form);
 ### Events
 
 - `PlayerExhaustEvent` → `EntityExhaustEvent` (Replace `getPlayer()` with `getEntity()`, returning the affected `Human`).
+- Event priorities were renamed and renumbered so lower values run first: `LOWEST` → `EARLIEST`, `LOW` → `EARLY`, `HIGH` → `LATE`, `HIGHEST` → `LATEST`. `NORMAL` and `MONITOR` keep their names. The old names no longer exist, so update both `@priority` tags and `EventPriority::` constants. Never persist the numeric values, they changed.
 
 ### Inventories
 
