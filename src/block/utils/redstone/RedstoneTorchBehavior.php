@@ -146,14 +146,17 @@ trait RedstoneTorchBehavior{
 	}
 
 	public function onBreak(Item $item, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($this->lit){
+		$wasLit = $this->lit;
+		if(!parent::onBreak($item, $player, $returnedItems)){
+			return false;
+		}
+		RedstoneManager::getInstance()->get($this->position->getWorld())->removeExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
+		if($wasLit){
 			$this->lit = false;
 			foreach($this->getRelyingOnSupportBlocks() as $block){
 				$block->power($this);
 			}
 		}
-
-		RedstoneManager::getInstance()->get($this->position->getWorld())->removeExtraDataAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
-		return parent::onBreak($item, $player, $returnedItems);
+		return true;
 	}
 }

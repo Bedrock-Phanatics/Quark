@@ -108,7 +108,11 @@ trait PressurePlateTrait{
 	}
 
 	public function onBreak(Item $item, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($this->hasOutputSignal()){
+		$hadSignal = $this->hasOutputSignal();
+		if(!parent::onBreak($item, $player, $returnedItems)){
+			return false;
+		}
+		if($hadSignal){
 			if($this instanceof AnalogRedstoneSignalEmitter){
 				$this->setOutputSignalStrength(0);
 			}else{
@@ -118,6 +122,6 @@ trait PressurePlateTrait{
 				$block->power($this);
 			}
 		}
-		return parent::onBreak($item, $player, $returnedItems);
+		return true;
 	}
 }

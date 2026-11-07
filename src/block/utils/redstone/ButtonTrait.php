@@ -91,14 +91,17 @@ trait ButtonTrait{
 	}
 
 	public function onBreak(Item $item, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($this->pressed){
+		$wasPressed = $this->pressed;
+		if(!parent::onBreak($item, $player, $returnedItems)){
+			return false;
+		}
+		if($wasPressed){
 			$this->pressed = false;
 			foreach($this->getRelyingOnSupportBlocks() as $block){
 				$block->power($this);
 			}
 		}
-
-		return parent::onBreak($item, $player, $returnedItems);
+		return true;
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{

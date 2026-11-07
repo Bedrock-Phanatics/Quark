@@ -35,8 +35,6 @@ use quark\world\sound\RedstonePowerOnSound;
 trait LeverRedstoneTrait{
 	use RedstoneBlockAccessTrait;
 
-	private ?int $redstoneSupportingSide = null;
-
 	public function getPowerLevel() : int{ return $this->activated ? 15 : 0; }
 	public function getOutputPowerLevel() : int{ return $this->getPowerLevel(); }
 	public function canPower(int $side) : bool{ return true; }
@@ -58,21 +56,15 @@ trait LeverRedstoneTrait{
 	private function getRedstoneDependants() : Generator{
 		yield from $this->getRedstoneDependantsOnSupport();
 		$skipSide = $this->getSupportingSide();
-		foreach(Facing::HORIZONTAL as $side){
+		foreach(Facing::ALL as $side){
 			if($side !== $skipSide && ($block = RedstoneBlockUtils::getBlockAtSide($this->position, $side)) instanceof Transmittable){
 				yield $block;
 			}
 		}
 	}
 
-	public function setFacing(LeverFacing $facing) : self{
-		$this->redstoneSupportingSide = null;
-		$this->facing = $facing;
-		return $this;
-	}
-
 	public function getSupportingSide() : int{
-		return $this->redstoneSupportingSide ??= match($this->facing){
+		return match($this->facing){
 			LeverFacing::DOWN_AXIS_X, LeverFacing::DOWN_AXIS_Z => Facing::UP,
 			LeverFacing::UP_AXIS_X, LeverFacing::UP_AXIS_Z => Facing::DOWN,
 			default => Facing::opposite($this->facing->getFacing())
@@ -80,11 +72,15 @@ trait LeverRedstoneTrait{
 	}
 
 	public function onBreak(Item $item, ?Player $player = null, array &$returnedItems = []) : bool{
-		if($this->activated){
+		$wasActivated = $this->activated;
+		if(!parent::onBreak($item, $player, $returnedItems)){
+			return false;
+		}
+		if($wasActivated){
 			$this->activated = false;
 			foreach($this->getRedstoneDependantsOnSupport() as $block){ $block->power($this); }
 		}
-		return parent::onBreak($item, $player, $returnedItems);
+		return true;
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{

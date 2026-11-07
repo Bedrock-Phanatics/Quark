@@ -35,8 +35,6 @@ use quark\item\Item;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;
 use quark\world\BlockTransaction;
-use quark\world\sound\RedstonePowerOffSound;
-use quark\world\sound\RedstonePowerOnSound;
 
 class Lever extends Flowable implements PowerSource, RedstoneSignalEmitter{
 	use LeverRedstoneTrait;
@@ -94,20 +92,8 @@ class Lever extends Flowable implements PowerSource, RedstoneSignalEmitter{
 		}
 	}
 
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		$this->activated = !$this->activated;
-		$world = $this->position->getWorld();
-		$world->setBlock($this->position, $this);
-		$world->addSound(
-			$this->position->add(0.5, 0.5, 0.5),
-			$this->activated ? new RedstonePowerOnSound() : new RedstonePowerOffSound()
-		);
-		return true;
-	}
-
 	private function canBeSupportedAt(Block $block, int $face) : bool{
 		return $block->getAdjacentSupportType($face)->hasCenterSupport();
 	}
 
-	//TODO
 }
