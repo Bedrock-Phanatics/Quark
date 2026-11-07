@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\player;
 
+use DateMalformedStringException;
+use DateTimeImmutable;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\LongTag;
 
@@ -36,12 +38,18 @@ class OfflinePlayer implements IPlayer{
 		return $this->name;
 	}
 
-	public function getFirstPlayed() : ?int{
-		return ($this->namedtag !== null && ($firstPlayedTag = $this->namedtag->getTag(Player::TAG_FIRST_PLAYED)) instanceof LongTag) ? $firstPlayedTag->getValue() : null;
+	/**
+	 * @throws DateMalformedStringException
+	 */
+	public function getFirstPlayed() : ?DateTimeImmutable{
+		return ($this->namedtag !== null && ($firstPlayedTag = $this->namedtag->getTag(Player::TAG_FIRST_PLAYED)) instanceof LongTag) ? new DateTimeImmutable('@' . $firstPlayedTag->getValue() / 1000) : null;
 	}
 
-	public function getLastPlayed() : ?int{
-		return ($this->namedtag !== null && ($lastPlayedTag = $this->namedtag->getTag(Player::TAG_LAST_PLAYED)) instanceof LongTag) ? $lastPlayedTag->getValue() : null;
+	/**
+	 * @throws DateMalformedStringException
+	 */
+	public function getLastPlayed() : ?DateTimeImmutable{
+		return ($this->namedtag !== null && ($lastPlayedTag = $this->namedtag->getTag(Player::TAG_LAST_PLAYED)) instanceof LongTag) ? new DateTimeImmutable('@' . $lastPlayedTag->getValue() / 1000) : null;
 	}
 
 	public function hasPlayedBefore() : bool{
