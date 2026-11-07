@@ -27,6 +27,7 @@ use quark\command\Command;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use Vow\Promise;
 use function microtime;
 use function round;
 
@@ -44,15 +45,18 @@ class SaveCommand extends VanillaCommand{
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_start());
 		$start = microtime(true);
 
+		$saves = [];
 		foreach($sender->getServer()->getOnlinePlayers() as $player){
-			$player->save();
+			$saves[] = $player->save();
 		}
 
 		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
 			$world->save(true);
 		}
 
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_success((string) round(microtime(true) - $start, 3)));
+		Promise::all($saves)->observe(static function() use ($sender, $start) : void{
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_success((string) round(microtime(true) - $start, 3)));
+		});
 
 		return true;
 	}

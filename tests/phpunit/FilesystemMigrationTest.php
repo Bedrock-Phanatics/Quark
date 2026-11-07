@@ -283,7 +283,7 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("unclassified recovery data", file_get_contents($this->root . "/restore/keep.bin"));
 		self::assertSame($worldHash, hash_file("sha256", $this->paths->worlds() . "/Lobby/level.dat"));
 		self::assertSame($playerHash, hash_file("sha256", $this->paths->players() . "/alice.dat"));
-		self::assertSame("Alice", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("alice")?->getString("name"));
+		self::assertSame("Alice", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("alice")->value()?->getString("name"));
 		$server = self::table(CoreConfig::load($this->paths->serverToml()), "server");
 		self::assertSame("Integrated Legacy", $server["motd"]);
 		self::assertSame("Lobby", $server["level-name"]);
@@ -528,13 +528,13 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame(123, (new BedrockWorldData($worldPath . "/level.dat"))->getTime());
 
 		$players = new DatFilePlayerDataProvider($this->paths->players());
-		self::assertTrue($players->hasData("ALICE"));
-		$data = $players->loadData("alice");
+		self::assertTrue($players->hasData("ALICE")->value());
+		$data = $players->loadData("alice")->value();
 		self::assertNotNull($data);
 		self::assertSame("Alice", $data->getString("name"));
 		$data->setString("rank", "admin");
 		$players->saveData("ALICE", $data);
-		self::assertSame("admin", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("Alice")?->getString("rank"));
+		self::assertSame("admin", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("Alice")->value()?->getString("rank"));
 		self::assertFileDoesNotExist($this->root . "/players/alice.dat");
 		self::assertDirectoryDoesNotExist($this->root . "/worlds");
 	}

@@ -1363,14 +1363,34 @@ class NetworkSession{
 			}
 		}
 
-		//TODO: make player data loading async
 		//TODO: we shouldn't be loading player data here at all, but right now we don't have any choice :(
-		$this->cachedOfflinePlayerData = $this->server->getOfflinePlayerData($this->info->getUsername());
+		$this->server->getOfflinePlayerData($this->info->getUsername())->observe(
+			fn(?CompoundTag $data) => $this->onOfflinePlayerDataLoaded($data, $checkXUID, $kickForXUIDMismatch, $clientPubKey),
+			function(\Throwable $e) : void{
+				$this->logger->logException($e);
+				$this->disconnectWithError(
+					reason: "Failed to load player data: " . $e->getMessage(),
+					disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
+				);
+			}
+		);
+	}
+
+	/**
+	 * @phpstan-param \Closure(string) : bool $kickForXUIDMismatch
+	 */
+	private function onOfflinePlayerDataLoaded(?CompoundTag $data, bool $checkXUID, \Closure $kickForXUIDMismatch, string $clientPubKey) : void{
+		if(!$this->connected){
+			return;
+		}
+		$this->cachedOfflinePlayerData = $data;
 		if($checkXUID){
 			$recordedXUID = $this->cachedOfflinePlayerData !== null ? $this->cachedOfflinePlayerData->getTag(Player::TAG_LAST_KNOWN_XUID) : null;
 			if(!($recordedXUID instanceof StringTag)){
 				$this->logger->debug("No previous XUID recorded, no choice but to trust this player");
-			}elseif(!$kickForXUIDMismatch($recordedXUID->getValue())){
+			}elseif($kickForXUIDMismatch($recordedXUID->getValue())){
+				return;
+			}else{
 				$this->logger->debug("XUID match");
 			}
 		}

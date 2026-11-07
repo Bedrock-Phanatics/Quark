@@ -92,7 +92,6 @@ use quark\player\OfflinePlayer;
 use quark\player\Player;
 use quark\player\PlayerDataLoadException;
 use quark\player\PlayerDataProvider;
-use quark\player\PlayerDataSaveException;
 use quark\player\PlayerInfo;
 use quark\plugin\PharPluginLoader;
 use quark\plugin\PluginEnableOrder;
@@ -322,6 +321,8 @@ class Server{
 	private FilesystemPaths $paths;
 
 	private PlayerDataProvider $playerDataProvider;
+	/** @var array<string, Promise<mixed>> last unfinished provider operation per lowercase player name */
+	private array $playerDataTails = [];
 
 	private QueryInfo $queryInfo;
 
@@ -696,37 +697,51 @@ class Server{
 		return $this->configGroup->getPropertyBool(Yml::PLAYER_SAVE_PLAYER_DATA, true);
 	}
 
-	public function getOfflinePlayer(string $name) : Player|OfflinePlayer|null{
+	/**
+	 * @phpstan-return Promise<Player|OfflinePlayer>
+	 */
+	public function getOfflinePlayer(string $name) : Promise{
 		$name = strtolower($name);
-		$result = $this->getPlayerExact($name);
-
-		if($result === null){
-			$result = new OfflinePlayer($name, $this->getOfflinePlayerData($name));
+		$player = $this->getPlayerExact($name);
+		if($player !== null){
+			return Promise::resolved($player);
 		}
 
-		return $result;
+		return $this->getOfflinePlayerData($name)->then(fn(?CompoundTag $data) => new OfflinePlayer($name, $data));
 	}
 
 	/**
-	 * Returns whether the server has stored any saved data for this player.
+	 * Resolves with whether the server has stored any saved data for this player.
+	 *
+	 * @phpstan-return Promise<bool>
 	 */
-	public function hasOfflinePlayerData(string $name) : bool{
-		return $this->playerDataProvider->hasData($name);
+	public function hasOfflinePlayerData(string $name) : Promise{
+		return $this->queuePlayerData($name, fn() => $this->playerDataProvider->hasData($name));
 	}
 
-	public function getOfflinePlayerData(string $name) : ?CompoundTag{
-		return PulseZones::$syncPlayerDataLoad->time(function() use ($name) : ?CompoundTag{
-			try{
-				return $this->playerDataProvider->loadData($name);
-			}catch(PlayerDataLoadException $e){
+	/**
+	 * Resolves with the saved data for this player, or null if there is none or it couldn't be read.
+	 *
+	 * @phpstan-return Promise<?CompoundTag>
+	 */
+	public function getOfflinePlayerData(string $name) : Promise{
+		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataLoad->time(fn() => $this->playerDataProvider->loadData($name)))
+			->catch(function(\Throwable $e) use ($name) : ?CompoundTag{
+				if(!$e instanceof PlayerDataLoadException){
+					throw $e;
+				}
 				$this->logger->debug("Failed to load player data for $name: " . $e->getMessage());
 				$this->logger->error($this->language->translate(KnownTranslationFactory::quark_data_playerCorrupted($name)));
 				return null;
-			}
-		});
+			});
 	}
 
-	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag) : void{
+	/**
+	 * Resolves once the data has been written or the save has failed or been cancelled. It never rejects.
+	 *
+	 * @phpstan-return Promise<null>
+	 */
+	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag) : Promise{
 		$ev = new PlayerDataSaveEvent($nbtTag, $name, $this->getPlayerExact($name));
 		if(!$this->shouldSavePlayerData()){
 			$ev->cancel();
@@ -734,15 +749,51 @@ class Server{
 
 		$ev->call();
 
-		if(!$ev->isCancelled()){
-			PulseZones::$syncPlayerDataSave->time(function() use ($name, $ev) : void{
-				try{
-					$this->playerDataProvider->saveData($name, $ev->getSaveData());
-				}catch(PlayerDataSaveException $e){
-					$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
-					$this->logger->logException($e);
-				}
+		if($ev->isCancelled()){
+			return Promise::resolved(null);
+		}
+
+		$data = $ev->getSaveData();
+		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $data)))
+			->catch(function(\Throwable $e) use ($name) : null{
+				$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
+				$this->logger->logException($e);
+				return null;
 			});
+	}
+
+	/**
+	 * Runs the operation once earlier operations on the same player's data have settled, so a quick rejoin always
+	 * loads what the previous session saved.
+	 *
+	 * @phpstan-template T
+	 * @phpstan-param \Closure() : Promise<T> $operation
+	 * @phpstan-return Promise<T>
+	 */
+	private function queuePlayerData(string $name, \Closure $operation) : Promise{
+		$key = strtolower($name);
+		$previous = $this->playerDataTails[$key] ?? null;
+		$promise = $previous === null ? $operation() : $previous->then($operation, $operation);
+		if($promise->isPending()){
+			$this->playerDataTails[$key] = $promise;
+			$release = function() use ($key, $promise) : void{
+				if(($this->playerDataTails[$key] ?? null) === $promise){
+					unset($this->playerDataTails[$key]);
+				}
+			};
+			$promise->then($release, $release);
+		}
+		return $promise;
+	}
+
+	private function drainPlayerData() : void{
+		$deadline = microtime(true) + 30;
+		while($this->playerDataTails !== [] && microtime(true) < $deadline){
+			if(isset($this->asyncPool)){ $this->asyncPool->collectTasks(); }
+			usleep(1000);
+		}
+		if($this->playerDataTails !== []){
+			$this->logger->error("Timed out waiting for player data to be saved");
 		}
 	}
 
@@ -1746,6 +1797,7 @@ class Server{
 			if(isset($this->network)){
 				$this->network->getSessionManager()->close($this->configGroup->getPropertyString(Yml::SETTINGS_SHUTDOWN_MESSAGE, "Server closed"));
 			}
+			$this->drainPlayerData();
 
 			if(isset($this->worldManager)){
 				$this->logger->debug("Unloading all worlds");

@@ -32,6 +32,7 @@ use pocketmine\nbt\TreeRoot;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
+use Vow\Promise;
 use function file_exists;
 use function rename;
 use function strtolower;
@@ -57,11 +58,28 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 		rename($path, $path . '.bak');
 	}
 
-	public function hasData(string $name) : bool{
-		return file_exists($this->getPlayerDataPath($name));
+	public function hasData(string $name) : Promise{
+		return Promise::resolved(file_exists($this->getPlayerDataPath($name)));
 	}
 
-	public function loadData(string $name) : ?CompoundTag{
+	public function loadData(string $name) : Promise{
+		try{
+			return Promise::resolved($this->read($name));
+		}catch(PlayerDataLoadException $e){
+			return Promise::rejected($e);
+		}
+	}
+
+	public function saveData(string $name, CompoundTag $data) : Promise{
+		try{
+			$this->write($name, $data);
+			return Promise::resolved(null);
+		}catch(PlayerDataSaveException $e){
+			return Promise::rejected($e);
+		}
+	}
+
+	private function read(string $name) : ?CompoundTag{
 		$name = strtolower($name);
 		$path = $this->getPlayerDataPath($name);
 
@@ -89,7 +107,7 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 		}
 	}
 
-	public function saveData(string $name, CompoundTag $data) : void{
+	private function write(string $name, CompoundTag $data) : void{
 		$contents = Utils::assumeNotFalse(zlib_encode(Nbt::write(new TreeRoot($data), Nbt::JAVA), ZLIB_ENCODING_GZIP), "zlib_encode() failed unexpectedly");
 		try{
 			Filesystem::safeFilePutContents($this->getPlayerDataPath($name), $contents);

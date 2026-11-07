@@ -148,6 +148,7 @@ use quark\world\World;
 use quark\YmlServerProperties;
 use Ramsey\Uuid\UuidInterface;
 use Vow\CancelledException;
+use Vow\Promise;
 use function abs;
 use function array_filter;
 use function array_intersect_key;
@@ -2675,10 +2676,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	/**
-	 * Handles player data saving
+	 * Handles player data saving. The promise resolves once the data has been written or the save has failed.
+	 *
+	 * @phpstan-return Promise<null>
 	 */
-	public function save() : void{
-		$this->server->saveOfflinePlayerData($this->username, $this->getSaveData());
+	public function save() : Promise{
+		return $this->server->saveOfflinePlayerData($this->username, $this->getSaveData());
 	}
 
 	protected function onDeath() : void{

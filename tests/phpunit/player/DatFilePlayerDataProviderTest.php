@@ -62,8 +62,9 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 
 	public function testDataRoundTrips() : void{
 		$provider = new DatFilePlayerDataProvider($this->path);
-		$provider->saveData("Steve", self::data());
-		$loaded = $provider->loadData("steve");
+		self::assertTrue($provider->saveData("Steve", self::data())->isFulfilled());
+		self::assertTrue($provider->hasData("STEVE")->value());
+		$loaded = $provider->loadData("steve")->value();
 		self::assertNotNull($loaded);
 		self::assertTrue(self::data()->equals($loaded));
 	}
@@ -72,7 +73,7 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 		$contents = zlib_encode((new BigEndianNbtSerializer())->write(new TreeRoot(self::data())), ZLIB_ENCODING_GZIP);
 		self::assertIsString($contents);
 		file_put_contents(Path::join($this->path, "steve.dat"), $contents);
-		$loaded = (new DatFilePlayerDataProvider($this->path))->loadData("Steve");
+		$loaded = (new DatFilePlayerDataProvider($this->path))->loadData("Steve")->value();
 		self::assertNotNull($loaded);
 		self::assertTrue(self::data()->equals($loaded));
 	}
@@ -81,11 +82,9 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 		$contents = zlib_encode("\x0a\x00\x00\x08\x00\x01a\x00\x05", ZLIB_ENCODING_GZIP);
 		self::assertIsString($contents);
 		file_put_contents(Path::join($this->path, "steve.dat"), $contents);
-		try{
-			(new DatFilePlayerDataProvider($this->path))->loadData("Steve");
-			self::fail("Loaded corrupt player data");
-		}catch(PlayerDataLoadException){
-			self::assertTrue(file_exists(Path::join($this->path, "steve.dat.bak")));
-		}
+		$result = (new DatFilePlayerDataProvider($this->path))->loadData("Steve");
+		self::assertInstanceOf(PlayerDataLoadException::class, $result->reason());
+		$result->observe(null, static fn() => null);
+		self::assertTrue(file_exists(Path::join($this->path, "steve.dat.bak")));
 	}
 }
