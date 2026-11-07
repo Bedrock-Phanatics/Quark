@@ -26,7 +26,9 @@ namespace quark\world\redstone;
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\block\RedstoneComparator;
 use quark\block\RedstoneLamp;
+use quark\block\RedstoneRepeater;
 use quark\block\RedstoneWire;
 use quark\block\utils\LeverFacing;
 use quark\block\VanillaBlocks;
@@ -111,5 +113,39 @@ final class RedstoneCircuitTest extends TestCase{
 		$this->h->breakBlock(0, 1, 0);
 		$this->h->tick(10);
 		self::assertFalse($this->lampLit(1, 2, 0));
+	}
+
+	public function testRepeaterIgnoresPerpendicularRepeaterBehindIt() : void{
+		//the repeater at 1,1,0 points south, past the back of the one at 2,1,0
+		$this->h->place(2, 1, 0, VanillaBlocks::REDSTONE_REPEATER()->setFacing(Facing::WEST));
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE_REPEATER()->setFacing(Facing::NORTH));
+		$this->h->place(1, 1, -1, VanillaBlocks::REDSTONE());
+		$this->h->tick(20);
+		$side = $this->h->get(1, 1, 0);
+		self::assertInstanceOf(RedstoneRepeater::class, $side);
+		self::assertTrue($side->isPowered());
+		$this->h->set(2, 1, -1, VanillaBlocks::STONE()); //makes the front repeater re-read its input
+		$this->h->tick(20);
+		$repeater = $this->h->get(2, 1, 0);
+		self::assertInstanceOf(RedstoneRepeater::class, $repeater);
+		self::assertFalse($repeater->isPowered());
+	}
+
+	public function testSubtractingComparatorFollowsSideWire() : void{
+		$this->h->place(2, 1, 0, VanillaBlocks::REDSTONE_COMPARATOR()->setFacing(Facing::WEST)->setSubtractMode(true));
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->place(2, 1, 1, VanillaBlocks::REDSTONE_WIRE());
+		$this->h->tick(10);
+		$comparator = $this->h->get(2, 1, 0);
+		self::assertInstanceOf(RedstoneComparator::class, $comparator);
+		self::assertSame(15, $comparator->getOutputSignalStrength());
+
+		//the wire reaches 15, the same level the comparator outputs, which must still be picked up
+		$this->h->place(2, 1, 2, VanillaBlocks::REDSTONE());
+		$this->h->tick(10);
+		self::assertSame(15, $this->wire(2, 1, 1)->getOutputSignalStrength());
+		$comparator = $this->h->get(2, 1, 0);
+		self::assertInstanceOf(RedstoneComparator::class, $comparator);
+		self::assertSame(0, $comparator->getOutputSignalStrength());
 	}
 }

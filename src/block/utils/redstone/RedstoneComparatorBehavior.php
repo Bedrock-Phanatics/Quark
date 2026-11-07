@@ -30,6 +30,7 @@ use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\Flowable;
 use quark\block\Glowstone;
+use quark\block\RedstoneWire;
 use quark\block\Slab;
 use quark\block\tile\comparator\ComparatorInventoryListener;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
@@ -95,9 +96,8 @@ trait RedstoneComparatorBehavior{
 	public function power(PowerSource $source) : void{
 		$manager = RedstoneManager::getInstance();
 		if(!$manager->isEnabledAt($this->position) || ($source instanceof Block && !$manager->isEnabledAt($source->getPosition()))){ return; }
-		if($source->getPowerLevel() !== $this->signalStrength){
-			RedstoneManager::getInstance()->get($this->position->getWorld())->scheduleWaitableUpdate($this, RedstoneWorldState::redstoneTicks(1), RedstoneWorldState::WAITABLE_UPDATE_LOW_PRIORITY);
-		}
+		//the source may be any block in the network that changed, so its level says nothing about this comparator's inputs
+		$manager->get($this->position->getWorld())->scheduleWaitableUpdate($this, RedstoneWorldState::redstoneTicks(1), RedstoneWorldState::WAITABLE_UPDATE_LOW_PRIORITY);
 	}
 
 	private function recalculatePower() : int{
@@ -106,7 +106,7 @@ trait RedstoneComparatorBehavior{
 		if(!$manager->isEnabledAt($behind->getPosition())){ return 0; }
 		$world = $manager->get($this->position->getWorld());
 		if($behind instanceof PowerSource){
-			$rear = $behind->getPowerLevel();
+			$rear = $behind instanceof RedstoneWire || $behind->canPower(Facing::opposite($this->facing)) ? $behind->getPowerLevel() : 0;
 		}else{
 			$inventory = self::getReadableInventory($behind);
 			if($inventory !== null){
@@ -132,7 +132,8 @@ trait RedstoneComparatorBehavior{
 		$side_strengths = [];
 		foreach(Facing::axis($this->facing) === Axis::Z ? [Facing::EAST, Facing::WEST] : [Facing::NORTH, Facing::SOUTH] as $side){
 			$sideBlock = RedstoneBlockUtils::getBlockAtSide($this->position, $side);
-			$side_strengths[] = $manager->isEnabledAt($sideBlock->getPosition()) ? ComparatorWeightRegistry::getValue($sideBlock) : 0;
+			$pointsHere = !($sideBlock instanceof PowerSource) || $sideBlock instanceof RedstoneWire || $sideBlock->canPower(Facing::opposite($side));
+			$side_strengths[] = $pointsHere && $manager->isEnabledAt($sideBlock->getPosition()) ? ComparatorWeightRegistry::getValue($sideBlock) : 0;
 		}
 
 		return $this->isSubtractMode ? max($rear - max($side_strengths), 0) :

@@ -30,11 +30,13 @@ use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\Flowable;
 use quark\block\Glowstone;
+use quark\block\RedstoneWire;
 use quark\block\Slab;
 use quark\block\utils\SlabType;
 use quark\item\Item;
 use quark\player\Player;
-use quark\world\BlockTransaction;use quark\world\redstone\RedstoneManager;
+use quark\world\BlockTransaction;
+use quark\world\redstone\RedstoneManager;
 use quark\world\redstone\RedstoneWorldState;
 use function assert;
 
@@ -125,7 +127,11 @@ trait RedstoneRepeaterBehavior{
 	private function recalculatePower(RedstoneWorldState $world) : int{
 		$behind = RedstoneBlockUtils::getBlockAtSide($this->position, $this->facing); //The stored facing points toward the repeater input.
 		if(!RedstoneManager::getInstance()->isEnabledAt($behind->getPosition())){ return 0; }
-		return (($behind instanceof PowerSource && $behind->getPowerLevel() > 0) || $world->isStronglyPowered($behind, $opposite_side = Facing::opposite($this->facing), $opposite_side)) ? 15 : 0;
+		$towards = Facing::opposite($this->facing);
+		if($behind instanceof PowerSource){
+			return $behind->getPowerLevel() > 0 && ($behind instanceof RedstoneWire || $behind->canPower($towards)) ? 15 : 0;
+		}
+		return $world->isStronglyPowered($behind, $towards, $towards) ? 15 : 0;
 	}
 
 	public function onRedstoneTickReceive() : void{

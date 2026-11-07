@@ -26,6 +26,7 @@ namespace quark\world\redstone;
 use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
+use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
 use quark\pulse\internal\PulseZones;
@@ -47,6 +48,7 @@ final class RedstoneHarness{
 
 	public function __construct(int $chunkRadius = 1){
 		PulseZones::init();
+		ComparatorWeightRegistry::init();
 		VanillaBlocks::AIR();
 		RedstoneConfig::configure(65536, 262144, 8192, true, true, 1024, 4096);
 
