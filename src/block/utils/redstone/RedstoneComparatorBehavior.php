@@ -30,6 +30,7 @@ use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\Flowable;
 use quark\block\Glowstone;
+use quark\block\Opaque;
 use quark\block\RedstoneWire;
 use quark\block\Slab;
 use quark\block\tile\comparator\ComparatorInventoryListener;
@@ -110,17 +111,15 @@ trait RedstoneComparatorBehavior{
 		}else{
 			$inventory = self::getReadableInventory($behind);
 			if($inventory !== null){
-				$fullness = 0;
-				foreach(RedstoneBlockUtils::fastReadOnlyInventoryContents($inventory) as $item){
-					$fullness += min(1, $item->getCount() / $item->getMaxStackSize());
-				}
-				$rear = $fullness > 0 ? (int) floor(1 + ($fullness / $inventory->getSize()) * 14) : 0;
+				$rear = self::getFullnessSignal($inventory);
 			}else{
 				$rear = 0;
 				/** @var PowerSource $source */
 				foreach($world->getStronglyPoweringSources($behind, $opposite_side = Facing::opposite($this->facing), $opposite_side) as $source){
-					$rear = $source->getPowerLevel();
-					break;
+					$rear = max($rear, $source->getPowerLevel());
+				}
+				if($rear < 15 && ($inventory = $this->getInventoryThroughBlock($behind)) !== null){
+					$rear = max($rear, self::getFullnessSignal($inventory));
 				}
 			}
 		}
@@ -206,6 +205,23 @@ trait RedstoneComparatorBehavior{
 		return false;
 	}
 
+	private static function getFullnessSignal(Inventory $inventory) : int{
+		$fullness = 0;
+		foreach(RedstoneBlockUtils::fastReadOnlyInventoryContents($inventory) as $item){
+			$fullness += min(1, $item->getCount() / $item->getMaxStackSize());
+		}
+		return $fullness > 0 ? (int) floor(1 + ($fullness / $inventory->getSize()) * 14) : 0;
+	}
+
+	//like vanilla, a comparator reads a container through one solid block
+	private function getInventoryThroughBlock(Block $behind) : ?Inventory{
+		if(!$behind instanceof Opaque){
+			return null;
+		}
+		$beyond = RedstoneBlockUtils::getBlockAtSide($behind->position, $this->facing);
+		return RedstoneManager::getInstance()->isEnabledAt($beyond->position) ? self::getReadableInventory($beyond) : null;
+	}
+
 	/**
 	 * Returns what a comparator reads from the block, including both halves of a double chest.
 	 */
@@ -219,7 +235,8 @@ trait RedstoneComparatorBehavior{
 	}
 
 	private function notifyContainer() : void{
-		$inventory = self::getReadableInventory(RedstoneBlockUtils::getBlockAtSide($this->position, $this->facing));
+		$behind = RedstoneBlockUtils::getBlockAtSide($this->position, $this->facing);
+		$inventory = self::getReadableInventory($behind) ?? $this->getInventoryThroughBlock($behind);
 		if($inventory === null){
 			return;
 		}

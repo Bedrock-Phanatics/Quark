@@ -33,6 +33,7 @@ use quark\block\RedstoneLamp;
 use quark\block\RedstoneRepeater;
 use quark\block\RedstoneTorch;
 use quark\block\RedstoneWire;
+use quark\block\tile\ContainerTile;
 use quark\block\utils\LeverFacing;
 use quark\block\VanillaBlocks;
 use quark\entity\Location;
@@ -244,6 +245,27 @@ final class RedstoneCircuitTest extends TestCase{
 		$this->h->tick(5);
 		self::assertFalse($this->doorOpen(), "losing power closes it");
 		self::assertSame(0, $this->h->state()->getDataChunkCount());
+	}
+
+	public function testComparatorReadsContainerThroughSolidBlock() : void{
+		$this->h->place(3, 1, 0, VanillaBlocks::REDSTONE_COMPARATOR()->setFacing(Facing::WEST));
+		$this->h->set(2, 1, 0, VanillaBlocks::STONE());
+		$this->h->place(1, 1, 0, VanillaBlocks::HOPPER());
+		$tile = $this->h->world->getTileAt(1, 1, 0);
+		self::assertInstanceOf(ContainerTile::class, $tile);
+		$this->h->tick(4);
+
+		$tile->getInventory()->setItem(0, VanillaItems::STICK()->setCount(64));
+		$this->h->tick(4);
+		$comparator = $this->h->get(3, 1, 0);
+		self::assertInstanceOf(RedstoneComparator::class, $comparator);
+		self::assertSame(3, $comparator->getOutputSignalStrength(), "one full slot of five");
+
+		$tile->getInventory()->clearAll();
+		$this->h->tick(4);
+		$comparator = $this->h->get(3, 1, 0);
+		self::assertInstanceOf(RedstoneComparator::class, $comparator);
+		self::assertSame(0, $comparator->getOutputSignalStrength());
 	}
 
 	public function testPoweredHopperLocks() : void{
