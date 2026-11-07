@@ -51,18 +51,24 @@ final class CreativeInventoryCache{
 	 */
 	private array $caches = [];
 
+	/**
+	 * @var true[]
+	 * @phpstan-var array<int, true>
+	 */
+	private array $watched = [];
+
 	private function getCacheEntry(CreativeInventory $inventory) : CreativeInventoryCacheEntry{
 		$id = spl_object_id($inventory);
-		if(!isset($this->caches[$id])){
+		if(!isset($this->watched[$id])){
+			$this->watched[$id] = true;
 			$inventory->getDestructorCallbacks()->add(function() use ($id) : void{
-				unset($this->caches[$id]);
+				unset($this->caches[$id], $this->watched[$id]);
 			});
 			$inventory->getContentChangedCallbacks()->add(function() use ($id) : void{
 				unset($this->caches[$id]);
 			});
-			$this->caches[$id] = $this->buildCacheEntry($inventory);
 		}
-		return $this->caches[$id];
+		return $this->caches[$id] ??= $this->buildCacheEntry($inventory);
 	}
 
 	/**
