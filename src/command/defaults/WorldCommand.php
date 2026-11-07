@@ -28,6 +28,7 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use quark\utils\TextFormat;
 use quark\world\generator\Generator;
 use quark\world\generator\GeneratorManager;
@@ -40,13 +41,13 @@ use function strtolower;
 
 final class WorldCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct("world", "Manages worlds", "/world <list|tp|load|unload|create|copy|delete> [args]");
 		$this->setPermission(DefaultPermissionNames::COMMAND_WORLD);
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$manager = $sender->getServer()->getWorldManager();
+		$manager = $this->server->getWorldManager();
 		$mode = strtolower(array_shift($args) ?? "list");
 		$name = $args[0] ?? null;
 
@@ -70,10 +71,10 @@ final class WorldCommand extends VanillaCommand{
 						$sender->sendMessage(TextFormat::RED . "World \"$name\" is not loaded");
 						return true;
 					}
-					$player = $this->fetchPermittedPlayerTarget($sender, $args[1] ?? null, DefaultPermissionNames::COMMAND_WORLD, DefaultPermissionNames::COMMAND_WORLD);
+					$player = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[1] ?? null, DefaultPermissionNames::COMMAND_WORLD, DefaultPermissionNames::COMMAND_WORLD);
 					if($player !== null){
 						$player->teleport($world->getSafeSpawn());
-						Command::broadcastCommandMessage($sender, "Teleported " . $player->getName() . " to " . $name);
+						Command::broadcastCommandMessage($this->server, $sender, "Teleported " . $player->getName() . " to " . $name);
 					}
 					return true;
 
@@ -92,7 +93,7 @@ final class WorldCommand extends VanillaCommand{
 					if($world === null){
 						$sender->sendMessage(TextFormat::RED . "World \"$name\" is not loaded");
 					}elseif($manager->unloadWorld($world)){
-						Command::broadcastCommandMessage($sender, "Unloaded world \"$name\"");
+						Command::broadcastCommandMessage($this->server, $sender, "Unloaded world \"$name\"");
 					}else{
 						$sender->sendMessage(TextFormat::RED . "Unloading \"$name\" was cancelled");
 					}
@@ -110,7 +111,7 @@ final class WorldCommand extends VanillaCommand{
 					}
 					$options = WorldCreationOptions::create()
 						->setGeneratorClass($generator->getGeneratorClass())
-						->setDifficulty($sender->getServer()->getDifficulty());
+						->setDifficulty($this->server->getDifficulty());
 					if(isset($args[2]) && ($seed = Generator::convertSeed($args[2])) !== null){
 						$options->setSeed($seed);
 					}
@@ -118,7 +119,7 @@ final class WorldCommand extends VanillaCommand{
 						$options->setSpawnPosition($spawn);
 					}
 					if($manager->generateWorld($name, $options)){
-						Command::broadcastCommandMessage($sender, "Created world \"$name\"");
+						Command::broadcastCommandMessage($this->server, $sender, "Created world \"$name\"");
 					}else{
 						$sender->sendMessage(TextFormat::RED . "World \"$name\" already exists or the name is invalid");
 					}

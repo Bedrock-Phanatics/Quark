@@ -28,7 +28,6 @@ use quark\lang\Language;
 use quark\lang\Translatable;
 use quark\permission\PermissibleBase;
 use quark\permission\PermissibleDelegateTrait;
-use quark\Server;
 use const PHP_INT_MAX;
 
 /**
@@ -42,7 +41,6 @@ final class BroadcastLoggerForwarder implements CommandSender{
 	use PermissibleDelegateTrait;
 
 	public function __construct(
-		private Server $server, //annoying useless dependency
 		private \Logger $logger,
 		private Language $language
 	){
@@ -60,10 +58,6 @@ final class BroadcastLoggerForwarder implements CommandSender{
 		}else{
 			$this->logger->info($message);
 		}
-	}
-
-	public function getServer() : Server{
-		return $this->server;
 	}
 
 	public function getName() : string{

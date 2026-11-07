@@ -140,13 +140,12 @@ final class PulseIntegrationTest extends TestCase{
 		/** @var \ArrayObject<int, string> $messages */
 		$messages = new \ArrayObject();
 		$sender = self::createStub(CommandSender::class);
-		$sender->method("getServer")->willReturn($server);
 		$sender->method("getName")->willReturn("test");
 		$sender->method("sendMessage")->willReturnCallback(static function(Translatable|string $message) use ($messages) : void{
 			self::assertIsString($message);
 			$messages[] = $message;
 		});
-		$command = new PulseCommand();
+		$command = new PulseCommand($server);
 		$command->execute($sender, "pulse", []);
 		self::assertStringContainsString("Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
@@ -330,9 +329,8 @@ final class PulseIntegrationTest extends TestCase{
 		$server = self::createStub(Server::class);
 		$server->method("getPulse")->willReturn($recorder);
 		$sender = self::createMock(CommandSender::class);
-		$sender->method("getServer")->willReturn($server);
 		$sender->expects(self::once())->method("sendMessage")->with("Pulse is waiting for 1 worker operations");
-		(new PulseCommand())->execute($sender, "pulse", ["status"]);
+		(new PulseCommand($server))->execute($sender, "pulse", ["status"]);
 		try{ $recorder->start(); self::fail("Restart must wait for worker reset"); }catch(\LogicException){}
 		self::assertInstanceOf(PulseControlTask::class, $task);
 		$task->onCompletion();

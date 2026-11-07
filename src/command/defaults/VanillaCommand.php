@@ -28,6 +28,7 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\player\Player;
+use quark\Server;
 use quark\utils\TextFormat;
 use function is_numeric;
 use function substr;
@@ -36,10 +37,10 @@ abstract class VanillaCommand extends Command{
 	public const MAX_COORD = 30000000;
 	public const MIN_COORD = -30000000;
 
-	protected function fetchPermittedPlayerTarget(CommandSender $sender, ?string $target, string $selfPermission, string $otherPermission) : ?Player{
+	protected function fetchPermittedPlayerTarget(Server $server, CommandSender $sender, ?string $target, string $selfPermission, string $otherPermission) : ?Player{
 		//TODO: we need proper command selector support, but this one is useful and easy to hack in for now
 		if($target !== null && $target !== "@s"){
-			$player = $sender->getServer()->getPlayerByPrefix($target);
+			$player = $server->getPlayerByPrefix($target);
 			if($player === null){
 				$sender->sendMessage(KnownTranslationFactory::quark_command_error_playerNotFound($target)->prefix(TextFormat::RED));
 				return null;

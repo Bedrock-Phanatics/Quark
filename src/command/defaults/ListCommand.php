@@ -27,6 +27,7 @@ use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use function array_filter;
 use function array_map;
 use function count;
@@ -36,7 +37,7 @@ use const SORT_STRING;
 
 class ListCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"list",
 			KnownTranslationFactory::quark_command_list_description()
@@ -47,12 +48,12 @@ class ListCommand extends VanillaCommand{
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		$playerNames = array_map(function(Player $player) : string{
 			return $player->getName();
-		}, array_filter($sender->getServer()->getOnlinePlayers(), function(Player $player) use ($sender) : bool{
+		}, array_filter($this->server->getOnlinePlayers(), function(Player $player) use ($sender) : bool{
 			return !($sender instanceof Player) || $sender->canSee($player);
 		}));
 		sort($playerNames, SORT_STRING);
 
-		$sender->sendMessage(KnownTranslationFactory::commands_players_list((string) count($playerNames), (string) $sender->getServer()->getMaxPlayers()));
+		$sender->sendMessage(KnownTranslationFactory::commands_players_list((string) count($playerNames), (string) $this->server->getMaxPlayers()));
 		$sender->sendMessage(implode(", ", $playerNames));
 
 		return true;

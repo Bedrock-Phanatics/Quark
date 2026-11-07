@@ -29,6 +29,7 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use quark\utils\TextFormat;
 use function array_shift;
 use function count;
@@ -36,7 +37,7 @@ use function implode;
 
 class TellCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"tell",
 			KnownTranslationFactory::quark_command_tell_description(),
@@ -51,7 +52,7 @@ class TellCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$player = $sender->getServer()->getPlayerByPrefix(array_shift($args));
+		$player = $this->server->getPlayerByPrefix(array_shift($args));
 
 		if($player === $sender){
 			$sender->sendMessage(KnownTranslationFactory::commands_message_sameTarget()->prefix(TextFormat::RED));
@@ -63,7 +64,7 @@ class TellCommand extends VanillaCommand{
 			$sender->sendMessage(KnownTranslationFactory::commands_message_display_outgoing($player->getDisplayName(), $message)->prefix(TextFormat::GRAY . TextFormat::ITALIC));
 			$name = $sender instanceof Player ? $sender->getDisplayName() : $sender->getName();
 			$player->sendMessage(KnownTranslationFactory::commands_message_display_incoming($name, $message)->prefix(TextFormat::GRAY . TextFormat::ITALIC));
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_message_display_outgoing($player->getDisplayName(), $message), false);
+			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_message_display_outgoing($player->getDisplayName(), $message), false);
 		}else{
 			$sender->sendMessage(KnownTranslationFactory::commands_generic_player_notFound());
 		}

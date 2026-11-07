@@ -33,13 +33,14 @@ use quark\item\LegacyStringToItemParserException;
 use quark\item\StringToItemParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use quark\utils\TextFormat;
 use function count;
 use function min;
 
 class ClearCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"clear",
 			KnownTranslationFactory::quark_command_clear_description(),
@@ -53,7 +54,7 @@ class ClearCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$target = $this->fetchPermittedPlayerTarget($sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_CLEAR_SELF, DefaultPermissionNames::COMMAND_CLEAR_OTHER);
+		$target = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_CLEAR_SELF, DefaultPermissionNames::COMMAND_CLEAR_OTHER);
 		if($target === null){
 			return true;
 		}
@@ -130,7 +131,7 @@ class ClearCommand extends VanillaCommand{
 		}
 
 		if($clearedCount > 0){
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_clear_success($target->getName(), (string) $clearedCount));
+			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_clear_success($target->getName(), (string) $clearedCount));
 		}else{
 			$sender->sendMessage(KnownTranslationFactory::commands_clear_failure_no_items($target->getName())->prefix(TextFormat::RED));
 		}

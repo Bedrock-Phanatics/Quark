@@ -30,6 +30,7 @@ use quark\entity\Location;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
 use quark\world\World;
@@ -39,7 +40,7 @@ use function round;
 
 class TeleportCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"tp",
 			KnownTranslationFactory::quark_command_tp_description(),
@@ -53,7 +54,7 @@ class TeleportCommand extends VanillaCommand{
 	}
 
 	private function findPlayer(CommandSender $sender, string $playerName) : ?Player{
-		$subject = $sender->getServer()->getPlayerByPrefix($playerName);
+		$subject = $this->server->getPlayerByPrefix($playerName);
 		if($subject === null){
 			$sender->sendMessage(KnownTranslationFactory::quark_command_error_playerNotFound($playerName)->prefix(TextFormat::RED));
 			return null;
@@ -77,7 +78,7 @@ class TeleportCommand extends VanillaCommand{
 				throw new InvalidCommandSyntaxException();
 		}
 
-		$subject = $this->fetchPermittedPlayerTarget($sender, $subjectName, DefaultPermissionNames::COMMAND_TELEPORT_SELF, DefaultPermissionNames::COMMAND_TELEPORT_OTHER);
+		$subject = $this->fetchPermittedPlayerTarget($this->server, $sender, $subjectName, DefaultPermissionNames::COMMAND_TELEPORT_SELF, DefaultPermissionNames::COMMAND_TELEPORT_OTHER);
 		if($subject === null){
 			return true;
 		}
@@ -90,7 +91,7 @@ class TeleportCommand extends VanillaCommand{
 				}
 
 				$subject->teleport($targetPlayer->getLocation());
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_tp_success($subject->getName(), $targetPlayer->getName()));
+				Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_tp_success($subject->getName(), $targetPlayer->getName()));
 
 				return true;
 			case 3:
@@ -110,7 +111,7 @@ class TeleportCommand extends VanillaCommand{
 				$targetLocation = new Location($x, $y, $z, $base->getWorld(), $yaw, $pitch);
 
 				$subject->teleport($targetLocation);
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_tp_success_coordinates(
+				Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_tp_success_coordinates(
 					$subject->getName(),
 					(string) round($targetLocation->x, 2),
 					(string) round($targetLocation->y, 2),

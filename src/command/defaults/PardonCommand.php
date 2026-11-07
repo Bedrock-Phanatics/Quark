@@ -28,11 +28,12 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use function count;
 
 class PardonCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"pardon",
 			KnownTranslationFactory::quark_command_unban_player_description(),
@@ -47,9 +48,9 @@ class PardonCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$sender->getServer()->getNameBans()->remove($args[0]);
+		$this->server->getNameBans()->remove($args[0]);
 
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_unban_success($args[0]));
+		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_unban_success($args[0]));
 
 		return true;
 	}

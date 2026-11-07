@@ -28,12 +28,13 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\GameMode;
+use quark\Server;
 use quark\ServerProperties;
 use function count;
 
 class DefaultGamemodeCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"defaultgamemode",
 			KnownTranslationFactory::quark_command_defaultgamemode_description(),
@@ -54,7 +55,7 @@ class DefaultGamemodeCommand extends VanillaCommand{
 		}
 
 		//TODO: this probably shouldn't use the enum name directly
-		$sender->getServer()->getConfigGroup()->setConfigString(ServerProperties::GAME_MODE, $gameMode->name);
+		$this->server->getConfigGroup()->setConfigString(ServerProperties::GAME_MODE, $gameMode->name);
 		$sender->sendMessage(KnownTranslationFactory::commands_defaultgamemode_success($gameMode->getTranslatableName()));
 		return true;
 	}

@@ -27,6 +27,7 @@ use quark\command\Command;
 use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use quark\utils\TextFormat;
 use function array_shift;
 use function count;
@@ -40,7 +41,7 @@ use function strlen;
 use function strtolower;
 
 final class PulseCommand extends VanillaCommand{
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct("pulse", "Record and report server performance", "/pulse [status|start|stop|top|reset|report|help]");
 		$this->setPermission(DefaultPermissionNames::COMMAND_PULSE);
 	}
@@ -82,14 +83,13 @@ final class PulseCommand extends VanillaCommand{
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		$mode = strtolower(array_shift($args) ?? "status");
-		$server = $sender->getServer();
-		$pulse = $server->getPulse();
+		$pulse = $this->server->getPulse();
 		try{
 			switch($mode){
 				case "start":
 					[$duration, $threshold, $maxSpikes] = self::parseOptions($args);
 					$pulse->start($duration, $threshold, $maxSpikes);
-					Command::broadcastCommandMessage($sender, "Pulse started: " . ($duration === 0 ? "until stopped" : sprintf("%.2f s", $duration / 1000000000)) .
+					Command::broadcastCommandMessage($this->server, $sender, "Pulse started: " . ($duration === 0 ? "until stopped" : sprintf("%.2f s", $duration / 1000000000)) .
 						($threshold === 0 ? "; spikes off" : sprintf("; spikes over %.2f ms, retaining %d", $threshold / 1000000, $maxSpikes)));
 					$sender->sendMessage("Use /pulse top to inspect or /pulse stop --report to stop and save");
 					break;
@@ -97,25 +97,25 @@ final class PulseCommand extends VanillaCommand{
 					if($args !== [] && $args !== ["--report"]){ throw new InvalidCommandSyntaxException(); }
 					if($pulse->getSession() === null){ $sender->sendMessage("Pulse is idle. Start with /pulse start 60s --spikes 50ms"); break; }
 					$pulse->stop();
-					Command::broadcastCommandMessage($sender, "Pulse stopped; capture retained");
-					self::sendStatus($sender);
-					if($args === ["--report"]){ self::saveReport($sender); }
+					Command::broadcastCommandMessage($this->server, $sender, "Pulse stopped; capture retained");
+					$this->sendStatus($sender);
+					if($args === ["--report"]){ $this->saveReport($sender); }
 					else{ $sender->sendMessage("Use /pulse report to save or /pulse top to inspect"); }
 					break;
 				case "reset":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
 					$pulse->reset();
-					Command::broadcastCommandMessage($sender, $pulse->isRecording() ? "Pulse reset; recording restarted with the same options" :
+					Command::broadcastCommandMessage($this->server, $sender, $pulse->isRecording() ? "Pulse reset; recording restarted with the same options" :
 						"Pulse cleared" . ($pulse->getPendingOperations() > 0 ? "; waiting for workers to finish" : "; ready to start"));
 					break;
 				case "status":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
-					self::sendStatus($sender);
+					$this->sendStatus($sender);
 					break;
 				case "top":
 					if(count($args) > 1 || (isset($args[0]) && preg_match('/^(?:[1-9]|10)$/D', $args[0]) !== 1)){ throw new InvalidCommandSyntaxException(); }
 					$session = $pulse->getSession();
-					if($session === null){ self::sendStatus($sender); break; }
+					if($session === null){ $this->sendStatus($sender); break; }
 					$top = $session->getTopZones(isset($args[0]) ? (int) $args[0] : 5);
 					if(count($top) === 0){ $sender->sendMessage("Pulse has no completed measurements yet"); break; }
 					$sender->sendMessage("Pulse top: main thread, ranked by self time (excluding child work)");
@@ -126,7 +126,7 @@ final class PulseCommand extends VanillaCommand{
 					break;
 				case "report":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
-					self::saveReport($sender);
+					$this->saveReport($sender);
 					break;
 				case "help":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
@@ -151,8 +151,8 @@ final class PulseCommand extends VanillaCommand{
 		return true;
 	}
 
-	private static function sendStatus(CommandSender $sender) : void{
-		$pulse = $sender->getServer()->getPulse();
+	private function sendStatus(CommandSender $sender) : void{
+		$pulse = $this->server->getPulse();
 		$session = $pulse->getSession();
 		if($session === null){
 			$pending = $pulse->getPendingOperations();
@@ -176,11 +176,11 @@ final class PulseCommand extends VanillaCommand{
 		}
 	}
 
-	private static function saveReport(CommandSender $sender) : void{
-		$promise = $sender->getServer()->createPulseReport();
+	private function saveReport(CommandSender $sender) : void{
+		$promise = $this->server->createPulseReport();
 		$sender->sendMessage("Collecting Pulse report from all threads (up to 30 s)");
 		$promise->onCompletion(
-			fn(string $file) => Command::broadcastCommandMessage($sender, "Pulse report saved to $file"),
+			fn(string $file) => Command::broadcastCommandMessage($this->server, $sender, "Pulse report saved to $file"),
 			fn() => $sender->sendMessage("Pulse report failed: workers timed out or the report could not be saved. The session is retained; try /pulse status.")
 		);
 	}
