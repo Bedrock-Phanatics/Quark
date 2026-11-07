@@ -761,7 +761,8 @@ class Server{
 	 * the data in between and later overwrite the changes.
 	 *
 	 * Resolves with false without saving if the player is online or connecting, has no saved data, or the save is
-	 * cancelled. Rejects if the data can't be loaded or saved.
+	 * cancelled. Nothing is written if $update never reads an inventory. Rejects without saving if the data or one of
+	 * its items can't be loaded, or if $update throws, and rejects if the save fails.
 	 *
 	 * @phpstan-param \Closure(OfflinePlayer) : void $update
 	 * @phpstan-return Promise<bool>
@@ -780,7 +781,11 @@ class Server{
 				$player = new OfflinePlayer($name, $loaded);
 				$update($player);
 
-				$data = $this->callPlayerDataSaveEvent($name, $player->getSaveData() ?? $loaded);
+				$data = $player->getSaveData();
+				if($data === null){
+					return Promise::resolved(true);
+				}
+				$data = $this->callPlayerDataSaveEvent($name, $data);
 				if($data === null){
 					return Promise::resolved(false);
 				}

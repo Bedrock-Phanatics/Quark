@@ -26,6 +26,7 @@ namespace quark\player;
 use DateTimeImmutable;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\LongTag;
+use quark\data\SavedDataLoadingException;
 use quark\entity\Human;
 use quark\inventory\ArmorInventory;
 use quark\inventory\Inventory;
@@ -33,7 +34,8 @@ use quark\inventory\SimpleInventory;
 
 /**
  * A snapshot of a player's saved data. Inventory changes are only saved when made through
- * {@link \quark\Server::updateOfflinePlayer()}.
+ * {@link \quark\Server::updateOfflinePlayer()}. The inventory getters throw {@link SavedDataLoadingException} if a
+ * saved item can't be loaded.
  */
 class OfflinePlayer implements IPlayer{
 	private readonly Inventory $inventory;
@@ -93,23 +95,29 @@ class OfflinePlayer implements IPlayer{
 		return $this->enderInventory;
 	}
 
+	/**
+	 * Unlike a joining player, an item that can't be loaded is an error here rather than air, so an offline update
+	 * never erases items from a newer version or corrupted entries.
+	 *
+	 * @throws SavedDataLoadingException
+	 */
 	private function loadInventories() : void{
 		if(!$this->inventoriesLoaded){
-			$this->inventoriesLoaded = true;
 			if($this->namedtag !== null){
-				Human::readInventories($this->namedtag, $this->inventory, $this->armorInventory, $this->offHandInventory, $this->enderInventory);
+				Human::readInventories($this->namedtag, $this->inventory, $this->armorInventory, $this->offHandInventory, $this->enderInventory, strict: true);
 			}
+			$this->inventoriesLoaded = true;
 		}
 	}
 
 	/**
-	 * Returns the saved data with inventory changes applied, or null if the player has no saved data.
+	 * Returns the saved data with inventory changes applied, or null if the inventories were never loaded.
 	 *
 	 * @internal
 	 */
 	public function getSaveData() : ?CompoundTag{
 		if($this->namedtag === null || !$this->inventoriesLoaded){
-			return $this->namedtag;
+			return null;
 		}
 		$nbt = clone $this->namedtag;
 		Human::writeInventories($nbt, $this->inventory, $this->armorInventory, $this->offHandInventory, $this->enderInventory);

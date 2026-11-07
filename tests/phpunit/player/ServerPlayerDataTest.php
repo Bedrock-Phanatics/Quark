@@ -25,6 +25,7 @@ namespace quark\player;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
 use quark\entity\Skin;
 use quark\item\VanillaItems;
 use quark\lang\Language;
@@ -235,6 +236,25 @@ final class ServerPlayerDataTest extends TestCase{
 		self::assertTrue($result->isRejected());
 		$result->observe(null, static fn() => null);
 		self::assertSame([], $this->tails());
+	}
+
+	public function testUpdateWithUnloadableItemDoesNotSave() : void{
+		$result = $this->server->updateOfflinePlayer("Steve", function(OfflinePlayer $player) : void{ $player->getInventory()->addItem(VanillaItems::DIAMOND()); });
+		$this->provider->settle("load:steve", CompoundTag::create()->setTag("Inventory", new ListTag([
+			CompoundTag::create()->setString("Name", "minecraft:does_not_exist")->setByte("Count", 1)->setByte("Slot", 9),
+		])));
+
+		self::assertTrue($result->isRejected());
+		$result->observe(null, static fn() => null);
+		self::assertSame(["load:steve"], $this->provider->calls);
+	}
+
+	public function testUpdateWithoutInventoryAccessDoesNotSave() : void{
+		$result = $this->server->updateOfflinePlayer("Steve", function(OfflinePlayer $player) : void{ $player->getName(); });
+		$this->provider->settle("load:steve", CompoundTag::create());
+
+		self::assertTrue($result->value());
+		self::assertSame(["load:steve"], $this->provider->calls);
 	}
 }
 

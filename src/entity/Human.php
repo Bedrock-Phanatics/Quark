@@ -302,12 +302,18 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		$inventory->getListeners()->add(...$listeners);
 	}
 
+	private static function readItem(CompoundTag $tag, string $context, bool $strict) : Item{
+		return $strict ? Item::nbtDeserialize($tag) : Item::safeNbtDeserialize($tag, $context);
+	}
+
 	/**
-	 * Fills the inventories from saved human data without notifying their listeners.
+	 * Fills the inventories from saved human data without notifying their listeners. Items that can't be loaded are
+	 * replaced by air unless $strict is set, in which case loading stops with an exception.
 	 *
+	 * @throws SavedDataLoadingException
 	 * @internal
 	 */
-	public static function readInventories(CompoundTag $nbt, Inventory $inventory, Inventory $armorInventory, Inventory $offHandInventory, Inventory $enderInventory) : void{
+	public static function readInventories(CompoundTag $nbt, Inventory $inventory, Inventory $armorInventory, Inventory $offHandInventory, Inventory $enderInventory, bool $strict = false) : void{
 		$inventoryTag = $nbt->getListTag(self::TAG_INVENTORY, CompoundTag::class);
 		if($inventoryTag !== null){
 			$inventoryItems = [];
@@ -317,10 +323,10 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 				$slot = $item->getByte(SavedItemStackData::TAG_SLOT, -1);
 				if($slot >= 100 && $slot < 100 + $armorInventory->getSize()){
 					$armorSlot = $slot - 100;
-					$armorInventoryItems[$armorSlot] = Item::safeNbtDeserialize($item, "Human armor slot $armorSlot");
+					$armorInventoryItems[$armorSlot] = self::readItem($item, "Human armor slot $armorSlot", $strict);
 				}elseif($slot >= Hotbar::SIZE && $slot < $inventory->getSize() + Hotbar::SIZE){
 					$inventorySlot = $slot - Hotbar::SIZE;
-					$inventoryItems[$inventorySlot] = Item::safeNbtDeserialize($item, "Human inventory slot $inventorySlot");
+					$inventoryItems[$inventorySlot] = self::readItem($item, "Human inventory slot $inventorySlot", $strict);
 				}
 			}
 
@@ -330,7 +336,7 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 
 		$offHand = $nbt->getCompoundTag(self::TAG_OFF_HAND_ITEM);
 		if($offHand !== null){
-			self::populateInventoryFromListTag($offHandInventory, [0 => Item::safeNbtDeserialize($offHand, "Human off-hand item")]);
+			self::populateInventoryFromListTag($offHandInventory, [0 => self::readItem($offHand, "Human off-hand item", $strict)]);
 		}
 
 		$enderChestInventoryTag = $nbt->getListTag(self::TAG_ENDER_CHEST_INVENTORY, CompoundTag::class);
@@ -339,7 +345,7 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 			foreach($enderChestInventoryTag as $item){
 				$slot = $item->getByte(SavedItemStackData::TAG_SLOT, -1);
 				if($slot >= 0 && $slot < $enderInventory->getSize()){
-					$enderChestInventoryItems[$slot] = Item::safeNbtDeserialize($item, "Human ender chest slot $slot");
+					$enderChestInventoryItems[$slot] = self::readItem($item, "Human ender chest slot $slot", $strict);
 				}
 			}
 			self::populateInventoryFromListTag($enderInventory, $enderChestInventoryItems);

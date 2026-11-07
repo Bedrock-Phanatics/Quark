@@ -26,6 +26,8 @@ namespace quark\player;
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
+use quark\data\SavedDataLoadingException;
+use quark\item\custom\UnknownCustomItem;
 use quark\item\VanillaItems;
 use function array_keys;
 
@@ -69,9 +71,35 @@ final class OfflinePlayerTest extends TestCase{
 		self::assertTrue($cleared->getOffHandInventory()->getItem(0)->isNull());
 	}
 
-	public function testSaveDataIsUnchangedWhenInventoriesAreNotRead() : void{
-		$data = CompoundTag::create();
-		self::assertSame($data, new OfflinePlayer("Steve", $data)->getSaveData());
+	public function testSaveDataIsNullWhenInventoriesAreNotRead() : void{
+		self::assertNull(new OfflinePlayer("Steve", CompoundTag::create())->getSaveData());
+	}
+
+	public function testUnloadableItemsFailInsteadOfBecomingAir() : void{
+		$data = CompoundTag::create()->setTag("Inventory", new ListTag([
+			CompoundTag::create()->setString("Name", "minecraft:does_not_exist")->setByte("Count", 1)->setByte("Slot", 9),
+		]));
+		$player = new OfflinePlayer("Steve", $data);
+
+		for($attempt = 0; $attempt < 2; ++$attempt){
+			try{
+				$player->getEnderInventory();
+				self::fail("Expected the unknown item to fail loading");
+			}catch(SavedDataLoadingException){
+			}
+		}
+		self::assertNull($player->getSaveData());
+	}
+
+	public function testUnknownCustomItemsSurviveAnUpdate() : void{
+		$player = new OfflinePlayer("Steve", CompoundTag::create()->setTag("Inventory", new ListTag([
+			CompoundTag::create()->setString("Name", "someplugin:gem")->setByte("Count", 1)->setByte("Slot", 9),
+		])));
+		$player->getInventory()->setItem(1, VanillaItems::DIAMOND());
+
+		$item = new OfflinePlayer("Steve", $player->getSaveData())->getInventory()->getItem(0);
+		self::assertInstanceOf(UnknownCustomItem::class, $item);
+		self::assertSame("someplugin:gem", $item->getSavedIdentifier());
 	}
 
 	public function testOutOfRangeEnderChestSlotsAreIgnored() : void{
