@@ -198,7 +198,7 @@ final class CustomItemTest extends TestCase{
 	public function testPersistentAndNetworkRoundTripsPreserveStackData() : void{
 		$item = $this->registerSword();
 		$item->setDamage(42);
-		$item->setCustomName("Named")->setLore(["One", "Two"])->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 3));
+		$item->setCustomName("Named")->setLore(["One", "Two"])->addEnchantment(VanillaEnchantments::SHARPNESS(), 3);
 		$item->getNamedTag()->setString("plugin_data", "value");
 		$saved = $this->serializer->serializeStack($item);
 		self::assertSame("test:ruby_sword", $saved->getTypeData()->getName());
@@ -384,7 +384,7 @@ final class CustomItemTest extends TestCase{
 			self::assertSame($slot, $item->getArmorSlot());
 			self::assertInstanceOf(\quark\block\tile\dispenser\ArmorDispensableItem::class, \quark\block\tile\dispenser\DispensableItemManager::get($item));
 			$item->setCustomColor(new Color(255, 0, 0));
-			$item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::PROTECTION(), 2));
+			$item->addEnchantment(VanillaEnchantments::PROTECTION(), 2);
 			self::assertTrue($item->equalsExact($this->deserializer->deserializeStack($this->serializer->serializeStack($item))));
 			$item->setDamage(99);
 			$item->applyDamage(1);

@@ -119,7 +119,7 @@ final class CustomEquipmentTest extends TestCase{
 	}
 
 	public function testCriticalHitAndSharpnessUseExistingModifiers() : void{
-		$sword = $this->sword()->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 2));
+		$sword = $this->sword()->addEnchantment(VanillaEnchantments::SHARPNESS(), 2);
 		$this->attacker->setMainHandItem($sword);
 		$this->attacker->fallDistance = 1;
 		$event = null;
@@ -150,7 +150,7 @@ final class CustomEquipmentTest extends TestCase{
 	}
 
 	public function testProtectionAndBreakageUseNativeArmorPathAndCallbacks() : void{
-		$helmet = $this->helmet()->addEnchantment(new EnchantmentInstance(VanillaEnchantments::PROTECTION(), 4));
+		$helmet = $this->helmet()->addEnchantment(VanillaEnchantments::PROTECTION(), 4);
 		self::assertInstanceOf(Armor::class, $helmet);
 		$helmet->setDamage(99);
 		$this->victim->getArmorInventory()->setHelmet($helmet);

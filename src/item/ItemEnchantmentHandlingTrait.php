@@ -75,8 +75,8 @@ trait ItemEnchantmentHandlingTrait{
 	/**
 	 * @return $this
 	 */
-	public function addEnchantment(EnchantmentInstance $enchantment) : self{
-		$this->enchantments[spl_object_id($enchantment->getType())] = $enchantment;
+	public function addEnchantment(Enchantment $enchantment, int $level = 1) : self{
+		$this->enchantments[spl_object_id($enchantment)] = new EnchantmentInstance($enchantment, $level);
 		return $this;
 	}
 

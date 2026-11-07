@@ -66,7 +66,7 @@ final class EnchantingHelper{
 		$resultItem = $item->getTypeId() === ItemTypeIds::BOOK ? Items::ENCHANTED_BOOK() : clone $item;
 
 		foreach($enchantments as $enchantment){
-			$resultItem->addEnchantment($enchantment);
+			$resultItem->addEnchantment($enchantment->getType(), $enchantment->getLevel());
 		}
 
 		return $resultItem;

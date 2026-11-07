@@ -311,7 +311,7 @@ class Item implements \JsonSerializable{
 				}
 				$type = EnchantmentIdMap::getInstance()->fromId($magicNumber);
 				if($type !== null){
-					$this->addEnchantment(new EnchantmentInstance($type, $level));
+					$this->addEnchantment($type, $level);
 				}
 			}
 		}

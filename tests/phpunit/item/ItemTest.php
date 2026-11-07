@@ -72,19 +72,19 @@ class ItemTest extends TestCase{
 	}
 
 	public function testHasEnchantment() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::EFFICIENCY(), 5));
+		$this->item->addEnchantment(VanillaEnchantments::EFFICIENCY(), 5);
 		self::assertTrue($this->item->hasEnchantment(VanillaEnchantments::EFFICIENCY()));
 		self::assertTrue($this->item->hasEnchantment(VanillaEnchantments::EFFICIENCY(), 5));
 	}
 
 	public function testHasEnchantments() : void{
 		self::assertFalse($this->item->hasEnchantments());
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::FIRE_ASPECT()));
+		$this->item->addEnchantment(VanillaEnchantments::FIRE_ASPECT());
 		self::assertTrue($this->item->hasEnchantments());
 	}
 
 	public function testGetEnchantmentLevel() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::EFFICIENCY(), 5));
+		$this->item->addEnchantment(VanillaEnchantments::EFFICIENCY(), 5);
 		self::assertSame(5, $this->item->getEnchantmentLevel(VanillaEnchantments::EFFICIENCY()));
 	}
 
@@ -94,7 +94,7 @@ class ItemTest extends TestCase{
 			new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 1)
 		];
 		foreach($enchantments as $enchantment){
-			$this->item->addEnchantment($enchantment);
+			$this->item->addEnchantment($enchantment->getType(), $enchantment->getLevel());
 		}
 		foreach($this->item->getEnchantments() as $enchantment){
 			foreach($enchantments as $k => $applied){
@@ -109,29 +109,29 @@ class ItemTest extends TestCase{
 	}
 
 	public function testOverwriteEnchantment() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS()));
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 5));
+		$this->item->addEnchantment(VanillaEnchantments::SHARPNESS());
+		$this->item->addEnchantment(VanillaEnchantments::SHARPNESS(), 5);
 		self::assertSame(5, $this->item->getEnchantmentLevel(VanillaEnchantments::SHARPNESS()));
 	}
 
 	public function testRemoveAllEnchantments() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::FIRE_ASPECT()));
+		$this->item->addEnchantment(VanillaEnchantments::FIRE_ASPECT());
 		self::assertCount(1, $this->item->getEnchantments());
 		$this->item->removeEnchantments();
 		self::assertEmpty($this->item->getEnchantments());
 	}
 
 	public function testRemoveEnchantment() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::KNOCKBACK()));
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS()));
+		$this->item->addEnchantment(VanillaEnchantments::KNOCKBACK());
+		$this->item->addEnchantment(VanillaEnchantments::SHARPNESS());
 		self::assertCount(2, $this->item->getEnchantments());
 		$this->item->removeEnchantment(VanillaEnchantments::SHARPNESS());
 		self::assertFalse($this->item->hasEnchantment(VanillaEnchantments::SHARPNESS()));
 	}
 
 	public function testRemoveEnchantmentLevel() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::FIRE_ASPECT(), 2));
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::UNBREAKING()));
+		$this->item->addEnchantment(VanillaEnchantments::FIRE_ASPECT(), 2);
+		$this->item->addEnchantment(VanillaEnchantments::UNBREAKING());
 		self::assertCount(2, $this->item->getEnchantments());
 		$this->item->removeEnchantment(VanillaEnchantments::FIRE_ASPECT(), 2);
 		self::assertFalse($this->item->hasEnchantment(VanillaEnchantments::FIRE_ASPECT()));
@@ -141,7 +141,7 @@ class ItemTest extends TestCase{
 	 * Tests that when all enchantments are removed from an item, the "ench" tag is removed as well
 	 */
 	public function testRemoveAllEnchantmentsNBT() : void{
-		$this->item->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 1));
+		$this->item->addEnchantment(VanillaEnchantments::SHARPNESS(), 1);
 		$this->item->removeEnchantment(VanillaEnchantments::SHARPNESS());
 		self::assertNull($this->item->getNamedTag()->getTag(Item::TAG_ENCH));
 	}

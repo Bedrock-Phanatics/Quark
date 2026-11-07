@@ -34,7 +34,6 @@ use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\TreeRoot;
 use quark\data\bedrock\BedrockDataFiles;
-use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\VanillaItems;
 use quark\nbt\ReferenceNetworkNbtSerializer;
@@ -121,8 +120,8 @@ function item() : CompoundTag{
 	return VanillaItems::DIAMOND_SWORD()
 		->setCustomName("§bBlade of the Benchmark")
 		->setLore(["Forged for measuring", "Second line of lore"])
-		->addEnchantment(new EnchantmentInstance(VanillaEnchantments::SHARPNESS(), 5))
-		->addEnchantment(new EnchantmentInstance(VanillaEnchantments::UNBREAKING(), 3))
+		->addEnchantment(VanillaEnchantments::SHARPNESS(), 5)
+		->addEnchantment(VanillaEnchantments::UNBREAKING(), 3)
 		->nbtSerialize();
 }
 
