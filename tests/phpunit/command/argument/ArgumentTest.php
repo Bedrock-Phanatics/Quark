@@ -137,14 +137,16 @@ final class ArgumentTest extends TestCase{
 		$bool = new BooleanArgument("b");
 		yield [$bool, "true", true];
 		yield [$bool, "false", false];
-		yield [$bool, "TRUE", null];
+		yield [$bool, "TRUE", true];
+		yield [$bool, "False", false];
 		yield [$bool, "1", null];
 		yield [$bool, "yes", null];
 
 		$enum = new EnumArgument("mode", ["survival", "creative", "0"]);
 		yield [$enum, "survival", "survival"];
 		yield [$enum, "0", "0"];
-		yield [$enum, "Survival", null];
+		yield [$enum, "Survival", "survival"];
+		yield [$enum, "CREATIVE", "creative"];
 		yield [$enum, "adventure", null];
 		yield [$enum, "00", null];
 

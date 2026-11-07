@@ -31,6 +31,7 @@ use function count;
 use function implode;
 use function is_string;
 use function preg_match;
+use function strtolower;
 
 /**
  * @phpstan-extends Argument<string>
@@ -61,10 +62,11 @@ final class EnumArgument extends Argument{
 	}
 
 	public function parse(string $input, CommandSender $sender) : string{
-		if(!isset($this->lookup[$input])){
+		$value = strtolower($input);
+		if(!isset($this->lookup[$value])){
 			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidEnum($input, implode(", ", $this->values)));
 		}
-		return $input;
+		return $value;
 	}
 
 	public function getKind() : ArgumentKind{

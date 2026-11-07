@@ -177,7 +177,7 @@ final class CommandSyntaxTest extends TestCase{
 			"eco admin" => [null, ["Usage: /eco admin give <target> <amount>"]],
 			"eco admin take Steve 1" => [null, ["Usage: /eco admin give <target> <amount>"]],
 			"eco unknown" => [null, $all],
-			"eco PAY Steve 1" => [null, $all],
+			"eco PAY Steve 1" => ["pay", ["target" => "Steve", "amount" => 1]],
 		];
 		foreach([$this->ecoDefinitions(), array_reverse($this->ecoDefinitions())] as $definitions){
 			$this->map = new SimpleCommandMap($this->server);
@@ -230,10 +230,12 @@ final class CommandSyntaxTest extends TestCase{
 		$this->dispatch("f home set");
 		self::assertSame("home set", $this->calls[0][0]);
 		self::assertSame("f", $this->calls[0][1]->label());
+		$this->dispatch("faction Home SET");
+		self::assertSame(["home set"], array_column($this->calls, 0));
 		$this->dispatch("faction 2");
 		self::assertSame(["2"], array_column($this->calls, 0));
-		$this->dispatch("faction Home");
-		self::assertSame(["", ["name" => "Home"]], [$this->calls[0][0], $this->values($this->calls[0][1], "name")]);
+		$this->dispatch("faction Homes");
+		self::assertSame(["", ["name" => "Homes"]], [$this->calls[0][0], $this->values($this->calls[0][1], "name")]);
 		$this->dispatch("faction \"home set\"");
 		self::assertSame(["", ["name" => "home set"]], [$this->calls[0][0], $this->values($this->calls[0][1], "name")]);
 

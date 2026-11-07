@@ -25,6 +25,7 @@ namespace quark\command\argument;
 
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
+use function strtolower;
 
 /**
  * @phpstan-extends Argument<bool>
@@ -32,7 +33,7 @@ use quark\lang\KnownTranslationFactory;
 final class BooleanArgument extends Argument{
 
 	public function parse(string $input, CommandSender $sender) : bool{
-		return match($input){
+		return match(strtolower($input)){
 			"true" => true,
 			"false" => false,
 			default => throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidBoolean($input))

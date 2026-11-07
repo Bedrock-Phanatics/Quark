@@ -74,7 +74,7 @@ final class WarpSetCommand extends Subcommand{
 $this->registerSubcommand(new WarpSetCommand($warps));
 ```
 
-- Subcommand words are lowercase, `[a-z0-9_-]+`. The longest match wins, even if a shorter syntax could take the word as a value.
+- Subcommand words are declared lowercase, `[a-z0-9_-]+`, and match in any case. The longest match wins, even if a shorter syntax could take the word as a value.
 - Each subcommand has one syntax. Use optional arguments for different lengths.
 - Required arguments come first, and a greedy string can only be last.
 - A denied permission or an invalid value ends the command.
@@ -86,8 +86,8 @@ $this->registerSubcommand(new WarpSetCommand($warps));
 | `StringArgument` | one word, or all remaining words joined by single spaces with `greedy: true` | string, or raw text when greedy |
 | `IntegerArgument` | a decimal integer within `min` and `max` | int |
 | `FloatArgument` | a finite decimal number within `min` and `max` | float |
-| `BooleanArgument` | `true` or `false` | enum |
-| `EnumArgument` | one of the declared lowercase values | enum |
+| `BooleanArgument` | `true` or `false`, case-insensitive | enum |
+| `EnumArgument` | one of the declared lowercase values, case-insensitive, returned lowercase | enum |
 | `PlayerArgument` | the exact name of an online player, case-insensitive | player names, or string with `suggest: false` |
 
 The client's int is 32 bits, so it may refuse larger values even though the server accepts them. Selectors such as `@p` are rejected.

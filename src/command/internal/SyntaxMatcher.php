@@ -38,6 +38,7 @@ use function implode;
 use function ksort;
 use function str_contains;
 use function str_starts_with;
+use function strtolower;
 use const SORT_STRING;
 
 /**
@@ -197,6 +198,8 @@ final class SyntaxMatcher{
 			if(str_contains($arg, " ")){
 				break;
 			}
+			//clients match enum values case-insensitively, literals are sent as enums
+			$arg = strtolower($arg);
 			$candidate = $i === 0 ? $arg : $candidate . " " . $arg;
 			if(!isset($prepared["prefixes"][$candidate])){
 				break;
