@@ -176,6 +176,10 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 - Plugins should use Quark's `Compressor` abstraction.
 - Snappy requires `ext-snappy`; invalid or unavailable compression modes fall back to zlib.
 
+### Async Tasks
+
+- `AsyncTask::publishProgress()` and `onProgressUpdate()` have been removed. Share progress from the task through a `ThreadSafeArray` and read it from a repeating scheduler task, or split the work into smaller tasks.
+
 ## Configuration Migration
 
 Use `--migration-dry-run` to preview migration, then `--migrate-legacy` to convert supported legacy configurations with a recoverable snapshot.

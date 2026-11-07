@@ -42,6 +42,8 @@ use function usleep;
 
 class AsyncPoolTest extends TestCase{
 
+	public static int $completions = 0;
+
 	/** @var AsyncPool */
 	private $pool;
 	/** @var MainLogger */
@@ -65,6 +67,27 @@ class AsyncPoolTest extends TestCase{
 			$this->pool->collectTasks();
 		}
 		self::assertTrue(LeakTestAsyncTask::$destroyed, "Task was not destroyed after 30 seconds");
+	}
+
+	public function testUnfinishedTaskIsNotCompleted() : void{
+		self::$completions = 0;
+		$this->pool->submitTask(new class extends AsyncTask{
+			public function onRun() : void{
+				usleep(300 * 1000);
+			}
+
+			public function onCompletion() : void{
+				++AsyncPoolTest::$completions;
+			}
+		});
+
+		self::assertTrue($this->pool->collectTasks());
+		self::assertSame(0, self::$completions);
+		while($this->pool->collectTasks()){
+			usleep(50 * 1000);
+		}
+		self::assertSame(1, self::$completions);
+		self::assertFalse($this->pool->collectTasks());
 	}
 
 	public function testThreadSafeSetResult() : void{
