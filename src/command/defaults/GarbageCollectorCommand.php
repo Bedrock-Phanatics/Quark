@@ -26,6 +26,7 @@ namespace quark\command\defaults;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use quark\utils\TextFormat;
 use function count;
 use function memory_get_usage;
@@ -34,7 +35,7 @@ use function round;
 
 class GarbageCollectorCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"gc",
 			KnownTranslationFactory::quark_command_gc_description()
@@ -48,7 +49,7 @@ class GarbageCollectorCommand extends VanillaCommand{
 
 		$memory = memory_get_usage();
 
-		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+		foreach($this->server->getWorldManager()->getWorlds() as $world){
 			$diff = [count($world->getLoadedChunks()), count($world->getEntities())];
 			$world->doChunkGarbageCollection();
 			$world->unloadChunks(true);
@@ -57,7 +58,7 @@ class GarbageCollectorCommand extends VanillaCommand{
 			$world->clearCache(true);
 		}
 
-		$cyclesCollected = $sender->getServer()->getMemoryManager()->triggerGarbageCollector();
+		$cyclesCollected = $this->server->getMemoryManager()->triggerGarbageCollector();
 
 		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_header()->format(TextFormat::GREEN . "---- " . TextFormat::RESET, TextFormat::GREEN . " ----" . TextFormat::RESET));
 		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_chunks(TextFormat::RED . number_format($chunksCollected))->prefix(TextFormat::GOLD));

@@ -55,7 +55,8 @@ class FormattedCommandAlias extends Command{
 	 */
 	public function __construct(
 		string $alias,
-		private array $formatStrings
+		private array $formatStrings,
+		private CommandMap $commandMap
 	){
 		parent::__construct($alias, KnownTranslationFactory::quark_command_userDefined_description());
 	}
@@ -87,7 +88,7 @@ class FormattedCommandAlias extends Command{
 			}
 		}
 
-		$commandMap = $sender->getServer()->getCommandMap();
+		$commandMap = $this->commandMap;
 		foreach($commands as $commandArgs){
 			//this approximately duplicates the logic found in SimpleCommandMap::dispatch()
 			//this is to allow directly invoking the commands without having to rebuild a command string and parse it

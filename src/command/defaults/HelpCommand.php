@@ -28,6 +28,7 @@ use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use quark\utils\TextFormat;
 use function array_chunk;
 use function array_pop;
@@ -45,7 +46,7 @@ use const SORT_NATURAL;
 
 class HelpCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"help",
 			KnownTranslationFactory::quark_command_help_description(),
@@ -74,7 +75,7 @@ class HelpCommand extends VanillaCommand{
 
 		if($commandName === ""){
 			$commands = [];
-			foreach($sender->getServer()->getCommandMap()->getCommands() as $command){
+			foreach($this->server->getCommandMap()->getCommands() as $command){
 				if($command->testPermissionSilent($sender)){
 					$commands[$command->getLabel()] = $command;
 				}
@@ -97,7 +98,7 @@ class HelpCommand extends VanillaCommand{
 
 			return true;
 		}else{
-			if(($cmd = $sender->getServer()->getCommandMap()->getCommand(strtolower($commandName))) instanceof Command){
+			if(($cmd = $this->server->getCommandMap()->getCommand(strtolower($commandName))) instanceof Command){
 				if($cmd->testPermissionSilent($sender)){
 					$lang = $sender->getLanguage();
 					$description = $cmd->getDescription();

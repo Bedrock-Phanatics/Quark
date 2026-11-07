@@ -30,11 +30,12 @@ use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\StringToEnchantmentParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use function count;
 
 class EnchantCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"enchant",
 			KnownTranslationFactory::quark_command_enchant_description(),
@@ -51,7 +52,7 @@ class EnchantCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$player = $this->fetchPermittedPlayerTarget($sender, $args[0], DefaultPermissionNames::COMMAND_ENCHANT_SELF, DefaultPermissionNames::COMMAND_ENCHANT_OTHER);
+		$player = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[0], DefaultPermissionNames::COMMAND_ENCHANT_SELF, DefaultPermissionNames::COMMAND_ENCHANT_OTHER);
 		if($player === null){
 			return true;
 		}
@@ -81,7 +82,7 @@ class EnchantCommand extends VanillaCommand{
 		$enchantedItem = EnchantingHelper::enchantItem($item, [new EnchantmentInstance($enchantment, $level)]);
 		$player->getInventory()->setItemInHand($enchantedItem);
 
-		self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_enchant_success($player->getName()));
+		self::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_enchant_success($player->getName()));
 		return true;
 	}
 }

@@ -34,6 +34,7 @@ use quark\item\LegacyStringToItemParserException;
 use quark\item\StringToItemParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use quark\utils\TextFormat;
 use function array_slice;
 use function count;
@@ -41,7 +42,7 @@ use function implode;
 
 class GiveCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"give",
 			KnownTranslationFactory::quark_command_give_description(),
@@ -58,7 +59,7 @@ class GiveCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$player = $this->fetchPermittedPlayerTarget($sender, $args[0], DefaultPermissionNames::COMMAND_GIVE_SELF, DefaultPermissionNames::COMMAND_GIVE_OTHER);
+		$player = $this->fetchPermittedPlayerTarget($this->server, $sender, $args[0], DefaultPermissionNames::COMMAND_GIVE_SELF, DefaultPermissionNames::COMMAND_GIVE_OTHER);
 		if($player === null){
 			return true;
 		}
@@ -100,7 +101,7 @@ class GiveCommand extends VanillaCommand{
 		//TODO: overflow
 		$player->getInventory()->addItem($item);
 
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_give_success(
+		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_give_success(
 			$item->getName() . " (" . $args[1] . ")",
 			(string) $item->getCount(),
 			$player->getName()

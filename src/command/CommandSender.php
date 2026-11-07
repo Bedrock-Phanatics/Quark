@@ -26,15 +26,12 @@ namespace quark\command;
 use quark\lang\Language;
 use quark\lang\Translatable;
 use quark\permission\Permissible;
-use quark\Server;
 
 interface CommandSender extends Permissible{
 
 	public function getLanguage() : Language;
 
 	public function sendMessage(Translatable|string $message) : void;
-
-	public function getServer() : Server;
 
 	public function getName() : string;
 

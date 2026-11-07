@@ -28,13 +28,14 @@ use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\Server;
 use quark\ServerProperties;
 use quark\world\World;
 use function count;
 
 class DifficultyCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"difficulty",
 			KnownTranslationFactory::quark_command_difficulty_description(),
@@ -50,19 +51,19 @@ class DifficultyCommand extends VanillaCommand{
 
 		$difficulty = World::getDifficultyFromString($args[0]);
 
-		if($sender->getServer()->isHardcore()){
+		if($this->server->isHardcore()){
 			$difficulty = World::DIFFICULTY_HARD;
 		}
 
 		if($difficulty !== -1){
-			$sender->getServer()->getConfigGroup()->setConfigInt(ServerProperties::DIFFICULTY, $difficulty);
+			$this->server->getConfigGroup()->setConfigInt(ServerProperties::DIFFICULTY, $difficulty);
 
 			//TODO: add per-world support
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
 				$world->setDifficulty($difficulty);
 			}
 
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_difficulty_success((string) $difficulty));
+			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_difficulty_success((string) $difficulty));
 		}else{
 			throw new InvalidCommandSyntaxException();
 		}

@@ -29,12 +29,13 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use quark\world\World;
 use function count;
 
 class TimeCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"time",
 			KnownTranslationFactory::quark_command_time_description(),
@@ -58,19 +59,19 @@ class TimeCommand extends VanillaCommand{
 			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_START)){
 				return true;
 			}
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
 				$world->startTime();
 			}
-			Command::broadcastCommandMessage($sender, "Restarted the time");
+			Command::broadcastCommandMessage($this->server, $sender, "Restarted the time");
 			return true;
 		}elseif($args[0] === "stop"){
 			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_STOP)){
 				return true;
 			}
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
 				$world->stopTime();
 			}
-			Command::broadcastCommandMessage($sender, "Stopped the time");
+			Command::broadcastCommandMessage($this->server, $sender, "Stopped the time");
 			return true;
 		}elseif($args[0] === "query"){
 			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_QUERY)){
@@ -79,7 +80,7 @@ class TimeCommand extends VanillaCommand{
 			if($sender instanceof Player){
 				$world = $sender->getWorld();
 			}else{
-				$world = $sender->getServer()->getWorldManager()->getDefaultWorld();
+				$world = $this->server->getWorldManager()->getDefaultWorld();
 			}
 			$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_time_query((string) $world->getTime())));
 			return true;
@@ -118,20 +119,20 @@ class TimeCommand extends VanillaCommand{
 					break;
 			}
 
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
 				$world->setTime($value);
 			}
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_time_set((string) $value));
+			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_time_set((string) $value));
 		}elseif($args[0] === "add"){
 			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_ADD)){
 				return true;
 			}
 
 			$value = $this->getInteger($sender, $args[1], 0);
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
 				$world->setTime($world->getTime() + $value);
 			}
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_time_added((string) $value));
+			Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_time_added((string) $value));
 		}else{
 			throw new InvalidCommandSyntaxException();
 		}

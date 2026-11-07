@@ -29,13 +29,14 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use function array_shift;
 use function count;
 use function implode;
 
 class BanCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"ban",
 			KnownTranslationFactory::quark_command_ban_player_description(),
@@ -52,13 +53,13 @@ class BanCommand extends VanillaCommand{
 		$name = array_shift($args);
 		$reason = implode(" ", $args);
 
-		$sender->getServer()->getNameBans()->addBan($name, $reason, null, $sender->getName());
+		$this->server->getNameBans()->addBan($name, $reason, null, $sender->getName());
 
-		if(($player = $sender->getServer()->getPlayerExact($name)) instanceof Player){
+		if(($player = $this->server->getPlayerExact($name)) instanceof Player){
 			$player->kick($reason !== "" ? KnownTranslationFactory::quark_disconnect_ban($reason) : KnownTranslationFactory::quark_disconnect_ban_noReason());
 		}
 
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_ban_success($player !== null ? $player->getName() : $name));
+		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_ban_success($player !== null ? $player->getName() : $name));
 
 		return true;
 	}

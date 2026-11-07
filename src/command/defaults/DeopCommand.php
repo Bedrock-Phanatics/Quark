@@ -29,13 +29,14 @@ use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\Server;
 use quark\utils\TextFormat;
 use function array_shift;
 use function count;
 
 class DeopCommand extends VanillaCommand{
 
-	public function __construct(){
+	public function __construct(private Server $server){
 		parent::__construct(
 			"deop",
 			KnownTranslationFactory::quark_command_deop_description(),
@@ -54,11 +55,11 @@ class DeopCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$sender->getServer()->removeOp($name);
-		if(($player = $sender->getServer()->getPlayerExact($name)) !== null){
+		$this->server->removeOp($name);
+		if(($player = $this->server->getPlayerExact($name)) !== null){
 			$player->sendMessage(KnownTranslationFactory::commands_deop_message()->prefix(TextFormat::GRAY));
 		}
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_deop_success($name));
+		Command::broadcastCommandMessage($this->server, $sender, KnownTranslationFactory::commands_deop_success($name));
 
 		return true;
 	}

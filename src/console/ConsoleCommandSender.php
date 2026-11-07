@@ -29,7 +29,6 @@ use quark\lang\Translatable;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
 use quark\permission\PermissibleDelegateTrait;
-use quark\Server;
 use quark\utils\MainLogger;
 use function trim;
 use const PHP_INT_MAX;
@@ -41,14 +40,10 @@ class ConsoleCommandSender implements CommandSender{
 	protected ?int $lineHeight = null;
 
 	public function __construct(
-		private Server $server,
+		private \Logger $logger,
 		private Language $language
 	){
 		$this->perm = new PermissibleBase([DefaultPermissions::ROOT_CONSOLE => true]);
-	}
-
-	public function getServer() : Server{
-		return $this->server;
 	}
 
 	public function getLanguage() : Language{
@@ -60,7 +55,7 @@ class ConsoleCommandSender implements CommandSender{
 			$message = $this->getLanguage()->translate($message);
 		}
 
-		$logger = $this->server->getLogger();
+		$logger = $this->logger;
 		if($logger instanceof MainLogger){
 			$logger->output(trim($message));
 		}else{
