@@ -26,6 +26,8 @@ declare(strict_types=1);
  */
 namespace quark\command;
 
+use quark\command\argument\Argument;
+use quark\command\internal\SyntaxMatcher;
 use quark\command\utils\CommandException;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
@@ -41,6 +43,9 @@ use function implode;
 use function str_replace;
 use const PHP_INT_MAX;
 
+/**
+ * @phpstan-import-type PreparedSyntaxes from SyntaxMatcher
+ */
 abstract class Command{
 
 	private string $name;
@@ -72,6 +77,19 @@ abstract class Command{
 	private ?string $permissionMessage = null;
 
 	/**
+	 * @var CommandSyntax[]
+	 * @phpstan-var array<string, CommandSyntax>
+	 */
+	private array $syntaxes = [];
+	/**
+	 * @var Subcommand[]
+	 * @phpstan-var array<string, Subcommand>
+	 */
+	private array $subcommands = [];
+	/** @phpstan-var PreparedSyntaxes|null */
+	private ?array $preparedSyntaxes = null;
+
+	/**
 	 * @param string[] $aliases
 	 * @phpstan-param list<string> $aliases
 	 */
@@ -90,7 +108,138 @@ abstract class Command{
 	 * @return mixed
 	 * @throws CommandException
 	 */
-	abstract public function execute(CommandSender $sender, string $commandLabel, array $args);
+	public function execute(CommandSender $sender, string $commandLabel, array $args){
+		if($this->preparedSyntaxes === null){
+			throw new \LogicException("Command \"$this->name\" must be registered in a command map before its syntaxes can be executed");
+		}
+		$parsed = SyntaxMatcher::parse($this, $this->preparedSyntaxes, $sender, $commandLabel, $args);
+		if($parsed !== null){
+			$subcommand = $this->subcommands[$parsed->subcommand()] ?? null;
+			if($subcommand !== null){
+				$subcommand->dispatch($sender, $parsed);
+			}else{
+				$this->run($sender, $parsed);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * @throws \LogicException
+	 */
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		throw new \LogicException("Command \"$this->name\" must override run()");
+	}
+
+	/**
+	 * @phpstan-param Argument<mixed> $argument
+	 * @throws \InvalidArgumentException
+	 * @throws \LogicException
+	 */
+	public function registerArgument(Argument $argument) : void{
+		$this->rootSyntax()->registerArgument($argument);
+	}
+
+	/**
+	 * @param Argument[] $arguments
+	 * @phpstan-param list<Argument<mixed>> $arguments
+	 * @throws \InvalidArgumentException
+	 * @throws \LogicException
+	 */
+	public function registerArguments(array $arguments) : void{
+		$this->rootSyntax()->registerArguments($arguments);
+	}
+
+	private function rootSyntax() : CommandSyntax{
+		$this->checkNotRegistered();
+		return $this->syntaxes[""] ??= new CommandSyntax("");
+	}
+
+	private function checkNotRegistered() : void{
+		if($this->isRegistered()){
+			throw new \LogicException("Cannot declare syntaxes of command \"$this->name\" while it is registered");
+		}
+	}
+
+	/**
+	 * @throws \InvalidArgumentException
+	 * @throws \LogicException
+	 */
+	public function syntax(string $path = "") : CommandSyntax{
+		$this->checkNotRegistered();
+		$syntax = new CommandSyntax($path);
+		$this->addSyntax($syntax);
+		return $syntax;
+	}
+
+	/**
+	 * @throws \InvalidArgumentException
+	 * @throws \LogicException
+	 */
+	public function registerSubcommand(Subcommand $subcommand) : void{
+		$this->checkNotRegistered();
+		$syntax = $subcommand->getSyntax();
+		$this->addSyntax($syntax);
+		$this->subcommands[$syntax->getPath()] = $subcommand;
+	}
+
+	private function addSyntax(CommandSyntax $syntax) : void{
+		$path = $syntax->getPath();
+		if(isset($this->syntaxes[$path])){
+			throw new \InvalidArgumentException("Command \"$this->name\" already declares the syntax \"$path\"");
+		}
+		$this->syntaxes[$path] = $syntax;
+	}
+
+	/**
+	 * @return CommandSyntax[]
+	 * @phpstan-return array<string, CommandSyntax>
+	 */
+	public function getSyntaxes() : array{
+		return $this->syntaxes;
+	}
+
+	/**
+	 * @internal
+	 * @phpstan-param PreparedSyntaxes|null $prepared
+	 */
+	public function setPreparedSyntaxes(?array $prepared) : void{
+		$this->preparedSyntaxes = $prepared;
+		$this->markSyntaxes(true);
+	}
+
+	private function markSyntaxes(bool $registered) : void{
+		foreach($this->syntaxes as $syntax){
+			$syntax->markRegistered($registered);
+		}
+	}
+
+	/**
+	 * @internal
+	 * @return Subcommand[]
+	 * @phpstan-return array<string, Subcommand>
+	 */
+	public function getSubcommands() : array{
+		return $this->subcommands;
+	}
+
+	/**
+	 * @internal
+	 * @param string[] $args
+	 * @phpstan-param list<string> $args
+	 */
+	public function canReachPermittedSyntax(CommandSender $sender, array $args, bool $moreArgs) : bool{
+		return $this->preparedSyntaxes === null || SyntaxMatcher::canReachPermittedSyntax($this->preparedSyntaxes, $sender, $args, $moreArgs);
+	}
+
+	/**
+	 * @internal
+	 * @return CommandSyntax[]|null
+	 * @phpstan-return array<string, CommandSyntax>|null
+	 */
+	public function getPreparedSyntaxes() : ?array{
+		return $this->preparedSyntaxes["routes"] ?? null;
+	}
 
 	public function getName() : string{
 		return $this->name;
@@ -119,6 +268,7 @@ abstract class Command{
 			}
 		}
 		$this->permission = $permissions;
+		$this->invalidateClientMetadata();
 	}
 
 	public function setPermission(?string $permission) : void{
@@ -183,6 +333,10 @@ abstract class Command{
 			$this->commandMap = null;
 			$this->activeAliases = $this->aliases;
 			$this->label = $this->nextLabel;
+			if($this->preparedSyntaxes !== null){
+				$this->preparedSyntaxes = null;
+				$this->markSyntaxes(false);
+			}
 
 			return true;
 		}
@@ -232,6 +386,13 @@ abstract class Command{
 
 	public function setDescription(Translatable|string $description) : void{
 		$this->description = $description;
+		$this->invalidateClientMetadata();
+	}
+
+	private function invalidateClientMetadata() : void{
+		if($this->commandMap instanceof SimpleCommandMap){
+			$this->commandMap->invalidateClientMetadata();
+		}
 	}
 
 	public function setPermissionMessage(string $permissionMessage) : void{

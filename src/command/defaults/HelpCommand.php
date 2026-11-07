@@ -109,6 +109,18 @@ class HelpCommand extends VanillaCommand{
 
 					$usage = $cmd->getUsage();
 					$usageString = $usage instanceof Translatable ? $lang->translate($usage) : $usage;
+					//declared syntaxes describe themselves unless a usage was set
+					if($usageString === "/" . $cmd->getName()){
+						$lines = [];
+						foreach($cmd->getPreparedSyntaxes() ?? [] as $syntax){
+							if($syntax->testPermissionSilent($sender)){
+								$lines[] = $syntax->getUsage($cmd->getLabel());
+							}
+						}
+						if(count($lines) !== 0){
+							$usageString = implode("\n", $lines);
+						}
+					}
 					$sender->sendMessage(KnownTranslationFactory::quark_command_help_specificCommand_usage(TextFormat::RESET . implode("\n" . TextFormat::RESET, explode("\n", $usageString, limit: PHP_INT_MAX)))
 						->prefix(TextFormat::GOLD));
 
