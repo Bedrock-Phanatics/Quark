@@ -34,7 +34,7 @@ use quark\Server;
  */
 interface Plugin{
 
-	public function __construct(PluginLoader $loader, Server $server, PluginDescription $description, string $dataFolder, string $file, ResourceProvider $resourceProvider);
+	public function __construct(PluginLoader $loader, Server $server, PluginDescription $description, string $dataFolder, string $file);
 
 	public function isEnabled() : bool;
 
