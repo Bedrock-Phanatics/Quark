@@ -123,6 +123,13 @@ $player->sendForm($form);
 - Turtle Helmets no longer grant Water Breathing.
 - Plugins relying on these mechanics must implement their own behavior.
 
+### Plugin Resources
+
+- `PluginBase::getResource()` has been removed because it returned a handle that had to be closed with `fclose()`. Use `file_get_contents($this->getResourcePath($name))` or `fopen()` on the same path instead.
+- `ResourceProvider` and `DiskResourceProvider` have been removed, and the `Plugin` constructor no longer takes a resource provider.
+- `getResourceFolder()` and `getResourcePath()` return the plugin's read-only `resources` folder and a file inside it.
+- `saveResource()` returns `false` for directories and for names that resolve outside the resources or data folder.
+
 ### Compression
 
 - Compression algorithm is configurable rather than fixed to zlib.
