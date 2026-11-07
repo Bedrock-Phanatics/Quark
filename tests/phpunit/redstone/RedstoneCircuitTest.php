@@ -30,6 +30,7 @@ use quark\block\Door;
 use quark\block\RedstoneComparator;
 use quark\block\RedstoneLamp;
 use quark\block\RedstoneRepeater;
+use quark\block\RedstoneTorch;
 use quark\block\RedstoneWire;
 use quark\block\utils\LeverFacing;
 use quark\block\VanillaBlocks;
@@ -83,6 +84,44 @@ final class RedstoneCircuitTest extends TestCase{
 		$this->h->tick(10);
 		self::assertSame(0, $this->wire(3, 1, 0)->getOutputSignalStrength());
 		self::assertFalse($this->lampLit(4, 1, 0));
+	}
+
+	public function testTorchInvertsAfterOneRedstoneTick() : void{
+		$this->h->set(1, 1, 0, VanillaBlocks::STONE());
+		$this->h->place(2, 1, 0, VanillaBlocks::REDSTONE_TORCH()->setFacing(Facing::EAST));
+		$this->h->place(0, 1, 0, VanillaBlocks::LEVER()->setFacing(LeverFacing::WEST));
+		$this->h->tick(5);
+		$torch = $this->h->get(2, 1, 0);
+		self::assertInstanceOf(RedstoneTorch::class, $torch);
+		self::assertTrue($torch->isLit());
+
+		$this->h->get(0, 1, 0)->onInteract(VanillaItems::AIR(), Facing::UP, new Vector3(0, 0, 0));
+		$this->h->tick();
+		$torch = $this->h->get(2, 1, 0);
+		self::assertInstanceOf(RedstoneTorch::class, $torch);
+		self::assertTrue($torch->isLit(), "still lit one game tick later");
+		$this->h->tick(2);
+		$torch = $this->h->get(2, 1, 0);
+		self::assertInstanceOf(RedstoneTorch::class, $torch);
+		self::assertFalse($torch->isLit());
+	}
+
+	public function testOversizedWireNetworkIsLeftAlone() : void{
+		RedstoneConfig::configure(3, 262144, 8192, true, true, 1024, 4096);
+		for($x = 1; $x <= 5; ++$x){
+			$this->h->place($x, 1, 0, VanillaBlocks::REDSTONE_WIRE());
+		}
+		$this->h->place(0, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(5);
+		for($x = 1; $x <= 5; ++$x){
+			self::assertSame(0, $this->wire($x, 1, 0)->getOutputSignalStrength(), "networks over the limit are not resolved");
+		}
+
+		RedstoneConfig::configure(65536, 262144, 8192, true, true, 1024, 4096);
+		$this->h->set(1, 2, 0, VanillaBlocks::STONE());
+		$this->h->tick(5);
+		self::assertSame(15, $this->wire(1, 1, 0)->getOutputSignalStrength(), "the next update resolves it once allowed");
+		self::assertSame(11, $this->wire(5, 1, 0)->getOutputSignalStrength());
 	}
 
 	public function testLeverPowersThroughItsSupportBlock() : void{
