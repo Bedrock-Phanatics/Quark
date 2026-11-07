@@ -50,9 +50,7 @@ use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
 use quark\item\ItemBlock;
 use quark\player\Player;
-use quark\utils\AssumptionFailedError;
 use quark\world\BlockTransaction;
-use quark\world\format\Chunk;
 use quark\world\Position;
 use quark\world\World;
 use function count;
@@ -375,19 +373,13 @@ class Block{
 	}
 
 	/**
-	 * Writes information about the block into the world. This writes the blockstate ID into the chunk, and creates
-	 * and/or removes tiles as necessary.
+	 * Writes information that doesn't fit in the state ID into the world, creating and/or removing tiles as necessary.
+	 * {@link World::setBlock()} has already written the state ID into the chunk when this is called.
 	 *
 	 * Note: Do not call this directly. Pass the block to {@link World::setBlock()} instead.
 	 */
 	public function writeStateToWorld() : void{
 		$world = $this->position->getWorld();
-		$chunk = $world->getOrLoadChunkAtPosition($this->position);
-		if($chunk === null){
-			throw new AssumptionFailedError("World::setBlock() should have loaded the chunk before calling this method");
-		}
-		$chunk->setBlockStateId($this->position->x & Chunk::COORD_MASK, $this->position->y, $this->position->z & Chunk::COORD_MASK, $this->getStateId());
-
 		$tileType = $this->idInfo->getTileClass();
 		$oldTile = $world->getTile($this->position);
 		if($oldTile !== null){

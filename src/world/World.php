@@ -98,6 +98,7 @@ use quark\item\LegacyStringToItemParser;
 use quark\item\StringToItemParser;
 use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
+use quark\network\mcpe\convert\BlockTranslator;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EncodedPacket;
@@ -146,12 +147,10 @@ use function cos;
 use function count;
 use function floor;
 use function get_class;
-use function gettype;
 use function hash;
 use function implode;
 use function intdiv;
 use function is_a;
-use function is_object;
 use function max;
 use function microtime;
 use function min;
@@ -359,10 +358,7 @@ class World implements ChunkManager{
 	 */
 	private array $knownUngeneratedChunks = [];
 
-	/**
-	 * @var Vector3[][] chunkHash => [relativeBlockHash => Vector3]
-	 * @phpstan-var array<ChunkPosHash, array<ChunkBlockPosHash, Vector3>>
-	 */
+	/** @phpstan-var array<ChunkPosHash, array<ChunkBlockPosHash, true>> */
 	private array $changedBlocks = [];
 
 	/** @phpstan-var ReversePriorityQueue<int, Vector3> */
@@ -504,9 +500,11 @@ class World implements ChunkManager{
 
 	/**
 	 * Computes a small index relative to chunk base from the given coordinates.
+	 *
+	 * @phpstan-return ChunkBlockPosHash
 	 */
 	public static function chunkBlockHash(int $x, int $y, int $z) : int{
-		return morton3d_encode($x, $y, $z);
+		return ($y << (2 * Chunk::COORD_BIT_SIZE)) | (($z & Chunk::COORD_MASK) << Chunk::COORD_BIT_SIZE) | ($x & Chunk::COORD_MASK);
 	}
 
 	/**
@@ -1173,31 +1171,25 @@ class World implements ChunkManager{
 		$this->executeQueuedLightUpdates();
 
 		if(count($this->changedBlocks) > 0){
-			if(count($this->players) > 0){
-				foreach($this->changedBlocks as $index => $blocks){
-					if(count($blocks) === 0){ //blocks can be set normally and then later re-set with direct send
-						continue;
+			$changedBlocks = $this->changedBlocks;
+			$this->changedBlocks = [];
+			foreach($changedBlocks as $index => $blocks){
+				//a previous chunk may have caused this one to be unloaded by a ChunkListener
+				$chunk = $this->chunks[$index] ?? null;
+				if($chunk === null || !isset($this->playerChunkListeners[$index])){
+					continue;
+				}
+				World::getXZ($index, $chunkX, $chunkZ);
+				if(count($blocks) > 512){
+					foreach($this->playerChunkListeners[$index] as $p){
+						$p->onChunkChanged($chunkX, $chunkZ, $chunk);
 					}
-					World::getXZ($index, $chunkX, $chunkZ);
-					if(!$this->isChunkLoaded($chunkX, $chunkZ)){
-						//a previous chunk may have caused this one to be unloaded by a ChunkListener
-						continue;
-					}
-					if(count($blocks) > 512){
-						$chunk = $this->getChunk($chunkX, $chunkZ) ?? throw new AssumptionFailedError("We already checked that the chunk is loaded");
-						foreach($this->getChunkPlayers($chunkX, $chunkZ) as $p){
-							$p->onChunkChanged($chunkX, $chunkZ, $chunk);
-						}
-					}else{
-						foreach($this->createBlockUpdatePackets($blocks) as $packet){
-							$this->broadcastPacketToPlayersUsingChunk($chunkX, $chunkZ, $packet);
-						}
+				}else{
+					foreach($this->createChunkBlockUpdatePackets($chunkX, $chunkZ, $chunk, $blocks) as $packet){
+						$this->packetBuffersByChunk[$index][] = $packet;
 					}
 				}
 			}
-
-			$this->changedBlocks = [];
-
 		}
 
 		if($this->sleepTicks > 0 && --$this->sleepTicks <= 0){
@@ -1337,52 +1329,71 @@ class World implements ChunkManager{
 	 */
 	public function createBlockUpdatePackets(array $blocks) : array{
 		$packets = [];
-
 		$blockTranslator = TypeConverter::getInstance()->getBlockTranslator();
-
 		foreach($blocks as $b){
-			if(!($b instanceof Vector3)){
-				throw new \TypeError("Expected Vector3 in blocks array, got " . (is_object($b) ? get_class($b) : gettype($b)));
-			}
+			$x = $b->getFloorX();
+			$y = $b->getFloorY();
+			$z = $b->getFloorZ();
 			//an unloaded chunk reads as air, which would punch holes into a released chunk the client still shows
-			if(!$this->isInLoadedTerrain($b)){
-				continue;
-			}
-
-			$fullBlock = $this->getBlockAt($b->x, $b->y, $b->z);
-			$blockPosition = BlockPosition::fromVector3($b);
-
-			$tile = $this->getTileAt($b->x, $b->y, $b->z);
-			if($tile instanceof Spawnable){
-				$expectedClass = $fullBlock->getIdInfo()->getTileClass();
-				if($expectedClass !== null && $tile instanceof $expectedClass && count($fakeStateProperties = $tile->getRenderUpdateBugWorkaroundStateProperties($fullBlock)) > 0){
-					$originalStateData = $blockTranslator->internalIdToNetworkStateData($fullBlock->getStateId());
-					$fakeStateData = new BlockStateData(
-						$originalStateData->getName(),
-						array_merge($originalStateData->getStates(), $fakeStateProperties),
-						$originalStateData->getVersion()
-					);
-					$packets[] = UpdateBlockPacket::create(
-						$blockPosition,
-						$blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
-						UpdateBlockPacket::FLAG_NETWORK,
-						UpdateBlockPacket::DATA_LAYER_NORMAL
-					);
-				}
-			}
-			$packets[] = UpdateBlockPacket::create(
-				$blockPosition,
-				$blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
-				UpdateBlockPacket::FLAG_NETWORK,
-				UpdateBlockPacket::DATA_LAYER_NORMAL
-			);
-
-			if($tile instanceof Spawnable){
-				$packets[] = BlockActorDataPacket::create($blockPosition, $tile->getSerializedSpawnCompound());
+			$chunk = $this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null;
+			if($chunk !== null){
+				$this->addBlockUpdatePackets($packets, $blockTranslator, $chunk, $x, $y, $z);
 			}
 		}
-
 		return $packets;
+	}
+
+	/**
+	 * @phpstan-param array<ChunkBlockPosHash, true> $blocks
+	 * @phpstan-return list<ClientboundPacket>
+	 */
+	private function createChunkBlockUpdatePackets(int $chunkX, int $chunkZ, Chunk $chunk, array $blocks) : array{
+		$packets = [];
+		$blockTranslator = TypeConverter::getInstance()->getBlockTranslator();
+		$baseX = $chunkX << Chunk::COORD_BIT_SIZE;
+		$baseZ = $chunkZ << Chunk::COORD_BIT_SIZE;
+		foreach($blocks as $hash => $_){
+			$this->addBlockUpdatePackets($packets, $blockTranslator, $chunk, $baseX | ($hash & Chunk::COORD_MASK), $hash >> (2 * Chunk::COORD_BIT_SIZE), $baseZ | (($hash >> Chunk::COORD_BIT_SIZE) & Chunk::COORD_MASK));
+		}
+		return $packets;
+	}
+
+	/**
+	 * @phpstan-param list<ClientboundPacket> $packets
+	 * @phpstan-param-out list<ClientboundPacket> $packets
+	 */
+	private function addBlockUpdatePackets(array &$packets, BlockTranslator $blockTranslator, Chunk $chunk, int $x, int $y, int $z) : void{
+		$fullBlock = $this->getBlockAt($x, $y, $z, addToCache: false);
+		$blockPosition = new BlockPosition($x, $y, $z);
+
+		$tile = $chunk->getTile($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		if($tile instanceof Spawnable){
+			$expectedClass = $fullBlock->getIdInfo()->getTileClass();
+			if($expectedClass !== null && $tile instanceof $expectedClass && count($fakeStateProperties = $tile->getRenderUpdateBugWorkaroundStateProperties($fullBlock)) > 0){
+				$originalStateData = $blockTranslator->internalIdToNetworkStateData($fullBlock->getStateId());
+				$fakeStateData = new BlockStateData(
+					$originalStateData->getName(),
+					array_merge($originalStateData->getStates(), $fakeStateProperties),
+					$originalStateData->getVersion()
+				);
+				$packets[] = UpdateBlockPacket::create(
+					$blockPosition,
+					$blockTranslator->getBlockStateDictionary()->lookupStateIdFromData($fakeStateData) ?? throw new AssumptionFailedError("Unmapped fake blockstate data: " . $fakeStateData->toNbt()),
+					UpdateBlockPacket::FLAG_NETWORK,
+					UpdateBlockPacket::DATA_LAYER_NORMAL
+				);
+			}
+		}
+		$packets[] = UpdateBlockPacket::create(
+			$blockPosition,
+			$blockTranslator->internalIdToNetworkId($fullBlock->getStateId()),
+			UpdateBlockPacket::FLAG_NETWORK,
+			UpdateBlockPacket::DATA_LAYER_NORMAL
+		);
+
+		if($tile instanceof Spawnable){
+			$packets[] = BlockActorDataPacket::create($blockPosition, $tile->getSerializedSpawnCompound());
+		}
 	}
 
 	public function clearCache(bool $force = false) : void{
@@ -2037,10 +2048,9 @@ class World implements ChunkManager{
 		for($z = $minZ; $z <= $maxZ; ++$z){
 			for($x = $minX; $x <= $maxX; ++$x){
 				$chunkPosHash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
+				$columnHash = World::chunkBlockHash($x, 0, $z);
 				for($y = $minY; $y <= $maxY; ++$y){
-					$relativeBlockHash = World::chunkBlockHash($x, $y, $z);
-
-					$boxes = $this->blockCollisionBoxCache[$chunkPosHash][$relativeBlockHash] ??= $this->getBlockCollisionBoxesForCell($x, $y, $z, $collisionInfo);
+					$boxes = $this->blockCollisionBoxCache[$chunkPosHash][$columnHash | ($y << (2 * Chunk::COORD_BIT_SIZE))] ??= $this->getBlockCollisionBoxesForCell($x, $y, $z, $collisionInfo);
 
 					foreach($boxes as $blockBB){
 						if($blockBB->intersectsWith($bb)){
@@ -2484,11 +2494,12 @@ class World implements ChunkManager{
 		}
 		$chunkX = $x >> Chunk::COORD_BIT_SIZE;
 		$chunkZ = $z >> Chunk::COORD_BIT_SIZE;
-		if(($chunk = $this->loadChunk($chunkX, $chunkZ)) === null){ //current expected behaviour is to try to load the terrain synchronously
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		//current expected behaviour is to try to load the terrain synchronously
+		if(($chunk = $this->chunks[$chunkHash] ?? $this->loadChunk($chunkX, $chunkZ)) === null){
 			throw new WorldException("Cannot set a block in un-generated terrain");
 		}
 
-		//TODO: this computes state ID twice (we do it again in writeStateToWorld()). Not great for performance :(
 		$stateId = $block->getStateId();
 		if(!$this->blockStateRegistry->hasStateId($stateId)){
 			throw new \LogicException("Block state ID not known to RuntimeBlockStateRegistry (probably not registered)");
@@ -2499,35 +2510,40 @@ class World implements ChunkManager{
 
 		$setBlockScope = $this->pulse->setBlock->start();
 
-		$this->unlockChunk($chunkX, $chunkZ, null);
+		if(isset($this->chunkLock[$chunkHash])){
+			$this->unlockChunk($chunkX, $chunkZ, null);
+		}
 
 		$block = clone $block;
-
 		$block->position($this, $x, $y, $z);
-		$previousStateId = $chunk->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		$localX = $x & Chunk::COORD_MASK;
+		$localZ = $z & Chunk::COORD_MASK;
+		$previousStateId = $chunk->getBlockStateId($localX, $y, $localZ);
+		$chunk->setBlockStateId($localX, $y, $localZ, $stateId);
 		$block->writeStateToWorld();
-		$pos = new Vector3($x, $y, $z);
 
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
 		$relativeBlockHash = World::chunkBlockHash($x, $y, $z);
-
-		unset($this->blockCache[$chunkHash][$relativeBlockHash]);
-		$this->blockCacheSize--;
-		unset($this->blockCollisionBoxCache[$chunkHash][$relativeBlockHash]);
-		//blocks like fences have collision boxes that reach into neighbouring blocks, so we need to invalidate the
-		//caches for those blocks as well
-		foreach(Facing::OFFSET as [$offsetX, $offsetY, $offsetZ]){
-			$sideChunkPosHash = World::chunkHash(($x + $offsetX) >> Chunk::COORD_BIT_SIZE, ($z + $offsetZ) >> Chunk::COORD_BIT_SIZE);
-			$sideChunkBlockHash = World::chunkBlockHash($x + $offsetX, $y + $offsetY, $z + $offsetZ);
-			unset($this->blockCollisionBoxCache[$sideChunkPosHash][$sideChunkBlockHash]);
+		if(isset($this->blockCache[$chunkHash][$relativeBlockHash])){
+			unset($this->blockCache[$chunkHash][$relativeBlockHash]);
+			$this->blockCacheSize--;
+		}
+		if(count($this->blockCollisionBoxCache) > 0){
+			unset($this->blockCollisionBoxCache[$chunkHash][$relativeBlockHash]);
+			//blocks like fences have collision boxes that reach into neighbouring blocks, so we need to invalidate the
+			//caches for those blocks as well
+			foreach(Facing::OFFSET as [$offsetX, $offsetY, $offsetZ]){
+				$sideX = $x + $offsetX;
+				$sideZ = $z + $offsetZ;
+				$sideChunkHash = ($sideX >> Chunk::COORD_BIT_SIZE) === $chunkX && ($sideZ >> Chunk::COORD_BIT_SIZE) === $chunkZ ?
+					$chunkHash :
+					World::chunkHash($sideX >> Chunk::COORD_BIT_SIZE, $sideZ >> Chunk::COORD_BIT_SIZE);
+				unset($this->blockCollisionBoxCache[$sideChunkHash][World::chunkBlockHash($sideX, $y + $offsetY, $sideZ)]);
+			}
 		}
 
-		if(!isset($this->changedBlocks[$chunkHash])){
-			$this->changedBlocks[$chunkHash] = [];
-		}
-		$this->changedBlocks[$chunkHash][$relativeBlockHash] = $pos;
+		$this->changedBlocks[$chunkHash][$relativeBlockHash] = true;
 
-		foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
+		foreach($this->chunkListeners[$chunkHash] ?? [] as $listener){
 			$listener->onBlockChanged($x, $y, $z);
 		}
 
