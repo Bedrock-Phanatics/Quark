@@ -2520,7 +2520,7 @@ class World implements ChunkManager{
 		$this->changedBlocks[$chunkHash][$relativeBlockHash] = $pos;
 
 		foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
-			$listener->onBlockChanged($pos);
+			$listener->onBlockChanged($x, $y, $z);
 		}
 
 		if($update){
@@ -3404,7 +3404,7 @@ class World implements ChunkManager{
 			$this->chunks[$hash]->removeTile($tile);
 		}
 		foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
-			$listener->onBlockChanged($pos->asVector3());
+			$listener->onBlockChanged($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
 		}
 	}
 

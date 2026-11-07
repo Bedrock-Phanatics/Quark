@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\cache;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\types\ChunkPosition;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
@@ -226,8 +225,8 @@ class ChunkCache implements ChunkListener{
 	/**
 	 * @see ChunkListener::onBlockChanged()
 	 */
-	public function onBlockChanged(Vector3 $block) : void{
-		$this->invalidate($block->getFloorX() >> Chunk::COORD_BIT_SIZE, $block->getFloorZ() >> Chunk::COORD_BIT_SIZE);
+	public function onBlockChanged(int $x, int $y, int $z) : void{
+		$this->invalidate($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
 	}
 
 	/**

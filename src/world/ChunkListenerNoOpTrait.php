@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\world;
 
-use pocketmine\math\Vector3;
 use quark\world\format\Chunk;
 
 /**
@@ -48,7 +47,7 @@ trait ChunkListenerNoOpTrait/* implements ChunkListener*/{
 		//NOOP
 	}
 
-	public function onBlockChanged(Vector3 $block) : void{
+	public function onBlockChanged(int $x, int $y, int $z) : void{
 		//NOOP
 	}
 }

@@ -3091,8 +3091,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 	}
 
-	public function onBlockChanged(Vector3 $block) : void{
-		if($this->sleeping !== null && $block->equals($this->sleeping) && !($this->getWorld()->getBlock($block) instanceof Bed)){
+	public function onBlockChanged(int $x, int $y, int $z) : void{
+		if($this->sleeping !== null && $this->sleeping->getFloorX() === $x && $this->sleeping->getFloorY() === $y && $this->sleeping->getFloorZ() === $z && !($this->getWorld()->getBlockAt($x, $y, $z) instanceof Bed)){
 			$this->logger->debug("Bed was changed or deleted, aborting sleep");
 			$this->stopSleep();
 		}

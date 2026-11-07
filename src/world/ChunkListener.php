@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\world;
 
-use pocketmine\math\Vector3;
 use quark\world\format\Chunk;
 
 /**
@@ -64,5 +63,5 @@ interface ChunkListener{
 	/**
 	 * This method will be called when a block changes in a registered chunk
 	 */
-	public function onBlockChanged(Vector3 $block) : void;
+	public function onBlockChanged(int $x, int $y, int $z) : void;
 }

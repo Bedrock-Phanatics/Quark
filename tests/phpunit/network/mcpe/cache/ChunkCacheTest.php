@@ -26,7 +26,6 @@ namespace quark\network\mcpe\cache;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\block\VanillaBlocks;
@@ -116,7 +115,7 @@ final class ChunkCacheTest extends TestCase{
 
 	private function setBlock(int $stateId) : void{
 		$this->chunk->setBlockStateId(0, 0, 0, $stateId);
-		$this->cache->onBlockChanged(new Vector3(self::X << Chunk::COORD_BIT_SIZE, 0, self::Z << Chunk::COORD_BIT_SIZE));
+		$this->cache->onBlockChanged(self::X << Chunk::COORD_BIT_SIZE, 0, self::Z << Chunk::COORD_BIT_SIZE);
 	}
 
 	public function testNativeBatchIsReadyImmediatelyAndShared() : void{
