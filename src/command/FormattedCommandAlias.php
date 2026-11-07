@@ -23,15 +23,18 @@ declare(strict_types=1);
 
 namespace quark\command;
 
+use quark\command\internal\CommandInputException;
 use quark\command\utils\CommandStringHelper;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
+use function array_map;
 use function array_shift;
 use function count;
 use function implode;
 use function preg_match;
+use function spl_object_id;
+use function str_contains;
 use function strlen;
 use function strpos;
 use function substr;
@@ -51,6 +54,13 @@ class FormattedCommandAlias extends Command{
 	private const FORMAT_STRING_REGEX = '/\G\$(\$)?((?!0)+\d+)(-)?/';
 
 	/**
+	 * @var string[][]
+	 * @phpstan-var array<int, list<string>>
+	 */
+	private array $formatArgs;
+	private bool $expanding = false;
+
+	/**
 	 * @param string[] $formatStrings
 	 */
 	public function __construct(
@@ -58,15 +68,63 @@ class FormattedCommandAlias extends Command{
 		private array $formatStrings
 	){
 		parent::__construct($alias, KnownTranslationFactory::quark_command_userDefined_description());
+		$this->formatArgs = array_map(CommandStringHelper::parseQuoteAware(...), $formatStrings);
+	}
+
+	public function testPermissionSilent(CommandSender $target, ?string $permission = null) : bool{
+		if($permission !== null){
+			return parent::testPermissionSilent($target, $permission);
+		}
+		//forwarding only, targets check their own permissions
+		return $this->canUseAnyTarget($target, $target->getServer()->getCommandMap(), []);
+	}
+
+	/**
+	 * @phpstan-param array<int, true> $visited
+	 */
+	private function canUseAnyTarget(CommandSender $sender, SimpleCommandMap $commandMap, array $visited) : bool{
+		$visited[spl_object_id($this)] = true;
+		foreach($this->formatArgs as $formatArgs){
+			$target = $commandMap->getCommand($formatArgs[0] ?? "");
+			if($target === null || isset($visited[spl_object_id($target)])){
+				continue;
+			}
+			if($target instanceof self ?
+				$target->canUseAnyTarget($sender, $commandMap, $visited) :
+				SimpleCommandMap::isOwnerEnabled($target) && $target->testPermissionSilent($sender) && $this->canReachTargetSyntax($target, $sender, $formatArgs)
+			){
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * @param string[] $formatArgs
+	 * @phpstan-param list<string> $formatArgs
+	 */
+	private function canReachTargetSyntax(Command $target, CommandSender $sender, array $formatArgs) : bool{
+		$fixedArgs = [];
+		for($i = 1, $count = count($formatArgs); $i < $count; ++$i){
+			//placeholders depend on what the sender types, so stop at the first one
+			if(str_contains($formatArgs[$i], '$')){
+				return $target->canReachPermittedSyntax($sender, $fixedArgs, true);
+			}
+			$fixedArgs[] = $formatArgs[$i];
+		}
+		return $target->canReachPermittedSyntax($sender, $fixedArgs, false);
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
+		if($this->expanding){
+			throw new CommandInputException(KnownTranslationFactory::quark_command_error_aliasRecursive($this->getName()), []);
+		}
 		$commands = [];
 		$result = true;
 
-		foreach($this->formatStrings as $formatString){
+		foreach($this->formatArgs as $key => $formatArgs){
 			try{
-				$formatArgs = CommandStringHelper::parseQuoteAware($formatString);
+				$formatString = $this->formatStrings[$key];
 				$unresolved = [];
 				$processedArgs = [];
 				foreach($formatArgs as $formatArg){
@@ -88,36 +146,22 @@ class FormattedCommandAlias extends Command{
 		}
 
 		$commandMap = $sender->getServer()->getCommandMap();
-		foreach($commands as $commandArgs){
-			//this approximately duplicates the logic found in SimpleCommandMap::dispatch()
-			//this is to allow directly invoking the commands without having to rebuild a command string and parse it
-			//again for no reason
-			//TODO: a method on CommandMap to invoke a command with pre-parsed arguments would probably be a good idea
-			//for a future major version
-			$commandLabel = array_shift($commandArgs);
-			if($commandLabel === null){
-				throw new AssumptionFailedError("This should have been checked before construction");
-			}
-
-			if(($target = $commandMap->getCommand($commandLabel)) !== null){
-				$pulse = $target->getPulseZone();
-				$scope = $pulse->start();
-
-				try{
-					$target->execute($sender, $commandLabel, $commandArgs);
-				}catch(InvalidCommandSyntaxException $e){
-					$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_generic_usage($target->getUsage())));
-				}finally{
-					$pulse->stop($scope);
+		//targets can expand back into this alias
+		$this->expanding = true;
+		try{
+			foreach($commands as $commandArgs){
+				$commandLabel = array_shift($commandArgs);
+				if($commandLabel === null){
+					throw new AssumptionFailedError("This should have been checked before construction");
 				}
-			}else{
-				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::quark_command_notFound($commandLabel, "/help")->prefix(TextFormat::RED)));
 
-				//to match the behaviour of SimpleCommandMap::dispatch()
-				//this shouldn't normally happen, but might happen if the command was unregistered or modified after
-				//the alias was installed
-				$result = false;
+				//target unregistered after the alias was installed
+				if(!$commandMap->dispatchParsed($sender, $commandLabel, $commandArgs)){
+					$result = false;
+				}
 			}
+		}finally{
+			$this->expanding = false;
 		}
 
 		return $result;

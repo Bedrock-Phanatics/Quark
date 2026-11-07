@@ -24,22 +24,35 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use PHPUnit\Framework\TestCase;
+use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\SetTimePacket;
+use pocketmine\network\mcpe\protocol\types\command\raw\CommandRawData;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
+use quark\command\Command;
+use quark\command\CommandArgs;
+use quark\command\CommandSender;
+use quark\command\SimpleCommandMap;
+use quark\command\TestCommandSender;
 use quark\lang\Language;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\PacketHandlingException;
+use quark\permission\DefaultPermissions;
+use quark\permission\Permission;
+use quark\permission\PermissionManager;
+use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\ObjectSet;
 use Vow\CancelledException;
 use Vow\Deferred;
+use function array_map;
 use function strlen;
 
 final class NetworkSessionTest extends TestCase{
@@ -199,6 +212,44 @@ final class NetworkSessionTest extends TestCase{
 		$session = $this->session(static function() : void{});
 		$receipt = $session->sendDataPacketWithReceipt(SetTimePacket::create(1), true);
 		self::assertTrue($receipt->isFulfilled());
+	}
+
+	public function testSyncAvailableCommandsSendsTheCurrentMapForThisPlayer() : void{
+		DefaultPermissions::registerCorePermissions();
+		if(PermissionManager::getInstance()->getPermission("test.root") === null){
+			PermissionManager::getInstance()->addPermission(new Permission("test.root"));
+		}
+		$server = self::createStub(Server::class);
+		$map = new SimpleCommandMap($server);
+		$server->method("getCommandMap")->willReturn($map);
+		$command = new class("eco") extends Command{
+			protected function run(CommandSender $sender, CommandArgs $args) : void{}
+		};
+		$command->setPermission("test.root");
+		$command->syntax("balance");
+		$map->register("test", $command);
+
+		$session = $this->session(static function() : void{});
+		$this->set($session, "server", $server);
+		try{
+			$session->syncAvailableCommands();
+			self::fail("syncing without a player should fail");
+		}catch(\LogicException){
+			$this->addToAssertionCount(1);
+		}
+
+		$player = TestCommandSender::closedPlayer(self::createStub(Player::class));
+		$player->method("getLanguage")->willReturn(TestCommandSender::language());
+		$player->method("hasPermission")->willReturnCallback(fn(Permission|string $name) : bool => $name === "test.root");
+		$this->set($session, "player", $player);
+		$session->syncAvailableCommands();
+
+		/** @phpstan-var list<string> $buffer */
+		$buffer = new \ReflectionProperty(NetworkSession::class, "sendBuffer")->getValue($session);
+		$packet = new AvailableCommandsPacket();
+		$packet->decode(new ByteBufferReader($buffer[0]));
+		self::assertSame(["eco"], array_map(fn(CommandRawData $data) => $data->getName(), $packet->commandData));
+		self::assertSame(["balance"], $packet->enumValues);
 	}
 
 	public function testNegativeWindowTypesEncode() : void{

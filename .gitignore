@@ -24,6 +24,17 @@ nethernet-identity.der
 !tests/build-plugin-phar.php
 !tests/phpunit/
 tests/phpunit/*
+!tests/phpunit/command/
+tests/phpunit/command/*
+!tests/phpunit/command/argument/
+!tests/phpunit/command/CommandSyntaxTest.php
+!tests/phpunit/command/SimpleCommandMapTest.php
+!tests/phpunit/command/TestCommandSender.php
+!tests/phpunit/network/
+tests/phpunit/network/*
+!tests/phpunit/network/mcpe/
+tests/phpunit/network/mcpe/*
+!tests/phpunit/network/mcpe/command/
 !tests/phpunit/pulse/
 !tests/phpunit/form/
 !tests/phpunit/item/

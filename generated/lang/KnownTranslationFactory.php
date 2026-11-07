@@ -1640,6 +1640,44 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ENCHANT_DESCRIPTION, []);
 	}
 
+	public static function quark_command_error_aliasRecursive(Translatable|string $alias) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_ALIASRECURSIVE, [
+			"alias" => $alias,
+		]);
+	}
+
+	public static function quark_command_error_invalidArgument(Translatable|string $argument, Translatable|string $reason) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_INVALIDARGUMENT, [
+			"argument" => $argument,
+			"reason" => $reason,
+		]);
+	}
+
+	public static function quark_command_error_invalidBoolean(Translatable|string $value) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_INVALIDBOOLEAN, [
+			"value" => $value,
+		]);
+	}
+
+	public static function quark_command_error_invalidEnum(Translatable|string $value, Translatable|string $values) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_INVALIDENUM, [
+			"value" => $value,
+			"values" => $values,
+		]);
+	}
+
+	public static function quark_command_error_invalidInteger(Translatable|string $value) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_INVALIDINTEGER, [
+			"value" => $value,
+		]);
+	}
+
+	public static function quark_command_error_invalidNumber(Translatable|string $value) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_INVALIDNUMBER, [
+			"value" => $value,
+		]);
+	}
+
 	public static function quark_command_error_permission(Translatable|string $commandName) : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_PERMISSION, [
 			"commandName" => $commandName,
@@ -1654,6 +1692,12 @@ final class KnownTranslationFactory{
 
 	public static function quark_command_error_playerUserOnly() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_PLAYERUSERONLY, []);
+	}
+
+	public static function quark_command_error_selectorUnsupported(Translatable|string $selector) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_SELECTORUNSUPPORTED, [
+			"selector" => $selector,
+		]);
 	}
 
 	public static function quark_command_gamemode_description() : Translatable{

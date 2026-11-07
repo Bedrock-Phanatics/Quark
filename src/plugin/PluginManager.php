@@ -496,6 +496,7 @@ class PluginManager{
 
 			if($plugin->isEnabled()){ //the plugin may have disabled itself during onEnable()
 				$this->enabledPlugins[$plugin->getDescription()->getName()] = $plugin;
+				$this->server->getCommandMap()->invalidateClientMetadata();
 
 				foreach($plugin->getDescription()->getDepend() as $dependency){
 					$this->pluginDependents[$dependency][$plugin->getDescription()->getName()] = true;
@@ -557,9 +558,29 @@ class PluginManager{
 				}
 			}
 
-			$plugin->onEnableStateChange(false);
-			$plugin->getScheduler()->shutdown();
-			HandlerListManager::global()->unregisterAll($plugin);
+			$commandMap = $this->server->getCommandMap();
+			//every step runs even if onDisable() throws, the first failure is rethrown afterwards
+			$failure = null;
+			foreach([
+				fn() => $plugin->onEnableStateChange(false),
+				fn() => $plugin->getScheduler()->shutdown(),
+				fn() => HandlerListManager::global()->unregisterAll($plugin),
+				fn() => $commandMap->unregisterPluginSyntaxCommands($plugin),
+			] as $step){
+				try{
+					$step();
+				}catch(\Throwable $e){
+					if($failure === null){
+						$failure = $e;
+					}else{
+						$this->server->getLogger()->logException($e);
+					}
+				}
+			}
+			$commandMap->invalidateClientMetadata();
+			if($failure !== null){
+				throw $failure;
+			}
 		}
 	}
 
