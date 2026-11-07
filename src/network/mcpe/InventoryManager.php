@@ -733,6 +733,8 @@ class InventoryManager{
 	 */
 	public function syncEnchantingTableOptions(array $options) : void{
 		$protocolOptions = [];
+		//only the latest options can be selected, older ids would index into the new list
+		$this->enchantingTableOptions = [];
 
 		foreach($options as $index => $option){
 			$optionId = $this->nextEnchantingTableOptionId++;
