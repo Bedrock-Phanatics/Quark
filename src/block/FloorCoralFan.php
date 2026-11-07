@@ -55,7 +55,7 @@ final class FloorCoralFan extends BaseCoral{
 		return $this;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$playerBlockPos = $player->getPosition()->floor();
 			$directionVector = $blockReplace->position->subtractVector($playerBlockPos)->normalize();
@@ -70,7 +70,7 @@ final class FloorCoralFan extends BaseCoral{
 
 		$this->dead = !$this->isCoveredWithWater();
 
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	private function canBeSupportedAt(Block $block) : bool{

@@ -129,9 +129,9 @@ final class WorldCommand extends VanillaCommand{
 						throw new InvalidCommandSyntaxException();
 					}
 					$target = $args[1];
-					$manager->copyWorld($name, $target)->onCompletion(
+					$manager->copyWorld($name, $target)->observe(
 						fn() => $this->reply($sender, "Copied world \"$name\" to \"$target\""),
-						fn() => $this->reply($sender, TextFormat::RED . "Copying world \"$name\" failed, see the console for details")
+						fn(\Throwable $e) => $this->fail($sender, $e)
 					);
 					$sender->sendMessage("Copying world \"$name\" to \"$target\"...");
 					return true;
@@ -140,9 +140,9 @@ final class WorldCommand extends VanillaCommand{
 					if($name === null || count($args) !== 1){
 						throw new InvalidCommandSyntaxException();
 					}
-					$manager->deleteWorld($name)->onCompletion(
+					$manager->deleteWorld($name)->observe(
 						fn() => $this->reply($sender, "Deleted world \"$name\""),
-						fn() => $this->reply($sender, TextFormat::RED . "Deleting world \"$name\" failed, see the console for details")
+						fn(\Throwable $e) => $this->fail($sender, $e)
 					);
 					$sender->sendMessage("Deleting world \"$name\"...");
 					return true;
@@ -158,6 +158,13 @@ final class WorldCommand extends VanillaCommand{
 	private function reply(CommandSender $sender, string $message) : void{
 		if(!$sender instanceof Player || $sender->isConnected()){
 			$sender->sendMessage($message);
+		}
+	}
+
+	private function fail(CommandSender $sender, \Throwable $e) : void{
+		$sender->getServer()->getLogger()->error($e->getMessage());
+		if($sender instanceof Player){
+			$this->reply($sender, TextFormat::RED . $e->getMessage());
 		}
 	}
 }

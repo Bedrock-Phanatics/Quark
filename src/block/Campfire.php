@@ -173,7 +173,7 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 		return $this->cookingTimes[$slot] ?? 0;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($this->getSide(Facing::DOWN) instanceof Campfire){
 			return false;
 		}
@@ -181,7 +181,7 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 			$this->facing = $player->getHorizontalFacing();
 		}
 		$this->lit = true;
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{

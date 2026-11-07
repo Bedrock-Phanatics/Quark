@@ -51,7 +51,7 @@ final class WallHangingSign extends BaseSign implements HorizontalFacing{
 		return [AxisAlignedBB::one()->trim(Facing::DOWN, 7 / 8)->squash(Facing::axis($this->facing), 3 / 4)];
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player === null){
 			return false;
 		}
@@ -71,7 +71,7 @@ final class WallHangingSign extends BaseSign implements HorizontalFacing{
 			$this->facing = Facing::opposite($this->facing);
 		}
 
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	private function canBeSupportedAt(Block $block, int $face) : bool{

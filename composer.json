@@ -43,7 +43,7 @@
       "axolotl-pm/xoroshiro128pp": "^0.1.0",
       "netresearch/jsonmapper": "~v6.0.0",
       "pocketmine/binaryutils": "^0.2.1",
-      "pocketmine/callback-validator": "~1.0.4",
+      "pocketmine/callback-validator": "dev-rewrite",
       "pocketmine/color": "^0.3.0",
       "pocketmine/errorhandler": "^0.7.0",
       "pocketmine/log": "^0.4.0",
@@ -53,12 +53,17 @@
       "pocketmine/raklib-ipc": "~1.0.0",
       "pocketmine/snooze": "^0.5.0",
       "ramsey/uuid": "~4.9.0",
-      "symfony/filesystem": "~6.4.0"
+      "symfony/filesystem": "~6.4.0",
+      "trix/vow": "^1.0.1"
    },
    "repositories": [
       {
          "type": "vcs",
          "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol"
+      },
+      {
+         "type": "vcs",
+         "url": "https://github.com/TrixNEW/Vow"
       }
    ],
    "require-dev": {

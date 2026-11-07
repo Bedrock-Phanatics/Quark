@@ -288,13 +288,13 @@ class ResourcePacksPacketHandler extends PacketHandler{
 		$this->activeRequests++;
 		$this->session
 			->sendDataPacketWithReceipt(ResourcePackChunkDataPacket::create($packId, $chunkIndex, $offset, $chunkData))
-			->onCompletion(
+			->observe(
 				function() : void{
 					$this->activeRequests--;
 					$this->processChunkRequestQueue();
 				},
 				function() : void{
-					//this may have been rejected because of a disconnection - this will do nothing in that case
+					//this may have been cancelled by a disconnection - this will do nothing in that case
 					$this->disconnectWithError("Plugin interrupted sending of resource packs");
 				}
 			);

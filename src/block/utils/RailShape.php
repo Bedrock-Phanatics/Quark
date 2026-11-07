@@ -21,28 +21,26 @@
 
 declare(strict_types=1);
 
-namespace quark\promise;
+namespace quark\block\utils;
 
-/**
- * @internal
- * @see PromiseResolver
- * @phpstan-template TValue
- */
-final class PromiseSharedData{
+enum RailShape{
+	case FLAT_AXIS_Z;
+	case FLAT_AXIS_X;
+	case ASCENDING_EAST;
+	case ASCENDING_WEST;
+	case ASCENDING_NORTH;
+	case ASCENDING_SOUTH;
+
+	case CURVED_SOUTHEAST;
+	case CURVED_SOUTHWEST;
+	case CURVED_NORTHWEST;
+	case CURVED_NORTHEAST;
+
 	/**
-	 * @var \Closure[]
-	 * @phpstan-var array<int, \Closure(TValue) : void>
+	 * @return int[]
+	 * @phpstan-return list<int>
 	 */
-	public array $onSuccess = [];
-
-	/**
-	 * @var \Closure[]
-	 * @phpstan-var array<int, \Closure() : void>
-	 */
-	public array $onFailure = [];
-
-	public ?bool $state = null;
-
-	/** @phpstan-var TValue */
-	public mixed $result;
+	public function getConnections() : array{
+		return RailConnectionInfo::CONNECTIONS[$this->name];
+	}
 }

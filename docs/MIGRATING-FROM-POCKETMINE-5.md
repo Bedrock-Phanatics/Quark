@@ -125,10 +125,22 @@ Inventories now only store items. Who is looking at one and where it was opened 
 - Runtime overrides are not persistent and world operations must run on the main thread.
 - Disable native redstone where plugins provide their own implementation.
 
+### Chunk Loading
+
+- `ChunkLoader` is now a final class instead of an interface. Replace implementations with `new ChunkLoader()` instances, one per owner.
+
 ### Damage
 
 - Expanded protected-damage and final-damage access in `EntityDamageEvent`.
 - Some damage modifier constants have changed integer values. Use named constants instead of hardcoded values.
+
+### Effects
+
+- `EffectInstance` is immutable, so one instance can be applied to any number of entities. `setDuration()`, `decreaseDuration()`, `hasExpired()`, `setAmplifier()`, `setVisible()`, `setAmbient()`, `setColor()` and `resetColor()` have been removed. Construct a new instance, or use `withDuration()`.
+- `EffectInstance::getDuration()` is the duration the effect was created with. Use `EffectManager::getRemainingDuration()` for the ticks left on an active effect.
+- `Effect::canTick()` has been removed. Implement `getApplyInterval()` instead.
+- `EntityEffectRemoveEvent::isExpired()` tells whether the effect ran out.
+- `EntityEffectAddEvent::getEffect()` no longer allows in-place changes. Call `setEffect()` with a modified copy of the same effect type.
 
 ### Removed Mechanics
 
@@ -136,6 +148,17 @@ Inventories now only store items. Who is looking at one and where it was opened 
 - Armor no longer receives unconditional per-tick callbacks.
 - Turtle Helmets no longer grant Water Breathing.
 - Plugins relying on these mechanics must implement their own behavior.
+
+### Block Placement
+
+- `Block::place()` no longer receives the clicked block. Use `$blockReplace->getSide(Facing::opposite($face))` for the block the placement is attached to.
+
+### Plugin Resources
+
+- `PluginBase::getResource()` has been removed because it returned a handle that had to be closed with `fclose()`. Use `file_get_contents($this->getResourcePath($name))` or `fopen()` on the same path instead.
+- `ResourceProvider` and `DiskResourceProvider` have been removed, and the `Plugin` constructor no longer takes a resource provider.
+- `getResourceFolder()` and `getResourcePath()` return the plugin's read-only `resources` folder and a file inside it.
+- `saveResource()` returns `false` for directories and for names that resolve outside the resources or data folder.
 
 ### Compression
 

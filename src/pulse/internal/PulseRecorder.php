@@ -24,8 +24,6 @@ declare(strict_types=1);
 namespace quark\pulse\internal;
 
 use quark\log\LogDispatcher;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\pulse\Pulse;
 use quark\pulse\PulseReport;
 use quark\pulse\PulseSession;
@@ -33,6 +31,9 @@ use quark\scheduler\AsyncPool;
 use quark\scheduler\PulseControlTask;
 use quark\thread\ThreadManager;
 use quark\thread\ThreadSafeClassLoader;
+use Vow\CancelledException;
+use Vow\Deferred;
+use Vow\Promise;
 use function array_values;
 use function count;
 use function hrtime;
@@ -46,8 +47,8 @@ final class PulseRecorder{
 	private ?PulseSession $session = null;
 	private int $generation = 0;
 	private int $controls = 0;
-	/** @var PromiseResolver<list<PulseCapture>>|null */
-	private ?PromiseResolver $collection = null;
+	/** @var Deferred<list<PulseCapture>>|null */
+	private ?Deferred $collection = null;
 	private int $collectionDeadline = 0;
 	private int $collectionRows = 0;
 	private int $collectionBytes = 0;
@@ -158,7 +159,7 @@ final class PulseRecorder{
 			$this->stop();
 		}
 		if($this->collection !== null && hrtime(true) >= $this->collectionDeadline){
-			$this->finishCollection(false);
+			$this->failCollection(self::timedOut());
 		}
 	}
 
@@ -193,31 +194,16 @@ final class PulseRecorder{
 	 * @return Promise<PulseReport>
 	 */
 	public function collect(array $metadata = []) : Promise{
-		/** @var PromiseResolver<PulseReport> $result */
-		$result = new PromiseResolver();
-		$this->collectCaptures()->onCompletion(
-			static function(array $captures) use ($metadata, $result) : void{
-				try{ $report = PulseReport::create($captures, $metadata); }catch(\InvalidArgumentException|\LengthException){ $result->reject(); return; }
-				$result->resolve($report);
-			},
-			fn() => $result->reject()
-		);
-		return $result->getPromise();
+		return $this->collectCaptures()->then(static fn(array $captures) => PulseReport::create($captures, $metadata));
 	}
 
 	/** @return Promise<list<Capture>> */
 	public function collectCaptures() : Promise{
-		/** @var PromiseResolver<list<Capture>> $result */
-		$result = new PromiseResolver();
-		$this->collectTransfers()->onCompletion(
-			static function(array $captures) use ($result) : void{
-				$data = [];
-				foreach($captures as $capture){ $data[] = $capture->decode(); }
-				$result->resolve($data);
-			},
-			fn() => $result->reject()
-		);
-		return $result->getPromise();
+		return $this->collectTransfers()->then(static function(array $captures) : array{
+			$data = [];
+			foreach($captures as $capture){ $data[] = $capture->decode(); }
+			return $data;
+		});
 	}
 
 	/** @return Promise<list<PulseCapture>> */
@@ -228,8 +214,8 @@ final class PulseRecorder{
 		if($this->session === null){ throw new \LogicException("No Pulse session to report"); }
 		$main = new PulseCapture($this->session->getCapture());
 		$workers = $this->pool->getRunningWorkers();
-		/** @var PromiseResolver<list<PulseCapture>> $result */
-		$result = new PromiseResolver();
+		/** @var Deferred<list<PulseCapture>> $result */
+		$result = new Deferred();
 		$this->collection = $result;
 		$this->captures = [$main];
 		$this->collectionRows = $main->getRowCount();
@@ -244,39 +230,55 @@ final class PulseRecorder{
 					function(?PulseCapture $capture) use ($worker) : void{
 						--$this->pendingCollections;
 						if($this->collection === null){ return; }
-						if(hrtime(true) >= $this->collectionDeadline){ $this->finishCollection(false); return; }
+						if(hrtime(true) >= $this->collectionDeadline){ $this->failCollection(self::timedOut()); return; }
 						if($capture !== null){
 							$this->collectionRows += $capture->getRowCount();
 							$this->collectionBytes += $capture->getByteSize();
-							if($this->collectionRows > PulseReport::MAX_ROWS || $this->collectionBytes > PulseCapture::MAX_TRANSFER_BYTES){ $this->finishCollection(false); return; }
+							if($this->collectionRows > PulseReport::MAX_ROWS || $this->collectionBytes > PulseCapture::MAX_TRANSFER_BYTES){
+								$this->failCollection(new \LengthException("Pulse report exceeds the row or transfer size budget"));
+								return;
+							}
 							$this->captures[$worker + 1] = $capture;
 						}
-						if($this->pendingCollections === 0){ $this->finishCollection(true); }
+						if($this->pendingCollections === 0){ $this->finishCollection(); }
 					}
 				), $worker);
 				++$submitted;
 			}
 		}catch(\Throwable $e){
 			$this->pendingCollections -= count($workers) - $submitted;
-			$this->finishCollection(false);
+			//the caller gets $e instead of the promise
+			$this->failCollection(new CancelledException("Pulse collection could not be submitted", $e));
 			throw $e;
 		}
-		if($this->pendingCollections === 0){ $this->finishCollection(true); }
-		return $result->getPromise();
+		if($this->pendingCollections === 0){ $this->finishCollection(); }
+		return $result->promise;
 	}
 
-	private function finishCollection(bool $success) : void{
+	private static function timedOut() : \RuntimeException{
+		return new \RuntimeException("Pulse workers did not report back in time");
+	}
+
+	private function finishCollection() : void{
 		$result = $this->collection;
 		if($result === null){ return; }
-		$captures = null;
-		if($success){
-			ksort($this->captures);
-			$captures = array_values($this->captures);
-		}
-		// Release report payloads before invoking callbacks or accepting another collection.
+		ksort($this->captures);
+		$captures = array_values($this->captures);
+		$this->releaseCollection();
+		$result->resolve($captures);
+	}
+
+	private function failCollection(\Throwable $reason) : void{
+		$result = $this->collection;
+		if($result === null){ return; }
+		$this->releaseCollection();
+		$result->reject($reason);
+	}
+
+	/** Releases report payloads before invoking callbacks or accepting another collection. */
+	private function releaseCollection() : void{
 		$this->collection = null;
 		$this->captures = [];
 		$this->collectionDeadline = $this->collectionRows = $this->collectionBytes = 0;
-		if($captures !== null){ $result->resolve($captures); }else{ $result->reject(); }
 	}
 }

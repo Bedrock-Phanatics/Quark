@@ -27,7 +27,7 @@ declare(strict_types=1);
 
 namespace quark\utils;
 
-use DaveRandom\CallbackValidator\CallbackType;
+use DaveRandom\CallbackValidator\Prototype;
 use pocketmine\errorhandler\ErrorTypeToStringMap;
 use pocketmine\math\Vector3;
 use pocketmine\utils\Limits;
@@ -577,20 +577,18 @@ final class Utils{
 	 * Verifies that the given callable is compatible with the desired signature. Throws a TypeError if they are
 	 * incompatible.
 	 *
-	 * @param callable|CallbackType $signature Dummy callable with the required parameters and return type
-	 * @param callable              $subject   Callable to check the signature of
-	 * @phpstan-param anyCallable|CallbackType $signature
-	 * @phpstan-param anyCallable              $subject
+	 * @param \Closure $signature Dummy closure with the required parameters and return type
+	 * @param \Closure $subject   Closure to check the signature of
+	 * @phpstan-param anyClosure $signature
+	 * @phpstan-param anyClosure $subject
 	 *
-	 * @throws \DaveRandom\CallbackValidator\InvalidCallbackException
 	 * @throws \TypeError
 	 */
-	public static function validateCallableSignature(callable|CallbackType $signature, callable $subject) : void{
-		if(!($signature instanceof CallbackType)){
-			$signature = CallbackType::createFromCallable($signature);
-		}
-		if(!$signature->isSatisfiedBy($subject)){
-			throw new \TypeError("Declaration of callable `" . CallbackType::createFromCallable($subject) . "` must be compatible with `" . $signature . "`");
+	public static function validateCallableSignature(\Closure $signature, \Closure $subject) : void{
+		$signaturePrototype = Prototype::fromClosure($signature);
+		$subjectPrototype = Prototype::fromClosure($subject);
+		if(!$signaturePrototype->isSatisfiedBy($subjectPrototype)){
+			throw new \TypeError("Declaration of callable `$subjectPrototype` must be compatible with `$signaturePrototype`");
 		}
 	}
 

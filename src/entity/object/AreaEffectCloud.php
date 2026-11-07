@@ -374,11 +374,10 @@ class AreaEffectCloud extends Entity{
 
 			foreach($ev->getAffectedEntities() as $entity){
 				foreach($this->effectCollection->all() as $effect){
-					$effect = clone $effect; //avoid accidental modification
 					if($effect->getType() instanceof InstantEffect){
 						$effect->getType()->applyEffect($entity, $effect, 0.5, $this);
 					}else{
-						$entity->getEffects()->add($effect->setDuration((int) round($effect->getDuration() / 4)));
+						$entity->getEffects()->add($effect->withDuration((int) round($effect->getDuration() / 4)));
 					}
 				}
 				if($this->reapplicationDelay !== 0){

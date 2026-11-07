@@ -21,24 +21,21 @@
 
 declare(strict_types=1);
 
-namespace quark\plugin;
+namespace quark\block\utils;
 
-/**
- * @deprecated
- */
-interface ResourceProvider{
-	/**
-	 * Gets an embedded resource on the plugin file.
-	 * WARNING: You must close the resource given using fclose()
-	 *
-	 * @return null|resource Resource data, or null
-	 */
-	public function getResource(string $filename);
+enum StraightOnlyRailShape{
+	case FLAT_AXIS_Z;
+	case FLAT_AXIS_X;
+	case ASCENDING_EAST;
+	case ASCENDING_WEST;
+	case ASCENDING_NORTH;
+	case ASCENDING_SOUTH;
 
 	/**
-	 * Returns all the resources packaged with the plugin in the form ["path/in/resources" => SplFileInfo]
-	 *
-	 * @return \SplFileInfo[]
+	 * @return int[]
+	 * @phpstan-return list<int>
 	 */
-	public function getResources() : array;
+	public function getConnections() : array{
+		return RailConnectionInfo::CONNECTIONS[$this->name];
+	}
 }

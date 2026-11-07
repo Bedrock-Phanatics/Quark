@@ -44,8 +44,8 @@ use function max;
 trait RedstoneWireBehavior{
 	use RedstoneBlockAccessTrait;
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		return RedstoneBlockUtils::getBlockAtSide($this->position, Facing::DOWN)->isSolid() && parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		return RedstoneBlockUtils::getBlockAtSide($this->position, Facing::DOWN)->isSolid() && parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{

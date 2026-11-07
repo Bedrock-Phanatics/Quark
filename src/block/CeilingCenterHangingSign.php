@@ -41,7 +41,7 @@ final class CeilingCenterHangingSign extends BaseSign implements SignLikeRotatio
 	}
 
 	//TODO: duplicated code :(
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face !== Facing::DOWN){
 			return false;
 		}
@@ -49,7 +49,7 @@ final class CeilingCenterHangingSign extends BaseSign implements SignLikeRotatio
 		if($player !== null){
 			$this->rotation = self::getRotationFromYaw($player->getLocation()->getYaw());
 		}
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	private function canBeSupportedAt(Block $block) : bool{

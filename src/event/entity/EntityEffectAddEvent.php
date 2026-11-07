@@ -35,6 +35,16 @@ class EntityEffectAddEvent extends EntityEffectEvent{
 	}
 
 	/**
+	 * Replaces the effect that will be added. It must be of the same type as the original.
+	 */
+	public function setEffect(EffectInstance $effect) : void{
+		if($effect->getType() !== $this->effect->getType()){
+			throw new \InvalidArgumentException("Effect type cannot be changed");
+		}
+		$this->effect = $effect;
+	}
+
+	/**
 	 * Returns whether the effect addition will replace an existing effect already applied to the entity.
 	 */
 	public function willModify() : bool{

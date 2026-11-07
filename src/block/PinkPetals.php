@@ -74,14 +74,14 @@ class PinkPetals extends Flowable implements HorizontalFacing{
 		return ($blockReplace instanceof PinkPetals && $blockReplace->count < self::MAX_COUNT) || $this->supportedWhenPlacedAt($blockReplace, $clickVector, $face, $isClickedBlock);
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($blockReplace instanceof PinkPetals && $blockReplace->count < self::MAX_COUNT){
 			$this->count = $blockReplace->count + 1;
 			$this->facing = $blockReplace->facing;
 		}elseif($player !== null){
 			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{

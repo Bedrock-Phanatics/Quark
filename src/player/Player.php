@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\player;
 
+use DateTimeImmutable;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -146,8 +147,10 @@ use quark\world\sound\Sound;
 use quark\world\World;
 use quark\YmlServerProperties;
 use Ramsey\Uuid\UuidInterface;
+use Vow\CancelledException;
 use function abs;
 use function array_filter;
+use function array_intersect_key;
 use function array_shift;
 use function assert;
 use function count;
@@ -361,7 +364,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$this->releaseViewOnlyChunks = $this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CHUNK_TICKING_UNLOAD_VIEW_ONLY_CHUNKS, true);
 		$this->chunkSelector = new ChunkSelector();
 
-		$this->chunkLoader = new class implements ChunkLoader{};
+		$this->chunkLoader = new ChunkLoader();
 		$this->chunkTicker = new ChunkTicker();
 		$world = $spawnLocation->getWorld();
 		//load the spawn chunk so we can see the terrain
@@ -467,18 +470,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		return parent::getUniqueId();
 	}
 
-	/**
-	 * TODO: not sure this should be nullable
-	 */
-	public function getFirstPlayed() : ?int{
-		return $this->firstPlayed;
+	public function getFirstPlayed() : DateTimeImmutable{
+		return DateTimeImmutable::createFromTimestamp($this->firstPlayed / 1000);
 	}
 
-	/**
-	 * TODO: not sure this should be nullable
-	 */
-	public function getLastPlayed() : ?int{
-		return $this->lastPlayed;
+	public function getLastPlayed() : DateTimeImmutable{
+		return DateTimeImmutable::createFromTimestamp($this->lastPlayed / 1000);
 	}
 
 	public function hasPlayedBefore() : bool{
@@ -926,7 +923,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$world->registerTickingChunk($this->chunkTicker, $X, $Z);
 			}
 
-			$world->requestChunkPopulation($X, $Z, $this->chunkLoader)->onCompletion(
+			//cancelled requests are re-requested anyway
+			$world->requestChunkPopulation($X, $Z, $this->chunkLoader)->observe(
 				function() use ($X, $Z, $index, $world) : void{
 					if(!$this->isConnected() || !isset($this->usedChunks[$index]) || $world !== $this->getWorld()){
 						return;
@@ -961,9 +959,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 						}
 						(new PlayerPostChunkSendEvent($this, $X, $Z))->call();
 					});
-				},
-				static function() : void{
-					//NOOP: we'll re-request this if it fails anyway
 				}
 			);
 		}
@@ -1081,6 +1076,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 					$this->chunkReloadQueue[$hash] = true;
 				}
 			}
+		}
+		if($release){
+			//kept chunks are ordered nearest first, so the chunks around the player reload before distant ones
+			$this->chunkReloadQueue = array_intersect_key($keptChunks, $this->chunkReloadQueue);
 		}
 	}
 
@@ -1544,8 +1543,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$this->logger->debug("Old position: " . $oldPos->asVector3() . ", new position: " . $newPos);
 			$revert = true;
 		}elseif(!$this->getWorld()->isInLoadedTerrain($newPos)){
-			$revert = true;
 			$this->nextChunkOrderRun = 0;
+			//fast travel can outrun chunk ordering into a released chunk the client already has
+			$chunkX = $newPos->getFloorX() >> Chunk::COORD_BIT_SIZE;
+			$chunkZ = $newPos->getFloorZ() >> Chunk::COORD_BIT_SIZE;
+			$hash = World::chunkHash($chunkX, $chunkZ);
+			if(isset($this->releasedChunks[$hash]) && ($this->usedChunks[$hash] ?? null) === UsedChunkStatus::SENT){
+				$this->keepChunk($hash, $chunkX, $chunkZ);
+			}
+			$revert = !$this->getWorld()->isInLoadedTerrain($newPos);
 		}
 
 		if(!$revert && $distanceSquared !== 0.0){
@@ -2735,7 +2741,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		$this->logger->debug("Waiting for safe respawn position to be located");
 		$spawn = $this->getSpawn();
-		$spawn->getWorld()->requestSafeSpawn($spawn)->onCompletion(
+		$spawn->getWorld()->requestSafeSpawn($spawn)->observe(
 			function(Position $safeSpawn) : void{
 				if(!$this->isConnected()){
 					return;
@@ -2787,7 +2793,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$this->getNetworkSession()->onServerRespawn();
 				$this->respawnLocked = false;
 			},
-			function() : void{
+			function(\Throwable $e) : void{
+				if(!$e instanceof CancelledException){
+					$this->logger->logException($e);
+				}
 				if($this->isConnected()){
 					$this->getNetworkSession()->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_respawn());
 				}

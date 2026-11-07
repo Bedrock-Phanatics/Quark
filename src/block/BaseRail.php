@@ -26,20 +26,21 @@ namespace quark\block;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\utils\RailConnectionInfo;
+use quark\block\utils\RailShape;
+use quark\block\utils\StraightOnlyRailShape;
 use quark\item\Item;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use function array_reverse;
-use function array_search;
 use function array_shift;
 use function count;
 use function in_array;
 
 abstract class BaseRail extends Flowable{
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($blockReplace->getAdjacentSupportType(Facing::DOWN)->hasEdgeSupport()){
-			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+			return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 		}
 
 		return false;
@@ -50,16 +51,21 @@ abstract class BaseRail extends Flowable{
 	}
 
 	/**
-	 * @param int[]   $connections
-	 * @param int[][] $lookup
-	 * @phpstan-param array<int, list<int>> $lookup
+	 * @phpstan-template T of RailShape|StraightOnlyRailShape
+	 * @param int[] $connections
+	 * @phpstan-param list<T> $shapes
+	 *
+	 * @phpstan-return T|null
 	 */
-	protected static function searchState(array $connections, array $lookup) : ?int{
-		$shape = array_search($connections, $lookup, true);
-		if($shape === false){
-			$shape = array_search(array_reverse($connections), $lookup, true);
+	protected static function searchShape(array $connections, array $shapes) : RailShape|StraightOnlyRailShape|null{
+		$reversed = array_reverse($connections);
+		foreach($shapes as $shape){
+			$shapeConnections = $shape->getConnections();
+			if($shapeConnections === $connections || $shapeConnections === $reversed){
+				return $shape;
+			}
 		}
-		return $shape === false ? null : $shape;
+		return null;
 	}
 
 	/**

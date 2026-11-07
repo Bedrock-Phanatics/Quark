@@ -374,9 +374,16 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_DUMPMEMORY_DESCRIPTION = "quark.command.dumpmemory.description";
 	public const QUARK_COMMAND_EFFECT_DESCRIPTION = "quark.command.effect.description";
 	public const QUARK_COMMAND_ENCHANT_DESCRIPTION = "quark.command.enchant.description";
+	public const QUARK_COMMAND_ERROR_ALIASRECURSIVE = "quark.command.error.aliasRecursive";
+	public const QUARK_COMMAND_ERROR_INVALIDARGUMENT = "quark.command.error.invalidArgument";
+	public const QUARK_COMMAND_ERROR_INVALIDBOOLEAN = "quark.command.error.invalidBoolean";
+	public const QUARK_COMMAND_ERROR_INVALIDENUM = "quark.command.error.invalidEnum";
+	public const QUARK_COMMAND_ERROR_INVALIDINTEGER = "quark.command.error.invalidInteger";
+	public const QUARK_COMMAND_ERROR_INVALIDNUMBER = "quark.command.error.invalidNumber";
 	public const QUARK_COMMAND_ERROR_PERMISSION = "quark.command.error.permission";
 	public const QUARK_COMMAND_ERROR_PLAYERNOTFOUND = "quark.command.error.playerNotFound";
 	public const QUARK_COMMAND_ERROR_PLAYERUSERONLY = "quark.command.error.playerUserOnly";
+	public const QUARK_COMMAND_ERROR_SELECTORUNSUPPORTED = "quark.command.error.selectorUnsupported";
 	public const QUARK_COMMAND_GAMEMODE_DESCRIPTION = "quark.command.gamemode.description";
 	public const QUARK_COMMAND_GAMEMODE_FAILURE = "quark.command.gamemode.failure";
 	public const QUARK_COMMAND_GAMEMODE_UNKNOWN = "quark.command.gamemode.unknown";

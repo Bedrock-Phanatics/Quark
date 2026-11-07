@@ -67,9 +67,14 @@ use quark\command\defaults\WeatherCommand;
 use quark\command\defaults\WhitelistCommand;
 use quark\command\defaults\WorldCommand;
 use quark\command\defaults\XpCommand;
+use quark\command\internal\CommandInputException;
+use quark\command\internal\SyntaxMatcher;
 use quark\command\utils\CommandStringHelper;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
+use quark\lang\Translatable;
+use quark\plugin\Plugin;
+use quark\plugin\PluginOwned;
 use quark\Server;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
@@ -89,6 +94,8 @@ class SimpleCommandMap implements CommandMap{
 	 * @phpstan-var array<string, Command>
 	 */
 	protected array $knownCommands = [];
+
+	private bool $clientMetadataDirty = false;
 
 	public function __construct(private Server $server){
 		$this->setDefaultCommands();
@@ -148,9 +155,16 @@ class SimpleCommandMap implements CommandMap{
 		}
 	}
 
+	/**
+	 * @throws \InvalidArgumentException
+	 * @throws \LogicException
+	 */
 	public function register(string $fallbackPrefix, Command $command, ?string $label = null) : bool{
 		if(count($command->getPermissions()) === 0){
 			throw new \InvalidArgumentException("Commands must have a permission set");
+		}
+		if($command->isRegistered()){
+			throw new \InvalidArgumentException("Command \"" . $command->getName() . "\" is already registered in a command map");
 		}
 
 		if($label === null){
@@ -159,21 +173,47 @@ class SimpleCommandMap implements CommandMap{
 		$label = trim($label);
 		$fallbackPrefix = strtolower(trim($fallbackPrefix));
 
-		$registered = $this->registerAlias($command, false, $fallbackPrefix, $label);
+		$prepared = SyntaxMatcher::prepare($command);
 
-		$aliases = $command->getAliases();
-		foreach($aliases as $index => $alias){
-			if(!$this->registerAlias($command, true, $fallbackPrefix, $alias)){
-				unset($aliases[$index]);
+		$previousCommands = $this->knownCommands;
+		$previousLabel = $command->getLabel();
+		$previousAliases = $command->getAliases();
+		$success = false;
+		try{
+			$registered = $this->registerAlias($command, false, $fallbackPrefix, $label);
+
+			$aliases = $command->getAliases();
+			foreach($aliases as $index => $alias){
+				if(!$this->registerAlias($command, true, $fallbackPrefix, $alias)){
+					unset($aliases[$index]);
+				}
+			}
+			$command->setAliases(array_values($aliases));
+
+			if(!$registered){
+				$command->setLabel($fallbackPrefix . ":" . $label);
+			}
+
+			$success = $command->register($this);
+		}finally{
+			if(!$success){
+				$this->knownCommands = $previousCommands;
+				//an override may fail after parent::register() already bound the command to this map
+				if($command->isRegistered()){
+					$command->unregister($this);
+				}
+				$command->setLabel($previousLabel);
+				$command->setAliases($previousAliases);
 			}
 		}
-		$command->setAliases(array_values($aliases));
-
-		if(!$registered){
-			$command->setLabel($fallbackPrefix . ":" . $label);
+		if(!$success){
+			return false;
 		}
 
-		$command->register($this);
+		if($prepared !== null){
+			$command->setPreparedSyntaxes($prepared);
+		}
+		$this->clientMetadataDirty = true;
 
 		return $registered;
 	}
@@ -186,8 +226,20 @@ class SimpleCommandMap implements CommandMap{
 		}
 
 		$command->unregister($this);
+		$this->clientMetadataDirty = true;
 
 		return true;
+	}
+
+	/**
+	 * @internal
+	 */
+	public function unregisterPluginSyntaxCommands(Plugin $plugin) : void{
+		foreach($this->knownCommands as $command){
+			if($command instanceof PluginOwned && $command->getOwningPlugin() === $plugin && $command->getPreparedSyntaxes() !== null){
+				$this->unregister($command);
+			}
+		}
 	}
 
 	private function registerAlias(Command $command, bool $isAlias, string $fallbackPrefix, string $label) : bool{
@@ -213,24 +265,52 @@ class SimpleCommandMap implements CommandMap{
 		$args = CommandStringHelper::parseQuoteAware($commandLine);
 
 		$sentCommandLabel = array_shift($args);
-		if($sentCommandLabel !== null && ($target = $this->getCommand($sentCommandLabel)) !== null){
-			$pulse = $target->getPulseZone();
-			$scope = $pulse->start();
+		if($sentCommandLabel === null){
+			$sender->sendMessage(KnownTranslationFactory::quark_command_notFound("", "/help")->prefix(TextFormat::RED));
+			return false;
+		}
+		return $this->dispatchParsed($sender, $sentCommandLabel, $args);
+	}
 
-			try{
-				if($target->testPermission($sender)){
-					$target->execute($sender, $sentCommandLabel, $args);
-				}
-			}catch(InvalidCommandSyntaxException $e){
-				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_generic_usage($target->getUsage())));
-			}finally{
-				$pulse->stop($scope);
-			}
-			return true;
+	/**
+	 * @param string[] $args
+	 * @phpstan-param list<string> $args
+	 */
+	public function dispatchParsed(CommandSender $sender, string $commandLabel, array $args) : bool{
+		$target = $this->getCommand($commandLabel);
+		if($target === null){
+			$sender->sendMessage(KnownTranslationFactory::quark_command_notFound($commandLabel, "/help")->prefix(TextFormat::RED));
+			return false;
 		}
 
-		$sender->sendMessage(KnownTranslationFactory::quark_command_notFound($sentCommandLabel ?? "", "/help")->prefix(TextFormat::RED));
-		return false;
+		$pulse = $target->getPulseZone();
+		$scope = $pulse->start();
+
+		try{
+			if(self::isOwnerEnabled($target) && $target->testPermission($sender)){
+				$target->execute($sender, $commandLabel, $args);
+			}
+		}catch(CommandInputException $e){
+			$message = $e->getUserMessage();
+			if($message !== null){
+				$sender->sendMessage($message instanceof Translatable ? $message->prefix(TextFormat::RED) : TextFormat::RED . $message);
+			}
+			foreach($e->getUsages() as $usage){
+				$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_generic_usage($usage)));
+			}
+		}catch(InvalidCommandSyntaxException $e){
+			$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_generic_usage($target->getUsage())));
+		}finally{
+			$pulse->stop($scope);
+		}
+		return true;
+	}
+
+	/**
+	 * @internal
+	 */
+	public static function isOwnerEnabled(Command $command) : bool{
+		return !$command instanceof PluginOwned || $command->getOwningPlugin()->isEnabled();
 	}
 
 	public function clearCommands() : void{
@@ -239,6 +319,23 @@ class SimpleCommandMap implements CommandMap{
 		}
 		$this->knownCommands = [];
 		$this->setDefaultCommands();
+		$this->clientMetadataDirty = true;
+	}
+
+	/**
+	 * @internal
+	 */
+	public function invalidateClientMetadata() : void{
+		$this->clientMetadataDirty = true;
+	}
+
+	/**
+	 * @internal
+	 */
+	public function consumeClientMetadataChanges() : bool{
+		$dirty = $this->clientMetadataDirty;
+		$this->clientMetadataDirty = false;
+		return $dirty;
 	}
 
 	public function getCommand(string $name) : ?Command{
@@ -299,5 +396,6 @@ class SimpleCommandMap implements CommandMap{
 			}
 
 		}
+		$this->clientMetadataDirty = true;
 	}
 }

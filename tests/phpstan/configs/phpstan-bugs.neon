@@ -126,21 +126,3 @@ parameters:
 			count: 1
 			path: ../../../src/world/format/io/region/RegionWorldProvider.php
 
-		-
-			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertFalse\(\) with false will always evaluate to true\.$#'
-			identifier: staticMethod.alreadyNarrowedType
-			count: 1
-			path: ../../phpunit/promise/PromiseTest.php
-
-		-
-			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with false and ''All promise should…'' will always evaluate to false\.$#'
-			identifier: staticMethod.impossibleType
-			count: 1
-			path: ../../phpunit/promise/PromiseTest.php
-
-		-
-			message: '#^Call to static method PHPUnit\\Framework\\Assert\:\:assertTrue\(\) with false will always evaluate to false\.$#'
-			identifier: staticMethod.impossibleType
-			count: 2
-			path: ../../phpunit/promise/PromiseTest.php
-

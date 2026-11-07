@@ -25,6 +25,7 @@ namespace quark\world;
 
 use quark\scheduler\AsyncTask;
 use quark\utils\Filesystem;
+use Vow\Deferred;
 use function basename;
 use function bin2hex;
 use function dirname;
@@ -41,17 +42,17 @@ use function rtrim;
  * @internal
  */
 final class WorldFilesTask extends AsyncTask{
-	private const TLS_KEY_ON_DONE = "onDone";
+	private const TLS_KEY_DEFERRED = "deferred";
 
 	/**
-	 * @phpstan-param \Closure(?string $error) : void $onDone
+	 * @phpstan-param Deferred<null> $deferred
 	 */
 	public function __construct(
 		private string $source,
 		private ?string $copyTarget,
-		\Closure $onDone
+		Deferred $deferred
 	){
-		$this->storeLocal(self::TLS_KEY_ON_DONE, $onDone);
+		$this->storeLocal(self::TLS_KEY_DEFERRED, $deferred);
 	}
 
 	public function onRun() : void{
@@ -105,9 +106,13 @@ final class WorldFilesTask extends AsyncTask{
 	}
 
 	public function onCompletion() : void{
-		/** @phpstan-var \Closure(?string $error) : void $onDone */
-		$onDone = $this->fetchLocal(self::TLS_KEY_ON_DONE);
-		$result = $this->getResult();
-		$onDone(is_string($result) ? $result : null);
+		/** @phpstan-var Deferred<null> $deferred */
+		$deferred = $this->fetchLocal(self::TLS_KEY_DEFERRED);
+		$error = $this->getResult();
+		if(is_string($error)){
+			$deferred->reject(new \RuntimeException($error));
+		}else{
+			$deferred->resolve(null);
+		}
 	}
 }

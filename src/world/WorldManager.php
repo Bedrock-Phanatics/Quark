@@ -29,8 +29,6 @@ use quark\event\world\WorldLoadEvent;
 use quark\event\world\WorldUnloadEvent;
 use quark\lang\KnownTranslationFactory;
 use quark\player\ChunkSelector;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\Server;
 use quark\world\format\Chunk;
 use quark\world\format\io\exception\CorruptedWorldException;
@@ -42,6 +40,8 @@ use quark\world\format\io\WritableWorldProvider;
 use quark\world\generator\GeneratorManager;
 use quark\world\generator\InvalidGeneratorOptionsException;
 use Symfony\Component\Filesystem\Path;
+use Vow\Deferred;
+use Vow\Promise;
 use function array_keys;
 use function array_map;
 use function array_shift;
@@ -203,7 +203,8 @@ class WorldManager{
 			throw new \InvalidArgumentException("Cannot copy world \"$source\" to \"$target\": the target is invalid, in use or already exists");
 		}
 		return $this->runFilesTask(
-			fn(\Closure $onDone) => new WorldFilesTask($sourcePath, $targetPath, $onDone),
+			$sourcePath,
+			$targetPath,
 			"copy world \"$source\" to \"$target\"",
 			[$source, $target],
 			fn() => $this->renameCopiedWorld($target, $targetPath)
@@ -238,7 +239,7 @@ class WorldManager{
 	 */
 	public function deleteWorld(string $name) : Promise{
 		$path = $this->checkUnloadedWorld($name);
-		return $this->runFilesTask(fn(\Closure $onDone) => new WorldFilesTask($path, null, $onDone), "delete world \"$name\"", [$name]);
+		return $this->runFilesTask($path, null, "delete world \"$name\"", [$name]);
 	}
 
 	/**
@@ -254,11 +255,10 @@ class WorldManager{
 		$found = [];
 		$this->findStagingFolders($this->dataPath, 0, $found);
 		foreach($found as $path){
-			$this->server->getAsyncPool()->submitTask(new WorldFilesTask($path, null, function(?string $error) use ($path) : void{
-				if($error !== null){
-					$this->server->getLogger()->warning("Failed to remove interrupted world files in $path: $error");
-				}
-			}));
+			/** @phpstan-var Deferred<null> $deferred */
+			$deferred = new Deferred();
+			$deferred->promise->observe(null, fn(\Throwable $e) => $this->server->getLogger()->warning("Failed to remove interrupted world files in $path: " . $e->getMessage()));
+			$this->server->getAsyncPool()->submitTask(new WorldFilesTask($path, null, $deferred));
 		}
 		if(count($found) > 0){
 			$this->server->getLogger()->info("Removing " . count($found) . " folder(s) left by interrupted world copies or deletes");
@@ -323,34 +323,39 @@ class WorldManager{
 	}
 
 	/**
-	 * @phpstan-param \Closure(\Closure(?string) : void) : WorldFilesTask $createTask
+	 * The names stay reserved until the task and $onSuccess are done.
+	 *
 	 * @phpstan-param list<string> $names
-	 * @phpstan-param (\Closure() : void)|null $beforeResolve
+	 * @phpstan-param (\Closure() : void)|null $onSuccess
 	 * @phpstan-return Promise<null>
 	 */
-	private function runFilesTask(\Closure $createTask, string $description, array $names, ?\Closure $beforeResolve = null) : Promise{
-		/** @phpstan-var PromiseResolver<null> $resolver */
-		$resolver = new PromiseResolver();
+	private function runFilesTask(string $source, ?string $copyTarget, string $description, array $names, ?\Closure $onSuccess = null) : Promise{
+		/** @phpstan-var Deferred<null> $deferred */
+		$deferred = new Deferred();
 		$id = $this->nextBusyId++;
 		$this->busyNames[$id] = $names;
 		try{
-			$this->server->getAsyncPool()->submitTask($createTask(function(?string $error) use ($resolver, $description, $id, $beforeResolve) : void{
-				if($error === null && $beforeResolve !== null){
-					$beforeResolve();
-				}
-				unset($this->busyNames[$id]);
-				if($error !== null){
-					$this->server->getLogger()->error("Failed to $description: $error");
-					$resolver->reject();
-				}else{
-					$resolver->resolve(null);
-				}
-			}));
+			$this->server->getAsyncPool()->submitTask(new WorldFilesTask($source, $copyTarget, $deferred));
 		}catch(\Throwable $e){
 			unset($this->busyNames[$id]);
 			throw $e;
 		}
-		return $resolver->getPromise();
+		return $deferred->promise->then(
+			function() use ($id, $onSuccess) : null{
+				try{
+					if($onSuccess !== null){
+						$onSuccess();
+					}
+				}finally{
+					unset($this->busyNames[$id]);
+				}
+				return null;
+			},
+			function(\Throwable $e) use ($id, $description) : never{
+				unset($this->busyNames[$id]);
+				throw new \RuntimeException("Failed to $description: " . $e->getMessage(), 0, $e);
+			}
+		);
 	}
 
 	/**
@@ -535,17 +540,16 @@ class WorldManager{
 			$total = count($selected);
 			foreach($selected as $index){
 				World::getXZ($index, $chunkX, $chunkZ);
-				$world->orderChunkPopulation($chunkX, $chunkZ, null)->onCompletion(
+				//cancellation only means the world was unloaded
+				$world->orderChunkPopulation($chunkX, $chunkZ, null)->observe(
 					static function() use ($world, &$done, $total) : void{
 						$oldProgress = (int) floor(($done / $total) * 100);
 						$newProgress = (int) floor((++$done / $total) * 100);
 						if(intdiv($oldProgress, 10) !== intdiv($newProgress, 10) || $done === $total || $done === 1){
 							$world->getLogger()->info($world->getServer()->getLanguage()->translate(KnownTranslationFactory::quark_level_spawnTerrainGenerationProgress(strval($done), strval($total), strval($newProgress))));
 						}
-					},
-					static function() : void{
-						//NOOP: we don't care if the world was unloaded
-					});
+					}
+				);
 			}
 		}
 

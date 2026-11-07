@@ -64,7 +64,7 @@ class Lever extends Flowable implements PowerSource, RedstoneSignalEmitter{
 		return $this;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$this->canBeSupportedAt($blockReplace, Facing::opposite($face))){
 			return false;
 		}
@@ -85,7 +85,7 @@ class Lever extends Flowable implements PowerSource, RedstoneSignalEmitter{
 			default => throw new AssumptionFailedError("Bad facing value"),
 		};
 
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{

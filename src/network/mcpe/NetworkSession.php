@@ -30,7 +30,6 @@ use pmmp\encoding\VarInt;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
@@ -47,7 +46,6 @@ use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerStartItemCooldownPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\network\mcpe\protocol\serializer\AvailableCommandsPacketAssembler;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
@@ -62,10 +60,6 @@ use pocketmine\network\mcpe\protocol\TransferPacket;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\AbilitiesLayer;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
-use pocketmine\network\mcpe\protocol\types\command\CommandData;
-use pocketmine\network\mcpe\protocol\types\command\CommandHardEnum;
-use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
-use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
@@ -88,7 +82,7 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\cache\ChunkCache;
-use quark\network\mcpe\compression\CompressBatchPromise;
+use quark\network\mcpe\command\CommandMetadataAdapter;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
 use quark\network\mcpe\convert\TypeConverter;
@@ -118,8 +112,6 @@ use quark\player\Player;
 use quark\player\PlayerInfo;
 use quark\player\UsedChunkStatus;
 use quark\player\XboxLivePlayerInfo;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\pulse\internal\PulseNetwork;
 use quark\pulse\internal\PulseNetworkWork;
 use quark\pulse\internal\PulseZones;
@@ -134,27 +126,27 @@ use quark\world\Position;
 use quark\world\Weather;
 use quark\world\World;
 use quark\YmlServerProperties;
+use Vow\CancelledException;
+use Vow\Deferred;
+use Vow\Promise;
 use function array_chunk;
 use function array_map;
+use function array_push;
 use function array_slice;
 use function array_values;
 use function bin2hex;
 use function chr;
 use function count;
 use function implode;
-use function in_array;
 use function is_string;
 use function json_encode;
-use function mb_strcut;
 use function ord;
 use function random_bytes;
 use function str_split;
 use function strcasecmp;
 use function strlen;
-use function strtolower;
 use function substr;
 use function time;
-use function ucfirst;
 use const JSON_THROW_ON_ERROR;
 
 class NetworkSession{
@@ -176,7 +168,6 @@ class NetworkSession{
 		ProtocolInfo::PLAYER_AUTH_INPUT_PACKET => 128 * 1024,
 		ProtocolInfo::ITEM_STACK_REQUEST_PACKET => 256 * 1024,
 	];
-	private const int MAX_COMMAND_TEXT_BYTES = 1000;
 
 	private PacketRateLimiter $packetBatchLimiter;
 	private PacketRateLimiter $gamePacketLimiter;
@@ -208,13 +199,10 @@ class NetworkSession{
 	 * @phpstan-var list<string>
 	 */
 	private array $sendBuffer = [];
-	/**
-	 * @var PromiseResolver[]
-	 * @phpstan-var list<PromiseResolver<true>>
-	 */
+	/** @phpstan-var list<Deferred<null>> */
 	private array $sendBufferAckPromises = [];
 
-	/** @phpstan-var \SplQueue<array{CompressBatchPromise|string, list<PromiseResolver<true>>, bool}> */
+	/** @phpstan-var \SplQueue<array{Promise<string>|string, list<Deferred<null>>, bool}> */
 	private \SplQueue $compressedQueue;
 	private bool $latencySensitiveFlushEnabled;
 	private bool $latencySensitiveFlushPerformedThisTick = false;
@@ -222,10 +210,7 @@ class NetworkSession{
 	private bool $enableCompression = false; //disabled until handshake completed
 
 	private int $nextAckReceiptId = 0;
-	/**
-	 * @var PromiseResolver[][]
-	 * @phpstan-var array<int, list<PromiseResolver<true>>>
-	 */
+	/** @phpstan-var array<int, list<Deferred<null>>> */
 	private array $ackPromisesByReceiptId = [];
 
 	private ?InventoryManager $invManager = null;
@@ -334,14 +319,16 @@ class NetworkSession{
 	}
 
 	protected function createPlayer() : void{
-		$this->server->createPlayer($this, $this->info, $this->authenticated, $this->cachedOfflinePlayerData)->onCompletion(
+		$this->server->createPlayer($this, $this->info, $this->authenticated, $this->cachedOfflinePlayerData)->observe(
 			$this->onPlayerCreated(...),
-			function() : void{
-				//TODO: this should never actually occur... right?
-				$this->disconnectWithError(
-					reason: "Failed to create player",
-					disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
-				);
+			function(\Throwable $e) : void{
+				if(!$e instanceof CancelledException){
+					$this->logger->logException($e);
+					$this->disconnectWithError(
+						reason: "Failed to create player: " . $e->getMessage(),
+						disconnectScreenMessage: KnownTranslationFactory::quark_disconnect_error_internal()
+					);
+				}
 			}
 		);
 	}
@@ -813,18 +800,31 @@ class NetworkSession{
 			return;
 		}
 		if(isset($this->ackPromisesByReceiptId[$receiptId])){
-			$promises = $this->ackPromisesByReceiptId[$receiptId];
+			$deferreds = $this->ackPromisesByReceiptId[$receiptId];
 			unset($this->ackPromisesByReceiptId[$receiptId]);
-			foreach($promises as $promise){
-				$promise->resolve(true);
-			}
+			self::resolveAll($deferreds);
+		}
+	}
+
+	/** @phpstan-param list<Deferred<null>> $deferreds */
+	private static function resolveAll(array $deferreds) : void{
+		foreach($deferreds as $deferred){
+			$deferred->resolve(null);
+		}
+	}
+
+	/** @phpstan-param list<Deferred<null>> $deferreds */
+	private static function cancelAll(array $deferreds, string $reason) : void{
+		$exception = null;
+		foreach($deferreds as $deferred){
+			$deferred->cancel($exception ??= new CancelledException($reason));
 		}
 	}
 
 	/**
-	 * @phpstan-param PromiseResolver<true>|null $ackReceiptResolver
+	 * @phpstan-param Deferred<null>|null $ackReceipt
 	 */
-	private function sendDataPacketInternal(ClientboundPacket|EncodedPacket $packet, bool $immediate, ?PromiseResolver $ackReceiptResolver) : bool{
+	private function sendDataPacketInternal(ClientboundPacket|EncodedPacket $packet, bool $immediate, ?Deferred $ackReceipt) : bool{
 		if(!$this->connected){
 			return false;
 		}
@@ -845,8 +845,8 @@ class NetworkSession{
 			}else{
 				$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : self::encodePacket($packet);
 			}
-			if($ackReceiptResolver !== null){
-				$this->sendBufferAckPromises[] = $ackReceiptResolver;
+			if($ackReceipt !== null){
+				$this->sendBufferAckPromises[] = $ackReceipt;
 			}
 			if($immediate){
 				$this->flushGamePacketQueue();
@@ -866,17 +866,18 @@ class NetworkSession{
 	}
 
 	/**
-	 * @phpstan-return Promise<true>
+	 * Resolves once the client acknowledges the packet, or once it's queued on transports without receipts.
+	 * Cancelled if the packet is dropped by a plugin or the session closes first.
+	 *
+	 * @phpstan-return Promise<null>
 	 */
 	public function sendDataPacketWithReceipt(ClientboundPacket|EncodedPacket $packet, bool $immediate = false) : Promise{
-		/** @phpstan-var PromiseResolver<true> $resolver */
-		$resolver = new PromiseResolver();
-
-		if(!$this->sendDataPacketInternal($packet, $immediate, $resolver)){
-			$resolver->reject();
+		/** @phpstan-var Deferred<null> $deferred */
+		$deferred = new Deferred();
+		if(!$this->sendDataPacketInternal($packet, $immediate, $deferred)){
+			$deferred->cancel(new CancelledException($this->connected ? "Packet send was cancelled" : "Session is disconnected"));
 		}
-
-		return $resolver->getPromise();
+		return $deferred->promise;
 	}
 
 	/**
@@ -977,9 +978,7 @@ class NetworkSession{
 				if($this->sender instanceof NativeBatchPacketSender && $this->compressedQueue->isEmpty()){
 					$this->sender->sendBatch($batch, 0);
 					//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
-					foreach($ackPromises as $promise){
-						$promise->resolve(true);
-					}
+					self::resolveAll($ackPromises);
 					return;
 				}
 
@@ -1034,7 +1033,10 @@ class NetworkSession{
 
 	public function getTypeConverter() : TypeConverter{ return $this->typeConverter; }
 
-	public function queueCompressed(CompressBatchPromise|string $payload, bool $immediate = false) : void{
+	/**
+	 * @phpstan-param Promise<string>|string $payload
+	 */
+	public function queueCompressed(Promise|string $payload, bool $immediate = false) : void{
 		$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 		try{
 			//if the next packet causes a flush, avoid unnecessarily flushing twice
@@ -1047,22 +1049,26 @@ class NetworkSession{
 	}
 
 	/**
-	 * @param PromiseResolver[] $ackPromises
-	 *
-	 * @phpstan-param list<PromiseResolver<true>> $ackPromises
+	 * @phpstan-param Promise<string>|string $batch
+	 * @phpstan-param list<Deferred<null>>   $ackPromises
 	 */
-	private function queueCompressedNoGamePacketFlush(CompressBatchPromise|string $batch, bool $networkFlush = false, array $ackPromises = []) : void{
+	private function queueCompressedNoGamePacketFlush(Promise|string $batch, bool $networkFlush = false, array $ackPromises = []) : void{
 		$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 		try{
 			$this->compressedQueue->enqueue([$batch, $ackPromises, $networkFlush]);
 			if(is_string($batch)){
 				$this->flushCompressedQueue();
 			}else{
-				$batch->onResolve(function() : void{
-					if($this->connected){
+				//one closure for both outcomes, since every session queueing a broadcast batch registers it
+				$onSettled = function(string|\Throwable $result) : void{
+					if($result instanceof \Throwable){
+						//later batches can't skip this one without breaking packet order
+						$this->disconnectWithError("Failed to prepare a packet batch: " . $result->getMessage());
+					}elseif($this->connected){
 						$this->flushCompressedQueue();
 					}
-				});
+				};
+				$batch->observe($onSettled, $onSettled);
 			}
 		}finally{
 			PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);
@@ -1073,20 +1079,15 @@ class NetworkSession{
 		$playerNetworkSendScope = PulseZones::$playerNetworkSend->start();
 		try{
 			while(!$this->compressedQueue->isEmpty()){
-				/** @var CompressBatchPromise|string $current */
 				[$current, $ackPromises, $networkFlush] = $this->compressedQueue->bottom();
-				if(is_string($current)){
-					$this->compressedQueue->dequeue();
-					$this->sendEncoded($current, $networkFlush, $ackPromises);
-
-				}elseif($current->hasResult()){
-					$this->compressedQueue->dequeue();
-					$this->sendEncoded($current->getResult(), $networkFlush, $ackPromises);
-
-				}else{
-					//can't send any more queued until this one is ready
-					break;
+				if(!is_string($current)){
+					if(!$current->isFulfilled()){
+						break;
+					}
+					$current = $current->value();
 				}
+				$this->compressedQueue->dequeue();
+				$this->sendEncoded($current, $networkFlush, $ackPromises);
 			}
 		}finally{
 			PulseZones::$playerNetworkSend->stop($playerNetworkSendScope);
@@ -1094,8 +1095,7 @@ class NetworkSession{
 	}
 
 	/**
-	 * @param PromiseResolver[] $ackPromises
-	 * @phpstan-param list<PromiseResolver<true>> $ackPromises
+	 * @phpstan-param list<Deferred<null>> $ackPromises
 	 */
 	private function sendEncoded(string $payload, bool $immediate, array $ackPromises) : void{
 		if($this->sender instanceof NativeBatchPacketSender){
@@ -1110,17 +1110,15 @@ class NetworkSession{
 					$payload = chr(CompressionAlgorithm::NONE->value) . $compressor->decompress(substr($payload, 1));
 				}catch(DecompressionException $e){
 					$this->logger->error("Dropped a batch the transport can't send: " . $e->getMessage());
-					foreach($ackPromises as $promise){
-						$promise->reject();
+					foreach($ackPromises as $deferred){
+						$deferred->reject($e);
 					}
 					return;
 				}
 			}
 			$this->sender->sendBatch($payload, $this->enableCompression ? 1 : 0);
 			//NetherNet's reliable channel has no per-batch acknowledgements, so queueing is as far as we can follow
-			foreach($ackPromises as $promise){
-				$promise->resolve(true);
-			}
+			self::resolveAll($ackPromises);
 			return;
 		}
 		if($this->cipher !== null){
@@ -1159,18 +1157,18 @@ class NetworkSession{
 				$this->connectionPhase = "closed";
 				$this->getPulseNetwork()?->updateSession($this->pulseSessionId, $this->protocolVersion, $this->connectionPhase);
 
-				$ackPromisesByReceiptId = $this->ackPromisesByReceiptId;
+				$pending = $this->sendBufferAckPromises;
+				foreach($this->ackPromisesByReceiptId as $deferreds){
+					array_push($pending, ...$deferreds);
+				}
+				foreach($this->compressedQueue as [, $deferreds]){
+					array_push($pending, ...$deferreds);
+				}
+				//queued batches would never be sent, so let go of them and their buffers now
+				$this->compressedQueue = new \SplQueue();
 				$this->ackPromisesByReceiptId = [];
-				foreach($ackPromisesByReceiptId as $resolvers){
-					foreach($resolvers as $resolver){
-						$resolver->reject();
-					}
-				}
-				$sendBufferAckPromises = $this->sendBufferAckPromises;
 				$this->sendBufferAckPromises = [];
-				foreach($sendBufferAckPromises as $resolver){
-					$resolver->reject();
-				}
+				self::cancelAll($pending, "Session closed");
 
 				$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_network_session_close($reason)));
 			}
@@ -1575,41 +1573,10 @@ class NetworkSession{
 	}
 
 	public function syncAvailableCommands() : void{
-		$commandData = [];
-		foreach($this->server->getCommandMap()->getCommands() as $command){
-			if(isset($commandData[$command->getLabel()]) || $command->getLabel() === "help" || strlen($command->getLabel()) > self::MAX_COMMAND_TEXT_BYTES || !$command->testPermissionSilent($this->player)){
-				continue;
-			}
-
-			$lname = strtolower($command->getLabel());
-			$aliases = $command->getAliases();
-			$aliasObj = null;
-			if(count($aliases) > 0){
-				if(!in_array($lname, $aliases, true)){
-					//work around a client bug which makes the original name not show when aliases are used
-					$aliases[] = $lname;
-				}
-				$aliasObj = new CommandHardEnum(ucfirst($command->getLabel()) . "Aliases", $aliases);
-			}
-
-			$description = $command->getDescription();
-			if($description instanceof Translatable){
-				$description = $this->player->getLanguage()->translate($description);
-			}
-			$commandData[$command->getLabel()] = new CommandData(
-				$lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
-				strlen($description) > self::MAX_COMMAND_TEXT_BYTES ? mb_strcut($description, 0, self::MAX_COMMAND_TEXT_BYTES, "UTF-8") : $description,
-				0,
-				CommandPermissions::NORMAL,
-				$aliasObj,
-				[
-					new CommandOverload(chaining: false, parameters: [CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, true)])
-				],
-				chainedSubCommandData: []
-			);
+		if($this->player === null){
+			throw new \LogicException("Cannot sync available commands before the player is created");
 		}
-
-		$this->sendDataPacket(AvailableCommandsPacketAssembler::assemble(array_values($commandData), [], []));
+		$this->sendDataPacket(CommandMetadataAdapter::createPacket($this->server->getCommandMap()->getCommands(), $this->player));
 	}
 
 	/**
@@ -1690,9 +1657,9 @@ class NetworkSession{
 			$this->sendChunkPacket($promiseOrPacket, $onCompletion, $world);
 			return;
 		}
-		$promiseOrPacket->onResolve(
-			//this callback may be called synchronously or asynchronously, depending on whether the promise is resolved yet
-			function(CompressBatchPromise $promise) use ($world, $onCompletion, $chunkX, $chunkZ) : void{
+		//cancellation means the chunk was unloaded, which the player already handles as a forced unload
+		$promiseOrPacket->observe(
+			function(string $chunkPacket) use ($world, $onCompletion, $chunkX, $chunkZ) : void{
 				if(!$this->isConnected()){
 					return;
 				}
@@ -1708,7 +1675,7 @@ class NetworkSession{
 					//to NEEDED if they want to be resent.
 					return;
 				}
-				$this->sendChunkPacket($promise->getResult(), $onCompletion, $world);
+				$this->sendChunkPacket($chunkPacket, $onCompletion, $world);
 			}
 		);
 	}

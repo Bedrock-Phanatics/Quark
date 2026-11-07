@@ -25,13 +25,19 @@ namespace quark\scheduler;
 
 use PHPUnit\Framework\TestCase;
 use pmmp\thread\ThreadSafeArray;
+use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\snooze\SleeperHandler;
-use quark\promise\PromiseResolver;
+use quark\network\mcpe\compression\CompressBatchTask;
+use quark\network\mcpe\compression\ZlibCompressor;
 use quark\thread\ThreadSafeClassLoader;
 use quark\utils\MainLogger;
+use Vow\Deferred;
+use function chr;
 use function define;
 use function dirname;
 use function microtime;
+use function str_repeat;
+use function substr;
 use function usleep;
 
 class AsyncPoolTest extends TestCase{
@@ -71,20 +77,36 @@ class AsyncPoolTest extends TestCase{
 	}
 
 	public function testThreadSafeSetResult() : void{
-		/** @phpstan-var PromiseResolver<ThreadSafeArray<array-key, mixed>> $resolver */
-		$resolver = new PromiseResolver();
-		$resolver->getPromise()->onCompletion(
-			function(ThreadSafeArray $result) : void{
-				self::assertCount(1, $result);
-				self::assertSame(["foo"], (array) $result);
-			},
-			function() : void{
-				self::fail("Promise failed");
-			}
-		);
-		$this->pool->submitTask(new ThreadSafeResultAsyncTask($resolver));
+		/** @phpstan-var Deferred<ThreadSafeArray<array-key, mixed>> $deferred */
+		$deferred = new Deferred();
+		$this->pool->submitTask(new ThreadSafeResultAsyncTask($deferred));
 		while($this->pool->collectTasks()){
 			usleep(50 * 1000);
+		}
+		$result = $deferred->promise->value();
+		self::assertCount(1, $result);
+		self::assertSame(["foo"], (array) $result);
+	}
+
+	public function testCompressBatchTaskResolvesInSubmissionOrder() : void{
+		$compressor = new ZlibCompressor(ZlibCompressor::DEFAULT_LEVEL, 0, ZlibCompressor::DEFAULT_MAX_DECOMPRESSION_SIZE);
+		$order = [];
+		$deferreds = [];
+		for($i = 0; $i < 8; ++$i){
+			/** @phpstan-var Deferred<string> $deferred */
+			$deferred = new Deferred();
+			$deferred->promise->observe(function() use (&$order, $i) : void{ $order[] = $i; });
+			$deferreds[] = $deferred;
+			$this->pool->submitTaskToWorker(new CompressBatchTask(str_repeat("payload $i ", 1000), $deferred, $compressor), 0);
+		}
+		while($this->pool->collectTasks()){
+			usleep(10 * 1000);
+		}
+		self::assertSame([0, 1, 2, 3, 4, 5, 6, 7], $order);
+		foreach($deferreds as $i => $deferred){
+			$batch = $deferred->promise->value();
+			self::assertSame(chr(CompressionAlgorithm::ZLIB->value), $batch[0]);
+			self::assertSame(str_repeat("payload $i ", 1000), $compressor->decompress(substr($batch, 1)));
 		}
 	}
 

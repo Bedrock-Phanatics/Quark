@@ -73,14 +73,14 @@ class Lantern extends Transparent{
 		return SupportType::NONE;
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$downSupport = $this->canBeSupportedAt($blockReplace, Facing::DOWN);
 		if(!$downSupport && !$this->canBeSupportedAt($blockReplace, Facing::UP)){
 			return false;
 		}
 
 		$this->hanging = $face === Facing::DOWN || !$downSupport;
-		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{

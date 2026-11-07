@@ -24,20 +24,35 @@ declare(strict_types=1);
 namespace quark\network\mcpe;
 
 use PHPUnit\Framework\TestCase;
+use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\SetTimePacket;
+use pocketmine\network\mcpe\protocol\types\command\raw\CommandRawData;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
+use quark\command\Command;
+use quark\command\CommandArgs;
+use quark\command\CommandSender;
+use quark\command\SimpleCommandMap;
+use quark\command\TestCommandSender;
 use quark\lang\Language;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\PacketHandlingException;
+use quark\permission\DefaultPermissions;
+use quark\permission\Permission;
+use quark\permission\PermissionManager;
+use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\ObjectSet;
+use Vow\CancelledException;
+use Vow\Deferred;
+use function array_map;
 use function strlen;
 
 final class NetworkSessionTest extends TestCase{
@@ -147,6 +162,94 @@ final class NetworkSessionTest extends TestCase{
 		}
 		$this->expectException(PacketHandlingException::class);
 		$this->session(static function() : void{})->handleEncoded($batch);
+	}
+
+	public function testQueuedBatchesWaitForPendingCompressionInOrder() : void{
+		/** @var \ArrayObject<int, string> $sent */
+		$sent = new \ArrayObject();
+		$session = $this->session(static function(NetworkSession $session, string $batch) use ($sent) : void{ $sent[] = $batch; });
+		/** @var Deferred<string> $first */
+		$first = new Deferred();
+		$session->queueCompressed($first->promise);
+		$session->queueCompressed("second");
+		self::assertCount(0, $sent);
+
+		$first->resolve("first");
+		self::assertSame(["first", "second"], $sent->getArrayCopy());
+	}
+
+	public function testRejectedBatchDisconnectsWithoutSkippingAhead() : void{
+		$sent = [];
+		$session = $this->session(static function(NetworkSession $session, string $batch) use (&$sent) : void{ $sent[] = $batch; });
+		/** @var Deferred<string> $first */
+		$first = new Deferred();
+		$session->queueCompressed($first->promise);
+		$session->queueCompressed("second");
+
+		$first->reject(new \RuntimeException("compression failed"));
+		self::assertFalse($session->isConnected());
+		self::assertNotContains("second", $sent);
+	}
+
+	public function testDisconnectCancelsReceiptsAndDropsLateBatches() : void{
+		$sent = [];
+		$session = $this->session(static function(NetworkSession $session, string $batch) use (&$sent) : void{ $sent[] = $batch; });
+		/** @var Deferred<string> $pending */
+		$pending = new Deferred();
+		$session->queueCompressed($pending->promise);
+		$receipt = $session->sendDataPacketWithReceipt(SetTimePacket::create(1), true);
+		self::assertTrue($receipt->isPending());
+
+		$session->disconnect("test");
+		self::assertInstanceOf(CancelledException::class, $receipt->reason());
+		self::assertInstanceOf(CancelledException::class, $session->sendDataPacketWithReceipt(SetTimePacket::create(2))->reason());
+
+		$pending->resolve("late");
+		self::assertSame([], $sent);
+	}
+
+	public function testReceiptResolvesOnceQueued() : void{
+		$session = $this->session(static function() : void{});
+		$receipt = $session->sendDataPacketWithReceipt(SetTimePacket::create(1), true);
+		self::assertTrue($receipt->isFulfilled());
+	}
+
+	public function testSyncAvailableCommandsSendsTheCurrentMapForThisPlayer() : void{
+		DefaultPermissions::registerCorePermissions();
+		if(PermissionManager::getInstance()->getPermission("test.root") === null){
+			PermissionManager::getInstance()->addPermission(new Permission("test.root"));
+		}
+		$server = self::createStub(Server::class);
+		$map = new SimpleCommandMap($server);
+		$server->method("getCommandMap")->willReturn($map);
+		$command = new class("eco") extends Command{
+			protected function run(CommandSender $sender, CommandArgs $args) : void{}
+		};
+		$command->setPermission("test.root");
+		$command->syntax("balance");
+		$map->register("test", $command);
+
+		$session = $this->session(static function() : void{});
+		$this->set($session, "server", $server);
+		try{
+			$session->syncAvailableCommands();
+			self::fail("syncing without a player should fail");
+		}catch(\LogicException){
+			$this->addToAssertionCount(1);
+		}
+
+		$player = TestCommandSender::closedPlayer(self::createStub(Player::class));
+		$player->method("getLanguage")->willReturn(TestCommandSender::language());
+		$player->method("hasPermission")->willReturnCallback(fn(Permission|string $name) : bool => $name === "test.root");
+		$this->set($session, "player", $player);
+		$session->syncAvailableCommands();
+
+		/** @phpstan-var list<string> $buffer */
+		$buffer = new \ReflectionProperty(NetworkSession::class, "sendBuffer")->getValue($session);
+		$packet = new AvailableCommandsPacket();
+		$packet->decode(new ByteBufferReader($buffer[0]));
+		self::assertSame(["eco"], array_map(fn(CommandRawData $data) => $data->getName(), $packet->commandData));
+		self::assertSame(["balance"], $packet->enumValues);
 	}
 
 	public function testNegativeWindowTypesEncode() : void{

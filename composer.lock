@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9cdab3904548a9eece3fa0b924172a02",
+    "content-hash": "80b1ab189953b9acd456ceb54fff3994",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -397,21 +397,21 @@
         },
         {
             "name": "pocketmine/callback-validator",
-            "version": "1.0.4",
+            "version": "dev-rewrite",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/CallbackValidator.git",
-                "reference": "143fa6e13254f1ab90c31b223982016f95635c37"
+                "reference": "431c7aa5685d4d756bc74a78e5cd130a54d6fdf8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/CallbackValidator/zipball/143fa6e13254f1ab90c31b223982016f95635c37",
-                "reference": "143fa6e13254f1ab90c31b223982016f95635c37",
+                "url": "https://api.github.com/repos/pmmp/CallbackValidator/zipball/431c7aa5685d4d756bc74a78e5cd130a54d6fdf8",
+                "reference": "431c7aa5685d4d756bc74a78e5cd130a54d6fdf8",
                 "shasum": ""
             },
             "require": {
                 "ext-reflection": "*",
-                "php": "^8.0"
+                "php": "^8.1"
             },
             "replace": {
                 "daverandom/callback-validator": "*"
@@ -441,10 +441,10 @@
             "description": "Fork of daverandom/callback-validator - Tools for validating callback signatures",
             "support": {
                 "issues": "https://github.com/pmmp/CallbackValidator/issues",
-                "source": "https://github.com/pmmp/CallbackValidator/tree/1.0.4"
+                "source": "https://github.com/pmmp/CallbackValidator/tree/rewrite"
             },
             "abandoned": true,
-            "time": "2025-12-24T01:25:05+00:00"
+            "time": "2025-10-11T15:05:09+00:00"
         },
         {
             "name": "pocketmine/color",
@@ -934,16 +934,16 @@
         },
         {
             "name": "symfony/filesystem",
-            "version": "v6.4.44",
+            "version": "v6.4.50",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/filesystem.git",
-                "reference": "e84ffb3e77e3a7144727a0d0735d0d9cc0ca77a7"
+                "reference": "9c54f695d2fcfb0bb21c8003b7a038bc631aa2e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/filesystem/zipball/e84ffb3e77e3a7144727a0d0735d0d9cc0ca77a7",
-                "reference": "e84ffb3e77e3a7144727a0d0735d0d9cc0ca77a7",
+                "url": "https://api.github.com/repos/symfony/filesystem/zipball/9c54f695d2fcfb0bb21c8003b7a038bc631aa2e9",
+                "reference": "9c54f695d2fcfb0bb21c8003b7a038bc631aa2e9",
                 "shasum": ""
             },
             "require": {
@@ -980,7 +980,7 @@
             "description": "Provides basic utilities for the filesystem",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/filesystem/tree/v6.4.44"
+                "source": "https://github.com/symfony/filesystem/tree/v6.4.50"
             },
             "funding": [
                 {
@@ -1000,7 +1000,69 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-20T20:21:47+00:00"
+            "time": "2026-11-04T08:16:31+00:00"
+        },
+        {
+            "name": "trix/vow",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/TrixNEW/Vow.git",
+                "reference": "6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/TrixNEW/Vow/zipball/6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417",
+                "reference": "6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^12.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Vow\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Vow\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=1G"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Trix"
+                }
+            ],
+            "description": "Fast, synchronous, strongly typed promises for PHP 8.4",
+            "keywords": [
+                "async",
+                "deferred",
+                "fiber",
+                "promise"
+            ],
+            "support": {
+                "source": "https://github.com/TrixNEW/Vow/tree/v1.0.1",
+                "issues": "https://github.com/TrixNEW/Vow/issues"
+            },
+            "time": "2026-11-07T01:19:06+00:00"
         }
     ],
     "packages-dev": [
@@ -2820,7 +2882,8 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "axolotl-pm/bedrock-protocol": 20
+        "axolotl-pm/bedrock-protocol": 20,
+        "pocketmine/callback-validator": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

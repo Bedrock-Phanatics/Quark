@@ -33,8 +33,6 @@ use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissionManager;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseRecorder;
 use quark\pulse\internal\PulseZones;
@@ -42,6 +40,8 @@ use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
 use quark\scheduler\PulseControlTask;
 use quark\Server;
+use quark\utils\TextFormat;
+use Vow\Promise;
 use function array_fill;
 use function count;
 use function extension_loaded;
@@ -100,21 +100,19 @@ final class PulseIntegrationTest extends TestCase{
 		PulseReport::decode($session->getReport()->encode());
 	}
 
-	public function testCommandOptionsValidateUnitsLimitsAndDuplicates() : void{
-		self::assertSame([0, 0, 32], PulseCommand::parseOptions([]));
-		self::assertSame([60000000000, 50000000, 16], PulseCommand::parseOptions(["--duration", "60s", "--spikes", "50ms", "--max-spikes", "16"]));
-		self::assertSame([1500000000, 0, 32], PulseCommand::parseOptions(["--duration", "1.5s"]));
-		self::assertSame([60000000000, 50000000, 16], PulseCommand::parseOptions(["1m", "--spikes", "50ms", "--max-spikes", "16"]));
-		self::assertSame([86400000000000, 60000000000, 128], PulseCommand::parseOptions(["--duration", "1440m", "--spikes", "1m", "--max-spikes", "128"]));
+	public function testCommandDurationValidatesUnitsAndLimits() : void{
+		self::assertSame(0, PulseCommand::parseDuration([]));
+		self::assertSame(60000000000, PulseCommand::parseDuration(["60s"]));
+		self::assertSame(60000000000, PulseCommand::parseDuration(["60"]));
+		self::assertSame(1500000000, PulseCommand::parseDuration(["1.5s"]));
+		self::assertSame(300000000000, PulseCommand::parseDuration(["5M"]));
+		self::assertSame(86400000000000, PulseCommand::parseDuration(["24h"]));
 		foreach([
-			["--duration"], ["--other", "1s"], ["--duration", "0s"], ["--duration", "-1s"],
-			["--duration", "86401s"], ["--duration", "1e9s"], ["--duration", "1s\n"],
-			["--spikes", "61s"], ["--spikes", "nanms"], ["--max-spikes", "0"],
-			["--max-spikes", "129"], ["--max-spikes", "1.5"], ["--duration", "1s", "--duration", "2s"],
-			["60s", "--duration", "1s"], ["60s", "extra"], ["0s"], [str_repeat("9", 100) . "s"]
+			["0s"], ["-1s"], ["86401s"], ["25h"], ["1e9s"], ["1s
+"], ["nans"], ["60s", "extra"], [str_repeat("9", 100) . "s"]
 		] as $args){
 			try{
-				PulseCommand::parseOptions($args);
+				PulseCommand::parseDuration($args);
 				self::fail("Invalid Pulse options accepted");
 			}catch(InvalidCommandSyntaxException){
 				self::assertFalse(Pulse::isRecording());
@@ -132,10 +130,7 @@ final class PulseIntegrationTest extends TestCase{
 		$server->method("createPulseReport")->willReturnCallback(static function() use ($recorder, &$saves) : Promise{
 			self::assertFalse($recorder->isRecording());
 			++$saves;
-			/** @var PromiseResolver<string> $result */
-			$result = new PromiseResolver();
-			$result->resolve("test.qpulse");
-			return $result->getPromise();
+			return Promise::resolved("test.qpulse");
 		});
 		/** @var \ArrayObject<int, string> $messages */
 		$messages = new \ArrayObject();
@@ -144,15 +139,15 @@ final class PulseIntegrationTest extends TestCase{
 		$sender->method("getName")->willReturn("test");
 		$sender->method("sendMessage")->willReturnCallback(static function(Translatable|string $message) use ($messages) : void{
 			self::assertIsString($message);
-			$messages[] = $message;
+			$messages[] = TextFormat::clean($message);
 		});
 		$command = new PulseCommand();
 		$command->execute($sender, "pulse", []);
-		self::assertStringContainsString("Pulse is idle", $messages[0] ?? "");
+		self::assertStringContainsString("[Pulse] Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
 		$command->execute($sender, "pulse", ["help"]);
-		self::assertCount(5, $messages);
-		$command->execute($sender, "pulse", ["start", "1m", "--spikes", "50ms"]);
+		self::assertCount(4, $messages);
+		$command->execute($sender, "pulse", ["start", "1m"]);
 		$session = $recorder->getSession();
 		self::assertNotNull($session);
 		self::assertSame(60000000000, $session->getStats()["duration_ns"]);
@@ -166,15 +161,15 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertStringNotContainsString("\n", $messages[1] ?? "");
 		self::assertStringNotContainsString("\x1b", $messages[1] ?? "");
 		$messages->exchangeArray([]);
-		$command->execute($sender, "pulse", ["stop", "--report"]);
+		$command->execute($sender, "pulse", ["stop"]);
 		self::assertFalse($session->isRecording());
 		self::assertSame(1, $saves);
-		self::assertStringStartsWith("Collecting Pulse report", $messages[count($messages) - 2] ?? "");
-		self::assertSame("Pulse report saved to test.qpulse", $messages[count($messages) - 1]);
-		foreach([["start", "60s", "--duration", "1s"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
+		self::assertStringStartsWith("[Pulse] Collecting report", $messages[count($messages) - 2] ?? "");
+		self::assertSame("[Pulse] Report saved to test.qpulse", $messages[count($messages) - 1]);
+		foreach([["start", "60s", "1s"], ["start", "--spikes"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
 			$messages->exchangeArray([]);
 			$command->execute($sender, "pulse", $args);
-			self::assertStringStartsWith("Usage:", $messages[0] ?? "");
+			self::assertStringStartsWith("[Pulse] Usage:", $messages[0] ?? "");
 			self::assertSame($session, $recorder->getSession());
 			self::assertFalse($session->isRecording());
 		}
@@ -194,7 +189,7 @@ final class PulseIntegrationTest extends TestCase{
 		$recorder->start();
 		$workers = [0, 1];
 		$failures = 0;
-		$recorder->collect()->onCompletion(fn() => self::fail("Timed-out report resolved"), static function() use (&$failures) : void{ ++$failures; });
+		$recorder->collect()->observe(fn() => self::fail("Timed-out report resolved"), static function() use (&$failures) : void{ ++$failures; });
 		self::assertSame(2, $recorder->getPendingOperations());
 		(new \ReflectionProperty(PulseRecorder::class, "collectionDeadline"))->setValue($recorder, (int) hrtime(true) - 1);
 		$recorder->checkDuration();
@@ -211,7 +206,7 @@ final class PulseIntegrationTest extends TestCase{
 		$tasks->exchangeArray([]);
 		self::assertSame(0, $recorder->getPendingOperations());
 		$report = null;
-		$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
+		$recorder->collect()->observe(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
 		foreach($tasks as $task){ $task->onCompletion(); }
 		self::assertNotNull($report);
 		self::assertCount(1, $report->getData()["threads"]);
@@ -240,7 +235,7 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertSame(0, $recorder->getPendingOperations());
 		$workers = [];
 		$report = null;
-		$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
+		$recorder->collect()->observe(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
 		self::assertNotNull($report);
 	}
 
@@ -270,7 +265,7 @@ final class PulseIntegrationTest extends TestCase{
 			$recorder->start();
 			for($i = 0; $i < $workerCount; ++$i){ $workers[] = $i; }
 			$failures = 0;
-			$recorder->collectTransfers()->onCompletion(fn() => self::fail("Oversized collection resolved"), static function() use (&$failures) : void{ ++$failures; });
+			$recorder->collectTransfers()->observe(fn() => self::fail("Oversized collection resolved"), static function() use (&$failures) : void{ ++$failures; });
 			$transfer = new PulseCapture($capture);
 			$late = 0;
 			foreach($tasks as $task){
@@ -301,7 +296,7 @@ final class PulseIntegrationTest extends TestCase{
 		$zone->stop($scope);
 		$recorder->stop();
 		$report = null;
-		$recorder->collect()->onCompletion(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
+		$recorder->collect()->observe(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
 		self::assertNotNull($report);
 		self::assertSame($session->getCapture(), $report->getData()["threads"][0]);
 		$recorder->reset();
@@ -331,7 +326,7 @@ final class PulseIntegrationTest extends TestCase{
 		$server->method("getPulse")->willReturn($recorder);
 		$sender = self::createMock(CommandSender::class);
 		$sender->method("getServer")->willReturn($server);
-		$sender->expects(self::once())->method("sendMessage")->with("Pulse is waiting for 1 worker operations");
+		$sender->expects(self::once())->method("sendMessage")->with(self::callback(static fn(string $m) : bool => TextFormat::clean($m) === "[Pulse] Waiting for 1 worker operations"));
 		(new PulseCommand())->execute($sender, "pulse", ["status"]);
 		try{ $recorder->start(); self::fail("Restart must wait for worker reset"); }catch(\LogicException){}
 		self::assertInstanceOf(PulseControlTask::class, $task);
@@ -348,10 +343,10 @@ final class PulseIntegrationTest extends TestCase{
 		$recorder->start();
 		$recorder->stop();
 		$failures = 0;
-		$recorder->collect(["worlds" => [123]])->onCompletion(fn() => self::fail("Invalid metadata accepted"), static function() use (&$failures) : void{ ++$failures; });
+		$recorder->collect(["worlds" => [123]])->observe(fn() => self::fail("Invalid metadata accepted"), static function() use (&$failures) : void{ ++$failures; });
 		self::assertSame(1, $failures);
 		$report = null;
-		$recorder->collect(["worlds" => ["world"]])->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
+		$recorder->collect(["worlds" => ["world"]])->observe(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Retry rejected"));
 		self::assertNotNull($report);
 		self::assertSame(["world"], $report->getData()["metadata"]["worlds"]);
 	}
@@ -396,7 +391,7 @@ final class PulseIntegrationTest extends TestCase{
 			$recorder->stop();
 			$recorder->start();
 			$report = null;
-			$recorder->collect()->onCompletion(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
+			$recorder->collect()->observe(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
 			self::assertNotNull($report);
 		}
 	}
@@ -514,7 +509,7 @@ final class PulseIntegrationTest extends TestCase{
 		try{ $recorder->stop(); self::fail("Stop submission must fail"); }catch(\RuntimeException){}
 		$state->fail = false;
 		$captures = null;
-		$recorder->collectCaptures()->onCompletion(static function(array $value) use (&$captures) : void{ $captures = $value; }, fn() => self::fail("Report rejected"));
+		$recorder->collectCaptures()->observe(static function(array $value) use (&$captures) : void{ $captures = $value; }, fn() => self::fail("Report rejected"));
 		self::assertSame([
 			[0, PulseControlTask::STOP], [1, PulseControlTask::STOP], [2, PulseControlTask::STOP],
 			[0, PulseControlTask::COLLECT], [1, PulseControlTask::COLLECT], [2, PulseControlTask::COLLECT]
@@ -571,7 +566,7 @@ final class PulseIntegrationTest extends TestCase{
 		(new \ReflectionProperty(Server::class, "pulse"))->setValue($server, $recorder);
 		$file = null;
 		try{
-			$server->createPulseReport()->onCompletion(function(string $value) use (&$file) : void{ $file = $value; }, fn() => self::fail("Startup report rejected"));
+			$server->createPulseReport()->observe(function(string $value) use (&$file) : void{ $file = $value; }, fn() => self::fail("Startup report rejected"));
 			self::assertNotNull($file);
 			$json = file_get_contents($file);
 			self::assertIsString($json);

@@ -85,10 +85,6 @@ interface RuntimeDataDescriber extends RuntimeEnumDescriber{
 	 */
 	public function brewingStandSlots(array &$slots) : void;
 
-	public function railShape(int &$railShape) : void;
-
-	public function straightOnlyRailShape(int &$railShape) : void;
-
 	/**
 	 * @phpstan-template T of \UnitEnum
 	 * @phpstan-param T &$case

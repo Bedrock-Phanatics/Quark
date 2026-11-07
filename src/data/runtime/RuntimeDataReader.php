@@ -26,7 +26,6 @@ namespace quark\data\runtime;
 use pocketmine\math\Axis;
 use pocketmine\math\Facing;
 use quark\block\utils\BrewingStandSlot;
-use quark\block\utils\RailConnectionInfo;
 use quark\block\utils\WallConnectionType;
 use quark\utils\AssumptionFailedError;
 use function get_class;
@@ -200,24 +199,6 @@ final class RuntimeDataReader implements RuntimeDataDescriber{
 	 */
 	public function brewingStandSlots(array &$slots) : void{
 		$this->enumSet($slots, BrewingStandSlot::cases());
-	}
-
-	public function railShape(int &$railShape) : void{
-		$result = $this->readInt(4);
-		if(!isset(RailConnectionInfo::CONNECTIONS[$result]) && !isset(RailConnectionInfo::CURVE_CONNECTIONS[$result])){
-			throw new InvalidSerializedRuntimeDataException("Invalid rail shape $result");
-		}
-
-		$railShape = $result;
-	}
-
-	public function straightOnlyRailShape(int &$railShape) : void{
-		$result = $this->readInt(3);
-		if(!isset(RailConnectionInfo::CONNECTIONS[$result])){
-			throw new InvalidSerializedRuntimeDataException("No rail shape matches meta $result");
-		}
-
-		$railShape = $result;
 	}
 
 	public function enum(\UnitEnum &$case) : void{

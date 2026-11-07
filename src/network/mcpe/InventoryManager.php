@@ -470,6 +470,8 @@ class InventoryManager implements InventoryListener{
 	}
 
 	public function onCurrentWindowRemove() : void{
+		//a window still waiting on a close ack was closed server-side before it opened
+		$this->pendingOpenWindowCallback = null;
 		if(isset($this->networkIdToWindowMap[$this->lastInventoryNetworkId])){
 			$this->remove($this->lastInventoryNetworkId);
 			if($this->pendingCloseWindowId !== null){
@@ -799,6 +801,8 @@ class InventoryManager implements InventoryListener{
 	public function syncEnchantingTableOptions(array $options) : void{
 		$this->enchantingTableOptions = [];
 		$protocolOptions = [];
+		//only the latest options can be selected, older ids would index into the new list
+		$this->enchantingTableOptions = [];
 
 		foreach($options as $index => $option){
 			$optionId = $this->nextEnchantingTableOptionId++;

@@ -63,7 +63,6 @@ use quark\network\mcpe\bedwire\BedwireTransport;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\cache\CreativeInventoryCache;
 use quark\network\mcpe\cache\StaticPacketCache;
-use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\CompressBatchTask;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\SnappyCompressor;
@@ -101,8 +100,7 @@ use quark\plugin\PluginGraylist;
 use quark\plugin\PluginManager;
 use quark\plugin\PluginOwned;
 use quark\plugin\ScriptPluginLoader;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
+use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseRecorder;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
@@ -145,6 +143,9 @@ use quark\world\WorldManager;
 use quark\YmlServerProperties as Yml;
 use Ramsey\Uuid\UuidInterface;
 use Symfony\Component\Filesystem\Path;
+use Vow\CancelledException;
+use Vow\Deferred;
+use Vow\Promise;
 use function array_fill;
 use function array_find;
 use function array_slice;
@@ -264,8 +265,8 @@ class Server{
 	private PluginManager $pluginManager;
 
 	private PulseRecorder $pulse;
-	/** @var PromiseResolver<string>|null */
-	private ?PromiseResolver $pulseReport = null;
+	/** @var Promise<string>|null */
+	private ?Promise $pulseReport = null;
 	private ?AsyncPool $pulseReportPool = null;
 
 	private UpdateChecker $updater;
@@ -624,59 +625,51 @@ class Server{
 	private function exportPulseReport(?array $metadata = null) : Promise{
 		if($this->pulseReport !== null){ throw new \LogicException("Pulse is already saving a report; wait for it to finish"); }
 		$metadata ??= $this->getPulseReportMetadata();
-		/** @var PromiseResolver<string> $result */
-		$result = new PromiseResolver();
-		$collection = $this->pulse->collectTransfers();
 		$maxProfiles = isset($this->configGroup) ? $this->configGroup->getPropertyInt("diagnostics.max-profiles", 0) : 0;
-		$this->pulseReport = $result;
-		$collection->onCompletion(
-			function(array $captures) use ($metadata, $maxProfiles) : void{
-				try{
-					$directory = $this->getFilesystemPaths()->profiles();
-					if(isset($this->tickSleeper, $this->autoloader, $this->logger)){
-						// Disk writes must not occupy the networking and generation workers.
-						$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
-						$this->pulseReportPool->submitTask(new PulseReportWriteTask($captures, $metadata, $directory, function(?string $file, ?string $error) : void{
-							if($error !== null){ $this->logger->error("Pulse report export or retention failed: $error"); }
-							$this->finishPulseReport($file);
-						}, $maxProfiles));
-						return;
-					}
-					$data = [];
-					foreach($captures as $capture){ $data[] = $capture->decode(); }
-					$file = PulseReport::create($data, $metadata)->write($directory);
-					if($maxProfiles > 0){
-						try{
-							Filesystem::retainNewestFiles($directory, "pulse_", ".qpulse", $maxProfiles, $file);
-						}catch(\RuntimeException $e){
-							$this->logger->warning("Pulse report retention failed: " . $e->getMessage());
-						}
-					}
-				}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
-					if(isset($this->logger)){ $this->logger->logException($e); }
-					$this->finishPulseReport(null);
-					return;
-				}
-				$this->finishPulseReport($file);
-			},
-			fn() => $this->finishPulseReport(null)
-		);
-		return $result->getPromise();
+		$report = $this->pulse->collectTransfers()
+			->then(fn(array $captures) => $this->writePulseReport($captures, $metadata, $maxProfiles))
+			->finally(function() : void{ $this->pulseReport = null; });
+		//a report with no workers to wait for settles before we get here
+		if($report->isPending()){
+			$this->pulseReport = $report;
+		}
+		return $report;
 	}
 
-	private function finishPulseReport(?string $file) : void{
-		$result = $this->pulseReport;
-		$this->pulseReport = null;
-		if($result === null){ return; }
-		if($file !== null){ $result->resolve($file); }else{ $result->reject(); }
+	/**
+	 * @param list<PulseCapture>   $captures
+	 * @param array<string, mixed> $metadata
+	 * @return Promise<string>|string
+	 */
+	private function writePulseReport(array $captures, array $metadata, int $maxProfiles) : Promise|string{
+		$directory = $this->getFilesystemPaths()->profiles();
+		if(isset($this->tickSleeper, $this->autoloader, $this->logger)){ //@phpstan-ignore isset.initializedProperty, isset.initializedProperty, isset.initializedProperty (tests build partial servers)
+			// Disk writes must not occupy the networking and generation workers.
+			$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			/** @var Deferred<string> $deferred */
+			$deferred = new Deferred();
+			$this->pulseReportPool->submitTask(new PulseReportWriteTask($captures, $metadata, $directory, $deferred, $maxProfiles));
+			return $deferred->promise;
+		}
+		$data = [];
+		foreach($captures as $capture){ $data[] = $capture->decode(); }
+		$file = PulseReport::create($data, $metadata)->write($directory);
+		if($maxProfiles > 0){
+			try{
+				Filesystem::retainNewestFiles($directory, "pulse_", ".qpulse", $maxProfiles, $file);
+			}catch(\RuntimeException $e){
+				$this->logger->warning("Pulse report retention failed: " . $e->getMessage());
+			}
+		}
+		return $file;
 	}
 
 	/** @param array<string, mixed> $metadata */
 	private function saveShutdownPulseReport(array $metadata) : void{
 		try{
-			$this->exportPulseReport($metadata)->onCompletion(
+			$this->exportPulseReport($metadata)->observe(
 				fn(string $file) => $this->logger->info("Pulse report saved to $file"),
-				fn() => $this->logger->error("Failed to create Pulse report")
+				fn(\Throwable $e) => $this->logger->error("Failed to create Pulse report: " . $e->getMessage())
 			);
 		}catch(\LogicException $e){
 			$this->logger->debug($e->getMessage());
@@ -770,39 +763,32 @@ class Server{
 			}
 			$playerPos = null;
 		}
-		/** @phpstan-var PromiseResolver<Player> $playerPromiseResolver */
-		$playerPromiseResolver = new PromiseResolver();
-
-		$createPlayer = function(Location $location) use ($playerPromiseResolver, $class, $session, $playerInfo, $authenticated, $offlinePlayerData) : void{
+		$createPlayer = function(Location $location) use ($class, $session, $playerInfo, $authenticated, $offlinePlayerData) : Player{
 			/** @see Player::__construct() */
 			$player = new $class($this, $session, $playerInfo, $authenticated, $location, $offlinePlayerData);
 			if(!$player->hasPlayedBefore()){
 				$player->onGround = true; //TODO: this hack is needed for new players in-air ticks - they don't get detected as on-ground until they move
 			}
-			$playerPromiseResolver->resolve($player);
+			return $player;
 		};
 
-		if($playerPos === null){ //new player or no valid position due to world not being loaded
-			$world->requestSafeSpawn()->onCompletion(
-				function(Position $spawn) use ($createPlayer, $playerPromiseResolver, $session, $world) : void{
-					if(!$session->isConnected()){
-						$playerPromiseResolver->reject();
-						return;
-					}
-					$createPlayer(Location::fromObject($spawn, $world));
-				},
-				function() use ($playerPromiseResolver, $session) : void{
-					if($session->isConnected()){
-						$session->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_respawn());
-					}
-					$playerPromiseResolver->reject();
-				}
-			);
-		}else{ //returning player with a valid position - safe spawn not required
-			$createPlayer($playerPos);
+		if($playerPos !== null){ //returning player with a valid position - safe spawn not required
+			return Promise::resolved($createPlayer($playerPos));
 		}
-
-		return $playerPromiseResolver->getPromise();
+		return $world->requestSafeSpawn()->then(
+			function(Position $spawn) use ($createPlayer, $session, $world) : Player{
+				if(!$session->isConnected()){
+					throw new CancelledException("Session disconnected before its spawn was ready");
+				}
+				return $createPlayer(Location::fromObject($spawn, $world));
+			},
+			function(\Throwable $e) use ($session) : never{
+				if($session->isConnected()){
+					$session->disconnectWithError(KnownTranslationFactory::quark_disconnect_error_respawn());
+				}
+				throw $e;
+			}
+		);
 	}
 
 	/**
@@ -992,6 +978,10 @@ class Server{
 		$this->signalHandler = new SignalHandler(function() : void{
 			$this->logger->info("Received signal interrupt, stopping the server");
 			$this->shutdown();
+		});
+		Promise::setRejectionHandler(function(\Throwable $e) : void{
+			$this->logger->error("Unhandled promise rejection");
+			$this->logger->logException($e);
 		});
 
 		try{
@@ -1639,8 +1629,9 @@ class Server{
 	 * a separate thread (if available).
 	 *
 	 * @param bool|null $sync Compression on the main thread (true) or workers (false). Default is automatic (null).
+	 * @return Promise<string>|string
 	 */
-	public function prepareBatch(string $buffer, Compressor $compressor, ?bool $sync = null, ?PulseZone $pulse = null) : CompressBatchPromise|string{
+	public function prepareBatch(string $buffer, Compressor $compressor, ?bool $sync = null, ?PulseZone $pulse = null) : Promise|string{
 		$pulse ??= PulseZones::$playerNetworkSendCompress;
 		$scope = $pulse->start();
 		try{
@@ -1654,10 +1645,10 @@ class Server{
 				$sync ??= !$this->networkCompressionAsync;
 
 				if(!$sync && strlen($buffer) >= $this->networkCompressionAsyncThreshold){
-					$promise = new CompressBatchPromise();
-					$task = new CompressBatchTask($buffer, $promise, $compressor);
-					$this->asyncPool->submitTask($task);
-					return $promise;
+					/** @var Deferred<string> $deferred */
+					$deferred = new Deferred();
+					$this->asyncPool->submitTask(new CompressBatchTask($buffer, $deferred, $compressor));
+					return $deferred->promise;
 				}
 
 				$compressionType = $compressor->getNetworkType();
@@ -1716,7 +1707,8 @@ class Server{
 				$this->pulse->stop();
 				$metadata = $this->getPulseReportMetadata();
 				if($this->pulseReport !== null){
-					$this->pulseReport->getPromise()->onCompletion(fn() => $this->saveShutdownPulseReport($metadata), fn() => $this->saveShutdownPulseReport($metadata));
+					$save = fn() => $this->saveShutdownPulseReport($metadata);
+					$this->pulseReport->observe($save, $save);
 				}else{
 					$this->saveShutdownPulseReport($metadata);
 				}
@@ -1803,6 +1795,7 @@ class Server{
 					$this->network->unregisterInterface($interface);
 				}
 			}
+			Promise::setRejectionHandler(null);
 		}catch(\Throwable $e){
 			$this->logger->logException($e);
 			$this->logger->emergency("Crashed while crashing, killing process");
@@ -2082,6 +2075,15 @@ class Server{
 
 			$this->worldManager->tick($this->tickCounter);
 			$this->redstoneWorldManager?->tick();
+
+			//one resync per tick for any number of command map changes
+			if($this->commandMap->consumeClientMetadataChanges()){
+				foreach($this->getOnlinePlayers() as $player){
+					if($player->isConnected()){
+						$player->getNetworkSession()->syncAvailableCommands();
+					}
+				}
+			}
 
 			$connectionScope = PulseZones::$connection->start();
 			$this->network->tick();

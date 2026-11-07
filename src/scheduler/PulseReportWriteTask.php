@@ -27,9 +27,11 @@ use pmmp\thread\ThreadSafeArray;
 use quark\pulse\internal\PulseCapture;
 use quark\pulse\PulseReport;
 use quark\utils\Filesystem;
+use Vow\Deferred;
 use function count;
 use function igbinary_serialize;
 use function igbinary_unserialize;
+use function is_string;
 use function strlen;
 
 /**
@@ -40,13 +42,14 @@ final class PulseReportWriteTask extends AsyncTask{
 	private ?ThreadSafeArray $captures = null;
 	private string $metadata;
 	private ?string $error = null;
+	private ?string $retentionError = null;
 
 	/**
-	 * @param list<PulseCapture>                $captures
-	 * @param array<string, mixed>              $metadata
-	 * @param \Closure(?string, ?string) : void $onComplete
+	 * @param list<PulseCapture>   $captures
+	 * @param array<string, mixed> $metadata
+	 * @param Deferred<string>     $deferred resolved with the report's path
 	 */
-	public function __construct(array $captures, array $metadata, private string $directory, \Closure $onComplete, private int $maxProfiles = 0){
+	public function __construct(array $captures, array $metadata, private string $directory, Deferred $deferred, private int $maxProfiles = 0){
 		if(count($captures) > 128){ throw new \LengthException("Pulse report has too many threads"); }
 		$rows = $bytes = 0;
 		foreach($captures as $capture){
@@ -59,7 +62,7 @@ final class PulseReportWriteTask extends AsyncTask{
 		if(strlen($this->metadata) > PulseCapture::MAX_TRANSFER_BYTES - $bytes){ throw new \LengthException("Pulse capture transfer exceeds the size limit"); }
 		$this->captures = new ThreadSafeArray();
 		foreach($captures as $capture){ $this->captures[] = $capture; }
-		$this->storeLocal("complete", $onComplete);
+		$this->storeLocal("deferred", $deferred);
 	}
 
 	public function onRun() : void{
@@ -76,7 +79,11 @@ final class PulseReportWriteTask extends AsyncTask{
 			$file = PulseReport::create($captures, $metadata)->write($this->directory);
 			$this->setResult($file);
 			if($this->maxProfiles > 0){
-				Filesystem::retainNewestFiles($this->directory, "pulse_", ".qpulse", $this->maxProfiles, $file);
+				try{
+					Filesystem::retainNewestFiles($this->directory, "pulse_", ".qpulse", $this->maxProfiles, $file);
+				}catch(\RuntimeException $e){
+					$this->retentionError = $e->getMessage();
+				}
 			}
 		}catch(\RuntimeException|\InvalidArgumentException|\JsonException|\LengthException $e){
 			$this->error = $e->getMessage();
@@ -87,10 +94,16 @@ final class PulseReportWriteTask extends AsyncTask{
 	}
 
 	public function onCompletion() : void{
-		/** @var \Closure(?string, ?string) : void $complete */
-		$complete = $this->fetchLocal("complete");
-		/** @var string|null $file */
+		/** @var Deferred<string> $deferred */
+		$deferred = $this->fetchLocal("deferred");
+		if($this->retentionError !== null){
+			\GlobalLogger::get()->warning("Pulse report retention failed: " . $this->retentionError);
+		}
 		$file = $this->getResult();
-		$complete($file, $this->error);
+		if($this->error === null && is_string($file)){
+			$deferred->resolve($file);
+		}else{
+			$deferred->reject(new \RuntimeException("Pulse report export failed: " . ($this->error ?? "no file was written")));
+		}
 	}
 }

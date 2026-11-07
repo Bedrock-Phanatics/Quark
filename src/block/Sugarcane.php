@@ -116,17 +116,17 @@ class Sugarcane extends Flowable implements Ageable{
 		}
 	}
 
-	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$down = $blockReplace->getSide(Facing::DOWN);
 		if($down->hasSameTypeId($this)){
-			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+			return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 		}
 
 		//support criteria are checked by FixedSupportTrait, but this part applies to placement only
 		foreach(Facing::HORIZONTAL as $side){
 			$sideBlock = $down->getSide($side);
 			if($sideBlock instanceof Water || $sideBlock instanceof FrostedIce){
-				return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+				return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 			}
 		}
 

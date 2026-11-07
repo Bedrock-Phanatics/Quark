@@ -32,10 +32,9 @@ use pocketmine\network\mcpe\protocol\types\ResourcePackClientResponseStatus;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\PacketHandlingException;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\resourcepacks\ResourcePack;
 use Ramsey\Uuid\Uuid;
+use Vow\Promise;
 use function array_map;
 use function bin2hex;
 use function str_repeat;
@@ -59,10 +58,7 @@ final class ResourcePacksPacketHandlerTest extends TestCase{
 		});
 		$session->method("sendDataPacketWithReceipt")->willReturnCallback(function(ClientboundPacket $packet) : Promise{
 			$this->sent[] = $packet;
-			/** @phpstan-var PromiseResolver<true> $resolver */
-			$resolver = new PromiseResolver();
-			$resolver->resolve(true);
-			return $resolver->getPromise();
+			return Promise::resolved(null);
 		});
 		return $session;
 	}
