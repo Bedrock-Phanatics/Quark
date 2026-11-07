@@ -30,7 +30,6 @@ use quark\world\redstone\RedstoneWorldState;
 trait PowerableTrait{
 
 	public function onNearbyBlockChange() : void{
-		if(!RedstoneManager::getInstance()->isEnabledAt($this->position)){ return; }
 		parent::onNearbyBlockChange();
 		$this->recalculatePowerState();
 	}
@@ -40,8 +39,13 @@ trait PowerableTrait{
 	}
 
 	public function recalculatePowerState() : void{
+		if(RedstoneManager::getInstance()->isEnabledAt($this->position)){
+			$this->onReceivePower($this->getReceivedPower());
+		}
+	}
+
+	protected function getReceivedPower() : int{
 		$manager = RedstoneManager::getInstance();
-		if(!$manager->isEnabledAt($this->position)){ return; }
 		$power = 0;
 
 		if(!$this->requires_strong_power){
@@ -78,7 +82,7 @@ trait PowerableTrait{
 			}
 		}
 
-		$this->onReceivePower($power);
+		return $power;
 	}
 
 	public function power(PowerSource $source) : void{

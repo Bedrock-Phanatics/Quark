@@ -26,6 +26,7 @@ namespace quark\world\redstone;
 use PHPUnit\Framework\TestCase;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use quark\block\Door;
 use quark\block\RedstoneComparator;
 use quark\block\RedstoneLamp;
 use quark\block\RedstoneRepeater;
@@ -137,6 +138,29 @@ final class RedstoneCircuitTest extends TestCase{
 		$this->h->get(0, 2, 0)->onScheduledUpdate();
 		$this->h->tick(10);
 		self::assertFalse($this->lampLit(1, 1, 0));
+	}
+
+	public function testDoorOpensWhenOnlyItsTopHalfIsPowered() : void{
+		$this->h->set(0, 1, 0, VanillaBlocks::OAK_DOOR());
+		$this->h->set(0, 2, 0, VanillaBlocks::OAK_DOOR()->setTop(true));
+		//hung from the block above, so nothing reaches the bottom half
+		$this->h->set(1, 3, 0, VanillaBlocks::STONE());
+		$this->h->place(1, 2, 0, VanillaBlocks::LEVER()->setFacing(LeverFacing::DOWN_AXIS_X));
+		$this->h->tick();
+
+		$this->h->get(1, 2, 0)->onInteract(VanillaItems::AIR(), Facing::UP, new Vector3(0, 0, 0));
+		$this->h->tick(5);
+		foreach([1, 2] as $y){
+			$door = $this->h->get(0, $y, 0);
+			self::assertInstanceOf(Door::class, $door);
+			self::assertTrue($door->isOpen(), "half at y=$y");
+		}
+
+		$this->h->get(1, 2, 0)->onInteract(VanillaItems::AIR(), Facing::UP, new Vector3(0, 0, 0));
+		$this->h->tick(5);
+		$door = $this->h->get(0, 1, 0);
+		self::assertInstanceOf(Door::class, $door);
+		self::assertFalse($door->isOpen());
 	}
 
 	public function testBreakingLitTorchReleasesBlockAbove() : void{

@@ -24,10 +24,7 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\Door;
-use quark\item\Item;
-use quark\player\Player;
 use quark\world\sound\DoorSound;
 
 trait PowerableDoorTrait{
@@ -37,34 +34,23 @@ trait PowerableDoorTrait{
 	private(set) int $deactivation_delay = 0;
 	private(set) bool $requires_strong_power = false;
 
-	public function onNearbyBlockChange() : void{
-		Door::onNearbyBlockChange();
-	}
-
 	public function isPowered() : bool{
 		return $this->open;
 	}
 
+	//both halves share one open state, so a door opens when either half is powered
 	protected function onReceivePower(int $power) : void{
-		$powered = $power > 0;
-		if($powered !== $this->open){
-			$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setOpen($powered), false);
-			$this->position->getWorld()->addSound($this->position, new DoorSound());
-		}
-	}
-
-	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
-		$this->open = !$this->open;
-
 		$other = $this->getSide($this->top ? Facing::DOWN : Facing::UP);
-		$world = $this->position->getWorld();
-		if($other instanceof Door && $other->hasSameTypeId($this)){
-			$other->open = $this->open;
-			$world->setBlock($other->position, $other, false);
+		$other = $other instanceof Door && $other->hasSameTypeId($this) ? $other : null;
+		$open = $power > 0 || ($other !== null && $other->getReceivedPower() > 0);
+		if($open === $this->open){
+			return;
 		}
-
-		$world->setBlock($this->position, $this, false);
+		$world = $this->position->getWorld();
+		$world->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setOpen($open), false);
+		if($other !== null){
+			$world->setBlockAt((int) $other->position->x, (int) $other->position->y, (int) $other->position->z, $other->setOpen($open), false);
+		}
 		$world->addSound($this->position, new DoorSound());
-		return true;
 	}
 }
