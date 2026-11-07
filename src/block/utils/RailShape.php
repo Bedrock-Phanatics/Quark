@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\math\Facing;
-
 enum RailShape{
 	case FLAT_AXIS_Z;
 	case FLAT_AXIS_X;
@@ -43,17 +41,6 @@ enum RailShape{
 	 * @phpstan-return list<int>
 	 */
 	public function getConnections() : array{
-		return match($this){
-			self::FLAT_AXIS_Z => [Facing::NORTH, Facing::SOUTH],
-			self::FLAT_AXIS_X => [Facing::EAST, Facing::WEST],
-			self::ASCENDING_EAST => [Facing::WEST, Facing::EAST | RailConnectionInfo::FLAG_ASCEND],
-			self::ASCENDING_WEST => [Facing::EAST, Facing::WEST | RailConnectionInfo::FLAG_ASCEND],
-			self::ASCENDING_NORTH => [Facing::SOUTH, Facing::NORTH | RailConnectionInfo::FLAG_ASCEND],
-			self::ASCENDING_SOUTH => [Facing::NORTH, Facing::SOUTH | RailConnectionInfo::FLAG_ASCEND],
-			self::CURVED_SOUTHEAST => [Facing::SOUTH, Facing::EAST],
-			self::CURVED_SOUTHWEST => [Facing::SOUTH, Facing::WEST],
-			self::CURVED_NORTHWEST => [Facing::NORTH, Facing::WEST],
-			self::CURVED_NORTHEAST => [Facing::NORTH, Facing::EAST]
-		};
+		return RailConnectionInfo::CONNECTIONS[$this->name];
 	}
 }

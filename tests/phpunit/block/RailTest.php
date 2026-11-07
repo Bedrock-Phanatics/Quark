@@ -24,13 +24,16 @@ declare(strict_types=1);
 namespace quark\block;
 
 use PHPUnit\Framework\TestCase;
+use quark\block\utils\RailConnectionInfo;
 use quark\block\utils\RailShape;
 use quark\block\utils\StraightOnlyRailShape;
 use quark\data\bedrock\block\BlockStateNames;
 use quark\data\bedrock\block\convert\BlockObjectToStateSerializer;
 use quark\data\bedrock\block\convert\BlockStateToObjectDeserializer;
 use quark\world\format\io\GlobalBlockStateHandlers;
+use function array_keys;
 use function array_map;
+use function array_reverse;
 use function array_unique;
 use function count;
 
@@ -95,7 +98,9 @@ final class RailTest extends TestCase{
 		}
 	}
 
-	public function testShapeConnectionsAreDistinct() : void{
+	public function testConnectionTableMatchesShapes() : void{
+		self::assertSame(array_map(fn(RailShape $s) => $s->name, RailShape::cases()), array_keys(RailConnectionInfo::CONNECTIONS));
+
 		$connections = array_map(fn(RailShape $s) => $s->getConnections(), RailShape::cases());
 		foreach($connections as $c){
 			self::assertCount(2, $c);
@@ -105,5 +110,18 @@ final class RailTest extends TestCase{
 		foreach(StraightOnlyRailShape::cases() as $shape){
 			self::assertSame(RailShape::{$shape->name}->getConnections(), $shape->getConnections());
 		}
+	}
+
+	public function testShapesResolveFromConnectionsInEitherOrder() : void{
+		$search = new \ReflectionMethod(BaseRail::class, 'searchShape');
+		foreach(RailShape::cases() as $shape){
+			$connections = $shape->getConnections();
+			self::assertSame($shape, $search->invoke(null, $connections, RailShape::cases()), $shape->name);
+			self::assertSame($shape, $search->invoke(null, array_reverse($connections), RailShape::cases()), $shape->name . " reversed");
+		}
+
+		$curved = RailShape::CURVED_NORTHEAST->getConnections();
+		self::assertNull($search->invoke(null, $curved, StraightOnlyRailShape::cases()));
+		self::assertSame(StraightOnlyRailShape::ASCENDING_WEST, $search->invoke(null, RailShape::ASCENDING_WEST->getConnections(), StraightOnlyRailShape::cases()));
 	}
 }

@@ -36,6 +36,6 @@ enum StraightOnlyRailShape{
 	 * @phpstan-return list<int>
 	 */
 	public function getConnections() : array{
-		return RailShape::{$this->name}->getConnections();
+		return RailConnectionInfo::CONNECTIONS[$this->name];
 	}
 }
