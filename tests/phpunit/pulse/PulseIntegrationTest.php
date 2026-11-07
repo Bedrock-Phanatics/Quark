@@ -99,21 +99,19 @@ final class PulseIntegrationTest extends TestCase{
 		PulseReport::decode($session->getReport()->encode());
 	}
 
-	public function testCommandOptionsValidateUnitsLimitsAndDuplicates() : void{
-		self::assertSame([0, 0, 32], PulseCommand::parseOptions([]));
-		self::assertSame([60000000000, 50000000, 16], PulseCommand::parseOptions(["--duration", "60s", "--spikes", "50ms", "--max-spikes", "16"]));
-		self::assertSame([1500000000, 0, 32], PulseCommand::parseOptions(["--duration", "1.5s"]));
-		self::assertSame([60000000000, 50000000, 16], PulseCommand::parseOptions(["1m", "--spikes", "50ms", "--max-spikes", "16"]));
-		self::assertSame([86400000000000, 60000000000, 128], PulseCommand::parseOptions(["--duration", "1440m", "--spikes", "1m", "--max-spikes", "128"]));
+	public function testCommandDurationValidatesUnitsAndLimits() : void{
+		self::assertSame(0, PulseCommand::parseDuration([]));
+		self::assertSame(60000000000, PulseCommand::parseDuration(["60s"]));
+		self::assertSame(60000000000, PulseCommand::parseDuration(["60"]));
+		self::assertSame(1500000000, PulseCommand::parseDuration(["1.5s"]));
+		self::assertSame(300000000000, PulseCommand::parseDuration(["5M"]));
+		self::assertSame(86400000000000, PulseCommand::parseDuration(["24h"]));
 		foreach([
-			["--duration"], ["--other", "1s"], ["--duration", "0s"], ["--duration", "-1s"],
-			["--duration", "86401s"], ["--duration", "1e9s"], ["--duration", "1s\n"],
-			["--spikes", "61s"], ["--spikes", "nanms"], ["--max-spikes", "0"],
-			["--max-spikes", "129"], ["--max-spikes", "1.5"], ["--duration", "1s", "--duration", "2s"],
-			["60s", "--duration", "1s"], ["60s", "extra"], ["0s"], [str_repeat("9", 100) . "s"]
+			["0s"], ["-1s"], ["86401s"], ["25h"], ["1e9s"], ["1s
+"], ["nans"], ["60s", "extra"], [str_repeat("9", 100) . "s"]
 		] as $args){
 			try{
-				PulseCommand::parseOptions($args);
+				PulseCommand::parseDuration($args);
 				self::fail("Invalid Pulse options accepted");
 			}catch(InvalidCommandSyntaxException){
 				self::assertFalse(Pulse::isRecording());
@@ -147,8 +145,8 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertStringContainsString("Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
 		$command->execute($sender, "pulse", ["help"]);
-		self::assertCount(5, $messages);
-		$command->execute($sender, "pulse", ["start", "1m", "--spikes", "50ms"]);
+		self::assertCount(4, $messages);
+		$command->execute($sender, "pulse", ["start", "1m"]);
 		$session = $recorder->getSession();
 		self::assertNotNull($session);
 		self::assertSame(60000000000, $session->getStats()["duration_ns"]);
@@ -162,12 +160,12 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertStringNotContainsString("\n", $messages[1] ?? "");
 		self::assertStringNotContainsString("\x1b", $messages[1] ?? "");
 		$messages->exchangeArray([]);
-		$command->execute($sender, "pulse", ["stop", "--report"]);
+		$command->execute($sender, "pulse", ["stop"]);
 		self::assertFalse($session->isRecording());
 		self::assertSame(1, $saves);
 		self::assertStringStartsWith("Collecting Pulse report", $messages[count($messages) - 2] ?? "");
 		self::assertSame("Pulse report saved to test.qpulse", $messages[count($messages) - 1]);
-		foreach([["start", "60s", "--duration", "1s"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
+		foreach([["start", "60s", "1s"], ["start", "--spikes"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
 			$messages->exchangeArray([]);
 			$command->execute($sender, "pulse", $args);
 			self::assertStringStartsWith("Usage:", $messages[0] ?? "");

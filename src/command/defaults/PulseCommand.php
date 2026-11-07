@@ -35,49 +35,29 @@ use function preg_match;
 use function preg_replace;
 use function round;
 use function sprintf;
-use function str_starts_with;
 use function strlen;
 use function strtolower;
 
 final class PulseCommand extends VanillaCommand{
 	public function __construct(){
-		parent::__construct("pulse", "Record and report server performance", "/pulse [status|start|stop|top|reset|report|help]");
+		parent::__construct("pulse", "Record and report server performance", "/pulse <start [time]|stop|status|top|report|reset|help>");
 		$this->setPermission(DefaultPermissionNames::COMMAND_PULSE);
 	}
+
+	private const SPIKE_THRESHOLD_NS = 50000000;
+	private const MAX_SPIKES = 32;
 
 	/**
 	 * @internal
 	 * @param list<string> $args
-	 * @return array{int, int, int}
 	 */
-	public static function parseOptions(array $args) : array{
-		if(count($args) > 0 && !str_starts_with($args[0], "--")){
-			$args = ["--duration", array_shift($args), ...$args];
-		}
-		if(count($args) > 6 || count($args) % 2 !== 0){ throw new InvalidCommandSyntaxException(); }
-		$duration = $threshold = 0;
-		$maxSpikes = 32;
-		$seen = [];
-		while(count($args) > 0){
-			$option = array_shift($args);
-			$value = array_shift($args);
-			if($option === null || $value === null || isset($seen[$option])){ throw new InvalidCommandSyntaxException(); }
-			$seen[$option] = true;
-			if($option === "--max-spikes"){
-				if(preg_match('/^[1-9][0-9]{0,2}$/D', $value) !== 1 || (int) $value > 128){ throw new InvalidCommandSyntaxException(); }
-				$maxSpikes = (int) $value;
-			}elseif($option === "--duration" || $option === "--spikes"){
-				if(strlen($value) > 24 || preg_match('/^([0-9]+(?:\.[0-9]+)?)(ms|s|m)$/D', $value, $matches) !== 1){ throw new InvalidCommandSyntaxException(); }
-				$factor = match($matches[2]){ "ms" => 1000000, "s" => 1000000000, "m" => 60000000000 };
-				$ns = round((float) $matches[1] * $factor);
-				$limit = $option === "--duration" ? 86400000000000 : 60000000000;
-				if($ns < 1 || $ns > $limit){ throw new InvalidCommandSyntaxException(); }
-				if($option === "--duration"){ $duration = (int) $ns; }else{ $threshold = (int) $ns; }
-			}else{
-				throw new InvalidCommandSyntaxException();
-			}
-		}
-		return [$duration, $threshold, $maxSpikes];
+	public static function parseDuration(array $args) : int{
+		if(count($args) === 0){ return 0; }
+		if(count($args) > 1 || strlen($args[0]) > 24 || preg_match('/^([0-9]+(?:\.[0-9]+)?)(ms|s|m|h)?$/D', strtolower($args[0]), $matches) !== 1){ throw new InvalidCommandSyntaxException(); }
+		$factor = match($matches[2] ?? ""){ "ms" => 1000000, "", "s" => 1000000000, "m" => 60000000000, "h" => 3600000000000 };
+		$ns = round((float) $matches[1] * $factor);
+		if($ns < 1 || $ns > 86400000000000){ throw new InvalidCommandSyntaxException(); }
+		return (int) $ns;
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
@@ -87,20 +67,18 @@ final class PulseCommand extends VanillaCommand{
 		try{
 			switch($mode){
 				case "start":
-					[$duration, $threshold, $maxSpikes] = self::parseOptions($args);
-					$pulse->start($duration, $threshold, $maxSpikes);
-					Command::broadcastCommandMessage($sender, "Pulse started: " . ($duration === 0 ? "until stopped" : sprintf("%.2f s", $duration / 1000000000)) .
-						($threshold === 0 ? "; spikes off" : sprintf("; spikes over %.2f ms, retaining %d", $threshold / 1000000, $maxSpikes)));
-					$sender->sendMessage("Use /pulse top to inspect or /pulse stop --report to stop and save");
+					$duration = self::parseDuration($args);
+					$pulse->start($duration, self::SPIKE_THRESHOLD_NS, self::MAX_SPIKES);
+					Command::broadcastCommandMessage($sender, "Pulse started " . ($duration === 0 ? "until stopped" : sprintf("for %.1f s", $duration / 1000000000)));
+					$sender->sendMessage("Use /pulse stop to stop and save the report");
 					break;
 				case "stop":
-					if($args !== [] && $args !== ["--report"]){ throw new InvalidCommandSyntaxException(); }
-					if($pulse->getSession() === null){ $sender->sendMessage("Pulse is idle. Start with /pulse start 60s --spikes 50ms"); break; }
+					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
+					if($pulse->getSession() === null){ $sender->sendMessage("Pulse is idle. Start with /pulse start [time]"); break; }
 					$pulse->stop();
-					Command::broadcastCommandMessage($sender, "Pulse stopped; capture retained");
+					Command::broadcastCommandMessage($sender, "Pulse stopped");
 					self::sendStatus($sender);
-					if($args === ["--report"]){ self::saveReport($sender); }
-					else{ $sender->sendMessage("Use /pulse report to save or /pulse top to inspect"); }
+					self::saveReport($sender);
 					break;
 				case "reset":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
@@ -130,11 +108,10 @@ final class PulseCommand extends VanillaCommand{
 					break;
 				case "help":
 					if(count($args) !== 0){ throw new InvalidCommandSyntaxException(); }
-					$sender->sendMessage("/pulse [status] - show session and tick costs");
-					$sender->sendMessage("/pulse start [60s] [--spikes 50ms] [--max-spikes 32] - record; --duration 60s also works");
-					$sender->sendMessage("/pulse stop [--report] - stop; optionally save all threads");
-					$sender->sendMessage("/pulse top [1-10] - show main-thread costs; /pulse report - save all threads without stopping");
-					$sender->sendMessage("/pulse reset - clear stopped data or restart an active session");
+					$sender->sendMessage("/pulse start [time] - record, e.g. 60s, 5m, 1h; until stopped if omitted");
+					$sender->sendMessage("/pulse stop - stop and save the report");
+					$sender->sendMessage("/pulse status - show session and tick costs; /pulse top [1-10] - main-thread costs");
+					$sender->sendMessage("/pulse report - save without stopping; /pulse reset - clear or restart");
 					break;
 				default: throw new InvalidCommandSyntaxException();
 			}
@@ -156,7 +133,7 @@ final class PulseCommand extends VanillaCommand{
 		$session = $pulse->getSession();
 		if($session === null){
 			$pending = $pulse->getPendingOperations();
-			$sender->sendMessage($pending > 0 ? "Pulse is waiting for $pending worker operations" : "Pulse is idle. Start with /pulse start 60s --spikes 50ms");
+			$sender->sendMessage($pending > 0 ? "Pulse is waiting for $pending worker operations" : "Pulse is idle. Start with /pulse start [time]");
 			return;
 		}
 		$stats = $session->getStats();
