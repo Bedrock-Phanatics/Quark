@@ -151,6 +151,7 @@ use Ramsey\Uuid\UuidInterface;
 use Vow\CancelledException;
 use function abs;
 use function array_filter;
+use function array_intersect_key;
 use function array_shift;
 use function assert;
 use function count;
@@ -1071,6 +1072,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				}
 			}
 		}
+		if($release){
+			//kept chunks are ordered nearest first, so the chunks around the player reload before distant ones
+			$this->chunkReloadQueue = array_intersect_key($keptChunks, $this->chunkReloadQueue);
+		}
 	}
 
 	private function keepChunk(int $hash, int $chunkX, int $chunkZ) : void{
@@ -1533,8 +1538,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$this->logger->debug("Old position: " . $oldPos->asVector3() . ", new position: " . $newPos);
 			$revert = true;
 		}elseif(!$this->getWorld()->isInLoadedTerrain($newPos)){
-			$revert = true;
 			$this->nextChunkOrderRun = 0;
+			//fast travel can outrun chunk ordering into a released chunk the client already has
+			$chunkX = $newPos->getFloorX() >> Chunk::COORD_BIT_SIZE;
+			$chunkZ = $newPos->getFloorZ() >> Chunk::COORD_BIT_SIZE;
+			$hash = World::chunkHash($chunkX, $chunkZ);
+			if(isset($this->releasedChunks[$hash]) && ($this->usedChunks[$hash] ?? null) === UsedChunkStatus::SENT){
+				$this->keepChunk($hash, $chunkX, $chunkZ);
+			}
+			$revert = !$this->getWorld()->isInLoadedTerrain($newPos);
 		}
 
 		if(!$revert && $distanceSquared !== 0.0){
