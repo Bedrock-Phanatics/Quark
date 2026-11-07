@@ -27,13 +27,23 @@ use PHPUnit\Framework\TestCase;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use quark\block\Piston;
+use quark\block\PistonArmCollision;
 use quark\block\tile\dispenser\DispensableItem;
 use quark\block\tile\dispenser\DispensableItemManager;
 use quark\block\tile\dispenser\Dispenser as DispenserTile;
 use quark\block\VanillaBlocks;
+use quark\event\block\BlockTeleportEvent;
+use quark\event\block\PistonPullBlockEvent;
+use quark\event\block\PistonPushBlockEvent;
+use quark\event\Event;
+use quark\event\EventPriority;
+use quark\event\HandlerListManager;
 use quark\inventory\Inventory;
 use quark\item\VanillaItems;
 use quark\player\Player;
+use quark\plugin\Plugin;
+use quark\plugin\PluginManager;
+use quark\Server;
 use quark\world\Position;
 use function array_values;
 
@@ -53,6 +63,76 @@ final class RedstoneMachineTest extends TestCase{
 
 	protected function tearDown() : void{
 		DispensableItemManager::init();
+		HandlerListManager::global()->unregisterAll();
+	}
+
+	/**
+	 * @phpstan-template TEvent of Event
+	 * @phpstan-param class-string<TEvent> $event
+	 */
+	private function cancelAll(string $event) : void{
+		$plugin = self::createStub(Plugin::class);
+		$plugin->method('isEnabled')->willReturn(true);
+		(new PluginManager($this->createMock(Server::class), null))->registerEvent($event, static function(Event $event) : void{
+			if($event instanceof PistonPushBlockEvent || $event instanceof PistonPullBlockEvent || $event instanceof BlockTeleportEvent){
+				$event->cancel();
+			}
+		}, EventPriority::NORMAL, $plugin);
+	}
+
+	/** Piston at 0,1,0 pushing north into the stone at 0,1,-1, with a redstone block placed on its east side. */
+	private function pushStone(bool $sticky) : void{
+		$this->h->set(0, 1, -1, VanillaBlocks::STONE());
+		$this->h->place(0, 1, 0, ($sticky ? VanillaBlocks::STICKY_PISTON() : VanillaBlocks::PISTON())->setFacing(Facing::SOUTH));
+		$this->h->tick(2);
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(5);
+	}
+
+	private function isStone(int $x, int $y, int $z) : bool{
+		return $this->h->get($x, $y, $z)->hasSameTypeId(VanillaBlocks::STONE());
+	}
+
+	public function testPistonPushesAndStickyPistonPulls() : void{
+		$this->pushStone(true);
+		self::assertSame(Piston::STATE_CONTRACT_IDLE, $this->pistonState(0, 1, 0));
+		self::assertTrue($this->isStone(0, 1, -2));
+		self::assertInstanceOf(PistonArmCollision::class, $this->h->get(0, 1, -1));
+
+		$this->h->breakBlock(1, 1, 0);
+		$this->h->tick(10);
+		self::assertSame(Piston::STATE_RETRACT_IDLE, $this->pistonState(0, 1, 0));
+		self::assertTrue($this->isStone(0, 1, -1), "the sticky piston pulled the block back");
+		self::assertFalse($this->isStone(0, 1, -2));
+	}
+
+	/**
+	 * @phpstan-return list<array{class-string<Event>}>
+	 */
+	public static function pushEventProvider() : array{
+		return [[PistonPushBlockEvent::class], [BlockTeleportEvent::class]];
+	}
+
+	/**
+	 * @dataProvider pushEventProvider
+	 * @phpstan-param class-string<Event> $event
+	 */
+	public function testCancelledPushMovesNothing(string $event) : void{
+		$this->cancelAll($event);
+		$this->pushStone(false);
+		self::assertSame(Piston::STATE_RETRACT_IDLE, $this->pistonState(0, 1, 0));
+		self::assertTrue($this->isStone(0, 1, -1));
+		self::assertFalse($this->isStone(0, 1, -2));
+	}
+
+	public function testCancelledPullLeavesBlockInPlace() : void{
+		$this->pushStone(true);
+		$this->cancelAll(PistonPullBlockEvent::class);
+		$this->h->breakBlock(1, 1, 0);
+		$this->h->tick(10);
+		self::assertSame(Piston::STATE_RETRACT_IDLE, $this->pistonState(0, 1, 0));
+		self::assertTrue($this->isStone(0, 1, -2));
+		self::assertSame(VanillaBlocks::AIR()->getTypeId(), $this->h->get(0, 1, -1)->getTypeId(), "the arm is gone even though nothing was pulled");
 	}
 
 	private function pistonState(int $x, int $y, int $z) : int{
