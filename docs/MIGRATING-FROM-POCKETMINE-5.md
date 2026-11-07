@@ -107,6 +107,10 @@ $player->sendForm($form);
 - Runtime overrides are not persistent and world operations must run on the main thread.
 - Disable native redstone where plugins provide their own implementation.
 
+### Chunk Loading
+
+- `ChunkLoader` is now a final class instead of an interface. Replace implementations with `new ChunkLoader()` instances, one per owner.
+
 ### Damage
 
 - Expanded protected-damage and final-damage access in `EntityDamageEvent`.
