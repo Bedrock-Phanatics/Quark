@@ -111,7 +111,9 @@ class Door extends Transparent implements HorizontalFacing, Powerable{
 	public function onNearbyBlockChange() : void{
 		if(!$this->canBeSupportedAt($this) && !$this->getSide(Facing::DOWN) instanceof Door){ //Replace with common break method
 			$this->position->getWorld()->useBreakOn($this->position); //this will delete both halves if they exist
+			return;
 		}
+		$this->recalculatePowerState();
 	}
 
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{

@@ -202,6 +202,49 @@ final class RedstoneCircuitTest extends TestCase{
 		self::assertFalse($door->isOpen());
 	}
 
+	private function doorOpen() : bool{
+		$door = $this->h->get(0, 1, 0);
+		self::assertInstanceOf(Door::class, $door);
+		return $door->isOpen();
+	}
+
+	public function testDoorFollowsPowerEdgesButKeepsManualState() : void{
+		$this->h->set(0, 1, 0, VanillaBlocks::OAK_DOOR());
+		$this->h->set(0, 2, 0, VanillaBlocks::OAK_DOOR()->setTop(true));
+		$this->h->tick();
+
+		$this->h->get(0, 1, 0)->onInteract(VanillaItems::AIR(), Facing::UP, new Vector3(0, 0, 0));
+		$this->h->tick();
+		self::assertTrue($this->doorOpen());
+		$this->h->set(-1, 1, 0, VanillaBlocks::STONE());
+		$this->h->tick(5);
+		self::assertTrue($this->doorOpen(), "an unrelated neighbour change doesn't close a door opened by hand");
+
+		$this->h->get(0, 1, 0)->onInteract(VanillaItems::AIR(), Facing::UP, new Vector3(0, 0, 0));
+		$this->h->tick();
+		self::assertFalse($this->doorOpen());
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(5);
+		self::assertTrue($this->doorOpen(), "a redstone block placed beside the door opens it");
+
+		$this->h->get(0, 1, 0)->onInteract(VanillaItems::AIR(), Facing::UP, new Vector3(0, 0, 0));
+		$this->h->tick();
+		$this->h->set(-1, 1, 0, VanillaBlocks::AIR());
+		$this->h->tick(5);
+		self::assertFalse($this->doorOpen(), "closed by hand while powered, it stays closed until the power changes");
+
+		$this->h->breakBlock(1, 1, 0);
+		$this->h->tick(5);
+		self::assertFalse($this->doorOpen());
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick(5);
+		self::assertTrue($this->doorOpen());
+		$this->h->breakBlock(1, 1, 0);
+		$this->h->tick(5);
+		self::assertFalse($this->doorOpen(), "losing power closes it");
+		self::assertSame(0, $this->h->state()->getDataChunkCount());
+	}
+
 	public function testBreakingLitTorchReleasesBlockAbove() : void{
 		$this->h->set(0, 2, 0, VanillaBlocks::STONE());
 		$this->h->place(1, 2, 0, VanillaBlocks::REDSTONE_LAMP());
