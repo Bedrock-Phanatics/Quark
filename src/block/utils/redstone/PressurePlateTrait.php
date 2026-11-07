@@ -39,9 +39,16 @@ trait PressurePlateTrait{
 		$power = $this->getPowerLevel();
 		parent::onScheduledUpdate();
 		$plate = $this->position->getWorld()->getBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
-		if($plate instanceof self && $plate->getPowerLevel() !== $power){
-			foreach($plate->getRelyingBlocks() as $block){
-				$block->power($plate);
+		if($plate instanceof self){
+			if($plate->getPowerLevel() !== $power){
+				foreach($plate->getRelyingBlocks() as $block){
+					$block->power($plate);
+				}
+			}
+		}elseif($power > 0){
+			//a plugin swapped the plate for another block, so release what it was powering
+			foreach($this->getRelyingBlocks() as $block){
+				$block->power($this);
 			}
 		}
 	}

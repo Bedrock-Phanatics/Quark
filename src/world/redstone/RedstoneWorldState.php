@@ -46,6 +46,7 @@ final class RedstoneWorldState implements ChunkListener{
 	use ChunkListenerNoOpTrait {
 		onChunkLoaded as private;
 		onChunkUnloaded as private;
+		onChunkChanged as private;
 		onBlockChanged as private;
 	}
 
@@ -189,6 +190,11 @@ final class RedstoneWorldState implements ChunkListener{
 		$chunkHash = World::chunkHash($chunkX, $chunkZ);
 		unset($this->chunks[$chunkHash]);
 		$this->releaseChunkListener($chunkHash);
+	}
+
+	//a replaced chunk has none of the blocks the data belonged to
+	public function onChunkChanged(int $chunkX, int $chunkZ, Chunk $chunk) : void{
+		$this->onChunkUnloaded($chunkX, $chunkZ, $chunk);
 	}
 
 	//data is dropped as soon as something else takes the block's place, however it was removed
