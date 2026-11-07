@@ -23,44 +23,33 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\RailConnectionInfo;
-use quark\data\bedrock\block\BlockLegacyMetadata;
+use quark\block\utils\StraightOnlyRailShape;
 use quark\data\runtime\RuntimeDataDescriber;
-use function array_keys;
-use function implode;
 
 /**
  * Simple non-curvable rail.
  */
 class StraightOnlyRail extends BaseRail{
 
-	private int $railShape = BlockLegacyMetadata::RAIL_STRAIGHT_NORTH_SOUTH;
+	private StraightOnlyRailShape $railShape = StraightOnlyRailShape::FLAT_AXIS_Z;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
-		$w->straightOnlyRailShape($this->railShape);
+		$w->enum($this->railShape);
 	}
 
 	protected function setShapeFromConnections(array $connections) : void{
-		$railShape = self::searchState($connections, RailConnectionInfo::CONNECTIONS);
-		if($railShape === null){
-			throw new \InvalidArgumentException("No rail shape matches these connections");
-		}
-		$this->railShape = $railShape;
+		$this->railShape = self::searchShape($connections, StraightOnlyRailShape::cases()) ?? throw new \InvalidArgumentException("No rail shape matches these connections");
 	}
 
 	protected function getCurrentShapeConnections() : array{
-		return RailConnectionInfo::CONNECTIONS[$this->railShape];
+		return $this->railShape->getConnections();
 	}
 
-	public function getShape() : int{ return $this->railShape; }
+	public function getShape() : StraightOnlyRailShape{ return $this->railShape; }
 
 	/** @return $this */
-	public function setShape(int $shape) : self{
-		if(!isset(RailConnectionInfo::CONNECTIONS[$shape])){
-			throw new \InvalidArgumentException("Invalid rail shape, must be one of " . implode(", ", array_keys(RailConnectionInfo::CONNECTIONS)));
-		}
+	public function setShape(StraightOnlyRailShape $shape) : self{
 		$this->railShape = $shape;
 		return $this;
-
 	}
 }

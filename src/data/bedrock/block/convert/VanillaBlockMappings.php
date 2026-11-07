@@ -86,7 +86,6 @@ use quark\block\SeaPickle;
 use quark\block\SmallDripleaf;
 use quark\block\SnowLayer;
 use quark\block\Sponge;
-use quark\block\StraightOnlyRail;
 use quark\block\Sugarcane;
 use quark\block\SweetBerryBush;
 use quark\block\TNT;
@@ -106,6 +105,7 @@ use quark\block\utils\LeverFacing;
 use quark\block\utils\MobHeadType;
 use quark\block\utils\MushroomBlockType;
 use quark\block\utils\PoweredByRedstone;
+use quark\block\utils\RailShape;
 use quark\block\utils\RedstoneWireConnectionType;
 use quark\block\VanillaBlocks as Blocks;
 use quark\block\Vine;
@@ -1290,7 +1290,7 @@ final class VanillaBlockMappings{
 		//A
 		$reg->mapModel(Model::create(Blocks::ACTIVATOR_RAIL(), Ids::ACTIVATOR_RAIL)->properties([
 			new BoolProperty(StateNames::RAIL_DATA_BIT, fn(ActivatorRail $b) => $b->isPowered(), fn(ActivatorRail $b, bool $v) => $b->setPowered($v)),
-			new IntProperty(StateNames::RAIL_DIRECTION, 0, 5, fn(ActivatorRail $b) => $b->getShape(), fn(ActivatorRail $b, int $v) => $b->setShape($v))
+			$commonProperties->straightOnlyRailShape
 		]));
 
 		//B
@@ -1384,7 +1384,7 @@ final class VanillaBlockMappings{
 		$reg->mapModel(Model::create(Blocks::DEEPSLATE(), Ids::DEEPSLATE)->properties([$commonProperties->pillarAxis]));
 		$reg->mapModel(Model::create(Blocks::DETECTOR_RAIL(), Ids::DETECTOR_RAIL)->properties([
 			new BoolProperty(StateNames::RAIL_DATA_BIT, fn(DetectorRail $b) => $b->isActivated(), fn(DetectorRail $b, bool $v) => $b->setActivated($v)),
-			new IntProperty(StateNames::RAIL_DIRECTION, 0, 5, fn(StraightOnlyRail $b) => $b->getShape(), fn(StraightOnlyRail $b, int $v) => $b->setShape($v)) //TODO: shared with ActivatorRail
+			$commonProperties->straightOnlyRailShape
 		]));
 
 		//E
@@ -1468,7 +1468,7 @@ final class VanillaBlockMappings{
 		]));
 		$reg->mapModel(Model::create(Blocks::POWERED_RAIL(), Ids::GOLDEN_RAIL)->properties([
 			new BoolProperty(StateNames::RAIL_DATA_BIT, fn(PoweredRail $b) => $b->isPowered(), fn(PoweredRail $b, bool $v) => $b->setPowered($v)), //TODO: shared with ActivatorRail
-			new IntProperty(StateNames::RAIL_DIRECTION, 0, 5, fn(StraightOnlyRail $b) => $b->getShape(), fn(StraightOnlyRail $b, int $v) => $b->setShape($v)) //TODO: shared with ActivatorRail
+			$commonProperties->straightOnlyRailShape
 		]));
 		$reg->mapModel(Model::create(Blocks::PITCHER_PLANT(), Ids::PITCHER_PLANT)->properties([
 			new BoolProperty(StateNames::UPPER_BLOCK_BIT, fn(DoublePlant $b) => $b->isTop(), fn(DoublePlant $b, bool $v) => $b->setTop($v)), //TODO: don't we have helpers for this?
@@ -1493,7 +1493,18 @@ final class VanillaBlockMappings{
 
 		//R
 		$reg->mapModel(Model::create(Blocks::RAIL(), Ids::RAIL)->properties([
-			new IntProperty(StateNames::RAIL_DIRECTION, 0, 9, fn(Rail $b) => $b->getShape(), fn(Rail $b, int $v) => $b->setShape($v))
+			new ValueFromIntProperty(StateNames::RAIL_DIRECTION, EnumFromRawStateMap::int(RailShape::class, fn(RailShape $case) => match($case){
+				RailShape::FLAT_AXIS_Z => BlockLegacyMetadata::RAIL_STRAIGHT_NORTH_SOUTH,
+				RailShape::FLAT_AXIS_X => BlockLegacyMetadata::RAIL_STRAIGHT_EAST_WEST,
+				RailShape::ASCENDING_EAST => BlockLegacyMetadata::RAIL_ASCENDING_EAST,
+				RailShape::ASCENDING_WEST => BlockLegacyMetadata::RAIL_ASCENDING_WEST,
+				RailShape::ASCENDING_NORTH => BlockLegacyMetadata::RAIL_ASCENDING_NORTH,
+				RailShape::ASCENDING_SOUTH => BlockLegacyMetadata::RAIL_ASCENDING_SOUTH,
+				RailShape::CURVED_SOUTHEAST => BlockLegacyMetadata::RAIL_CURVE_SOUTHEAST,
+				RailShape::CURVED_SOUTHWEST => BlockLegacyMetadata::RAIL_CURVE_SOUTHWEST,
+				RailShape::CURVED_NORTHWEST => BlockLegacyMetadata::RAIL_CURVE_NORTHWEST,
+				RailShape::CURVED_NORTHEAST => BlockLegacyMetadata::RAIL_CURVE_NORTHEAST
+			}), fn(Rail $b) => $b->getShape(), fn(Rail $b, RailShape $v) => $b->setShape($v))
 		]));
 		$redstoneWireConnection = fn(string $stateName, int $facing) => new ValueFromStringProperty(
 			$stateName,
