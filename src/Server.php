@@ -772,16 +772,15 @@ class Server{
 	 */
 	private function queuePlayerData(string $name, \Closure $operation) : Promise{
 		$key = strtolower($name);
-		$previous = $this->playerDataTails[$key] ?? null;
-		$promise = $previous === null ? $operation() : $previous->then($operation, $operation);
+		$promise = ($this->playerDataTails[$key] ?? Promise::resolved(null))->then($operation, $operation);
 		if($promise->isPending()){
 			$this->playerDataTails[$key] = $promise;
 			$release = function() use ($key, $promise) : void{
-				if(($this->playerDataTails[$key] ?? null) === $promise){
+				if($this->playerDataTails[$key] === $promise){
 					unset($this->playerDataTails[$key]);
 				}
 			};
-			$promise->then($release, $release);
+			$promise->observe($release, $release);
 		}
 		return $promise;
 	}

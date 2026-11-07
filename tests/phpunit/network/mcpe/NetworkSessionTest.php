@@ -26,6 +26,7 @@ namespace quark\network\mcpe;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\VarInt;
+use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
@@ -135,6 +136,26 @@ final class NetworkSessionTest extends TestCase{
 		self::assertFalse($session->isConnected());
 		self::assertLessThanOrEqual(2, $sends);
 		self::assertSame(1, $disposed);
+	}
+
+	public function testOfflineDataLoadedAfterDisconnectIsIgnored() : void{
+		$sends = 0;
+		$session = $this->session(static function() use (&$sends) : void{
+			$sends++;
+		});
+		$session->disconnect("test");
+		$sentBefore = $sends;
+
+		new \ReflectionMethod(NetworkSession::class, "onOfflinePlayerDataLoaded")->invoke(
+			$session,
+			CompoundTag::create(),
+			true,
+			static fn() : bool => self::fail("The XUID check ran for a closed session"),
+			"key"
+		);
+
+		self::assertSame($sentBefore, $sends);
+		self::assertNull(new \ReflectionProperty(NetworkSession::class, "cachedOfflinePlayerData")->getValue($session));
 	}
 
 	private static function chunkRadius(int $radius) : string{

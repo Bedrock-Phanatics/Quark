@@ -142,6 +142,14 @@ Inventories now only store items. Who is looking at one and where it was opened 
 - `EntityEffectRemoveEvent::isExpired()` tells whether the effect ran out.
 - `EntityEffectAddEvent::getEffect()` no longer allows in-place changes. Call `setEffect()` with a modified copy of the same effect type.
 
+### Player Data
+
+Player data storage is asynchronous so a provider backed by SQL or a remote service never blocks the main thread.
+
+- `PlayerDataProvider::hasData()`, `loadData()` and `saveData()` return a `Vow\Promise`. A failed load rejects with `PlayerDataLoadException` and a failed save with `PlayerDataSaveException`. Operations for the same player run one at a time in call order, so providers don't have to order them.
+- `Server::getOfflinePlayer()`, `getOfflinePlayerData()`, `hasOfflinePlayerData()`, `saveOfflinePlayerData()` and `Player::save()` return promises too. Saves never reject, failures are logged.
+- The server waits up to 30 seconds for pending saves on shutdown.
+
 ### Removed Mechanics
 
 - Thorns and Frost Walker no longer function or appear through normal acquisition.

@@ -146,6 +146,18 @@ final class ServerPlayerDataTest extends TestCase{
 		self::assertSame([], $this->tails());
 	}
 
+	public function testSynchronousProviderFailuresAreContained() : void{
+		$this->provider->throws = new \RuntimeException("driver crashed");
+
+		$saved = $this->server->saveOfflinePlayerData("Steve", CompoundTag::create());
+		self::assertTrue($saved->isFulfilled());
+
+		$loaded = $this->server->getOfflinePlayerData("Steve");
+		self::assertTrue($loaded->isRejected());
+		$loaded->observe(null, static fn() => null);
+		self::assertSame([], $this->tails());
+	}
+
 	public function testOfflinePlayerWrapsLoadedData() : void{
 		$result = $this->server->getOfflinePlayer("Steve");
 		$this->provider->settle("load:steve", CompoundTag::create()->setLong(Player::TAG_FIRST_PLAYED, 1700000000000));
@@ -159,6 +171,7 @@ final class ServerPlayerDataTest extends TestCase{
 final class ManualPlayerDataProvider implements PlayerDataProvider{
 	/** @var list<string> */
 	public array $calls = [];
+	public ?\Throwable $throws = null;
 	/** @var array<string, Deferred<mixed>> */
 	private array $pending = [];
 
@@ -166,6 +179,9 @@ final class ManualPlayerDataProvider implements PlayerDataProvider{
 	 * @return Promise<never>
 	 */
 	private function begin(string $operation, string $name) : Promise{
+		if($this->throws !== null){
+			throw $this->throws;
+		}
 		$key = $operation . ":" . $name;
 		$this->calls[] = $key;
 		$this->pending[$key] = $deferred = new Deferred();
