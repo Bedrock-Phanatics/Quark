@@ -314,6 +314,37 @@ final class CommandMetadataAdapterTest extends TestCase{
 		self::assertEquals([self::parameter("args", self::TEXT, true)], $send->getOverloads()[0]->getParameters());
 	}
 
+	public function testServerAliasesReplaceTheCommandTheyShadow() : void{
+		$server = self::createStub(Server::class);
+		$server->method("getCommandAliases")->willReturn(["eco" => ["legacy \$1"]]);
+		$map = new SimpleCommandMap($server);
+		$server->method("getCommandMap")->willReturn($map);
+		$map->register("test", $this->eco());
+		$legacy = new class("legacy") extends Command{
+			public function execute(CommandSender $sender, string $commandLabel, array $args){
+				return true;
+			}
+		};
+		$legacy->setPermission("test.admin");
+		$map->register("test", $legacy);
+		$map->registerServerAliases();
+
+		$player = $this->player(["test.root", "test.admin"]);
+		$player->method("getServer")->willReturn($server);
+		$data = [];
+		foreach(CommandMetadataAdapter::createPacket($map->getCommands(), $player)->commandData as $command){
+			$data[$command->getName()] = $command;
+		}
+		self::assertEquals([self::parameter("args", self::TEXT, true)], $data["eco"]->getOverloads()[0]->getParameters());
+		self::assertCount(1, $data["eco"]->getOverloads());
+
+		//the shadowed command must not be advertised to someone who can't run the alias
+		$user = $this->player(["test.root"]);
+		$user->method("getServer")->willReturn($server);
+		$names = array_map(fn(CommandRawData $command) => $command->getName(), CommandMetadataAdapter::createPacket($map->getCommands(), $user)->commandData);
+		self::assertNotContains("eco", $names);
+	}
+
 	public function testPacketRoundTripsThroughTheProtocolSerializer() : void{
 		$this->map->register("test", $this->eco());
 		$command = $this->command("faction", ["f"]);

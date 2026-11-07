@@ -71,6 +71,8 @@ final class CommandMetadataAdapter{
 			$label = $command->getLabel();
 			if(
 				isset($commandData[$label]) ||
+				//a server alias can take over the label
+				($commands[$label] ?? null) !== $command ||
 				$label === "help" ||
 				strlen($label) > self::MAX_COMMAND_TEXT_BYTES ||
 				!SimpleCommandMap::isOwnerEnabled($command) ||
