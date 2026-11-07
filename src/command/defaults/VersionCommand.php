@@ -29,7 +29,7 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
 use quark\plugin\Plugin;
-use quark\Server;
+use quark\plugin\PluginManager;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
 use quark\VersionInfo;
@@ -42,7 +42,7 @@ use const PHP_VERSION;
 
 class VersionCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(private PluginManager $pluginManager){
 		parent::__construct(
 			"version",
 			KnownTranslationFactory::quark_command_version_description(),
@@ -85,7 +85,7 @@ class VersionCommand extends VanillaCommand{
 			]);
 		}else{
 			$pluginName = implode(" ", $args);
-			$exactPlugin = $this->server->getPluginManager()->getPlugin($pluginName);
+			$exactPlugin = $this->pluginManager->getPlugin($pluginName);
 
 			if($exactPlugin instanceof Plugin){
 				$this->describeToSender($exactPlugin, $sender);
@@ -95,7 +95,7 @@ class VersionCommand extends VanillaCommand{
 
 			$found = false;
 			$pluginName = strtolower($pluginName);
-			foreach($this->server->getPluginManager()->getPlugins() as $plugin){
+			foreach($this->pluginManager->getPlugins() as $plugin){
 				if(stripos($plugin->getName(), $pluginName) !== false){
 					$this->describeToSender($plugin, $sender);
 					$found = true;

@@ -27,7 +27,7 @@ use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\plugin\Plugin;
-use quark\Server;
+use quark\plugin\PluginManager;
 use quark\utils\TextFormat;
 use function array_map;
 use function count;
@@ -37,7 +37,7 @@ use const SORT_STRING;
 
 class PluginsCommand extends VanillaCommand{
 
-	public function __construct(private Server $server){
+	public function __construct(private PluginManager $pluginManager){
 		parent::__construct(
 			"plugins",
 			KnownTranslationFactory::quark_command_plugins_description(),
@@ -50,7 +50,7 @@ class PluginsCommand extends VanillaCommand{
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
 		$list = array_map(function(Plugin $plugin) : string{
 			return ($plugin->isEnabled() ? TextFormat::GREEN : TextFormat::RED) . $plugin->getDescription()->getFullName();
-		}, $this->server->getPluginManager()->getPlugins());
+		}, $this->pluginManager->getPlugins());
 		sort($list, SORT_STRING);
 
 		$sender->sendMessage(KnownTranslationFactory::quark_command_plugins_success((string) count($list), implode(TextFormat::RESET . ", ", $list)));
