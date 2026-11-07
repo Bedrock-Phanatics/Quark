@@ -142,6 +142,10 @@ Inventories now only store items. Who is looking at one and where it was opened 
 - `EntityEffectRemoveEvent::isExpired()` tells whether the effect ran out.
 - `EntityEffectAddEvent::getEffect()` no longer allows in-place changes. Call `setEffect()` with a modified copy of the same effect type.
 
+### Enchantments
+
+- `Item::addEnchantment()` takes the enchantment and level directly: `addEnchantment(VanillaEnchantments::SHARPNESS(), 5)` instead of `addEnchantment(new EnchantmentInstance(...))`. The level defaults to 1.
+
 ### Player Data
 
 Player data storage is asynchronous so a provider backed by SQL or a remote service never blocks the main thread.
