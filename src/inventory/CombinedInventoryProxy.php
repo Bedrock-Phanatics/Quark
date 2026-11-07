@@ -26,10 +26,12 @@ namespace quark\inventory;
 use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\player\InventoryWindow;
+use quark\utils\Utils;
 use function array_fill;
 use function array_fill_keys;
 use function array_keys;
 use function count;
+use function is_int;
 use function spl_object_id;
 
 /**
@@ -156,6 +158,18 @@ final class CombinedInventoryProxy extends BaseInventory{
 
 	public function setItem(int $index, Item $item) : void{
 		$this->internalSetItem($index, $item);
+	}
+
+	/** @param array<int|string, Item> $items */
+	public function setContents(array $items) : void{
+		Utils::validateArrayValueType($items, static function(Item $item) : void{});
+		$contents = [];
+		foreach($items as $slot => $item){
+			if(is_int($slot) && $this->slotExists($slot)){
+				$contents[$slot] = $item;
+			}
+		}
+		parent::setContents($contents);
 	}
 
 	protected function internalSetContents(array $items) : void{

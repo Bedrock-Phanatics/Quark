@@ -578,6 +578,7 @@ class InventoryManager implements InventoryListener{
 		}else{
 			//correctly predicted - associate the change with the currently active itemstack request
 			$this->trackItemStack($inventoryEntry, $slot, $currentItem, $this->currentItemStackRequestId);
+			unset($inventoryEntry->pendingSyncs[$slot]);
 		}
 
 		unset($inventoryEntry->predictions[$slot]);

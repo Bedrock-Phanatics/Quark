@@ -39,13 +39,20 @@ use quark\block\VanillaBlocks;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\inventory\InventoryCloseEvent;
+use quark\event\inventory\InventoryOpenEvent;
+use quark\event\inventory\InventoryTransactionEvent;
+use quark\event\player\PlayerDropItemEvent;
 use quark\event\player\PlayerEnchantingOptionsRequestEvent;
 use quark\event\RegisteredListener;
 use quark\inventory\ArmorInventory;
+use quark\inventory\CallbackInventoryListener;
 use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\Hotbar;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
+use quark\inventory\transaction\action\SlotChangeAction;
+use quark\inventory\transaction\InventoryTransaction;
+use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\InventoryManager;
@@ -54,6 +61,7 @@ use quark\plugin\Plugin;
 use quark\pulse\Pulse;
 use quark\world\Position;
 use quark\world\World;
+use function array_fill;
 use function array_filter;
 use function array_values;
 use function count;
@@ -146,6 +154,44 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		$chest->setItem(4, VanillaItems::APPLE());
 		$this->manager->flushPendingUpdates();
 		self::assertSame([], $this->sent(InventorySlotPacket::class));
+	}
+
+	public function testPredictedChangesDiscardOlderQueuedUpdates() : void{
+		$inventory = $this->player->getInventory();
+		$this->manager->syncAll();
+		$inventory->setItem(0, VanillaItems::APPLE());
+		$this->manager->setCurrentItemStackRequestId(-1);
+		$this->manager->addPredictedSlotChange($this->player->getPermanentWindow(PlayerInventoryType::INVENTORY), 0, VanillaItems::DIAMOND());
+		$inventory->setItem(0, VanillaItems::DIAMOND());
+		$this->manager->syncMismatchedPredictedSlotChanges();
+		$this->packets = [];
+		$this->manager->flushPendingUpdates();
+		self::assertSame([], $this->sent(InventorySlotPacket::class));
+		self::assertSame(-1, $this->manager->getItemStackInfo($inventory, 0)?->getRequestId());
+
+		$this->manager->setCurrentItemStackRequestId(null);
+		$inventory->setItem(0, VanillaItems::STICK());
+		$this->manager->flushPendingUpdates();
+		$slots = $this->sent(InventorySlotPacket::class);
+		self::assertCount(2, $slots);
+		self::assertSame(TypeConverter::getInstance()->coreItemStackToNet(VanillaItems::STICK())->getId(), $slots[1]->item->getItemStack()->getId());
+	}
+
+	public function testOpenEventReplacementTakesPriority() : void{
+		$requested = $this->chestWindow();
+		$replacement = $this->chestWindow();
+		HandlerListManager::global()->getListFor(InventoryOpenEvent::class)->register(new RegisteredListener(
+			function(InventoryOpenEvent $event) use ($requested, $replacement) : void{
+				if($event->getWindow() === $requested){
+					$this->player->setCurrentWindow($replacement);
+				}
+			}, EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+		self::assertFalse($this->player->setCurrentWindow($requested));
+		self::assertSame($replacement, $this->player->getCurrentWindow());
+		self::assertSame([], $requested->getInventory()->getViewers());
+		self::assertCount(1, $this->sent(ContainerOpenPacket::class));
+		self::assertSame([], $this->sent(ContainerClosePacket::class));
 	}
 
 	public function testClosingDuringTheOpenPacketDoesNotRetainTheWindow() : void{
@@ -351,6 +397,98 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertTrue($this->player->getInventory()->contains(VanillaItems::STICK()));
 	}
 
+	public function testClosingDuringCleanupDoesNotReturnItemsTwice() : void{
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND());
+		$this->player->getInventory()->getListeners()->add(CallbackInventoryListener::onAnyChange(function() : void{
+			$this->player->removeCurrentWindow();
+		}));
+		$this->player->removeCurrentWindow();
+		self::assertNull($this->player->getCurrentWindow());
+		self::assertSame([], $window->getInventory()->getContents());
+		self::assertSame(1, $this->player->getInventory()->getItem(0)->getCount());
+		self::assertTrue($this->player->getInventory()->getItem(0)->equals(VanillaItems::DIAMOND()));
+		self::assertCount(1, $this->sent(ContainerClosePacket::class));
+	}
+
+	public function testTransfersCommitBeforeCallbacksCanCloseTheirWindow() : void{
+		foreach([false, true] as $combined){
+			[$player] = $this->newPlayer();
+			$window = $combined ?
+				$this->chestWindow(new CombinedInventoryProxy([new SimpleInventory(1), new SimpleInventory(1)]), $player) :
+				new CraftingTableInventoryWindow($player, new Position(0, 64, 0, null));
+			$player->setCurrentWindow($window);
+			$item = VanillaItems::DIAMOND();
+			$window->getInventory()->setItem(0, $item);
+			$player->getInventory()->getListeners()->add(CallbackInventoryListener::onAnyChange(static function() use ($player, $window) : void{
+				self::assertTrue($window->getInventory()->isSlotEmpty(0));
+				$player->removeCurrentWindow();
+			}));
+			$transaction = new InventoryTransaction($player, [
+				new SlotChangeAction($player->getPermanentWindow(PlayerInventoryType::INVENTORY), 0, VanillaItems::AIR(), $item),
+				new SlotChangeAction($window, 0, $item, VanillaItems::AIR())
+			]);
+			$transaction->execute();
+			self::assertTrue($transaction->hasExecuted());
+			self::assertNull($player->getCurrentWindow());
+			self::assertTrue($player->getInventory()->getItem(0)->equalsExact($item));
+			self::assertSame([], $window->getInventory()->getContents());
+		}
+	}
+
+	public function testCleanupPreservesChangesMadeByTransactionHandlers() : void{
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND());
+		$calls = 0;
+		HandlerListManager::global()->getListFor(InventoryTransactionEvent::class)->register(new RegisteredListener(
+			function(InventoryTransactionEvent $event) use ($window, &$calls) : void{
+				++$calls;
+				$this->player->getInventory()->setItem(0, VanillaItems::APPLE());
+				$window->getInventory()->setItem(0, VanillaItems::STICK()->setCount(2));
+				$this->player->removeCurrentWindow();
+			}, EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+		$this->player->removeCurrentWindow();
+		self::assertSame(1, $calls);
+		self::assertNull($this->player->getCurrentWindow());
+		self::assertSame([], $window->getInventory()->getContents());
+		self::assertTrue($this->player->getInventory()->getItem(0)->equalsExact(VanillaItems::APPLE()));
+		self::assertTrue($this->player->getInventory()->getItem(1)->equalsExact(VanillaItems::STICK()->setCount(2)));
+		self::assertCount(2, $this->player->getInventory()->getContents());
+	}
+
+	/** @return array<string, array{bool}> */
+	public static function overflowCancellation() : array{
+		return ["drop" => [false], "cancel" => [true]];
+	}
+
+	/** @dataProvider overflowCancellation */
+	public function testCleanupDropsOverflowAfterAnInventoryConflict(bool $cancel) : void{
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND()->setCount(2));
+		HandlerListManager::global()->getListFor(InventoryTransactionEvent::class)->register(new RegisteredListener(
+			function(InventoryTransactionEvent $event) : void{
+				$this->player->getInventory()->setContents(array_fill(0, 36, VanillaItems::APPLE()->setCount(64)));
+			}, EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+		if($cancel){
+			HandlerListManager::global()->getListFor(PlayerDropItemEvent::class)->register(new RegisteredListener(
+				static function(PlayerDropItemEvent $event) : void{ $event->cancel(); },
+				EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+			));
+		}
+		$this->player->removeCurrentWindow();
+		self::assertSame([], $window->getInventory()->getContents());
+		self::assertCount($cancel ? 0 : 1, $this->player->droppedItems);
+		if(!$cancel){
+			self::assertTrue($this->player->droppedItems[0]->equalsExact(VanillaItems::DIAMOND()->setCount(2)));
+		}
+		self::assertCount(36, $this->player->getInventory()->getContents());
+	}
+
 	public function testDisposingTheManagerDetachesItFromOpenInventories() : void{
 		$chest = new SimpleInventory(27);
 		$this->player->setCurrentWindow($this->chestWindow($chest));
@@ -417,17 +555,24 @@ final class InventoryWindowLifecycleTest extends TestCase{
  * A player with real inventories and windows but no server, world or connection behind it.
  */
 final class WindowTestPlayer extends Player{
+	/** @var Item[] */
+	public array $droppedItems = [];
 
 	public function initialize(NetworkSession $session, \Logger $logger) : void{
 		$this->logger = $logger;
 		$this->networkSession = $session;
 		$this->id = 1;
+		$this->gamemode = GameMode::SURVIVAL;
 		$this->inventory = new SimpleInventory(36);
 		$this->hotbar = new Hotbar();
 		$this->armorInventory = new ArmorInventory();
 		$this->offHandInventory = new SimpleInventory(1);
 		$this->enderInventory = new SimpleInventory(27);
 		$this->addDefaultWindows();
+	}
+
+	public function dropItem(Item $item) : void{
+		$this->droppedItems[] = clone $item;
 	}
 
 	public function __destruct(){}

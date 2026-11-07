@@ -97,6 +97,23 @@ final class CombinedInventoryProxyTest extends TestCase{
 		self::assertTrue($last->getItem(0)->equals(VanillaItems::STICK()));
 	}
 
+	public function testSetContentsIgnoresInvalidKeys() : void{
+		$left = new SimpleInventory(1);
+		$right = new SimpleInventory(1);
+		$proxy = new CombinedInventoryProxy([$left, $right]);
+
+		$proxy->setContents([
+			0 => VanillaItems::APPLE(),
+			"invalid" => VanillaItems::STICK(),
+			-1 => VanillaItems::DIAMOND(),
+			2 => VanillaItems::GOLD_INGOT(),
+			1 => VanillaItems::EMERALD()
+		]);
+
+		self::assertTrue($left->getItem(0)->equals(VanillaItems::APPLE()));
+		self::assertTrue($right->getItem(0)->equals(VanillaItems::EMERALD()));
+	}
+
 	public function testNestedInventoryCannotRepeatDirectStorage() : void{
 		$inventory = new SimpleInventory(1);
 		$nested = new CombinedInventoryProxy([$inventory]);

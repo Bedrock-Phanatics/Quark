@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\inventory\transaction;
 
 use quark\event\inventory\InventoryTransactionEvent;
+use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\transaction\action\InventoryAction;
 use quark\inventory\transaction\action\SlotChangeAction;
 use quark\item\Item;
@@ -316,11 +317,58 @@ class InventoryTransaction{
 
 		$this->validate();
 
+		$inventories = [];
 		foreach($this->actions as $action){
-			$action->execute($this->source);
+			if($action instanceof SlotChangeAction){
+				$inventory = $action->getInventory();
+				if($inventory instanceof CombinedInventoryProxy){
+					$inventory = $inventory->getBackingInventory($action->getSlot(), $localSlot);
+				}
+				$id = spl_object_id($inventory);
+				$inventories[$id] ??= [$inventory, $inventory->getListeners()->toArray()];
+			}
+		}
+		foreach($inventories as [$inventory, $listeners]){
+			$inventory->getListeners()->clear();
+		}
+		try{
+			foreach($this->actions as $action){
+				if($action instanceof SlotChangeAction){
+					$action->execute($this->source);
+				}
+			}
+		}finally{
+			foreach($inventories as [$inventory, $listeners]){
+				$inventory->getListeners()->add(...$listeners);
+			}
 		}
 
 		$this->hasExecuted = true;
+		$this->onExecuteSuccess();
+		foreach($this->actions as $action){
+			if(!$action instanceof SlotChangeAction){
+				$action->execute($this->source);
+			}
+		}
+		foreach($this->actions as $action){
+			if($action instanceof SlotChangeAction){
+				$inventory = $action->getInventory();
+				$slot = $action->getSlot();
+				if($inventory instanceof CombinedInventoryProxy){
+					$inventory = $inventory->getBackingInventory($slot, $slot);
+				}
+				$oldItem = $action->getSourceItem();
+				foreach($inventory->getListeners() as $listener){
+					if($inventory->getListeners()->contains($listener)){
+						$listener->onSlotChange($inventory, $slot, $oldItem);
+					}
+				}
+			}
+		}
+	}
+
+	protected function onExecuteSuccess() : void{
+
 	}
 
 	public function hasExecuted() : bool{

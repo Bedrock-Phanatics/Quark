@@ -365,7 +365,9 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 
 	protected function onSlotChange(int $index, Item $before) : void{
 		foreach($this->listeners as $listener){
-			$listener->onSlotChange($this, $index, $before);
+			if($this->listeners->contains($listener)){
+				$listener->onSlotChange($this, $index, $before);
+			}
 		}
 	}
 
@@ -375,7 +377,9 @@ abstract class BaseInventory implements Inventory, SlotValidatedInventory{
 	 */
 	protected function onContentChange(array $itemsBefore) : void{
 		foreach($this->listeners as $listener){
-			$listener->onContentChange($this, $itemsBefore);
+			if($this->listeners->contains($listener)){
+				$listener->onContentChange($this, $itemsBefore);
+			}
 		}
 	}
 

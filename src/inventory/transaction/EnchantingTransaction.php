@@ -167,9 +167,7 @@ class EnchantingTransaction extends InventoryTransaction{
 		}
 	}
 
-	public function execute() : void{
-		parent::execute();
-
+	protected function onExecuteSuccess() : void{
 		if($this->source->hasFiniteResources()){
 			//If the required XP level is less than the XP cost, the option can be selected with less XP than the cost.
 			//In this case, as much XP as possible will be taken.

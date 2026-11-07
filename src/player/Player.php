@@ -231,6 +231,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	protected PlayerInfo $playerInfo;
 
 	protected ?InventoryWindow $currentWindow = null;
+	private bool $evacuatingInventories = false;
+	private CallbackInventoryListener $itemHeldListener;
 	/**
 	 * @var PlayerInventoryWindow[]
 	 * @phpstan-var array<string, PlayerInventoryWindow>
@@ -380,7 +382,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		parent::initEntity($nbt);
 		$this->addDefaultWindows();
 
-		$this->inventory->getListeners()->add(new CallbackInventoryListener(
+		$this->itemHeldListener = new CallbackInventoryListener(
 			function(Inventory $unused, int $slot) : void{
 				if($slot === $this->hotbar->getSelectedIndex()){
 					$this->setUsingItem(false);
@@ -392,7 +394,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$this->setUsingItem(false);
 				$this->callDummyItemHeldEvent();
 			}
-		));
+		);
+		$this->inventory->getListeners()->add($this->itemHeldListener);
 
 		$this->firstPlayed = $nbt->getLong(self::TAG_FIRST_PLAYED, $now = (int) (microtime(true) * 1000));
 		$this->lastPlayed = $nbt->getLong(self::TAG_LAST_PLAYED, $now);
@@ -2480,12 +2483,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	protected function onDispose() : void{
 		$this->disconnect("Player destroyed");
+		$this->inventory->getListeners()->remove($this->itemHeldListener);
 		$this->cursorInventory->removeAllWindows();
 		$this->craftingGrid->removeAllWindows();
 		parent::onDispose();
 	}
 
 	protected function destroyCycles() : void{
+		unset($this->itemHeldListener);
 		$this->forms = [];
 		$this->networkSession = null;
 		unset($this->cursorInventory);
@@ -2827,48 +2832,67 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * what doesn't fit. Called whenever the player's inventory screen closes.
 	 */
 	private function doCloseInventory(?InventoryWindow $currentWindow) : void{
-		$mainWindow = $this->permanentWindows[PlayerInventoryType::INVENTORY->name] ?? null;
-		if($mainWindow === null){
+		if($this->evacuatingInventories){
 			return;
 		}
-		$windows = [];
-		foreach([PlayerInventoryType::CRAFTING, PlayerInventoryType::CURSOR] as $type){
-			if(isset($this->permanentWindows[$type->name])){
-				$windows[] = $this->permanentWindows[$type->name];
+		$this->evacuatingInventories = true;
+		try{
+			$mainWindow = $this->permanentWindows[PlayerInventoryType::INVENTORY->name] ?? null;
+			if($mainWindow === null){
+				return;
 			}
-		}
-		if($currentWindow instanceof TemporaryInventoryWindow){
-			$windows[] = $currentWindow;
-		}
-
-		$builder = new TransactionBuilder();
-		foreach($windows as $window){
-			$contents = $window->getInventory()->getContents();
-
-			if(count($contents) > 0){
-				$drops = $builder->getActionBuilder($mainWindow)->addItem(...$contents);
-				foreach($drops as $drop){
-					$builder->addAction(new DropItemAction($drop));
+			$windows = [];
+			foreach([PlayerInventoryType::CRAFTING, PlayerInventoryType::CURSOR] as $type){
+				if(isset($this->permanentWindows[$type->name])){
+					$windows[] = $this->permanentWindows[$type->name];
 				}
-
-				$builder->getActionBuilder($window)->clearAll();
 			}
-		}
+			if($currentWindow instanceof TemporaryInventoryWindow){
+				$windows[] = $currentWindow;
+			}
 
-		$actions = $builder->generateActions();
-		if(count($actions) !== 0){
-			$transaction = new InventoryTransaction($this, $actions);
-			try{
-				$transaction->execute();
-				$this->logger->debug("Successfully evacuated items from temporary inventories");
-			}catch(TransactionCancelledException){
-				$this->logger->debug("Plugin cancelled transaction evacuating items from temporary inventories; items will be destroyed");
-				foreach($windows as $window){
-					$window->getInventory()->clearAll();
+			$builder = new TransactionBuilder();
+			foreach($windows as $window){
+				$contents = $window->getInventory()->getContents();
+
+				if(count($contents) > 0){
+					$drops = $builder->getActionBuilder($mainWindow)->addItem(...$contents);
+					foreach($drops as $drop){
+						$builder->addAction(new DropItemAction($drop));
+					}
+
+					$builder->getActionBuilder($window)->clearAll();
 				}
-			}catch(TransactionValidationException $e){
-				throw new AssumptionFailedError("This server-generated transaction should never be invalid", 0, $e);
 			}
+
+			$actions = $builder->generateActions();
+			if(count($actions) !== 0){
+				$transaction = new InventoryTransaction($this, $actions);
+				try{
+					$transaction->execute();
+					$this->logger->debug("Successfully evacuated items from temporary inventories");
+				}catch(TransactionCancelledException){
+					$this->logger->debug("Plugin cancelled transaction evacuating items from temporary inventories; items will be destroyed");
+					foreach($windows as $window){
+						$window->getInventory()->clearAll();
+					}
+				}catch(TransactionValidationException $e){
+					$this->logger->debug("Rebuilding inventory cleanup after a plugin changed its inputs: " . $e->getMessage());
+					foreach($windows as $window){
+						$inventory = $window->getInventory();
+						$contents = $inventory->getContents();
+						$inventory->clearAll();
+						foreach($mainWindow->getInventory()->addItem(...$contents) as $drop){
+							$action = new DropItemAction($drop);
+							if($action->onPreExecute($this)){
+								$action->execute($this);
+							}
+						}
+					}
+				}
+			}
+		}finally{
+			$this->evacuatingInventories = false;
 		}
 	}
 
@@ -2909,9 +2933,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			}
 		}
 
+		$previousWindow = $this->currentWindow;
 		$ev = new InventoryOpenEvent($window);
 		$ev->call();
-		if($ev->isCancelled()){
+		if($ev->isCancelled() || $this->currentWindow !== $previousWindow || !$this->isConnected()){
 			return false;
 		}
 

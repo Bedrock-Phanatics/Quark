@@ -29,6 +29,21 @@ use quark\item\VanillaItems;
 
 class BaseInventoryTest extends TestCase{
 
+	public function testRemovedListenersDoNotReceiveTheCurrentChange() : void{
+		$inventory = new SimpleInventory(1);
+		$removed = CallbackInventoryListener::onAnyChange(static function() : void{
+			self::fail("Removed listener received an inventory change");
+		});
+		$inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(static function() use ($inventory, $removed) : void{
+			$inventory->getListeners()->remove($removed);
+		}));
+		$inventory->getListeners()->add($removed);
+		$inventory->setItem(0, VanillaItems::DIAMOND());
+		$inventory->getListeners()->add($removed);
+		$inventory->clearAll();
+		self::assertFalse($inventory->getListeners()->contains($removed));
+	}
+
 	public function testAddItemDifferentUserData() : void{
 		$inv = new SimpleInventory(1);
 		$item1 = VanillaItems::ARROW()->setCount(1);

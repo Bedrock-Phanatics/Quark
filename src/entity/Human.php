@@ -106,6 +106,8 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 	protected Inventory $inventory;
 	protected Inventory $offHandInventory;
 	protected Inventory $enderInventory;
+	private CallbackInventoryListener $inventorySyncListener;
+	private CallbackInventoryListener $offHandInventorySyncListener;
 
 	protected UuidInterface $uuid;
 
@@ -312,7 +314,7 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 			$this->getViewers(),
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onMobMainHandItemChange($recipients, $this)
 		);
-		$this->inventory->getListeners()->add(new CallbackInventoryListener(
+		$this->inventorySyncListener = new CallbackInventoryListener(
 			function(Inventory $unused, int $slot, Item $unused2) use ($syncHeldItem) : void{
 				if($slot === $this->hotbar->getSelectedIndex()){
 					$syncHeldItem();
@@ -323,7 +325,8 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 					$syncHeldItem();
 				}
 			}
-		));
+		);
+		$this->inventory->getListeners()->add($this->inventorySyncListener);
 		$this->offHandInventory = new SimpleInventory(1);
 		$this->enderInventory = new SimpleInventory(27);
 		$this->initHumanData($nbt);
@@ -353,10 +356,11 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 		if($offHand !== null){
 			$this->setOffHandItem(Item::safeNbtDeserialize($offHand, "Human off-hand item"));
 		}
-		$this->offHandInventory->getListeners()->add(CallbackInventoryListener::onAnyChange(fn() => NetworkBroadcastUtils::broadcastEntityEvent(
+		$this->offHandInventorySyncListener = CallbackInventoryListener::onAnyChange(fn() => NetworkBroadcastUtils::broadcastEntityEvent(
 			$this->getViewers(),
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onMobOffHandItemChange($recipients, $this)
-		)));
+		));
+		$this->offHandInventory->getListeners()->add($this->offHandInventorySyncListener);
 
 		$enderChestInventoryTag = $nbt->getListTag(self::TAG_ENDER_CHEST_INVENTORY, CompoundTag::class);
 		if($enderChestInventoryTag !== null){
@@ -576,8 +580,10 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 
 	protected function onDispose() : void{
 		$this->inventory->removeAllWindows();
+		$this->inventory->getListeners()->remove($this->inventorySyncListener);
 		$this->hotbar->getSelectedIndexChangeListeners()->clear();
 		$this->offHandInventory->removeAllWindows();
+		$this->offHandInventory->getListeners()->remove($this->offHandInventorySyncListener);
 		$this->enderInventory->removeAllWindows();
 		parent::onDispose();
 	}
@@ -587,6 +593,8 @@ class Human extends Living implements ProjectileSource, InventoryHolder{
 			$this->inventory,
 			$this->offHandInventory,
 			$this->enderInventory,
+			$this->inventorySyncListener,
+			$this->offHandInventorySyncListener,
 			$this->hungerManager,
 			$this->xpManager
 		);
