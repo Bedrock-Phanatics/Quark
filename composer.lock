@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "80b1ab189953b9acd456ceb54fff3994",
+    "content-hash": "fc6b7fe85d5929b3d0115825e10ebee7",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -1003,17 +1003,17 @@
             "time": "2026-11-04T08:16:31+00:00"
         },
         {
-            "name": "trix/vow",
-            "version": "v1.0.1",
+            "name": "trixnew/vow",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/TrixNEW/Vow.git",
-                "reference": "6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417"
+                "reference": "357d638264175a3c25d3d368c962010f643d2f31"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/TrixNEW/Vow/zipball/6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417",
-                "reference": "6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417",
+                "url": "https://api.github.com/repos/TrixNEW/Vow/zipball/357d638264175a3c25d3d368c962010f643d2f31",
+                "reference": "357d638264175a3c25d3d368c962010f643d2f31",
                 "shasum": ""
             },
             "require": {
@@ -1024,6 +1024,7 @@
                 "phpstan/phpstan-strict-rules": "^2.0",
                 "phpunit/phpunit": "^12.0"
             },
+            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -1059,10 +1060,10 @@
                 "promise"
             ],
             "support": {
-                "source": "https://github.com/TrixNEW/Vow/tree/v1.0.1",
+                "source": "https://github.com/TrixNEW/Vow/tree/main",
                 "issues": "https://github.com/TrixNEW/Vow/issues"
             },
-            "time": "2026-11-07T01:19:06+00:00"
+            "time": "2026-11-07T21:47:34+00:00"
         }
     ],
     "packages-dev": [
@@ -2883,7 +2884,8 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "axolotl-pm/bedrock-protocol": 20,
-        "pocketmine/callback-validator": 20
+        "pocketmine/callback-validator": 20,
+        "trixnew/vow": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
