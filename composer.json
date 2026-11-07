@@ -53,12 +53,17 @@
       "pocketmine/raklib-ipc": "~1.0.0",
       "pocketmine/snooze": "^0.5.0",
       "ramsey/uuid": "~4.9.0",
-      "symfony/filesystem": "~6.4.0"
+      "symfony/filesystem": "~6.4.0",
+      "trix/vow": "^1.0.1"
    },
    "repositories": [
       {
          "type": "vcs",
          "url": "https://github.com/Bedrock-Phanatics/BedrockProtocol"
+      },
+      {
+         "type": "vcs",
+         "url": "https://github.com/TrixNEW/Vow"
       }
    ],
    "require-dev": {

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9cdab3904548a9eece3fa0b924172a02",
+    "content-hash": "0322582a534f46282844f3c55ce442e5",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -1001,6 +1001,68 @@
                 }
             ],
             "time": "2026-08-20T20:21:47+00:00"
+        },
+        {
+            "name": "trix/vow",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/TrixNEW/Vow.git",
+                "reference": "6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/TrixNEW/Vow/zipball/6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417",
+                "reference": "6f6453bf675b1dc22fa5b6dcfffbeaf2e6e0a417",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^12.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Vow\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Vow\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=1G"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Trix"
+                }
+            ],
+            "description": "Fast, synchronous, strongly typed promises for PHP 8.4",
+            "keywords": [
+                "async",
+                "deferred",
+                "fiber",
+                "promise"
+            ],
+            "support": {
+                "source": "https://github.com/TrixNEW/Vow/tree/v1.0.1",
+                "issues": "https://github.com/TrixNEW/Vow/issues"
+            },
+            "time": "2026-11-07T01:19:06+00:00"
         }
     ],
     "packages-dev": [

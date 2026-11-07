@@ -921,7 +921,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				$world->registerTickingChunk($this->chunkTicker, $X, $Z);
 			}
 
-			$world->requestChunkPopulation($X, $Z, $this->chunkLoader)->onCompletion(
+			//cancelled requests are re-requested anyway
+			$world->requestChunkPopulation($X, $Z, $this->chunkLoader)->observe(
 				function() use ($X, $Z, $index, $world) : void{
 					if(!$this->isConnected() || !isset($this->usedChunks[$index]) || $world !== $this->getWorld()){
 						return;
@@ -956,9 +957,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 						}
 						(new PlayerPostChunkSendEvent($this, $X, $Z))->call();
 					});
-				},
-				static function() : void{
-					//NOOP: we'll re-request this if it fails anyway
 				}
 			);
 		}
@@ -2728,7 +2726,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		$this->logger->debug("Waiting for safe respawn position to be located");
 		$spawn = $this->getSpawn();
-		$spawn->getWorld()->requestSafeSpawn($spawn)->onCompletion(
+		$spawn->getWorld()->requestSafeSpawn($spawn)->observe(
 			function(Position $safeSpawn) : void{
 				if(!$this->isConnected()){
 					return;

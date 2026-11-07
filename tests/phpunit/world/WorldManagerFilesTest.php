@@ -112,7 +112,7 @@ final class WorldManagerFilesTest extends TestCase{
 	public function testCopyReservesNamesUntilDone() : void{
 		$this->makeWorld("template");
 		$resolved = false;
-		$this->manager->copyWorld("template", "arena")->onCompletion(function() use (&$resolved) : void{ $resolved = true; }, fn() => self::fail("copy failed"));
+		$this->manager->copyWorld("template", "arena")->observe(function() use (&$resolved) : void{ $resolved = true; }, fn() => self::fail("copy failed"));
 
 		self::assertSame(["template"], $this->manager->getWorldNames());
 		self::assertFalse($this->manager->loadWorld("template"));
@@ -155,7 +155,7 @@ final class WorldManagerFilesTest extends TestCase{
 		$linked = @symlink($outside, Path::join($this->root, "doomed", "link"));
 
 		$failed = false;
-		$this->manager->deleteWorld("doomed")->onCompletion(fn() => null, function() use (&$failed) : void{ $failed = true; });
+		$this->manager->deleteWorld("doomed")->observe(fn() => null, function() use (&$failed) : void{ $failed = true; });
 		$this->runTasks();
 
 		self::assertFalse($failed);
@@ -201,7 +201,7 @@ final class WorldManagerFilesTest extends TestCase{
 	public function testFailedCopyCleansUpAndRejects() : void{
 		$this->makeWorld("src");
 		$rejected = false;
-		$this->manager->copyWorld("src", "dst")->onCompletion(fn() => self::fail("copy succeeded"), function() use (&$rejected) : void{ $rejected = true; });
+		$this->manager->copyWorld("src", "dst")->observe(fn() => self::fail("copy succeeded"), function() use (&$rejected) : void{ $rejected = true; });
 		//pulling the source away makes the copy fail on the worker
 		Filesystem::recursiveUnlink(Path::join($this->root, "src"));
 		$this->runTasks();

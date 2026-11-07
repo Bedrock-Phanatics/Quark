@@ -745,12 +745,6 @@ parameters:
 			path: ../../../src/item/Item.php
 
 		-
-			message: '#^Parameter \#1 \$result of method quark\\network\\mcpe\\compression\\CompressBatchPromise\:\:resolve\(\) expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: ../../../src/network/mcpe/ChunkRequestTask.php
-
-		-
 			message: '#^Cannot call method doFirstSpawn\(\) on quark\\player\\Player\|null\.$#'
 			identifier: method.nonObject
 			count: 1
@@ -887,12 +881,6 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: ../../../src/network/mcpe/NetworkSession.php
-
-		-
-			message: '#^Parameter \#1 \$result of method quark\\network\\mcpe\\compression\\CompressBatchPromise\:\:resolve\(\) expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: ../../../src/network/mcpe/compression/CompressBatchTask.php
 
 		-
 			message: '#^Property quark\\network\\mcpe\\encryption\\PrepareEncryptionTask\:\:\$serverPrivateKey \(string\) does not accept string\|null\.$#'

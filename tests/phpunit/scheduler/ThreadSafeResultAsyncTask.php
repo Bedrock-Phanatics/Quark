@@ -24,16 +24,16 @@ declare(strict_types=1);
 namespace quark\scheduler;
 
 use pmmp\thread\ThreadSafeArray;
-use quark\promise\PromiseResolver;
+use Vow\Deferred;
 
 class ThreadSafeResultAsyncTask extends AsyncTask{
 	private const TLS_KEY_PROMISE = "promise";
 
 	/**
-	 * @phpstan-param PromiseResolver<ThreadSafeArray<array-key, mixed>> $promise
+	 * @phpstan-param Deferred<ThreadSafeArray<array-key, mixed>> $promise
 	 */
 	public function __construct(
-		PromiseResolver $promise
+		Deferred $promise
 	){
 		$this->storeLocal(self::TLS_KEY_PROMISE, $promise);
 	}
@@ -47,7 +47,7 @@ class ThreadSafeResultAsyncTask extends AsyncTask{
 	}
 
 	public function onCompletion() : void{
-		/** @var PromiseResolver<ThreadSafeArray<array-key, mixed>> $promise */
+		/** @var Deferred<ThreadSafeArray<array-key, mixed>> $promise */
 		$promise = $this->fetchLocal(self::TLS_KEY_PROMISE);
 		/** @var ThreadSafeArray<array-key, mixed> $result */
 		$result = $this->getResult();

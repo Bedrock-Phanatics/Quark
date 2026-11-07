@@ -25,32 +25,39 @@ namespace quark\network\mcpe\compression;
 
 use quark\scheduler\AsyncTask;
 use quark\thread\NonThreadSafeValue;
+use Vow\Deferred;
 use function chr;
 
 class CompressBatchTask extends AsyncTask{
 
-	private const TLS_KEY_PROMISE = "promise";
+	private const TLS_KEY_DEFERRED = "deferred";
 
 	/** @phpstan-var NonThreadSafeValue<Compressor> */
 	private NonThreadSafeValue $compressor;
 
+	/**
+	 * @phpstan-param Deferred<string> $deferred
+	 */
 	public function __construct(
 		private string $data,
-		CompressBatchPromise $promise,
+		Deferred $deferred,
 		Compressor $compressor
 	){
 		$this->compressor = new NonThreadSafeValue($compressor);
-		$this->storeLocal(self::TLS_KEY_PROMISE, $promise);
+		$this->storeLocal(self::TLS_KEY_DEFERRED, $deferred);
 	}
 
 	public function onRun() : void{
 		$compressor = $this->compressor->deserialize();
 		$this->setResult(chr($compressor->getNetworkType()->value) . $compressor->compress($this->data));
+		$this->data = "";
 	}
 
 	public function onCompletion() : void{
-		/** @var CompressBatchPromise $promise */
-		$promise = $this->fetchLocal(self::TLS_KEY_PROMISE);
-		$promise->resolve($this->getResult());
+		/** @phpstan-var Deferred<string> $deferred */
+		$deferred = $this->fetchLocal(self::TLS_KEY_DEFERRED);
+		/** @var string $result */
+		$result = $this->getResult();
+		$deferred->resolve($result);
 	}
 }

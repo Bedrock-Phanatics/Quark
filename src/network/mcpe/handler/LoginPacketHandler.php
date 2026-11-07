@@ -437,12 +437,12 @@ class LoginPacketHandler extends PacketHandler{
 
 		$authKeyProvider = $this->server->getAuthKeyProvider();
 
-		$authKeyProvider->getKey($keyId)->onCompletion(
+		$authKeyProvider->getKey($keyId)->observe(
 			function(array $issuerAndKey) use ($token, $clientData, $authRequired) : void{
 				[$issuer, $mojangPublicKeyPem] = $issuerAndKey;
 				$this->server->getAsyncPool()->submitTask(new ProcessOpenIdLoginTask($token, $issuer, $mojangPublicKeyPem, $clientData, $authRequired, $this->authCallback));
 			},
-			fn() => ($this->authCallback)(false, $authRequired, "Unrecognized authentication key ID: $keyId", null)
+			fn(\Throwable $e) => ($this->authCallback)(false, $authRequired, $e->getMessage(), null)
 		);
 	}
 

@@ -179,9 +179,9 @@ final class PulseCommand extends VanillaCommand{
 	private static function saveReport(CommandSender $sender) : void{
 		$promise = $sender->getServer()->createPulseReport();
 		$sender->sendMessage("Collecting Pulse report from all threads (up to 30 s)");
-		$promise->onCompletion(
+		$promise->observe(
 			fn(string $file) => Command::broadcastCommandMessage($sender, "Pulse report saved to $file"),
-			fn() => $sender->sendMessage("Pulse report failed: workers timed out or the report could not be saved. The session is retained; try /pulse status.")
+			fn(\Throwable $e) => $sender->sendMessage("Pulse report failed: " . $e->getMessage() . ". The session is retained; try /pulse status.")
 		);
 	}
 }

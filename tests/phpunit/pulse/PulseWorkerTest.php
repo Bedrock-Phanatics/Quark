@@ -25,7 +25,6 @@ namespace quark\pulse;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\snooze\SleeperHandler;
-use quark\promise\PromiseResolver;
 use quark\pulse\internal\PulseCapture;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseRecorder;
@@ -44,6 +43,7 @@ use quark\utils\ServerKiller;
 use quark\utils\SignalHandler;
 use quark\world\World;
 use quark\world\WorldManager;
+use Vow\Deferred;
 use function array_diff;
 use function array_fill;
 use function array_keys;
@@ -92,10 +92,16 @@ final class PulseWorkerTest extends TestCase{
 				if($thread instanceof ServerKiller){ $guards[] = $thread->time; }
 			}
 		});
+		/** @var Deferred<string> $olderReport */
+		$olderReport = new Deferred();
 		$pool = self::createMock(AsyncPool::class);
-		$pool->method("collectTasks")->willReturnCallback(static function() use ($server, &$events) : bool{
+		$pool->method("collectTasks")->willReturnCallback(static function() use ($server, $olderReport, &$events) : bool{
 			$events[] = "collection";
-			(new \ReflectionMethod(Server::class, "finishPulseReport"))->invoke($server, "older-report.qpulse");
+			if($olderReport->promise->isPending()){
+				//what the in-flight report's finally() does before its observers run
+				(new \ReflectionProperty(Server::class, "pulseReport"))->setValue($server, null);
+				$olderReport->resolve("older-report.qpulse");
+			}
 			return false;
 		});
 		$pool->expects(self::once())->method("shutdown")->willReturnCallback(static function() use (&$events, &$guards) : void{
@@ -106,7 +112,7 @@ final class PulseWorkerTest extends TestCase{
 		});
 		$recorder = new PulseRecorder($pool);
 		$recorder->start();
-		foreach(["doTitleTick" => false, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "signalHandler" => new SignalHandler(static function() : void{}), "worldManager" => $worldManager, "configGroup" => $config, "pulse" => $recorder, "pulseReport" => new PromiseResolver(), "pulseReportPool" => $exportPool, "asyncPool" => $pool] as $property => $value){
+		foreach(["doTitleTick" => false, "logger" => $logger, "autoloader" => new ThreadSafeClassLoader(), "signalHandler" => new SignalHandler(static function() : void{}), "worldManager" => $worldManager, "configGroup" => $config, "pulse" => $recorder, "pulseReport" => $olderReport->promise, "pulseReportPool" => $exportPool, "asyncPool" => $pool] as $property => $value){
 			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
 		}
 		try{
@@ -163,7 +169,7 @@ final class PulseWorkerTest extends TestCase{
 			/** @var \ArrayObject<int, array{?string, ?string}> $results */
 			$results = new \ArrayObject();
 			foreach([[[new PulseCapture($invalid)], []], [[$transfer, $transfer], []], [[$transfer], ["platform" => "\xff"]]] as [$captures, $metadata]){
-				$task = new PulseReportWriteTask($captures, $metadata, $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
+				$task = new PulseReportWriteTask($captures, $metadata, $directory, self::recordWrite($results));
 				$pool->submitTask($task);
 				$this->drain($pool);
 				self::assertNull((new \ReflectionProperty(PulseReportWriteTask::class, "captures"))->getValue($task));
@@ -176,11 +182,11 @@ final class PulseWorkerTest extends TestCase{
 			$dense["nodes"] = array_fill(0, 16384, $node);
 			foreach([[array_fill(0, 129, $transfer), []], [array_fill(0, 9, new PulseCapture($dense)), []], [[$transfer], ["platform" => str_repeat("x", PulseCapture::MAX_TRANSFER_BYTES + 1)]]] as [$captures, $metadata]){
 				try{
-					new PulseReportWriteTask($captures, $metadata, $directory, static function() : void{ self::fail("Oversized transfer submitted"); });
+					new PulseReportWriteTask($captures, $metadata, $directory, self::recordWrite($results));
 					self::fail("Oversized transfer accepted");
 				}catch(\LengthException){}
 			}
-			$task = new PulseReportWriteTask([$transfer], [], $directory, static function(?string $file, ?string $error) use ($results) : void{ $results[] = [$file, $error]; });
+			$task = new PulseReportWriteTask([$transfer], [], $directory, self::recordWrite($results));
 			$pool->submitTask($task);
 			$this->drain($pool);
 			self::assertCount(4, $results);
@@ -238,9 +244,9 @@ final class PulseWorkerTest extends TestCase{
 			/** @var \ArrayObject<int, string> $completedFiles */
 			$completedFiles = new \ArrayObject();
 			$promise = $server->createPulseReport();
-			$promise->onCompletion(static function(string $value) use ($completedFiles) : void{ $completedFiles[] = $value; }, fn() => self::fail("Export rejected"));
+			$promise->observe(static function(string $value) use ($completedFiles) : void{ $completedFiles[] = $value; }, fn() => self::fail("Export rejected"));
 			self::assertCount(0, $completedFiles);
-			self::assertFalse($promise->isResolved());
+			self::assertFalse($promise->isFulfilled());
 			try{ $server->createPulseReport(); self::fail("Overlapping export accepted"); }catch(\LogicException){}
 			$this->drain($pool);
 			$candidatePool = (new \ReflectionProperty(Server::class, "pulseReportPool"))->getValue($server);
@@ -278,7 +284,7 @@ final class PulseWorkerTest extends TestCase{
 			}
 			$stalledFile = null;
 			$stalled = $server->createPulseReport();
-			$stalled->onCompletion(static function(string $value) use (&$stalledFile) : void{ $stalledFile = $value; }, fn() => self::fail("Stalled export rejected"));
+			$stalled->observe(static function(string $value) use (&$stalledFile) : void{ $stalledFile = $value; }, fn() => self::fail("Stalled export rejected"));
 			$this->drain($pool);
 			self::assertTrue($exportPool->collectTasks());
 			self::assertSame([0 => 2], $exportPool->getTaskQueueSizes());
@@ -301,7 +307,7 @@ final class PulseWorkerTest extends TestCase{
 			}
 			$recorder->stop();
 			$this->drain($pool);
-			self::assertFalse($stalled->isResolved());
+			self::assertFalse($stalled->isFulfilled());
 			self::assertNull($stalledFile);
 			self::assertSame([0 => 0, 1 => 0], $pool->getTaskQueueSizes());
 			self::assertSame([0 => 2], $exportPool->getTaskQueueSizes());
@@ -321,7 +327,7 @@ final class PulseWorkerTest extends TestCase{
 			self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
 			$path = $file;
 			$failures = 0;
-			$server->createPulseReport()->onCompletion(fn() => self::fail("Write failure resolved"), static function() use (&$failures) : void{ ++$failures; });
+			$server->createPulseReport()->observe(fn() => self::fail("Write failure resolved"), static function() use (&$failures) : void{ ++$failures; });
 			$this->drain($pool);
 			$this->drain($exportPool);
 			self::assertSame(1, $failures);
@@ -329,15 +335,15 @@ final class PulseWorkerTest extends TestCase{
 			$failedPool = self::createStub(AsyncPool::class);
 			$failedPool->method("submitTask")->willThrowException(new \RuntimeException("submission failed"));
 			(new \ReflectionProperty(Server::class, "pulseReportPool"))->setValue($server, $failedPool);
-			$server->createPulseReport()->onCompletion(fn() => self::fail("Submission failure resolved"), static function() use (&$failures) : void{ ++$failures; });
+			$server->createPulseReport()->observe(fn() => self::fail("Submission failure resolved"), static function() use (&$failures) : void{ ++$failures; });
 			$this->drain($pool);
 			self::assertSame(2, $failures);
 			self::assertNull((new \ReflectionProperty(Server::class, "pulseReport"))->getValue($server));
 			(new \ReflectionProperty(Server::class, "pulseReportPool"))->setValue($server, $exportPool);
 			$completed = 0;
-			$server->createPulseReport()->onCompletion(function() use ($server, &$completed, $completedFiles) : void{
+			$server->createPulseReport()->observe(function() use ($server, &$completed, $completedFiles) : void{
 				++$completed;
-				$server->createPulseReport()->onCompletion(static function(string $file) use (&$completed, $completedFiles) : void{ ++$completed; $completedFiles[] = $file; }, fn() => self::fail("Chained export rejected"));
+				$server->createPulseReport()->observe(static function(string $file) use (&$completed, $completedFiles) : void{ ++$completed; $completedFiles[] = $file; }, fn() => self::fail("Chained export rejected"));
 			}, fn() => self::fail("Retry rejected"));
 			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
 			self::assertCount(2, $pool->getRunningWorkers());
@@ -415,7 +421,7 @@ final class PulseWorkerTest extends TestCase{
 			}
 			$recorder->stop();
 			$failures = 0;
-			$server->createPulseReport()->onCompletion(fn() => self::fail("Stalled report resolved"), static function() use (&$failures) : void{ self::assertSame(0, $failures); ++$failures; });
+			$server->createPulseReport()->observe(fn() => self::fail("Stalled report resolved"), static function() use (&$failures) : void{ self::assertSame(0, $failures); ++$failures; });
 			(new \ReflectionProperty(PulseRecorder::class, "collectionDeadline"))->setValue($recorder, (int) hrtime(true) - 1);
 			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
 			self::assertSame(1, $failures);
@@ -446,7 +452,7 @@ final class PulseWorkerTest extends TestCase{
 			self::assertSame(0, $recorder->getPendingOperations());
 			self::assertSame([0 => 0, 1 => 0], $pool->getTaskQueueSizes());
 			$file = null;
-			$server->createPulseReport()->onCompletion(static function(string $value) use (&$file) : void{ $file = $value; }, fn() => self::fail("Recovered report rejected"));
+			$server->createPulseReport()->observe(static function(string $value) use (&$file) : void{ $file = $value; }, fn() => self::fail("Recovered report rejected"));
 			(new \ReflectionMethod(Server::class, "drainPulseReports"))->invoke($server);
 			self::assertIsString($file);
 			$contents = file_get_contents($file);
@@ -469,6 +475,20 @@ final class PulseWorkerTest extends TestCase{
 		}
 		self::assertSame([], $pool->getRunningWorkers());
 		self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
+	}
+
+	/**
+	 * @param \ArrayObject<int, array{?string, ?string}> $results
+	 * @return Deferred<string>
+	 */
+	private static function recordWrite(\ArrayObject $results) : Deferred{
+		/** @var Deferred<string> $deferred */
+		$deferred = new Deferred();
+		$deferred->promise->observe(
+			static function(string $file) use ($results) : void{ $results[] = [$file, null]; },
+			static function(\Throwable $e) use ($results) : void{ $results[] = [null, $e->getMessage()]; }
+		);
+		return $deferred;
 	}
 
 	/** @return list<int> */
@@ -543,7 +563,7 @@ final class PulseWorkerTest extends TestCase{
 				}
 				$recorder->stop();
 				$report = null;
-				$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
+				$recorder->collect()->observe(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
 				$this->drain($pool);
 				self::assertNotNull($report);
 				self::assertCount(4, $report->getData()["threads"]);
@@ -614,7 +634,7 @@ final class PulseWorkerTest extends TestCase{
 				self::assertSame([], array_diff(self::taskLocalIds(), $localIds));
 				$pool->rejectedWorker = null;
 				$report = null;
-				$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Collection retry rejected"));
+				$recorder->collect()->observe(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Collection retry rejected"));
 				$this->drain($pool);
 				self::assertNotNull($report);
 				self::assertCount(4, $report->getData()["threads"]);
@@ -680,7 +700,7 @@ final class PulseWorkerTest extends TestCase{
 			$this->drain($pool);
 			$pool->failStop = false;
 			$report = null;
-			$recorder->collect()->onCompletion(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
+			$recorder->collect()->observe(static function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Report rejected"));
 			$this->drain($pool);
 			self::assertNotNull($report);
 			self::assertCount(4, $report->getData()["threads"]);
@@ -724,7 +744,7 @@ final class PulseWorkerTest extends TestCase{
 				$this->drain($pool);
 				if($round === 1){
 					$live = null;
-					$recorder->collect()->onCompletion(function(PulseReport $value) use (&$live) : void{ $live = $value; }, fn() => self::fail("Live report rejected"));
+					$recorder->collect()->observe(function(PulseReport $value) use (&$live) : void{ $live = $value; }, fn() => self::fail("Live report rejected"));
 					try{ $recorder->collect(); self::fail("Parallel collection accepted"); }catch(\LogicException){}
 					$this->drain($pool);
 					self::assertNotNull($live);
@@ -734,7 +754,7 @@ final class PulseWorkerTest extends TestCase{
 				$recorder->checkDuration();
 				$recorder->stop();
 				$report = null;
-				$recorder->collect()->onCompletion(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Worker report rejected"));
+				$recorder->collect()->observe(function(PulseReport $value) use (&$report) : void{ $report = $value; }, fn() => self::fail("Worker report rejected"));
 				$this->drain($pool);
 				self::assertNotNull($report);
 				$data = PulseReport::decode($report->encode())->getData();

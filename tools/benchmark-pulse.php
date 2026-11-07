@@ -220,7 +220,7 @@ try{
 		waitForPulseWorkers($pool);
 	}
 	$recorder->stop();
-	$recorder->collect()->onCompletion(static function(PulseReport $report) : void{
+	$recorder->collect()->observe(static function(PulseReport $report) : void{
 		$threads = $report->getData()["threads"];
 		benchmarkPulse(["Three-thread report" => static function(int $n) use ($threads) : void{
 			for($i = 0; $i < $n; ++$i){ PulseReport::create($threads); }

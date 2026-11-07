@@ -26,10 +26,9 @@ namespace quark\network\mcpe\auth;
 use pocketmine\network\mcpe\protocol\types\login\openid\api\AuthServiceKey;
 use quark\network\mcpe\JwtException;
 use quark\network\mcpe\JwtUtils;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\scheduler\AsyncPool;
-use quark\utils\AssumptionFailedError;
+use Vow\Deferred;
+use Vow\Promise;
 use function array_keys;
 use function count;
 use function implode;
@@ -40,8 +39,11 @@ class AuthKeyProvider{
 
 	private ?AuthKeyring $keyring = null;
 
-	/** @phpstan-var PromiseResolver<AuthKeyring> */
-	private ?PromiseResolver $resolver = null;
+	/**
+	 * Shared by every login waiting on the same refresh.
+	 * @phpstan-var Promise<AuthKeyring>|null
+	 */
+	private ?Promise $fetch = null;
 
 	private int $lastFetch = 0;
 
@@ -53,116 +55,109 @@ class AuthKeyProvider{
 
 	/**
 	 * Fetches the key for the given key ID.
-	 * The promise will be resolved with an array of [issuer, pemPublicKey].
+	 * The promise will be resolved with an array of [issuer, pemPublicKey], or rejected if the key is unknown.
 	 *
 	 * @phpstan-return Promise<array{string, string}>
 	 */
 	public function getKey(string $keyId) : Promise{
-		/** @phpstan-var PromiseResolver<array{string, string}> $resolver */
-		$resolver = new PromiseResolver();
-
 		if(
 			$this->keyring === null || //we haven't fetched keys yet
 			($this->keyring->getKey($keyId) === null && $this->lastFetch < time() - $this->keyRefreshIntervalSeconds) //we don't recognise this one & keys might be outdated
 		){
 			//only refresh keys when we see one we don't recognise
-			$this->fetchKeys()->onCompletion(
-				onSuccess: fn(AuthKeyring $newKeyring) => $this->resolveKey($resolver, $newKeyring, $keyId),
-				onFailure: $resolver->reject(...)
-			);
-		}else{
-			$this->resolveKey($resolver, $this->keyring, $keyId);
+			return $this->fetchKeys()->then(fn(AuthKeyring $keyring) => $this->findKey($keyring, $keyId));
 		}
-
-		return $resolver->getPromise();
+		try{
+			return Promise::resolved($this->findKey($this->keyring, $keyId));
+		}catch(\RuntimeException $e){
+			return Promise::rejected($e);
+		}
 	}
 
 	/**
-	 * @phpstan-param PromiseResolver<array{string, string}> $resolver
+	 * @phpstan-return array{string, string}
+	 * @throws \RuntimeException
 	 */
-	private function resolveKey(PromiseResolver $resolver, AuthKeyring $keyring, string $keyId) : void{
+	private function findKey(AuthKeyring $keyring, string $keyId) : array{
 		$key = $keyring->getKey($keyId);
 		if($key === null){
 			$this->logger->debug("Key $keyId not recognised!");
-			$resolver->reject();
-			return;
+			throw new \RuntimeException("Unrecognized authentication key ID: $keyId");
 		}
-
 		$this->logger->debug("Key $keyId found in keychain");
-		$resolver->resolve([$keyring->getIssuer(), $key]);
+		return [$keyring->getIssuer(), $key];
 	}
 
 	/**
 	 * @phpstan-param array<string, AuthServiceKey>|null $keys
 	 * @phpstan-param string[]|null                      $errors
+	 * @throws \RuntimeException
 	 */
-	private function onKeysFetched(?array $keys, string $issuer, ?array $errors) : void{
-		$resolver = $this->resolver;
-		if($resolver === null){
-			throw new AssumptionFailedError("Not expecting this to be called without a resolver present");
+	private function onKeysFetched(?array $keys, string $issuer, ?array $errors) : AuthKeyring{
+		if($errors !== null){
+			$this->logger->error("The following errors occurred while fetching new keys:\n\t- " . implode("\n\t-", $errors));
+			//we might've still succeeded in fetching keys even if there were errors, so don't return
 		}
-		try{
-			if($errors !== null){
-				$this->logger->error("The following errors occurred while fetching new keys:\n\t- " . implode("\n\t-", $errors));
-				//we might've still succeeded in fetching keys even if there were errors, so don't return
+		if($keys === null){
+			$this->logger->critical("Failed to fetch authentication keys from Mojang's API. Xbox players may not be able to authenticate!");
+			throw new \RuntimeException("Failed to fetch authentication keys");
+		}
+
+		$pemKeys = [];
+		foreach($keys as $keyModel){
+			if($keyModel->use !== "sig" || $keyModel->kty !== "RSA"){
+				$this->logger->error("Key ID $keyModel->kid doesn't have the expected properties: expected use=sig, kty=RSA, got use=$keyModel->use, kty=$keyModel->kty");
+				continue;
+			}
+			$derKey = JwtUtils::rsaPublicKeyModExpToDer($keyModel->n, $keyModel->e);
+
+			//make sure the key is valid
+			try{
+				JwtUtils::parseDerPublicKey($derKey);
+			}catch(JwtException $e){
+				$this->logger->error("Failed to parse RSA public key for key ID $keyModel->kid: " . $e->getMessage());
+				$this->logger->logException($e);
+				continue;
 			}
 
-			if($keys === null){
-				$this->logger->critical("Failed to fetch authentication keys from Mojang's API. Xbox players may not be able to authenticate!");
-				$resolver->reject();
-			}else{
-				$pemKeys = [];
-				foreach($keys as $keyModel){
-					if($keyModel->use !== "sig" || $keyModel->kty !== "RSA"){
-						$this->logger->error("Key ID $keyModel->kid doesn't have the expected properties: expected use=sig, kty=RSA, got use=$keyModel->use, kty=$keyModel->kty");
-						continue;
-					}
-					$derKey = JwtUtils::rsaPublicKeyModExpToDer($keyModel->n, $keyModel->e);
-
-					//make sure the key is valid
-					try{
-						JwtUtils::parseDerPublicKey($derKey);
-					}catch(JwtException $e){
-						$this->logger->error("Failed to parse RSA public key for key ID $keyModel->kid: " . $e->getMessage());
-						$this->logger->logException($e);
-						continue;
-					}
-
-					//retain PEM keys instead of OpenSSLAsymmetricKey since these are easier and cheaper to copy between threads
-					$pemKeys[$keyModel->kid] = $derKey;
-				}
-
-				if(count($keys) === 0){
-					$this->logger->critical("No valid authentication keys returned by Mojang's API. Xbox players may not be able to authenticate!");
-					$resolver->reject();
-				}else{
-					$this->logger->info("Successfully fetched " . count($keys) . " new authentication keys from issuer $issuer, key IDs: " . implode(", ", array_keys($pemKeys)));
-					$this->keyring = new AuthKeyring($issuer, $pemKeys);
-					$this->lastFetch = time();
-					$resolver->resolve($this->keyring);
-				}
-			}
-		}finally{
-			$this->resolver = null;
+			//retain PEM keys instead of OpenSSLAsymmetricKey since these are easier and cheaper to copy between threads
+			$pemKeys[$keyModel->kid] = $derKey;
 		}
+
+		if(count($pemKeys) === 0){
+			$this->logger->critical("No valid authentication keys returned by Mojang's API. Xbox players may not be able to authenticate!");
+			throw new \RuntimeException("No valid authentication keys were returned");
+		}
+		$this->logger->info("Successfully fetched " . count($pemKeys) . " new authentication keys from issuer $issuer, key IDs: " . implode(", ", array_keys($pemKeys)));
+		$this->keyring = new AuthKeyring($issuer, $pemKeys);
+		$this->lastFetch = time();
+		return $this->keyring;
 	}
 
 	/**
 	 * @phpstan-return Promise<AuthKeyring>
 	 */
 	private function fetchKeys() : Promise{
-		if($this->resolver !== null){
+		if($this->fetch !== null){
 			$this->logger->debug("Key refresh was requested, but it's already in progress");
-			return $this->resolver->getPromise();
+			return $this->fetch;
 		}
 
 		$this->logger->notice("Fetching new authentication keys");
 
-		/** @phpstan-var PromiseResolver<AuthKeyring> $resolver */
-		$resolver = new PromiseResolver();
-		$this->resolver = $resolver;
+		/** @phpstan-var Deferred<AuthKeyring> $deferred */
+		$deferred = new Deferred();
 		//TODO: extract this so it can be polyfilled for unit testing
-		$this->asyncPool->submitTask(new FetchAuthKeysTask($this->onKeysFetched(...)));
-		return $this->resolver->getPromise();
+		$this->asyncPool->submitTask(new FetchAuthKeysTask(function(?array $keys, string $issuer, ?array $errors) use ($deferred) : void{
+			try{
+				$keyring = $this->onKeysFetched($keys, $issuer, $errors);
+			}catch(\RuntimeException $e){
+				$deferred->reject($e);
+				return;
+			}
+			$deferred->resolve($keyring);
+		}));
+		//a failed refresh is retried by the next login that needs it
+		return $this->fetch = $deferred->promise->finally(function() : void{ $this->fetch = null; });
 	}
 }

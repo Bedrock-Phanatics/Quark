@@ -30,7 +30,6 @@ use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\block\VanillaBlocks;
-use quark\network\mcpe\compression\CompressBatchPromise;
 use quark\network\mcpe\compression\NativeCompressor;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\EncodedPacket;
@@ -39,6 +38,9 @@ use quark\Server;
 use quark\world\format\Chunk;
 use quark\world\World;
 use quark\world\WorldPulse;
+use Vow\CancelledException;
+use Vow\Deferred;
+use Vow\Promise;
 use function chr;
 use function ord;
 use function substr;
@@ -52,7 +54,7 @@ final class ChunkCacheTest extends TestCase{
 	private bool $asyncCompression = false;
 	/** @var list<?bool> */
 	private array $syncModes = [];
-	/** @var list<CompressBatchPromise> */
+	/** @var list<Deferred<string>> */
 	private array $compressing = [];
 	/** @phpstan-var (\Closure() : void)|null */
 	private ?\Closure $unloadWorld = null;
@@ -63,10 +65,13 @@ final class ChunkCacheTest extends TestCase{
 		$this->chunk->setBlockStateId(0, 0, 0, VanillaBlocks::STONE()->getStateId());
 
 		$server = $this->createMock(Server::class);
-		$server->method("prepareBatch")->willReturnCallback(function(string $buffer, mixed $compressor, ?bool $sync = null) : CompressBatchPromise|string{
+		$server->method("prepareBatch")->willReturnCallback(function(string $buffer, mixed $compressor, ?bool $sync = null) : Promise|string{
 			$this->syncModes[] = $sync;
 			if($this->asyncCompression && $sync !== true){
-				return $this->compressing[] = new CompressBatchPromise();
+				/** @var Deferred<string> $deferred */
+				$deferred = new Deferred();
+				$this->compressing[] = $deferred;
+				return $deferred->promise;
 			}
 			return chr(CompressionAlgorithm::NONE->value) . $buffer;
 		});
@@ -135,12 +140,12 @@ final class ChunkCacheTest extends TestCase{
 	public function testChangesDuringCompressionAreNotSentStale() : void{
 		$this->asyncCompression = true;
 		$promise = $this->cache->request(self::X, self::Z);
-		self::assertInstanceOf(CompressBatchPromise::class, $promise);
+		self::assertInstanceOf(Promise::class, $promise);
 		self::assertSame($promise, $this->cache->request(self::X, self::Z), "concurrent requests share one batch");
 
 		$received = [];
-		$promise->onResolve(function(CompressBatchPromise $promise) use (&$received) : void{
-			$received[] = $promise->getResult();
+		$promise->observe(function(string $batch) use (&$received) : void{
+			$received[] = $batch;
 		});
 		for($i = 0; $i < 100; ++$i){
 			$this->setBlock(VanillaBlocks::DIAMOND()->getStateId());
@@ -157,24 +162,37 @@ final class ChunkCacheTest extends TestCase{
 	public function testUntouchedAsyncBatchIsCached() : void{
 		$this->asyncCompression = true;
 		$promise = $this->cache->request(self::X, self::Z);
-		self::assertInstanceOf(CompressBatchPromise::class, $promise);
+		self::assertInstanceOf(Promise::class, $promise);
 		$this->compressing[0]->resolve("compressed");
-		self::assertSame("compressed", $promise->getResult());
+		self::assertSame("compressed", $promise->value());
 		self::assertSame("compressed", $this->cache->request(self::X, self::Z));
 		self::assertSame([null], $this->syncModes);
+	}
+
+	public function testCompressionFailureRejectsWaitersAndAllowsRetry() : void{
+		$this->asyncCompression = true;
+		$promise = $this->cache->request(self::X, self::Z);
+		self::assertInstanceOf(Promise::class, $promise);
+		$failure = new \RuntimeException("boom");
+		$this->compressing[0]->reject($failure);
+		self::assertSame($failure, $promise->reason());
+
+		$retry = $this->cache->request(self::X, self::Z);
+		self::assertNotSame($promise, $retry);
+		self::assertCount(2, $this->compressing);
 	}
 
 	public function testUnloadCancelsPendingRequests() : void{
 		$this->asyncCompression = true;
 		$promise = $this->cache->request(self::X, self::Z);
-		self::assertInstanceOf(CompressBatchPromise::class, $promise);
+		self::assertInstanceOf(Promise::class, $promise);
 		$called = false;
-		$promise->onResolve(function() use (&$called) : void{
+		$promise->observe(function() use (&$called) : void{
 			$called = true;
 		});
 
 		$this->cache->onChunkUnloaded(self::X, self::Z, $this->chunk);
-		self::assertTrue($promise->isCancelled());
+		self::assertInstanceOf(CancelledException::class, $promise->reason());
 
 		$this->asyncCompression = false;
 		$fresh = $this->cache->request(self::X, self::Z);
@@ -187,11 +205,11 @@ final class ChunkCacheTest extends TestCase{
 	public function testWorldUnloadCancelsPendingRequests() : void{
 		$this->asyncCompression = true;
 		$promise = $this->cache->request(self::X, self::Z);
-		self::assertInstanceOf(CompressBatchPromise::class, $promise);
+		self::assertInstanceOf(Promise::class, $promise);
 		self::assertNotNull($this->unloadWorld);
 		($this->unloadWorld)();
 		$this->unloadWorld = null;
-		self::assertTrue($promise->isCancelled());
+		self::assertInstanceOf(CancelledException::class, $promise->reason());
 		$this->compressing[0]->resolve("old");
 		self::assertSame(0, $this->cache->calculateCacheSize());
 	}

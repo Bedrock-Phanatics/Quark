@@ -101,8 +101,6 @@ use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\player\Player;
-use quark\promise\Promise;
-use quark\promise\PromiseResolver;
 use quark\scheduler\AsyncPool;
 use quark\Server;
 use quark\ServerConfigGroup;
@@ -133,6 +131,9 @@ use quark\world\sound\BlockPlaceSound;
 use quark\world\sound\Sound;
 use quark\world\utils\SubChunkExplorer;
 use quark\YmlServerProperties;
+use Vow\CancelledException;
+use Vow\Deferred;
+use Vow\Promise;
 use function abs;
 use function array_key_exists;
 use function array_keys;
@@ -395,10 +396,7 @@ class World implements ChunkManager{
 	 */
 	private array $chunkLock = [];
 	private int $maxConcurrentChunkPopulationTasks = 2;
-	/**
-	 * @var PromiseResolver[] chunkHash => promise
-	 * @phpstan-var array<ChunkPosHash, PromiseResolver<Chunk>>
-	 */
+	/** @phpstan-var array<ChunkPosHash, Deferred<Chunk>> */
 	private array $chunkPopulationRequestMap = [];
 	/**
 	 * @var \SplQueue (queue of chunkHashes)
@@ -607,9 +605,11 @@ class World implements ChunkManager{
 		$this->addOnUnloadCallback(function() : void{
 			$this->logger->debug("Cancelling unfulfilled generation requests");
 
-			foreach($this->chunkPopulationRequestMap as $chunkHash => $promise){
-				$promise->reject();
-				unset($this->chunkPopulationRequestMap[$chunkHash]);
+			$requests = $this->chunkPopulationRequestMap;
+			$this->chunkPopulationRequestMap = [];
+			$reason = new CancelledException("World was unloaded");
+			foreach($requests as $deferred){
+				$deferred->cancel($reason);
 			}
 			if(count($this->chunkPopulationRequestMap) !== 0){
 				//TODO: this might actually get hit because generation rejection callbacks might try to schedule new
@@ -963,8 +963,7 @@ class World implements ChunkManager{
 				unset($this->chunkLoaders[$chunkHash]);
 				$this->unloadChunkRequest($chunkX, $chunkZ, true);
 				if(isset($this->chunkPopulationRequestMap[$chunkHash]) && !isset($this->activeChunkPopulationTasks[$chunkHash])){
-					$this->chunkPopulationRequestMap[$chunkHash]->reject();
-					unset($this->chunkPopulationRequestMap[$chunkHash]);
+					$this->cancelPopulationRequest($chunkHash, "No chunk loaders are left");
 				}
 			}else{
 				unset($this->chunkLoaders[$chunkHash][$loaderId]);
@@ -3655,14 +3654,13 @@ class World implements ChunkManager{
 		unset($this->registeredTickingChunks[$chunkHash]);
 		$this->markTickingChunkForRecheck($x, $z);
 
-		if(array_key_exists($chunkHash, $this->chunkPopulationRequestMap)){
-			$this->logger->debug("Rejecting population promise for chunk $x $z");
-			$this->chunkPopulationRequestMap[$chunkHash]->reject();
-			unset($this->chunkPopulationRequestMap[$chunkHash]);
+		if(isset($this->chunkPopulationRequestMap[$chunkHash])){
+			$this->logger->debug("Cancelling population request for chunk $x $z");
 			if(isset($this->activeChunkPopulationTasks[$chunkHash])){
 				$this->logger->debug("Marking population task for chunk $x $z as orphaned");
 				$this->activeChunkPopulationTasks[$chunkHash] = false;
 			}
+			$this->cancelPopulationRequest($chunkHash, "Chunk was unloaded");
 		}
 
 		$this->pulse->doChunkUnload->stop($doChunkUnloadScope);
@@ -3685,28 +3683,17 @@ class World implements ChunkManager{
 	 * Requests a safe spawn position near the given position, or near the world's spawn position if not provided.
 	 * Terrain near the position will be loaded or generated as needed.
 	 *
-	 * @return Promise Resolved to a Position object, or rejected if the world is unloaded.
+	 * @return Promise Resolved to a Position object, or cancelled if the world is unloaded.
 	 * @phpstan-return Promise<Position>
 	 */
 	public function requestSafeSpawn(?Vector3 $spawn = null) : Promise{
-		/** @phpstan-var PromiseResolver<Position> $resolver */
-		$resolver = new PromiseResolver();
 		$spawn ??= $this->getSpawnLocation();
 		/*
 		 * TODO: this relies on the assumption that getSafeSpawn() will only alter the Y coordinate of the provided
 		 * position, which is currently OK, but might be a problem in the future.
 		 */
-		$this->requestChunkPopulation($spawn->getFloorX() >> Chunk::COORD_BIT_SIZE, $spawn->getFloorZ() >> Chunk::COORD_BIT_SIZE, null)->onCompletion(
-			function() use ($spawn, $resolver) : void{
-				$spawn = $this->getSafeSpawn($spawn);
-				$resolver->resolve($spawn);
-			},
-			function() use ($resolver) : void{
-				$resolver->reject();
-			}
-		);
-
-		return $resolver->getPromise();
+		return $this->requestChunkPopulation($spawn->getFloorX() >> Chunk::COORD_BIT_SIZE, $spawn->getFloorZ() >> Chunk::COORD_BIT_SIZE, null)
+			->then(fn() => $this->getSafeSpawn($spawn));
 	}
 
 	/**
@@ -4016,22 +4003,31 @@ class World implements ChunkManager{
 	}
 
 	/**
+	 * Returns the pending request for the chunk, queueing a new one if there is none.
 	 * @phpstan-return Promise<Chunk>
 	 */
-	private function enqueuePopulationRequest(int $chunkX, int $chunkZ, ?ChunkLoader $associatedChunkLoader) : Promise{
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+	private function queuePopulationRequest(int $chunkX, int $chunkZ, int $chunkHash, ?ChunkLoader $associatedChunkLoader) : Promise{
+		if(isset($this->chunkPopulationRequestMap[$chunkHash])){
+			return $this->chunkPopulationRequestMap[$chunkHash]->promise;
+		}
 		$this->addChunkHashToPopulationRequestQueue($chunkHash);
-		/** @phpstan-var PromiseResolver<Chunk> $resolver */
-		$resolver = $this->chunkPopulationRequestMap[$chunkHash] = new PromiseResolver();
+		/** @phpstan-var Deferred<Chunk> $deferred */
+		$deferred = $this->chunkPopulationRequestMap[$chunkHash] = new Deferred();
 		if($associatedChunkLoader === null){
 			$temporaryLoader = new class implements ChunkLoader{};
 			$this->registerChunkLoader($temporaryLoader, $chunkX, $chunkZ);
-			$resolver->getPromise()->onCompletion(
-				fn() => $this->unregisterChunkLoader($temporaryLoader, $chunkX, $chunkZ),
-				static function() : void{}
-			);
+			//also on cancellation, or a force unloaded chunk would keep this loader forever
+			$unregister = fn() => $this->unregisterChunkLoader($temporaryLoader, $chunkX, $chunkZ);
+			$deferred->promise->observe($unregister, $unregister);
 		}
-		return $resolver->getPromise();
+		return $deferred->promise;
+	}
+
+	private function cancelPopulationRequest(int $chunkHash, string $reason) : void{
+		$deferred = $this->chunkPopulationRequestMap[$chunkHash];
+		//removed first so callbacks that request the chunk again get a fresh request
+		unset($this->chunkPopulationRequestMap[$chunkHash]);
+		$deferred->cancel(new CancelledException($reason));
 	}
 
 	private function drainPopulationRequestQueue() : void{
@@ -4043,7 +4039,7 @@ class World implements ChunkManager{
 			if(isset($this->chunkPopulationRequestMap[$nextChunkHash])){
 				assert(!($this->activeChunkPopulationTasks[$nextChunkHash] ?? false), "Population for chunk $nextChunkX $nextChunkZ already running");
 				if(
-					!$this->orderChunkPopulation($nextChunkX, $nextChunkZ, null)->isResolved() &&
+					$this->orderChunkPopulation($nextChunkX, $nextChunkZ, null)->isPending() &&
 					!isset($this->activeChunkPopulationTasks[$nextChunkHash])
 				){
 					$failed[] = $nextChunkHash;
@@ -4059,30 +4055,28 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * Checks if a chunk needs to be populated, and whether it's ready to do so.
-	 * @return bool[]|PromiseResolver[]|null[]
-	 * @phpstan-return array{?PromiseResolver<Chunk>, bool}
+	 * Returns the promise for a population that is already running or done, or null if it still needs to be started.
+	 * @phpstan-return Promise<Chunk>|null
 	 */
-	private function checkChunkPopulationPreconditions(int $chunkX, int $chunkZ) : array{
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
-		$resolver = $this->chunkPopulationRequestMap[$chunkHash] ?? null;
-		if($resolver !== null && isset($this->activeChunkPopulationTasks[$chunkHash])){
-			//generation is already running
-			return [$resolver, false];
+	private function checkChunkPopulationPreconditions(int $chunkX, int $chunkZ, int $chunkHash) : ?Promise{
+		$deferred = $this->chunkPopulationRequestMap[$chunkHash] ?? null;
+		if($deferred !== null && isset($this->activeChunkPopulationTasks[$chunkHash])){
+			return $deferred->promise;
 		}
 
 		$temporaryChunkLoader = new class implements ChunkLoader{};
 		$this->registerChunkLoader($temporaryChunkLoader, $chunkX, $chunkZ);
 		$chunk = $this->loadChunk($chunkX, $chunkZ);
 		$this->unregisterChunkLoader($temporaryChunkLoader, $chunkX, $chunkZ);
-		if($chunk !== null && $chunk->isPopulated()){
-			//chunk is already populated; return a pre-resolved promise that will directly fire callbacks assigned
-			$resolver ??= new PromiseResolver();
-			unset($this->chunkPopulationRequestMap[$chunkHash]);
-			$resolver->resolve($chunk);
-			return [$resolver, false];
+		if($chunk === null || !$chunk->isPopulated()){
+			return null;
 		}
-		return [$resolver, true];
+		if($deferred === null){
+			return Promise::resolved($chunk);
+		}
+		unset($this->chunkPopulationRequestMap[$chunkHash]);
+		$deferred->resolve($chunk);
+		return $deferred->promise;
 	}
 
 	/**
@@ -4097,16 +4091,16 @@ class World implements ChunkManager{
 	 * @phpstan-return Promise<Chunk>
 	 */
 	public function requestChunkPopulation(int $chunkX, int $chunkZ, ?ChunkLoader $associatedChunkLoader) : Promise{
-		[$resolver, $proceedWithPopulation] = $this->checkChunkPopulationPreconditions($chunkX, $chunkZ);
-		if(!$proceedWithPopulation){
-			return $resolver?->getPromise() ?? $this->enqueuePopulationRequest($chunkX, $chunkZ, $associatedChunkLoader);
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$promise = $this->checkChunkPopulationPreconditions($chunkX, $chunkZ, $chunkHash);
+		if($promise !== null){
+			return $promise;
 		}
-
 		if(count($this->activeChunkPopulationTasks) >= $this->maxConcurrentChunkPopulationTasks){
 			//too many chunks are already generating; delay resolution of the request until later
-			return $resolver?->getPromise() ?? $this->enqueuePopulationRequest($chunkX, $chunkZ, $associatedChunkLoader);
+			return $this->queuePopulationRequest($chunkX, $chunkZ, $chunkHash, $associatedChunkLoader);
 		}
-		return $this->internalOrderChunkPopulation($chunkX, $chunkZ, $associatedChunkLoader, $resolver);
+		return $this->internalOrderChunkPopulation($chunkX, $chunkZ, $chunkHash, $associatedChunkLoader);
 	}
 
 	/**
@@ -4120,21 +4114,15 @@ class World implements ChunkManager{
 	 * @phpstan-return Promise<Chunk>
 	 */
 	public function orderChunkPopulation(int $chunkX, int $chunkZ, ?ChunkLoader $associatedChunkLoader) : Promise{
-		[$resolver, $proceedWithPopulation] = $this->checkChunkPopulationPreconditions($chunkX, $chunkZ);
-		if(!$proceedWithPopulation){
-			return $resolver?->getPromise() ?? $this->enqueuePopulationRequest($chunkX, $chunkZ, $associatedChunkLoader);
-		}
-
-		return $this->internalOrderChunkPopulation($chunkX, $chunkZ, $associatedChunkLoader, $resolver);
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		return $this->checkChunkPopulationPreconditions($chunkX, $chunkZ, $chunkHash) ??
+			$this->internalOrderChunkPopulation($chunkX, $chunkZ, $chunkHash, $associatedChunkLoader);
 	}
 
 	/**
-	 * @phpstan-param PromiseResolver<Chunk>|null $resolver
 	 * @phpstan-return Promise<Chunk>
 	 */
-	private function internalOrderChunkPopulation(int $chunkX, int $chunkZ, ?ChunkLoader $associatedChunkLoader, ?PromiseResolver $resolver) : Promise{
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
-
+	private function internalOrderChunkPopulation(int $chunkX, int $chunkZ, int $chunkHash, ?ChunkLoader $associatedChunkLoader) : Promise{
 		$pulse = $this->pulse->chunkPopulationOrder;
 		$scope = $pulse->start();
 
@@ -4143,16 +4131,14 @@ class World implements ChunkManager{
 				for($zz = -1; $zz <= 1; ++$zz){
 					if($this->isChunkLocked($chunkX + $xx, $chunkZ + $zz)){
 						//chunk is already in use by another generation request; queue the request for later
-						return $resolver?->getPromise() ?? $this->enqueuePopulationRequest($chunkX, $chunkZ, $associatedChunkLoader);
+						return $this->queuePopulationRequest($chunkX, $chunkZ, $chunkHash, $associatedChunkLoader);
 					}
 				}
 			}
 
 			$this->activeChunkPopulationTasks[$chunkHash] = true;
-			if($resolver === null){
-				$resolver = new PromiseResolver();
-				$this->chunkPopulationRequestMap[$chunkHash] = $resolver;
-			}
+			/** @phpstan-var Deferred<Chunk> $deferred */
+			$deferred = $this->chunkPopulationRequestMap[$chunkHash] ??= new Deferred();
 
 			$chunkPopulationLockId = new ChunkLockId();
 
@@ -4182,7 +4168,7 @@ class World implements ChunkManager{
 				}
 			);
 
-			return $resolver->getPromise();
+			return $deferred->promise;
 		}finally{
 			$pulse->stop($scope);
 		}
@@ -4248,10 +4234,10 @@ class World implements ChunkManager{
 			unset($this->activeChunkPopulationTasks[$index]);
 
 			if($dirtyChunks === 0){
-				$promise = $this->chunkPopulationRequestMap[$index] ?? null;
-				if($promise !== null){
+				$deferred = $this->chunkPopulationRequestMap[$index] ?? null;
+				if($deferred !== null){
 					unset($this->chunkPopulationRequestMap[$index]);
-					$promise->resolve($chunk);
+					$deferred->resolve($chunk);
 				}else{
 					//Handlers of ChunkPopulateEvent, ChunkLoadEvent, or just ChunkListeners can cause this
 					$this->logger->debug("Unable to resolve population promise for chunk x=$x,z=$z - populated chunk was forcibly unloaded while setting modified chunks");

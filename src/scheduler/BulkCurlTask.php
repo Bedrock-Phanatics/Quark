@@ -26,32 +26,28 @@ namespace quark\scheduler;
 use quark\utils\Internet;
 use quark\utils\InternetException;
 use quark\utils\InternetRequestResult;
+use Vow\Deferred;
 use function igbinary_serialize;
 use function igbinary_unserialize;
 
 /**
  * Executes a consecutive list of cURL operations.
  *
- * The result of this AsyncTask is an array of arrays (returned from {@link Internet::simpleCurl}) or InternetException objects.
+ * The deferred is resolved with one {@link InternetRequestResult} or {@link InternetException} per operation, in order.
  */
 class BulkCurlTask extends AsyncTask{
-	private const TLS_KEY_COMPLETION_CALLBACK = "completionCallback";
+	private const TLS_KEY_DEFERRED = "deferred";
 
 	private string $operations;
 
 	/**
-	 * BulkCurlTask constructor.
-	 *
-	 * $operations accepts an array of arrays. Each member array must contain a string mapped to "page", and optionally,
-	 * "timeout", "extraHeaders" and "extraOpts". Documentation of these options are same as those in
-	 * {@link Internet::simpleCurl}.
-	 *
 	 * @param BulkCurlTaskOperation[] $operations
-	 * @phpstan-param \Closure(list<InternetRequestResult|InternetException> $results) : void $onCompletion
+	 * @phpstan-param list<BulkCurlTaskOperation>                                 $operations
+	 * @phpstan-param Deferred<list<InternetRequestResult|InternetException>> $deferred
 	 */
-	public function __construct(array $operations, \Closure $onCompletion){
+	public function __construct(array $operations, Deferred $deferred){
 		$this->operations = igbinary_serialize($operations);
-		$this->storeLocal(self::TLS_KEY_COMPLETION_CALLBACK, $onCompletion);
+		$this->storeLocal(self::TLS_KEY_DEFERRED, $deferred);
 	}
 
 	public function onRun() : void{
@@ -72,16 +68,10 @@ class BulkCurlTask extends AsyncTask{
 	}
 
 	public function onCompletion() : void{
-		/**
-		 * @var \Closure
-		 * @phpstan-var \Closure(list<InternetRequestResult|InternetException>) : void
-		 */
-		$callback = $this->fetchLocal(self::TLS_KEY_COMPLETION_CALLBACK);
-		/**
-		 * @var InternetRequestResult[]|InternetException[] $results
-		 * @phpstan-var list<InternetRequestResult|InternetException> $results
-		 */
+		/** @phpstan-var Deferred<list<InternetRequestResult|InternetException>> $deferred */
+		$deferred = $this->fetchLocal(self::TLS_KEY_DEFERRED);
+		/** @phpstan-var list<InternetRequestResult|InternetException> $results */
 		$results = $this->getResult();
-		$callback($results);
+		$deferred->resolve($results);
 	}
 }
