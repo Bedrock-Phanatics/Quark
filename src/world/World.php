@@ -993,13 +993,14 @@ class World implements ChunkManager{
 	 */
 	public function unregisterChunkListener(ChunkListener $listener, int $chunkX, int $chunkZ) : void{
 		$hash = World::chunkHash($chunkX, $chunkZ);
-		if(isset($this->chunkListeners[$hash])){
+		$id = spl_object_id($listener);
+		if(isset($this->chunkListeners[$hash][$id])){
 			if(count($this->chunkListeners[$hash]) === 1){
 				unset($this->chunkListeners[$hash]);
 				unset($this->playerChunkListeners[$hash]);
 			}else{
-				unset($this->chunkListeners[$hash][spl_object_id($listener)]);
-				unset($this->playerChunkListeners[$hash][spl_object_id($listener)]);
+				unset($this->chunkListeners[$hash][$id]);
+				unset($this->playerChunkListeners[$hash][$id]);
 			}
 		}
 	}

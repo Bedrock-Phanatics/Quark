@@ -29,6 +29,8 @@ use quark\block\RedstoneLamp;
 use quark\block\RedstoneRepeater;
 use quark\block\utils\redstone\RedstoneRepeaterBlockData;
 use quark\block\VanillaBlocks;
+use quark\world\ChunkListener;
+use quark\world\ChunkListenerNoOpTrait;
 
 final class RedstoneStateTest extends TestCase{
 
@@ -84,6 +86,21 @@ final class RedstoneStateTest extends TestCase{
 		self::assertNull($this->h->state()->getExtraDataAt(2, 1, 0));
 		self::assertSame(0, $this->h->state()->getDataChunkCount());
 		self::assertCount(0, $this->h->world->getChunkListeners(0, 0), "an empty data chunk stops listening");
+	}
+
+	public function testUnregisteringAnotherListenerKeepsRedstoneListening() : void{
+		$this->placeRepeater(4);
+		$this->h->place(1, 1, 0, VanillaBlocks::REDSTONE());
+		$this->h->tick();
+		self::assertCount(1, $this->h->world->getChunkListeners(0, 0));
+
+		$stranger = new class implements ChunkListener{
+			use ChunkListenerNoOpTrait;
+		};
+		$this->h->world->unregisterChunkListener($stranger, 0, 0);
+		self::assertCount(1, $this->h->world->getChunkListeners(0, 0), "only a registered listener can be removed");
+		$this->h->unloadChunk(0, 0);
+		self::assertSame(0, $this->h->state()->getDataChunkCount());
 	}
 
 	public function testChunkUnloadDropsRedstoneData() : void{
