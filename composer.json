@@ -71,9 +71,11 @@
       "phpstan/phpstan-strict-rules": "^2.0.0",
       "phpunit/phpunit": "^10.5.24"
    },
-   "replace": {
+   "conflict": {
       "pocketmine/color": "*",
-      "pocketmine/math": "*",
+      "pocketmine/math": "*"
+   },
+   "replace": {
       "symfony/polyfill-ctype": "*",
       "symfony/polyfill-mbstring": "*"
    },
