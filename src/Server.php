@@ -126,6 +126,7 @@ use quark\utils\SignalHandler;
 use quark\utils\Terminal;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
+use quark\world\format\io\WorldMigration;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WritableWorldProviderManagerEntry;
 use quark\world\generator\Generator;
@@ -1339,6 +1340,12 @@ class Server{
 			}
 
 			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
+			$migrationMode = $this->configGroup->getPropertyString(Yml::LEVEL_SETTINGS_FORMAT_MIGRATION, WorldMigration::MODE_MANUAL);
+			if($migrationMode === WorldMigration::MODE_OFF || $migrationMode === WorldMigration::MODE_MANUAL || $migrationMode === WorldMigration::MODE_AUTOMATIC){
+				$this->worldManager->setMigrationMode($migrationMode);
+			}else{
+				$this->logger->warning("Unknown level-settings.format-migration \"$migrationMode\" in config/server.toml, using \"" . WorldMigration::MODE_MANUAL . "\"");
+			}
 			$this->worldManager->removeInterruptedWorldFiles();
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
@@ -1473,6 +1480,7 @@ class Server{
 				$anyWorldFailedToLoad = true;
 				continue;
 			}
+			$this->worldManager->migrateOnStartup($name);
 			if(!$this->worldManager->loadWorld($name, true)){
 				if($this->worldManager->isWorldGenerated($name)){
 					//allow checking if other worlds are loadable, so the user gets all the errors in one go
@@ -1521,6 +1529,7 @@ class Server{
 				$default = "world";
 				$this->configGroup->setConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
 			}
+			$this->worldManager->migrateOnStartup($default);
 			if(!$this->worldManager->loadWorld($default, true)){
 				if($this->worldManager->isWorldGenerated($default)){
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_level_defaultError()));

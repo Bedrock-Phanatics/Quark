@@ -123,6 +123,9 @@ verify-xuid = true
 
 [level-settings]
 default-format = 'leveldb'
+# Converting worlds between leveldb and zigritedb with "/world convert": off, manual or automatic. automatic also
+# converts every leveldb world to zigritedb at startup before loading it. The original is kept in the world backups.
+format-migration = 'manual'
 
 [chunk-sending]
 per-tick = 4

@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
+use quark\FilesystemPaths;
 use quark\scheduler\AsyncPool;
 use quark\scheduler\AsyncTask;
 use quark\Server;
@@ -57,6 +58,7 @@ final class WorldManagerFilesTest extends TestCase{
 		});
 		$server = $this->createMock(Server::class);
 		$server->method("getAsyncPool")->willReturn($pool);
+		$server->method("getFilesystemPaths")->willReturn(new FilesystemPaths($this->root, Path::join($this->root, "plugins")));
 		$server->method("getLogger")->willReturn(new class extends AttachableThreadSafeLogger{
 			public function emergency($message){}
 			public function alert($message){}

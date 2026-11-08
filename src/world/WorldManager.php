@@ -29,12 +29,14 @@ use quark\event\world\WorldLoadEvent;
 use quark\event\world\WorldUnloadEvent;
 use quark\lang\KnownTranslationFactory;
 use quark\player\ChunkSelector;
+use quark\scheduler\AsyncTask;
 use quark\Server;
 use quark\world\format\Chunk;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
 use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\FormatConverter;
+use quark\world\format\io\WorldMigration;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WritableWorldProvider;
 use quark\world\generator\GeneratorManager;
@@ -91,6 +93,9 @@ class WorldManager{
 	private array $busyNames = [];
 	private int $nextBusyId = 0;
 	private ?World $defaultWorld = null;
+
+	/** @phpstan-var WorldMigration::MODE_* */
+	private string $migrationMode = WorldMigration::MODE_MANUAL;
 
 	private bool $autoSave = true;
 	private int $autoSaveTicks = self::TICKS_PER_AUTOSAVE;
@@ -202,11 +207,13 @@ class WorldManager{
 		){
 			throw new \InvalidArgumentException("Cannot copy world \"$source\" to \"$target\": the target is invalid, in use or already exists");
 		}
-		return $this->runFilesTask(
-			$sourcePath,
-			$targetPath,
-			"copy world \"$source\" to \"$target\"",
+		/** @phpstan-var Deferred<null> $deferred */
+		$deferred = new Deferred();
+		return $this->runReserved(
 			[$source, $target],
+			"copy world \"$source\" to \"$target\"",
+			new WorldFilesTask($sourcePath, $targetPath, $deferred),
+			$deferred,
 			fn() => $this->renameCopiedWorld($target, $targetPath)
 		);
 	}
@@ -239,12 +246,100 @@ class WorldManager{
 	 */
 	public function deleteWorld(string $name) : Promise{
 		$path = $this->checkUnloadedWorld($name);
-		return $this->runFilesTask($path, null, "delete world \"$name\"", [$name]);
+		/** @phpstan-var Deferred<null> $deferred */
+		$deferred = new Deferred();
+		return $this->runReserved([$name], "delete world \"$name\"", new WorldFilesTask($path, null, $deferred), $deferred);
 	}
 
 	/**
-	 * Removes the hidden folders left behind by copies and deletes that were interrupted, such as by a crash, off the
-	 * main thread. Returns how many were found.
+	 * @phpstan-return WorldMigration::MODE_*
+	 */
+	public function getMigrationMode() : string{
+		return $this->migrationMode;
+	}
+
+	/**
+	 * @phpstan-param WorldMigration::MODE_* $mode
+	 */
+	public function setMigrationMode(string $mode) : void{
+		$this->migrationMode = $mode;
+	}
+
+	private function getMigrationBackupPath() : string{
+		return Path::join($this->server->getFilesystemPaths()->backups(), "worlds");
+	}
+
+	/**
+	 * Converts an unloaded LevelDB or ZigriteDB world to the other format, or a ZigriteDB world in an older disk
+	 * format to the current one, off the main thread. The world can't be loaded until it's done, and the original is
+	 * kept in the world backups. Resolves with the record counts and where the original went.
+	 *
+	 * @phpstan-return Promise<array<string, int|string>>
+	 * @throws \InvalidArgumentException if conversion is off, the format is unknown, or the world is loaded, busy or missing
+	 */
+	public function convertWorld(string $name, string $format) : Promise{
+		if($this->migrationMode === WorldMigration::MODE_OFF){
+			throw new \InvalidArgumentException("World conversion is turned off by level-settings.format-migration in config/server.toml");
+		}
+		$format = strtolower($format);
+		if($format !== WorldMigration::LEVELDB && $format !== WorldMigration::ZIGRITEDB){
+			throw new \InvalidArgumentException("Worlds can only be converted to " . WorldMigration::LEVELDB . " or " . WorldMigration::ZIGRITEDB);
+		}
+		$path = $this->checkUnloadedWorld($name);
+		/** @phpstan-var Deferred<array<string, int|string>> $deferred */
+		$deferred = new Deferred();
+		$promise = $this->runReserved([$name], "convert world \"$name\"", new WorldConvertTask($path, $format, $this->getMigrationBackupPath(), $deferred), $deferred);
+		$this->server->getLogger()->notice("Converting world \"$name\" to $format, it stays unavailable until this finishes");
+		return $promise;
+	}
+
+	/**
+	 * Checks every checksum of an unloaded ZigriteDB world off the main thread.
+	 *
+	 * @phpstan-return Promise<array<string, int|string>>
+	 * @throws \InvalidArgumentException if the world is loaded, busy or missing
+	 */
+	public function verifyWorld(string $name) : Promise{
+		$path = $this->checkUnloadedWorld($name);
+		/** @phpstan-var Deferred<array<string, int|string>> $deferred */
+		$deferred = new Deferred();
+		return $this->runReserved([$name], "verify world \"$name\"", new WorldConvertTask($path, null, "", $deferred), $deferred);
+	}
+
+	/**
+	 * With automatic migration on, converts a LevelDB world to ZigriteDB, or migrates an older ZigriteDB world, before
+	 * it loads. This blocks, so it's only for startup. A failed conversion leaves the world as it was, so it still loads.
+	 */
+	public function migrateOnStartup(string $name) : void{
+		if(
+			$this->migrationMode !== WorldMigration::MODE_AUTOMATIC ||
+			!$this->isValidWorldName($name) || $this->isNameInUse($name, true) ||
+			($format = WorldMigration::detectFormat($path = $this->getWorldPath($name))) === null
+		){
+			return;
+		}
+		$logger = $this->server->getLogger();
+		try{
+			WorldMigration::checkSupported();
+			if($format === WorldMigration::ZIGRITEDB && !WorldMigration::needsFormatMigration($path)){
+				return;
+			}
+			$logger->notice("Converting world \"$name\" to " . WorldMigration::ZIGRITEDB . " before loading it, this can take a few minutes for a large world");
+			$start = microtime(true);
+			$result = WorldMigration::convert($path, WorldMigration::ZIGRITEDB, $this->getMigrationBackupPath());
+			$logger->notice(sprintf(
+				"Converted world \"%s\" in %.1f seconds: %d chunk records, %d other records and %d world files were copied and checked. The original is at %s",
+				$name, microtime(true) - $start, $result["chunk_records"], $result["other_records"], $result["files"], $result["backup"]
+			));
+		}catch(\Throwable $e){
+			$logger->error("Could not convert world \"$name\", loading it unchanged: " . $e->getMessage());
+		}
+	}
+
+	/**
+	 * Removes the hidden folders left behind by copies, deletes and conversions that were interrupted, such as by a
+	 * crash, off the main thread, after putting back any world an interrupted conversion moved aside. Returns how many
+	 * folders were found.
 	 *
 	 * @throws \LogicException if a copy or delete is running, since its folder would be removed under it
 	 */
@@ -261,7 +356,7 @@ class WorldManager{
 			$this->server->getAsyncPool()->submitTask(new WorldFilesTask($path, null, $deferred));
 		}
 		if(count($found) > 0){
-			$this->server->getLogger()->info("Removing " . count($found) . " folder(s) left by interrupted world copies or deletes");
+			$this->server->getLogger()->info("Removing " . count($found) . " folder(s) left by interrupted world copies, deletes or conversions");
 		}
 		return count($found);
 	}
@@ -271,12 +366,16 @@ class WorldManager{
 	 * @phpstan-param-out list<string> $found
 	 */
 	private function findStagingFolders(string $dir, int $depth, array &$found) : void{
+		//a world whose conversion was cut short must be back in place before it's mistaken for a missing world
+		foreach(WorldMigration::recover($dir, $this->getMigrationBackupPath()) as $message){
+			$this->server->getLogger()->warning($message);
+		}
 		$entries = is_dir($dir) ? @scandir($dir, SCANDIR_SORT_NONE) : false;
 		foreach($entries === false ? [] : $entries as $entry){
 			if($entry === "." || $entry === ".." || is_link($path = Path::join($dir, $entry)) || !is_dir($path)){
 				continue;
 			}
-			if(preg_match('/^\..+\.(?:copying|deleting)-[0-9a-f]{8}$/D', $entry) === 1){
+			if(preg_match('/^\..+\.(?:copying|deleting)-[0-9a-f]{8}$/D', $entry) === 1 || preg_match(WorldMigration::STAGING_PATTERN, $entry) === 1){
 				$found[] = $path;
 			}elseif($depth < 8 && $entry[0] !== "." && count($this->providerManager->getMatchingProviders($path . "/")) === 0){
 				//staging folders sit next to their world, so only folders that are not worlds themselves can hold more
@@ -325,23 +424,27 @@ class WorldManager{
 	/**
 	 * The names stay reserved until the task and $onSuccess are done.
 	 *
+	 * @phpstan-template TValue
 	 * @phpstan-param list<string> $names
+	 * @phpstan-param Deferred<TValue> $deferred settled by $task
 	 * @phpstan-param (\Closure() : void)|null $onSuccess
-	 * @phpstan-return Promise<null>
+	 * @phpstan-return Promise<TValue>
 	 */
-	private function runFilesTask(string $source, ?string $copyTarget, string $description, array $names, ?\Closure $onSuccess = null) : Promise{
-		/** @phpstan-var Deferred<null> $deferred */
-		$deferred = new Deferred();
+	private function runReserved(array $names, string $description, AsyncTask $task, Deferred $deferred, ?\Closure $onSuccess = null) : Promise{
 		$id = $this->nextBusyId++;
 		$this->busyNames[$id] = $names;
 		try{
-			$this->server->getAsyncPool()->submitTask(new WorldFilesTask($source, $copyTarget, $deferred));
+			$this->server->getAsyncPool()->submitTask($task);
 		}catch(\Throwable $e){
 			unset($this->busyNames[$id]);
 			throw $e;
 		}
 		return $deferred->promise->then(
-			function() use ($id, $onSuccess) : null{
+			/**
+			 * @phpstan-param TValue $value
+			 * @phpstan-return TValue
+			 */
+			function(mixed $value) use ($id, $onSuccess) : mixed{
 				try{
 					if($onSuccess !== null){
 						$onSuccess();
@@ -349,7 +452,7 @@ class WorldManager{
 				}finally{
 					unset($this->busyNames[$id]);
 				}
-				return null;
+				return $value;
 			},
 			function(\Throwable $e) use ($id, $description) : never{
 				unset($this->busyNames[$id]);

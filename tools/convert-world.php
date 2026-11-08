@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\tools\convert_world;
 
 use quark\world\format\io\FormatConverter;
+use quark\world\format\io\WorldMigration;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WorldProviderManagerEntry;
 use quark\world\format\io\WritableWorldProviderManagerEntry;
@@ -37,6 +38,7 @@ use function dirname;
 use function fwrite;
 use function getopt;
 use function implode;
+use function in_array;
 use function is_dir;
 use function is_string;
 use function is_writable;
@@ -92,7 +94,21 @@ if(count($oldProviderClasses) > 1){
 	fwrite(STDERR, "Ambiguous input world format: matched " . count($oldProviderClasses) . " (" . implode(", ", array_keys($oldProviderClasses)) . ")" . PHP_EOL);
 	exit(1);
 }
+$oldFormat = array_keys($oldProviderClasses)[0];
 $oldProviderClass = array_shift($oldProviderClasses);
+
+//LevelDB and ZigriteDB convert natively, keeping every database record rather than only the chunks PHP understands
+$native = [WorldMigration::LEVELDB, WorldMigration::ZIGRITEDB];
+if(in_array($oldFormat, $native, true) && in_array($args["format"], $native, true)){
+	try{
+		$result = WorldMigration::convert($inputPath, $args["format"], $backupPath);
+	}catch(\Throwable $e){
+		fwrite(STDERR, $e->getMessage() . PHP_EOL);
+		exit(1);
+	}
+	echo "Converted $inputPath to " . $args["format"] . ": " . $result["chunk_records"] . " chunk records, " . $result["other_records"] . " other records and " . $result["files"] . " world files were copied and checked. The original is at " . $result["backup"] . PHP_EOL;
+	exit(0);
+}
 $oldProvider = $oldProviderClass->fromPath($inputPath, new \PrefixedLogger(\GlobalLogger::get(), "Old World Provider"));
 
 $converter = new FormatConverter($oldProvider, $writableFormats[$args["format"]], $backupPath, \GlobalLogger::get());

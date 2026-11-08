@@ -126,6 +126,9 @@ player:
 level-settings:
   #The default format that worlds will use when created
   default-format: leveldb
+  #Converting worlds between leveldb and zigritedb with "/world convert": off, manual or automatic.
+  #automatic also converts every leveldb world to zigritedb at startup before loading it. The original is kept in the world backups.
+  format-migration: manual
 
 chunk-sending:
   #To change server normal render distance, change view-distance in server.properties.

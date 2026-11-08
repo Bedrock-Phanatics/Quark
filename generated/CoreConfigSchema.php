@@ -123,6 +123,7 @@ return array (
   'level-settings' =>
   array (
     'default-format' => 'leveldb',
+    'format-migration' => 'manual',
   ),
   'chunk-sending' =>
   array (

@@ -13,6 +13,31 @@ final class World{
 	public static function isSupported() : bool{}
 
 	/**
+	 * @return array{chunk_records: int, other_records: int, bytes: int, files: int, regions: int, problems: int}
+	 */
+	public static function importBedrock(string $bedrockWorld, string $destination) : array{}
+
+	/**
+	 * @return array{chunk_records: int, other_records: int, bytes: int, files: int, regions: int, problems: int}
+	 */
+	public static function exportBedrock(string $world, string $destination) : array{}
+
+	/**
+	 * @return array{chunk_records: int, other_records: int, bytes: int, files: int, regions: int, problems: int}
+	 */
+	public static function verifyBedrock(string $world, string $bedrockWorld) : array{}
+
+	/**
+	 * @return array{chunk_records: int, other_records: int, bytes: int, files: int, regions: int, problems: int}
+	 */
+	public static function verify(string $world) : array{}
+
+	/**
+	 * @return array{chunk_records: int, other_records: int, bytes: int, files: int, regions: int, problems: int}
+	 */
+	public static function migrate(string $source, string $destination) : array{}
+
+	/**
 	 * @return array<array-key, string>|null
 	 */
 	public function getChunk(int $dimension, int $chunkX, int $chunkZ) : ?array{}

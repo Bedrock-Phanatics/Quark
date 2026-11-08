@@ -67,6 +67,7 @@ final class YmlServerProperties{
 	public const ENTITIES_XP_ORB_MERGE_RADIUS = 'entities.xp-orb-merge-radius';
 	public const LEVEL_SETTINGS = 'level-settings';
 	public const LEVEL_SETTINGS_DEFAULT_FORMAT = 'level-settings.default-format';
+	public const LEVEL_SETTINGS_FORMAT_MIGRATION = 'level-settings.format-migration';
 	public const MEMORY = 'memory';
 	public const MEMORY_ASYNC_WORKER_HARD_LIMIT = 'memory.async-worker-hard-limit';
 	public const MEMORY_CHECK_RATE = 'memory.check-rate';
