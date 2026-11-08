@@ -201,6 +201,7 @@ final class LegacyCollision{
 	/**
 	 * Projectile::move() entity pass.
 	 * @param AxisAlignedBB[] $boxes
+	 * @phpstan-param array<int, AxisAlignedBB> $boxes
 	 * @return array{int, RayTraceResult}|null
 	 */
 	public function projectileEntities(Vector3 $start, Vector3 $end, array $boxes) : ?array{
@@ -296,7 +297,7 @@ final class LegacyCollision{
 								if($blastForce > 0 && !isset($affected[World::blockHash($vBlockX, $vBlockY, $vBlockZ)])){
 									foreach($this->world->getBlockAt($vBlockX, $vBlockY, $vBlockZ, true, false)->getAffectedBlocks() as $affectedBlock){
 										$pos = $affectedBlock->getPosition();
-										$posHash = World::blockHash($pos->x, $pos->y, $pos->z);
+										$posHash = World::blockHash((int) $pos->x, (int) $pos->y, (int) $pos->z);
 										$affected[$posHash] = true;
 										if($incendiary && Utils::getRandomFloat() <= $fireChance){
 											$ignitions[$posHash] = true;
