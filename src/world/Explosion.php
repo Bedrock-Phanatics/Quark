@@ -38,23 +38,32 @@ use quark\event\entity\EntityExplodeEvent;
 use quark\item\VanillaItems;
 use quark\math\AxisAlignedBB;
 use quark\math\Facing;
+use quark\math\physics\ExplosionMath;
+use quark\math\physics\ResistanceGrid;
 use quark\math\Vector3;
 use quark\math\VoxelRayTrace;
 use quark\utils\AssumptionFailedError;
 use quark\utils\Utils;
+use quark\world\format\Chunk;
 use quark\world\format\SubChunk;
 use quark\world\particle\HugeExplodeSeedParticle;
 use quark\world\sound\ExplodeSound;
 use quark\world\utils\SubChunkExplorer;
 use quark\world\utils\SubChunkExplorerStatus;
 use function ceil;
+use function count;
 use function floor;
 use function min;
 use function mt_rand;
+use function pack;
 use function sqrt;
+use const NAN;
 
 class Explosion{
 	public const DEFAULT_FIRE_CHANCE = 1.0 / 3.0;
+
+	/** ResistanceGrid holds at most this many cells */
+	private const MAX_GRID_CELLS = 1 << 22;
 
 	private int $rays = 16;
 	public World $world;
@@ -67,8 +76,6 @@ class Explosion{
 	public float $stepLen = 0.3;
 	/** @var Block[] */
 	private array $fireIgnitions = [];
-
-	private SubChunkExplorer $subChunkExplorer;
 
 	public function __construct(
 		public Position $source,
@@ -87,7 +94,6 @@ class Explosion{
 		if($radius <= 0){
 			throw new \InvalidArgumentException("Explosion radius must be greater than 0, got $radius");
 		}
-		$this->subChunkExplorer = new SubChunkExplorer($this->world);
 	}
 
 	/**
@@ -99,10 +105,103 @@ class Explosion{
 			return false;
 		}
 
+		$incendiary = $this->fireChance > 0;
+		$grid = $this->createResistanceGrid();
+		if($grid === null){
+			$this->traceRays($incendiary);
+		}elseif(!$incendiary){
+			$cells = ExplosionMath::traceRays($grid, $this->source, $this->radius, $this->rays, $this->stepLen);
+			for($n = 0, $count = count($cells); $n < $count; $n += 3){
+				$this->affect($cells[$n], $cells[$n + 1], $cells[$n + 2], false);
+			}
+		}else{
+			//one ray at a time, so the fire rolls interleave with the mt_rand() of each ray as before
+			$mRays = $this->rays - 1;
+			for($i = 0; $i < $this->rays; ++$i){
+				for($j = 0; $j < $this->rays; ++$j){
+					for($k = 0; $k < $this->rays; ++$k){
+						if($i === 0 || $i === $mRays || $j === 0 || $j === $mRays || $k === 0 || $k === $mRays){
+							$cells = ExplosionMath::traceRay($grid, $this->source, $this->radius, $i, $j, $k, $this->rays, $this->stepLen);
+							for($n = 0, $count = count($cells); $n < $count; $n += 3){
+								$this->affect($cells[$n], $cells[$n + 1], $cells[$n + 2], true);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Blast resistance of every cell a ray can reach, null when that many cells would not fit in a grid.
+	 */
+	private function createResistanceGrid() : ?ResistanceGrid{
+		//force drops by at least 0.75 * stepLen per step, so no ray gets further than this
+		$reach = $this->radius * 1.3 / 0.75 + $this->stepLen;
+		$minX = (int) floor($this->source->x - $reach) - 1;
+		$minY = (int) floor($this->source->y - $reach) - 1;
+		$minZ = (int) floor($this->source->z - $reach) - 1;
+		$maxX = (int) floor($this->source->x + $reach) + 1;
+		$maxY = (int) floor($this->source->y + $reach) + 1;
+		$maxZ = (int) floor($this->source->z + $reach) + 1;
+		if(($maxX - $minX + 1) * ($maxY - $minY + 1) * ($maxZ - $minZ + 1) > self::MAX_GRID_CELLS){
+			return null;
+		}
+
+		$grid = new ResistanceGrid($minX, $minY, $minZ, $maxX, $maxY, $maxZ);
+		$blastResistance = RuntimeBlockStateRegistry::getInstance()->blastResistance;
+		$invalid = pack("e", NAN);
+		for($chunkX = $minX >> SubChunk::COORD_BIT_SIZE; $chunkX <= $maxX >> SubChunk::COORD_BIT_SIZE; ++$chunkX){
+			for($chunkZ = $minZ >> SubChunk::COORD_BIT_SIZE; $chunkZ <= $maxZ >> SubChunk::COORD_BIT_SIZE; ++$chunkZ){
+				$chunk = $this->world->getChunk($chunkX, $chunkZ);
+				for($chunkY = $minY >> SubChunk::COORD_BIT_SIZE; $chunkY <= $maxY >> SubChunk::COORD_BIT_SIZE; ++$chunkY){
+					//the same cells SubChunkExplorer reports as invalid
+					if($chunk === null || $chunkY < Chunk::MIN_SUBCHUNK_INDEX || $chunkY > Chunk::MAX_SUBCHUNK_INDEX){
+						$grid->setSectionPalette($chunkX, $chunkY, $chunkZ, 0, "", $invalid);
+						continue;
+					}
+					$subChunk = $chunk->getSubChunk($chunkY);
+					$layer = $subChunk->getBlockLayer0();
+					if($layer === null){
+						$grid->setSectionPalette($chunkX, $chunkY, $chunkZ, 0, "", pack("e", $blastResistance[$subChunk->getEmptyBlockId()] ?? 0));
+						continue;
+					}
+					$resistances = "";
+					foreach($layer->getPalette() as $stateId){
+						$resistances .= pack("e", $blastResistance[$stateId] ?? 0);
+					}
+					$grid->setSectionPalette($chunkX, $chunkY, $chunkZ, $layer->getBitsPerBlock(), $layer->getWordArray(), $resistances);
+				}
+			}
+		}
+		return $grid;
+	}
+
+	private function affect(int $x, int $y, int $z, bool $incendiary) : void{
+		if(isset($this->affectedBlocks[World::blockHash($x, $y, $z)])){
+			return;
+		}
+		foreach($this->world->getBlockAt($x, $y, $z, true, false)->getAffectedBlocks() as $affectedBlock){
+			$affectedBlockPos = $affectedBlock->getPosition();
+			$posHash = World::blockHash($affectedBlockPos->x, $affectedBlockPos->y, $affectedBlockPos->z);
+			$this->affectedBlocks[$posHash] = $affectedBlock;
+
+			if($incendiary && Utils::getRandomFloat() <= $this->fireChance){
+				$this->fireIgnitions[$posHash] = $affectedBlock;
+			}
+		}
+	}
+
+	/**
+	 * Ray march for explosions too large for a resistance grid.
+	 */
+	private function traceRays(bool $incendiary) : void{
 		$blockFactory = RuntimeBlockStateRegistry::getInstance();
+		$subChunkExplorer = new SubChunkExplorer($this->world);
 
 		$mRays = $this->rays - 1;
-		$incendiary = $this->fireChance > 0;
 		for($i = 0; $i < $this->rays; ++$i){
 			for($j = 0; $j < $this->rays; ++$j){
 				for($k = 0; $k < $this->rays; ++$k){
@@ -127,10 +226,10 @@ class Explosion{
 							$pointerY += $shiftY;
 							$pointerZ += $shiftZ;
 
-							if($this->subChunkExplorer->moveTo($vBlockX, $vBlockY, $vBlockZ) === SubChunkExplorerStatus::INVALID){
+							if($subChunkExplorer->moveTo($vBlockX, $vBlockY, $vBlockZ) === SubChunkExplorerStatus::INVALID){
 								continue;
 							}
-							$subChunk = $this->subChunkExplorer->currentSubChunk;
+							$subChunk = $subChunkExplorer->currentSubChunk;
 							if($subChunk === null){
 								throw new AssumptionFailedError("SubChunkExplorer subchunk should not be null here");
 							}
@@ -141,18 +240,7 @@ class Explosion{
 							if($blastResistance >= 0){
 								$blastForce -= ($blastResistance / 5 + 0.3) * $this->stepLen;
 								if($blastForce > 0){
-									if(!isset($this->affectedBlocks[World::blockHash($vBlockX, $vBlockY, $vBlockZ)])){
-										$_block = $this->world->getBlockAt($vBlockX, $vBlockY, $vBlockZ, true, false);
-										foreach($_block->getAffectedBlocks() as $_affectedBlock){
-											$_affectedBlockPos = $_affectedBlock->getPosition();
-											$posHash = World::blockHash($_affectedBlockPos->x, $_affectedBlockPos->y, $_affectedBlockPos->z);
-											$this->affectedBlocks[$posHash] = $_affectedBlock;
-
-											if($incendiary && Utils::getRandomFloat() <= $this->fireChance){
-												$this->fireIgnitions[$posHash] = $_affectedBlock;
-											}
-										}
-									}
+									$this->affect($vBlockX, $vBlockY, $vBlockZ, $incendiary);
 								}
 							}
 						}
@@ -160,8 +248,6 @@ class Explosion{
 				}
 			}
 		}
-
-		return true;
 	}
 
 	/**
@@ -303,6 +389,12 @@ class Explosion{
 	 */
 	private function getExposure(Vector3 $origin, Entity $entity) : float{
 		$bb = $entity->getBoundingBox();
+		try{
+			$region = $this->world->getCollisionRegion($bb->union(new AxisAlignedBB($origin->x, $origin->y, $origin->z, $origin->x, $origin->y, $origin->z)));
+			return ExplosionMath::exposure($region, $origin, $bb);
+		}catch(\ValueError){
+			//outside the coordinates collision data supports, or too many voxels for one native call
+		}
 
 		$diff = (new Vector3($bb->getXLength(), $bb->getYLength(), $bb->getZLength()))->multiply(2)->add(1, 1, 1);
 		$step = new Vector3(1.0 / $diff->x, 1.0 / $diff->y, 1.0 / $diff->z);
