@@ -204,6 +204,22 @@ final class EntityMovementTest extends TestCase{
 		}
 	}
 
+	public function testDragBeforeGravityMatchesTheOldFormula() : void{
+		//items, orbs and projectiles apply drag first
+		mt_srand(16);
+		for($i = 0; $i < 500; ++$i){
+			$motion = new Vector3(self::rand(-2, 2), self::rand(-2, 2), self::rand(-2, 2));
+			$drag = self::rand(0, 0.1);
+			$gravity = self::rand(0, 0.1);
+			$ground = mt_rand(0, 1) === 0 ? 1.0 : self::rand(0.4, 1);
+			$friction = 1 - $drag;
+			$mY = $motion->y * $friction - $gravity;
+			$friction *= $ground;
+			$got = Physics::motionStep($motion, $drag, $gravity, true, true, $ground, -1.0);
+			self::assertSame([$motion->x * $friction, $mY, $motion->z * $friction], [$got->x, $got->y, $got->z]);
+		}
+	}
+
 	public function testDirectionsMatchTheOldFormulas() : void{
 		$entity = $this->entity(0, 64, 0);
 		mt_srand(13);

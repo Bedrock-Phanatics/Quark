@@ -1993,7 +1993,7 @@ class World implements ChunkManager{
 	/**
 	 * Returns the world's collision region with every section the box can touch loaded. Unloaded chunks and cells
 	 * outside the world collide like air, as they always have, and are reloaded once their chunk loads. Query the
-	 * region straight away, since any block change can drop the data again.
+	 * region straight away, since any block change can drop the data again. It is the world's own cache, so only query it.
 	 *
 	 * @throws \ValueError if the box is not finite or lies outside the coordinates CollisionRegion supports
 	 */
@@ -2022,8 +2022,11 @@ class World implements ChunkManager{
 	 */
 	private function loadCollisionSection(int $sectionX, int $sectionY, int $sectionZ, array $collisionInfo) : void{
 		$region = $this->collisionRegion;
-		//after a block change only the changed cells are unknown
-		$cells = $region->unknownCells($sectionX, $sectionY, $sectionZ) ?? $this->setCollisionSection($sectionX, $sectionY, $sectionZ, $collisionInfo);
+		//after a few block changes only those cells are unknown, past that the palette is cheaper than cell by cell
+		$cells = $region->unknownCells($sectionX, $sectionY, $sectionZ);
+		if($cells === null || count($cells) > 256){
+			$cells = $this->setCollisionSection($sectionX, $sectionY, $sectionZ, $collisionInfo);
+		}
 
 		$baseX = $sectionX << SubChunk::COORD_BIT_SIZE;
 		$baseY = $sectionY << SubChunk::COORD_BIT_SIZE;

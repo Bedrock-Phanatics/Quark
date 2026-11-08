@@ -62,8 +62,8 @@ use const NAN;
 class Explosion{
 	public const DEFAULT_FIRE_CHANCE = 1.0 / 3.0;
 
-	/** ResistanceGrid holds at most this many cells */
-	private const MAX_GRID_CELLS = 1 << 22;
+	/** About radius 28, larger explosions use the PHP ray march instead of a 9 MiB grid */
+	private const MAX_GRID_CELLS = 1 << 20;
 
 	private int $rays = 16;
 	public World $world;

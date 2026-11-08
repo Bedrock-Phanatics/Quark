@@ -187,6 +187,21 @@ final class NativeCollisionTest extends TestCase{
 		self::assertSame([], $region->unknownCells(0, 4, 0));
 	}
 
+	public function testBulkEditsReloadTheWholeSection() : void{
+		$this->fill(9);
+		$bb = new AxisAlignedBB(-16, 61, -16, 16, 72, 16);
+		$this->world->getBlockCollisionBoxes($bb);
+		for($x = 0; $x < 16; ++$x){
+			for($z = 0; $z < 16; ++$z){
+				for($y = 64; $y < 72; ++$y){
+					$this->h->set($x, $y, $z, $this->randomBlock());
+				}
+			}
+		}
+		self::assertSame(self::boxes($this->legacy->blockCollisionBoxes($bb)), self::boxes($this->world->getBlockCollisionBoxes($bb)));
+		$this->assertCollisionMatches(300);
+	}
+
 	public function testChunkReplacementAndUnloadDropCollision() : void{
 		$this->fill(4);
 		$bb = new AxisAlignedBB(-4, 61, -4, 4, 70, 4);
@@ -260,7 +275,7 @@ final class NativeCollisionTest extends TestCase{
 	public function testExplosionsMatchLegacyIncludingRng() : void{
 		$this->fill(8);
 		$ignitions = new \ReflectionProperty(Explosion::class, "fireIgnitions");
-		foreach([[0.5, 4.0, 0.0], [3.25, 3.0, 1 / 3], [-7.5, 6.0, 0.0], [15.9, 4.0, 1.0], [0, 12.0, 0.0], [-0.1, 0.5, 0.5]] as $n => [$at, $radius, $fire]){
+		foreach([[0.5, 4.0, 0.0], [3.25, 3.0, 1 / 3], [-7.5, 6.0, 0.0], [15.9, 4.0, 1.0], [0, 12.0, 0.0], [-0.1, 0.5, 0.5], [2.5, 30.0, 0.0]] as $n => [$at, $radius, $fire]){
 			$source = new Vector3($at, 64.5, -$at);
 			mt_srand(100 + $n);
 			[$affected, $ignited] = $this->legacy->explodeA($source, $radius, $fire);
