@@ -350,6 +350,7 @@ namespace quark\math {
 
         public function intersectsSegment(Vector3 $start, Vector3 $end): bool {}
 
+        /** A new box covering both, neither box changes. */
         public function union(AxisAlignedBB $bb): AxisAlignedBB {}
 
         public function isFinite(): bool {}
