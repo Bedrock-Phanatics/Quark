@@ -53,6 +53,7 @@ use quark\item\Durable;
 use quark\item\enchantment\Enchantment;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
+use quark\math\physics\Physics;
 use quark\math\Vector3;
 use quark\math\VoxelRayTrace;
 use quark\network\mcpe\EntityEventBroadcaster;
@@ -609,21 +610,10 @@ abstract class Living extends Entity{
 			return;
 		}
 		if(mt_rand() / mt_getrandmax() > $this->knockbackResistanceAttr->getValue()){
-			$f = 1 / $f;
-
-			$motionX = $this->motion->x / 2;
-			$motionY = $this->motion->y / 2;
-			$motionZ = $this->motion->z / 2;
-			$motionX += $x * $f * $force;
-			$motionY += $force;
-			$motionZ += $z * $f * $force;
-
-			$verticalLimit ??= $force;
-			if($motionY > $verticalLimit){
-				$motionY = $verticalLimit;
+			$motion = Physics::knockBack($this->motion, $x, $z, $force, $verticalLimit);
+			if($motion !== null){
+				$this->setMotion($motion);
 			}
-
-			$this->setMotion(new Vector3($motionX, $motionY, $motionZ));
 		}
 	}
 

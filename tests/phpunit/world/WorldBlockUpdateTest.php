@@ -194,7 +194,7 @@ final class WorldBlockUpdateTest extends TestCase{
 	}
 
 	private function hasCachedCollision(int $x, int $y, int $z) : bool{
-		return (fn() : bool => isset($this->blockCollisionBoxCache[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)][World::chunkBlockHash($x, $y, $z)]))->call($this->world);
+		return (fn() : bool => $this->collisionRegion->isKnown($x, $y, $z))->call($this->world);
 	}
 
 	public function testCollisionCacheInvalidatedAcrossChunkBoundary() : void{

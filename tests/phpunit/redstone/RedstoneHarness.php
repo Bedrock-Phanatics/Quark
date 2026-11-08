@@ -28,6 +28,7 @@ use quark\block\RuntimeBlockStateRegistry;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
+use quark\math\collision\CollisionRegion;
 use quark\math\Vector3;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
@@ -74,6 +75,7 @@ final class RedstoneHarness{
 		$set("blockStateRegistry", RuntimeBlockStateRegistry::getInstance());
 		$set("minY", World::Y_MIN);
 		$set("maxY", World::Y_MAX);
+		$set("collisionRegion", new CollisionRegion());
 		$queue = new ReversePriorityQueue();
 		$queue->setExtractFlags(\SplPriorityQueue::EXTR_BOTH);
 		$set("scheduledBlockUpdateQueue", $queue);

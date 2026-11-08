@@ -53,9 +53,12 @@ use quark\event\entity\EntitySpawnEvent;
 use quark\event\entity\EntityTeleportEvent;
 use quark\item\Item;
 use quark\math\AxisAlignedBB;
+use quark\math\collision\CollisionSolver;
 use quark\math\Facing;
+use quark\math\physics\Physics;
 use quark\math\Vector2;
 use quark\math\Vector3;
+use quark\math\VectorMath;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EncodedPacket;
@@ -72,18 +75,13 @@ use quark\world\Weather;
 use quark\world\World;
 use function abs;
 use function assert;
-use function cos;
 use function count;
-use function deg2rad;
 use function floatval;
 use function floor;
-use function fmod;
 use function get_class;
 use function max;
 use function min;
-use function sin;
 use function spl_object_id;
-use const M_PI_2;
 
 abstract class Entity{
 
@@ -937,32 +935,20 @@ abstract class Entity{
 	}
 
 	protected function tryChangeMovement() : void{
-		$friction = 1 - $this->drag;
-
-		$mY = $this->motion->y;
-
-		if($this->applyDragBeforeGravity()){
-			$mY *= $friction;
-		}
-
-		if($this->gravityEnabled){
-			$mY -= $this->gravity;
-		}
-
-		if(!$this->applyDragBeforeGravity()){
-			$mY *= $friction;
-		}
-
-		if($this->onGround){
-			$friction *= $this->getWorld()->getBlockAt((int) floor($this->location->x), (int) floor($this->location->y - 1), (int) floor($this->location->z))->getFrictionFactor();
-		}
-
-		$this->motion = new Vector3($this->motion->x * $friction, $mY, $this->motion->z * $friction);
+		$this->motion = Physics::motionStep(
+			$this->motion,
+			$this->drag,
+			$this->gravity,
+			$this->gravityEnabled,
+			$this->applyDragBeforeGravity(),
+			$this->onGround ? $this->getWorld()->getBlockAt((int) floor($this->location->x), (int) floor($this->location->y - 1), (int) floor($this->location->z))->getFrictionFactor() : 1.0,
+			-1.0 //onUpdate() clamps, also for subclasses that replace this
+		);
 	}
 
 	protected function checkObstruction(float $x, float $y, float $z) : bool{
 		$world = $this->getWorld();
-		if(count($world->getBlockCollisionBoxes($this->boundingBox)) === 0){
+		if(!$world->getCollisionRegion($this->boundingBox)->collides($this->boundingBox)){
 			return false;
 		}
 
@@ -1035,35 +1021,15 @@ abstract class Entity{
 	}
 
 	public function getHorizontalFacing() : int{
-		$angle = fmod($this->location->yaw, 360);
-		if($angle < 0){
-			$angle += 360.0;
-		}
-
-		if((0 <= $angle && $angle < 45) || (315 <= $angle && $angle < 360)){
-			return Facing::SOUTH;
-		}
-		if(45 <= $angle && $angle < 135){
-			return Facing::WEST;
-		}
-		if(135 <= $angle && $angle < 225){
-			return Facing::NORTH;
-		}
-
-		return Facing::EAST;
+		return Physics::horizontalFacing($this->location->yaw);
 	}
 
 	public function getDirectionVector() : Vector3{
-		$y = -sin(deg2rad($this->location->pitch));
-		$xz = cos(deg2rad($this->location->pitch));
-		$x = -$xz * sin(deg2rad($this->location->yaw));
-		$z = $xz * cos(deg2rad($this->location->yaw));
-
-		return (new Vector3($x, $y, $z))->normalize();
+		return VectorMath::getDirection3D($this->location->yaw, $this->location->pitch);
 	}
 
 	public function getDirectionPlane() : Vector2{
-		return (new Vector2(-cos(deg2rad($this->location->yaw) - M_PI_2), -sin(deg2rad($this->location->yaw) - M_PI_2)))->normalize();
+		return Physics::directionPlane($this->location->yaw);
 	}
 
 	/**
@@ -1264,83 +1230,29 @@ abstract class Entity{
 		if($this->keepMovement){
 			$this->boundingBox->offset($dx, $dy, $dz);
 		}else{
-			$this->ySize *= self::STEP_CLIP_MULTIPLIER;
-
-			$moveBB = clone $this->boundingBox;
-
 			assert(abs($dx) <= 20 && abs($dy) <= 20 && abs($dz) <= 20, "Movement distance is excessive: dx=$dx, dy=$dy, dz=$dz");
 
-			$list = $this->getWorld()->getBlockCollisionBoxes($moveBB->addCoord($dx, $dy, $dz));
-
-			foreach($list as $bb){
-				$dy = $bb->calculateYOffset($moveBB, $dy);
-			}
-
-			$moveBB->offset(0, $dy, 0);
-
-			$fallingFlag = ($this->onGround || ($dy !== $wantedY && $wantedY < 0));
-
-			foreach($list as $bb){
-				$dx = $bb->calculateXOffset($moveBB, $dx);
-			}
-
-			$moveBB->offset($dx, 0, 0);
-
-			foreach($list as $bb){
-				$dz = $bb->calculateZOffset($moveBB, $dz);
-			}
-
-			$moveBB->offset(0, 0, $dz);
-
 			$stepHeight = $this->getStepHeight();
+			try{
+				$region = $this->getWorld()->getCollisionRegion(CollisionSolver::queryBox($this->boundingBox, $dx, $dy, $dz, $stepHeight));
+				$result = CollisionSolver::move($region, $this->boundingBox, $dx, $dy, $dz, $stepHeight, $this->onGround);
+			}catch(\ValueError $e){
+				//beyond the coordinates collision data supports, staying put is the only safe answer
+				$this->getWorld()->getLogger()->debug("Movement of " . get_class($this) . " blocked: " . $e->getMessage());
+				$dx = $dy = $dz = 0.0;
+				$result = null;
+			}
 
-			if($stepHeight > 0 && $fallingFlag && ($wantedX !== $dx || $wantedZ !== $dz)){
-				$cx = $dx;
-				$cy = $dy;
-				$cz = $dz;
-				$dx = $wantedX;
-				$dy = $stepHeight;
-				$dz = $wantedZ;
-
-				$stepBB = clone $this->boundingBox;
-
-				$list = $this->getWorld()->getBlockCollisionBoxes($stepBB->addCoord($dx, $dy, $dz));
-				foreach($list as $bb){
-					$dy = $bb->calculateYOffset($stepBB, $dy);
-				}
-
-				$stepBB->offset(0, $dy, 0);
-
-				foreach($list as $bb){
-					$dx = $bb->calculateXOffset($stepBB, $dx);
-				}
-
-				$stepBB->offset($dx, 0, 0);
-
-				foreach($list as $bb){
-					$dz = $bb->calculateZOffset($stepBB, $dz);
-				}
-
-				$stepBB->offset(0, 0, $dz);
-
-				$reverseDY = -$dy;
-				foreach($list as $bb){
-					$reverseDY = $bb->calculateYOffset($stepBB, $reverseDY);
-				}
-				$dy += $reverseDY;
-				$stepBB->offset(0, $reverseDY, 0);
-
-				if(($cx ** 2 + $cz ** 2) >= ($dx ** 2 + $dz ** 2)){
-					$dx = $cx;
-					$dy = $cy;
-					$dz = $cz;
-				}else{
-					$moveBB = $stepBB;
+			$this->ySize *= self::STEP_CLIP_MULTIPLIER;
+			if($result !== null){
+				$dx = $result->dx;
+				$dy = $result->dy;
+				$dz = $result->dz;
+				if($result->stepped){
 					$this->ySize += $dy;
 				}
+				$this->boundingBox = $result->boundingBox;
 			}
-
-			$this->boundingBox = $moveBB;
 		}
 		PulseZones::$entityMoveCollision->stop($entityMoveCollisionScope);
 
