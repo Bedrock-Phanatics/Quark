@@ -46,8 +46,10 @@ use function array_map;
 use function array_shift;
 use function array_unique;
 use function array_values;
+use function basename;
 use function bin2hex;
 use function count;
+use function dirname;
 use function explode;
 use function extension_loaded;
 use function file_get_contents;
@@ -307,6 +309,30 @@ final class WorldMigrationTest extends TestCase{
 		}
 		$this->expectException(\RuntimeException::class);
 		WorldMigration::verify($this->world);
+	}
+
+	public function testWorldsInsideTheWorldAreRefused() : void{
+		LevelDB::generate($inner = Path::join($this->world, "maps", "arena"), "Arena", WorldCreationOptions::create());
+		try{
+			WorldMigration::convert($this->world, WorldMigration::ZIGRITEDB, $this->backups);
+			self::fail("A world holding another world was converted");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("$inner is a world inside", $e->getMessage());
+		}
+		self::assertSame(WorldMigration::LEVELDB, WorldMigration::detectFormat($this->world));
+		self::assertSame([], $this->hiddenLeftovers());
+	}
+
+	public function testOriginalStaysBesideTheWorldWhenBackupsAreUnusable() : void{
+		file_put_contents($blocked = Path::join($this->root, "not-a-folder"), "");
+		$backup = WorldMigration::convert($this->world, WorldMigration::ZIGRITEDB, $blocked)["backup"];
+		self::assertSame($this->worlds, dirname($backup));
+		self::assertMatchesRegularExpression('/^\.world\.leveldb-.+-backup$/', basename($backup));
+		self::assertSame($this->records, self::records($backup));
+		//it's a finished backup, not an unfinished conversion, so deleting the world doesn't bring it back
+		Filesystem::recursiveUnlink($this->world);
+		self::assertSame([], WorldMigration::recover($this->worlds, $blocked));
+		self::assertFalse(is_dir($this->world));
 	}
 
 	public function testRepeatedConversionsKeepEveryBackup() : void{

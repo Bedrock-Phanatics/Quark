@@ -234,49 +234,67 @@ final class WorldMigration{
 	}
 
 	/**
-	 * Returns where the original ended up. It stays in its hidden folder when it can't be moved, for example when the
-	 * backups are on another drive, and the next start tries again.
+	 * Returns where the original ended up. When the backups can't take it, for example because they're on another
+	 * drive, it's renamed to a hidden backup beside the world instead, so recover() never mistakes it for an
+	 * unfinished conversion and puts it back after the converted world is deleted.
 	 */
 	private static function moveToBackups(string $original, string $name, string $from, string $backupDir) : string{
-		if(!is_dir($backupDir) && !@mkdir($backupDir, 0777, true) && !is_dir($backupDir)){
+		$suffix = "$from-" . date("Y-m-d_H-i-s");
+		if(is_dir($backupDir) || @mkdir($backupDir, 0777, true) || is_dir($backupDir)){
+			$backup = self::unusedPath(Path::join($backupDir, "$name-$suffix"));
+			if(@rename($original, $backup)){
+				self::syncDirectory($backupDir);
+				self::syncDirectory(dirname($original));
+				return $backup;
+			}
+		}
+		$beside = self::unusedPath(Path::join(dirname($original), ".$name.$suffix-backup"));
+		if(!@rename($original, $beside)){
 			return $original;
 		}
-		$base = Path::join($backupDir, "$name-$from-" . date("Y-m-d_H-i-s"));
-		$backup = $base;
-		for($i = 2; file_exists($backup) || is_link($backup); ++$i){
-			$backup = "$base-$i";
-		}
-		if(!@rename($original, $backup)){
-			return $original;
-		}
-		self::syncDirectory($backupDir);
 		self::syncDirectory(dirname($original));
-		return $backup;
+		return $beside;
+	}
+
+	private static function unusedPath(string $base) : string{
+		$path = $base;
+		for($i = 2; file_exists($path) || is_link($path); ++$i){
+			$path = "$base-$i";
+		}
+		return $path;
 	}
 
 	/**
 	 * Fails early instead of filling the disk the running server saves to.
-	 * ponytail: rough factors from real worlds, where ZigriteDB took ~2.5x the space of zlib LevelDB
+	 * ponytail: factors from real worlds, where an import peaked at 3.4x the size of zlib LevelDB before compaction
 	 */
 	private static function checkFreeSpace(string $path, string $parent, string $format) : void{
+		$size = self::measure($path);
 		$free = @disk_free_space($parent);
-		if($free === false){
-			return;
-		}
-		$needed = (int) (self::size($path) * ($format === self::ZIGRITEDB ? 3 : 1.2));
-		if($free < $needed){
+		$needed = (int) ($size * ($format === self::ZIGRITEDB ? 4 : 1.2));
+		if($free !== false && $free < $needed){
 			throw new \RuntimeException("Converting $path needs about " . round($needed / 1048576) . " MB free next to it, but only " . round($free / 1048576) . " MB is free");
 		}
 	}
 
-	private static function size(string $path) : int{
+	/**
+	 * Returns the size of a world's files. A world folder holding another world is refused, since the inner world
+	 * would end up buried in the converted world's files and vanish from the world list.
+	 */
+	private static function measure(string $path) : int{
 		$total = 0;
 		$entries = @scandir($path, SCANDIR_SORT_NONE);
 		foreach($entries === false ? [] : $entries as $entry){
 			if($entry === "." || $entry === ".." || is_link($child = Path::join($path, $entry))){
 				continue;
 			}
-			$total += is_dir($child) ? self::size($child) : (int) @filesize($child);
+			if(!is_dir($child)){
+				$total += (int) @filesize($child);
+			}elseif(self::detectFormat($child) !== null){
+				throw new \RuntimeException("$child is a world inside the world being converted. Move it out first.");
+			}else{
+				$total += self::measure($child);
+			}
 		}
 		return $total;
 	}
