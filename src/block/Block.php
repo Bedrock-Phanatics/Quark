@@ -956,7 +956,7 @@ class Block{
 	 * Performs a ray trace along the line between the two positions using the block's collision boxes.
 	 * Returns the intersection point closest to pos1, or null if no intersection occurred.
 	 */
-	public function calculateIntercept(Vector3 $pos1, Vector3 $pos2) : ?RayTraceResult{
+	final public function calculateIntercept(Vector3 $pos1, Vector3 $pos2) : ?RayTraceResult{
 		$bbs = $this->getCollisionBoxes();
 		if(count($bbs) === 0){
 			return null;

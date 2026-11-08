@@ -39,17 +39,19 @@ use quark\event\entity\EntityDamageEvent;
 use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
+use quark\math\AxisAlignedBB;
+use quark\math\collision\Raycast;
+use quark\math\physics\Physics;
 use quark\math\RayTraceResult;
 use quark\math\Vector3;
 use quark\math\VoxelRayTrace;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
-use function atan2;
+use quark\utils\AssumptionFailedError;
 use function ceil;
 use function count;
-use function sqrt;
-use const M_PI;
-use const PHP_INT_MAX;
+use function max;
+use function min;
 
 abstract class Projectile extends Entity{
 	private const TAG_STUCK_ON_BLOCK_POS = "StuckToBlockPos";
@@ -60,6 +62,14 @@ abstract class Projectile extends Entity{
 
 	private ?Player $pendingFeedbackVictim = null;
 	private ?Player $pendingFeedbackOwner = null;
+
+	/**
+	 * Whether a projectile class collides with plain block shapes, so the native raycast can stand in for
+	 * calculateInterceptWithBlock()
+	 * @var bool[]
+	 * @phpstan-var array<class-string<Projectile>, bool>
+	 */
+	private static array $tracesBlockShapes = [];
 
 	protected float $damage = 0.0;
 	protected ?Vector3 $blockHit = null;
@@ -174,40 +184,51 @@ abstract class Projectile extends Entity{
 		$hitResult = null;
 
 		$world = $this->getWorld();
-		foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
-			$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
+		$traced = false;
+		if(self::$tracesBlockShapes[static::class] ??= (new \ReflectionMethod($this, "calculateInterceptWithBlock"))->getDeclaringClass()->getName() === self::class){
+			try{
+				$hit = Raycast::blocks($world->getCollisionRegion(new AxisAlignedBB(
+					min($start->x, $end->x), min($start->y, $end->y), min($start->z, $end->z),
+					max($start->x, $end->x), max($start->y, $end->y), max($start->z, $end->z)
+				)), $start, $end);
+				$traced = true;
+				if($hit !== null){
+					$end = $hit->hitVector;
+					$hitResult = [$world->getBlockAt($hit->blockX, $hit->blockY, $hit->blockZ), $hit];
+				}
+			}catch(\ValueError){
+				//outside the coordinates collision data supports, the block-by-block trace still works
+			}
+		}
+		if(!$traced){
+			foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
+				$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
 
-			$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
-			if($blockHitResult !== null){
-				$end = $blockHitResult->hitVector;
-				$hitResult = [$block, $blockHitResult];
-				break;
+				$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
+				if($blockHitResult !== null){
+					$end = $blockHitResult->hitVector;
+					$hitResult = [$block, $blockHitResult];
+					break;
+				}
 			}
 		}
 
-		$entityDistance = PHP_INT_MAX;
-
 		$newDiff = $end->subtractVector($start);
 		$owningEntityId = null;
+		$candidates = [];
+		$boxes = [];
 		foreach($world->getCollidingEntities($this->boundingBox->addCoord($newDiff->x, $newDiff->y, $newDiff->z)->expand(1, 1, 1), $this) as $entity){
 			if($this->ticksLived < 5 && $entity->getId() === ($owningEntityId ??= $this->getOwningEntityId())){
 				continue;
 			}
-
-			$entityBB = $entity->boundingBox->expandedCopy(0.3, 0.3, 0.3);
-			$entityHitResult = $entityBB->calculateIntercept($start, $end);
-
-			if($entityHitResult === null){
-				continue;
-			}
-
-			$distance = $start->distanceSquared($entityHitResult->hitVector);
-
-			if($distance < $entityDistance){
-				$entityDistance = $distance;
-				$hitResult = [$entity, $entityHitResult];
-				$end = $entityHitResult->hitVector;
-			}
+			$candidates[] = $entity;
+			$boxes[] = $entity->boundingBox;
+		}
+		//nearest hit, each one shortening the segment for the next like the block pass
+		if(count($boxes) !== 0 && ($entityHit = Raycast::boxes($start, $end, $boxes, 0.3)) !== null){
+			[$index, $entityHitResult] = $entityHit;
+			$hitResult = [$candidates[$index] ?? throw new AssumptionFailedError("Raycast::boxes() returned a key it was not given"), $entityHitResult];
+			$end = $entityHitResult->hitVector;
 		}
 
 		PulseZones::$projectileMoveRayTrace->stop($projectileMoveRayTraceScope);
@@ -227,11 +248,8 @@ abstract class Projectile extends Entity{
 			$this->isCollided = $this->onGround = false;
 			$this->blockHit = null;
 
-			$horizontalSpeed = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
-			$this->setRotation(
-				atan2($this->motion->x, $this->motion->z) * 180 / M_PI,
-				atan2($this->motion->y, $horizontalSpeed) * 180 / M_PI
-			);
+			[$yaw, $pitch] = Physics::motionRotation($this->motion);
+			$this->setRotation($yaw, $pitch);
 		}
 
 		$world->onEntityMoved($this);
