@@ -24,6 +24,7 @@ Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to name
 - `Block::calculateIntercept()` is final, block raycasts use the block's collision boxes.
 - `quark\world\generator\noise\Simplex` is final and samples natively.
 - Collision queries outside ±33,554,432 blocks horizontally are not supported. Entities there stay in place instead of moving.
+- `World::getBlockCollisionBoxes()` and `getCollisionRegion()` cover at most 4096 chunk sections per query, about 256 × 256 × 256 blocks, and throw `quark\math\collision\CollisionDataException` beyond that.
 
 ### Composer
 
