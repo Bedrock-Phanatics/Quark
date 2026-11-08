@@ -41,7 +41,7 @@ use function strtolower;
 final class WorldCommand extends VanillaCommand{
 
 	public function __construct(){
-		parent::__construct("world", "Manages worlds", "/world <list|tp|load|unload|create|copy|delete> [args]");
+		parent::__construct("world", "Manages worlds", "/world <list|tp|load|unload|create|copy|delete|convert|verify> [args]");
 		$this->setPermission(DefaultPermissionNames::COMMAND_WORLD);
 	}
 
@@ -145,6 +145,29 @@ final class WorldCommand extends VanillaCommand{
 						fn(\Throwable $e) => $this->fail($sender, $e)
 					);
 					$sender->sendMessage("Deleting world \"$name\"...");
+					return true;
+
+				case "convert":
+					if($name === null || count($args) !== 2){
+						throw new InvalidCommandSyntaxException();
+					}
+					$format = strtolower($args[1]);
+					$manager->convertWorld($name, $format)->observe(
+						fn(array $result) => $this->reply($sender, "Converted world \"$name\" to $format: " . $result["chunk_records"] . " chunk records, " . $result["other_records"] . " other records and " . $result["files"] . " world files were copied and checked. The original is at " . $result["backup"]),
+						fn(\Throwable $e) => $this->fail($sender, $e)
+					);
+					$sender->sendMessage("Converting world \"$name\" to $format, it can't be loaded until this finishes...");
+					return true;
+
+				case "verify":
+					if($name === null || count($args) !== 1){
+						throw new InvalidCommandSyntaxException();
+					}
+					$manager->verifyWorld($name)->observe(
+						fn(array $result) => $this->reply($sender, "World \"$name\" passed its checks: " . $result["regions"] . " regions"),
+						fn(\Throwable $e) => $this->fail($sender, $e)
+					);
+					$sender->sendMessage("Verifying world \"$name\"...");
 					return true;
 			}
 		}catch(\InvalidArgumentException | WorldException $e){
