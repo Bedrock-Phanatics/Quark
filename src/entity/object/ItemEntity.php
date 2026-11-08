@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AddItemActorPacket;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
@@ -37,6 +36,7 @@ use quark\event\entity\ItemDespawnEvent;
 use quark\event\entity\ItemMergeEvent;
 use quark\event\entity\ItemSpawnEvent;
 use quark\item\Item;
+use quark\math\Vector3;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\player\Player;

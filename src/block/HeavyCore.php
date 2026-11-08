@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 
 final class HeavyCore extends Transparent{
 	//TODO: Waterlogging!

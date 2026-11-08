@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
 use quark\item\Item;
+use quark\math\Axis;
 
 class NetherPortal extends Transparent{
 

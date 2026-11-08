@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
 use quark\item\Item;
+use quark\math\Axis;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;
 use quark\world\BlockTransaction;

@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Facing;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\block\BlockTypeIds;
 use quark\inventory\Inventory;
@@ -32,6 +31,7 @@ use quark\inventory\transaction\action\validator\CallbackSlotValidator;
 use quark\inventory\transaction\TransactionValidationException;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
+use quark\math\Facing;
 
 class ShulkerBox extends Spawnable implements ContainerTile, Nameable{
 	use NameableTrait {

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\color\Color;
+use quark\color\Color;
 use quark\utils\Utils;
 use function array_fill;
 use function array_pad;

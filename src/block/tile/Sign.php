@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\color\Color;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\utils\Binary;
 use quark\block\utils\SignText;
+use quark\color\Color;
 use function array_pad;
 use function array_slice;
 use function explode;

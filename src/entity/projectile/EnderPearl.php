@@ -40,7 +40,7 @@ class EnderPearl extends Throwable{
 
 			$this->getWorld()->addParticle($origin = $owner->getPosition(), new EndermanTeleportParticle());
 			$this->getWorld()->addSound($origin, new EndermanTeleportSound());
-			$owner->teleport($target = $event->getRayTraceResult()->getHitVector());
+			$owner->teleport($target = $event->getRayTraceResult()->hitVector);
 			$this->getWorld()->addSound($target, new EndermanTeleportSound());
 
 			$owner->attack(new EntityDamageEvent($owner, EntityDamageEvent::CAUSE_FALL, 5));

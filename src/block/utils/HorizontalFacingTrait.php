@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\math\Axis;
+use quark\math\Facing;
 
 trait HorizontalFacingTrait{
 	protected int $facing = Facing::NORTH;

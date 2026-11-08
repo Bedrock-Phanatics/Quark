@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use quark\entity\animation\SquidInkCloudAnimation;
@@ -31,6 +30,7 @@ use quark\event\entity\EntityDamageByEntityEvent;
 use quark\event\entity\EntityDamageEvent;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Vector3;
 use function atan2;
 use function mt_rand;
 use function sqrt;

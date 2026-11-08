@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
-use pocketmine\color\Color;
-use pocketmine\math\Vector3;
 use quark\block\BlockTypeIds;
+use quark\color\Color;
 use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\item\StringToItemParser;
 use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
+use quark\math\Vector3;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\utils\Random;
@@ -93,9 +93,9 @@ class ParticleCommand extends VanillaCommand{
 			$senderPos = $sender->getPosition();
 			$world = $senderPos->getWorld();
 			$pos = new Vector3(
-				$this->getRelativeDouble($senderPos->getX(), $sender, $args[1]),
-				$this->getRelativeDouble($senderPos->getY(), $sender, $args[2], World::Y_MIN, World::Y_MAX),
-				$this->getRelativeDouble($senderPos->getZ(), $sender, $args[3])
+				$this->getRelativeDouble($senderPos->x, $sender, $args[1]),
+				$this->getRelativeDouble($senderPos->y, $sender, $args[2], World::Y_MIN, World::Y_MAX),
+				$this->getRelativeDouble($senderPos->z, $sender, $args[3])
 			);
 		}else{
 			$world = $sender->getServer()->getWorldManager()->getDefaultWorld();

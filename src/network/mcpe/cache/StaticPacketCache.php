@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\network\mcpe\cache;
 
 use Bedwire\Nbt;
-use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AvailableActorIdentifiersPacket;
 use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
@@ -36,6 +35,7 @@ use pocketmine\network\mcpe\protocol\types\SerializableVoxelCells;
 use pocketmine\network\mcpe\protocol\types\SerializableVoxelShape;
 use pocketmine\network\mcpe\protocol\VoxelShapesPacket;
 use quark\block\custom\BlockRegistry;
+use quark\color\Color;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\data\SavedDataLoadingException;
 use quark\network\mcpe\cache\model\VoxelShapesData;

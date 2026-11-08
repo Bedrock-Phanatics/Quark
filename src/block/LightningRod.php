@@ -23,16 +23,16 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\AnyFacingTrait;
 use quark\block\utils\CopperMaterial;
 use quark\block\utils\CopperTrait;
 use quark\block\utils\RedstoneSignalEmitter;
 use quark\item\Item;
+use quark\math\Axis;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

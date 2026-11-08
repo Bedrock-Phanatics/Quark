@@ -139,6 +139,7 @@ use const ZEND_DEBUG_BUILD;
 			"pdo_sqlite" => "PDO SQLite",
 			"phar" => "Phar",
 			"pmmpthread" => "pmmpthread",
+			"qmath" => "Quark Math",
 			"reflection" => "Reflection",
 			"simplexml" => "SimpleXML",
 			"sockets" => "Sockets",
@@ -164,6 +165,7 @@ use const ZEND_DEBUG_BUILD;
 			"leveldb" => ["0.2.1", "0.4.0"],
 			"morton" => ["0.1.0", "0.2.0"],
 			"pmmpthread" => ["6.1.0", "7.0.0"],
+			"qmath" => ["0.3.0", "0.4.0"],
 			"toml" => ["0.2.0", "0.3.0"]
 		] as $ext => [$min, $max]){
 			$version = phpversion($ext);

@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use Generator;
-use pocketmine\math\Facing;
 use quark\item\Item;
+use quark\math\Facing;
 use quark\player\Player;use quark\world\redstone\RedstoneManager;
 use quark\world\redstone\RedstoneWorldState;
 

@@ -24,16 +24,16 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\color\Color;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use quark\block\Block;
 use quark\block\VanillaBlocks;
+use quark\color\Color;
 use quark\entity\animation\Animation;
 use quark\entity\Entity;
 use quark\entity\Zombie;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Vector3;
 use quark\utils\Filesystem;
 use quark\world\particle\Particle;
 use quark\world\sound\Sound;

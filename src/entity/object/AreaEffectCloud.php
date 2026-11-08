@@ -343,8 +343,8 @@ class AreaEffectCloud extends Entity{
 					continue;
 				}
 				$entityPosition = $entity->getPosition();
-				$xDiff = $entityPosition->getX() - $this->location->getX();
-				$zDiff = $entityPosition->getZ() - $this->location->getZ();
+				$xDiff = $entityPosition->x - $this->location->x;
+				$zDiff = $entityPosition->z - $this->location->z;
 				if(($xDiff ** 2 + $zDiff ** 2) > $this->radius ** 2){
 					continue;
 				}

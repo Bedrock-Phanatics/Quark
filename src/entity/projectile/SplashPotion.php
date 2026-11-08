@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
-use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
@@ -31,6 +30,7 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\BlockTypeTags;
 use quark\block\VanillaBlocks;
+use quark\color\Color;
 use quark\data\bedrock\PotionTypeIdMap;
 use quark\entity\effect\EffectInstance;
 use quark\entity\effect\InstantEffect;
@@ -135,7 +135,7 @@ class SplashPotion extends Throwable{
 			$entity->spawnToAll();
 		}
 		if(!$hasEffects && $event instanceof ProjectileHitBlockEvent && $this->getPotionType() === PotionType::WATER){
-			$blockIn = $event->getBlockHit()->getSide($event->getRayTraceResult()->getHitFace());
+			$blockIn = $event->getBlockHit()->getSide($event->getRayTraceResult()->hitFace);
 
 			if($blockIn->hasTypeTag(BlockTypeTags::FIRE)){
 				$this->getWorld()->setBlock($blockIn->getPosition(), VanillaBlocks::AIR());

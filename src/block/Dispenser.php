@@ -23,10 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
-
-use pocketmine\math\Vector3;
 use quark\block\inventory\window\DispenserInventoryWindow;
+
 use quark\block\tile\dispenser\Dispenser as DispenserTile;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\Container;
@@ -39,6 +37,8 @@ use quark\block\utils\redstone\RedstoneBlockAccessTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\inventory\Inventory;
 use quark\item\Item;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;

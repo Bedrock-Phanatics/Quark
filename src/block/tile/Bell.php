@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\math\Facing;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use quark\math\Facing;
 use quark\utils\AssumptionFailedError;
 
 final class Bell extends Spawnable{

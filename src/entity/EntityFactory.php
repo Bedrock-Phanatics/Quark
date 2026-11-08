@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
@@ -54,6 +52,8 @@ use quark\entity\projectile\Snowball;
 use quark\entity\projectile\SplashPotion;
 use quark\entity\projectile\Trident;
 use quark\item\Item;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
 use quark\world\World;

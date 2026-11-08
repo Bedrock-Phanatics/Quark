@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
 use quark\block\utils\AnalogRedstoneSignalEmitter;
 use quark\block\utils\AnalogRedstoneSignalEmitterTrait;
 use quark\block\utils\redstone\PowerSource;
@@ -36,6 +34,8 @@ use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Axis;
+use quark\math\Facing;
 use quark\utils\AssumptionFailedError;
 use function intdiv;
 

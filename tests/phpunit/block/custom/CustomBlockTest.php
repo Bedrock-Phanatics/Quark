@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace quark\block\custom;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -43,6 +41,8 @@ use quark\item\ItemBlock;
 use quark\item\StringToItemParser;
 use quark\item\ToolTier;
 use quark\item\VanillaItems;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\plugin\Plugin;
 use quark\utils\Utils;

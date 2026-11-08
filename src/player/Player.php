@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\player;
 
 use DateTimeImmutable;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
@@ -120,6 +119,7 @@ use quark\item\Releasable;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\Translatable;
+use quark\math\Vector3;
 use quark\network\mcpe\NetworkSession;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;

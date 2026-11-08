@@ -451,7 +451,7 @@ parameters:
 			path: ../../../src/block/Sugarcane.php
 
 		-
-			message: '#^Parameter \#1 \$x of class pocketmine\\math\\Vector3 constructor expects float\|int, int\|null given\.$#'
+			message: '#^Parameter \#1 \$x of class quark\\math\\Vector3 constructor expects float\|int, int\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: ../../../src/block/tile/Chest.php
@@ -475,7 +475,7 @@ parameters:
 			path: ../../../src/block/tile/Chest.php
 
 		-
-			message: '#^Parameter \#3 \$z of class pocketmine\\math\\Vector3 constructor expects float\|int, int\|null given\.$#'
+			message: '#^Parameter \#3 \$z of class quark\\math\\Vector3 constructor expects float\|int, int\|null given\.$#'
 			identifier: argument.type
 			count: 1
 			path: ../../../src/block/tile/Chest.php
@@ -1201,13 +1201,13 @@ parameters:
 			path: ../../../src/world/World.php
 
 		-
-			message: '#^Cannot access offset ''data'' on array\{priority\: int, data\: pocketmine\\math\\Vector3\}\|int\|pocketmine\\math\\Vector3\.$#'
+			message: '#^Cannot access offset ''data'' on array\{priority\: int, data\: quark\\math\\Vector3\}\|int\|quark\\math\\Vector3\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
 			path: ../../../src/world/World.php
 
 		-
-			message: '#^Cannot access offset ''priority'' on array\{priority\: int, data\: pocketmine\\math\\Vector3\}\|int\|pocketmine\\math\\Vector3\.$#'
+			message: '#^Cannot access offset ''priority'' on array\{priority\: int, data\: quark\\math\\Vector3\}\|int\|quark\\math\\Vector3\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
 			path: ../../../src/world/World.php

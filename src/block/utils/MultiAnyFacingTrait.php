@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\math\Facing;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\math\Facing;
 
 /**
  * Used by blocks that can have multiple target faces in the area of one solid block, such as covering three sides of a corner.

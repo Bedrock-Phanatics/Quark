@@ -27,7 +27,6 @@ declare(strict_types=1);
 namespace quark\item;
 
 use Bedwire\Nbt as NativeNbt;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
@@ -44,6 +43,7 @@ use quark\data\runtime\RuntimeDataDescriber;
 use quark\data\runtime\RuntimeDataWriter;
 use quark\data\SavedDataLoadingException;
 use quark\entity\Entity;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\Utils;
 use quark\world\BlockTransaction;

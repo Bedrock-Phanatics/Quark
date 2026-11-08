@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
+use quark\math\Facing;
 
 final class SoulFire extends BaseFire{
 

@@ -23,9 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
-use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
@@ -42,6 +39,9 @@ use quark\event\entity\EntityDamageEvent;
 use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
+use quark\math\RayTraceResult;
+use quark\math\Vector3;
+use quark\math\VoxelRayTrace;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use function atan2;

@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
 use quark\block\utils\RailConnectionInfo;
 use quark\block\utils\RailShape;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\math\Facing;
 
 class Rail extends BaseRail{
 

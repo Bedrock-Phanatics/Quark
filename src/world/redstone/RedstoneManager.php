@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\redstone;
 
-use pocketmine\math\Vector3;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\Transmittable;
+use quark\math\Vector3;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\world\format\Chunk;

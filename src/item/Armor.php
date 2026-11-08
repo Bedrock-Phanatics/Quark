@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use pocketmine\color\Color;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\utils\Binary;
+use quark\color\Color;
 use quark\event\entity\EntityDamageEvent;
 use quark\inventory\ArmorInventory;
 use quark\item\enchantment\ProtectionEnchantment;
 use quark\item\enchantment\VanillaEnchantments;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\Utils;
 use function mt_rand;

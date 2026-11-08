@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -43,6 +42,7 @@ use quark\event\entity\EntityBlockChangeEvent;
 use quark\event\entity\EntityDamageByEntityEvent;
 use quark\event\entity\EntityDamageEvent;
 use quark\item\Item;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\world\format\io\GlobalBlockStateHandlers;
 use quark\world\sound\BlockBreakSound;

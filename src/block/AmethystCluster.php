@@ -23,10 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\AmethystTrait;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\AnyFacingTrait;
@@ -35,6 +31,10 @@ use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Axis;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;
 use quark\world\BlockTransaction;

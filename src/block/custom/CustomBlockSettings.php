@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace quark\block\custom;
 
-use pocketmine\math\AxisAlignedBB;
+use quark\math\AxisAlignedBB;
 
 /**
  * Immutable server behavior shared by every state of one CustomBlock type.

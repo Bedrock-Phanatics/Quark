@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use pocketmine\math\Vector3;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\sound\GoatHornSound;
 

@@ -24,8 +24,6 @@ declare(strict_types=1);
 namespace quark\world\redstone;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\Door;
 use quark\block\Hopper;
 use quark\block\RedstoneComparator;
@@ -39,6 +37,8 @@ use quark\block\VanillaBlocks;
 use quark\entity\Location;
 use quark\entity\object\ItemEntity;
 use quark\item\VanillaItems;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\world\Explosion;
 use quark\world\Position;
 

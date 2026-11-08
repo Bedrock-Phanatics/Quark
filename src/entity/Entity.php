@@ -26,10 +26,6 @@ declare(strict_types=1);
  */
 namespace quark\entity;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector2;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\FloatTag;
@@ -56,6 +52,10 @@ use quark\event\entity\EntityRegainHealthEvent;
 use quark\event\entity\EntitySpawnEvent;
 use quark\event\entity\EntityTeleportEvent;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector2;
+use quark\math\Vector3;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\network\mcpe\protocol\EncodedPacket;

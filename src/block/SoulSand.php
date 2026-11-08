@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 
 class SoulSand extends Opaque{
 

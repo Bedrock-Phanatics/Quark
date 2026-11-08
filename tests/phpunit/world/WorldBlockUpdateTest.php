@@ -25,13 +25,13 @@ namespace quark\world;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
 use quark\block\tile\Chest as TileChest;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
+use quark\math\AxisAlignedBB;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\player\Player;
 use quark\world\format\Chunk;

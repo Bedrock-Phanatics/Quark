@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\StaticSupportTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Axis;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use function atan2;
@@ -59,7 +59,7 @@ final class FloorCoralFan extends BaseCoral{
 		if($player !== null){
 			$playerBlockPos = $player->getPosition()->floor();
 			$directionVector = $blockReplace->position->subtractVector($playerBlockPos)->normalize();
-			$angle = rad2deg(atan2($directionVector->getZ(), $directionVector->getX()));
+			$angle = rad2deg(atan2($directionVector->z, $directionVector->x));
 
 			if($angle <= 45 || 315 <= $angle || (135 <= $angle && $angle <= 225)){
 				//TODO: This produces Z axis 75% of the time, because any negative angle will produce Z axis.

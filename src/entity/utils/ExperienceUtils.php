@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\entity\utils;
 
-use pocketmine\math\Math;
+use quark\math\Math;
 use quark\utils\AssumptionFailedError;
 use function count;
 use function max;

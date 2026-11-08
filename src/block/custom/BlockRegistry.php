@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace quark\block\custom;
 
 use Bedwire\Nbt;
-use pocketmine\math\AxisAlignedBB;
 use pocketmine\nbt\NBT as TagType;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
@@ -36,6 +35,7 @@ use quark\inventory\CreativeGroup;
 use quark\inventory\CreativeInventory;
 use quark\item\custom\ItemDefinition;
 use quark\item\StringToItemParser;
+use quark\math\AxisAlignedBB;
 use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\convert\BlockStateDictionaryEntry;
 use quark\network\mcpe\convert\TypeConverter;
