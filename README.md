@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/quark-logo.png" alt="Quark" width="256">
+  <img src="assets/mascot.svg" alt="PHP + Zig" width="751">
 </p>
 
 <h1 align="center">Quark</h1>
