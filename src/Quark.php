@@ -158,7 +158,7 @@ use const ZEND_DEBUG_BUILD;
 
 		foreach([
 			"bedwire" => ["0.5.0", "0.6.0"],
-			"chunkutils2" => ["0.3.7", "0.4.0"],
+			"chunkutils2" => ["0.4.1", "0.5.0"],
 			"crypto" => ["0.3.1", "0.4.0"],
 			"encoding" => ["1.0.0", "1.1.0"],
 			"igbinary" => ["3.0.1", "4.0.0"],
