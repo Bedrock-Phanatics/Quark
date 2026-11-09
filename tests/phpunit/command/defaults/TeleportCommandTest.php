@@ -57,7 +57,7 @@ final class TeleportCommandTest extends DefaultCommandTestCase{
 		self::assertSame([1.0, 70.0, 2.0], [$this->teleports["Steve"]->x, $this->teleports["Steve"]->y, $this->teleports["Steve"]->z]);
 
 		$this->teleports = [];
-		self::assertSame([], $this->dispatch("tp 5 ~2 ~-3", $steve));
+		self::assertSame(["Teleported Steve to 5, 66, 7"], $this->dispatch("tp 5 ~2 ~-3", $steve));
 		self::assertSame([5.0, 66.0, 7.0, 90.0, 10.0], [$this->teleports["Steve"]->x, $this->teleports["Steve"]->y, $this->teleports["Steve"]->z, $this->teleports["Steve"]->yaw, $this->teleports["Steve"]->pitch]);
 
 		$this->dispatch("tp 0 64 0 ~10 200", $steve);
