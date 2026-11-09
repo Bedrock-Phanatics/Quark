@@ -23,15 +23,15 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\PlayerArgument;
+use quark\command\argument\PositionArgument;
+use quark\command\argument\RelativePosition;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\world\Position;
-use quark\world\World;
-use function count;
 use function round;
 
 class SpawnpointCommand extends VanillaCommand{
@@ -39,41 +39,67 @@ class SpawnpointCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"spawnpoint",
-			KnownTranslationFactory::quark_command_spawnpoint_description(),
-			KnownTranslationFactory::commands_spawnpoint_usage()
+			KnownTranslationFactory::quark_command_spawnpoint_description()
 		);
 		$this->setPermissions([
 			DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF,
 			DefaultPermissionNames::COMMAND_SPAWNPOINT_OTHER
 		]);
+
+		$this->syntax()
+			->permission(DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF)
+			->handler($this->hereForSelf(...));
+		$this->syntax()
+			->registerArgument(self::target())
+			->handler($this->hereForOther(...));
+		$this->syntax()
+			->permission(DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF)
+			->registerArgument(new PositionArgument("position"))
+			->handler($this->atForSelf(...));
+		$this->syntax()
+			->registerArguments([self::target(), new PositionArgument("position")])
+			->handler($this->atForOther(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$target = $this->fetchPermittedPlayerTarget($sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF, DefaultPermissionNames::COMMAND_SPAWNPOINT_OTHER);
-		if($target === null){
-			return true;
+	private static function target() : PlayerArgument{
+		return new PlayerArgument("target", partial: true, self: true);
+	}
+
+	private function hereForSelf(Player $sender) : void{
+		$this->setHere($sender, $sender);
+	}
+
+	private function hereForOther(Player $sender, Player $target) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF, DefaultPermissionNames::COMMAND_SPAWNPOINT_OTHER)){
+			$this->setHere($sender, $target);
 		}
+	}
 
-		if(count($args) === 4){
-			$world = $target->getWorld();
-			$pos = $sender instanceof Player ? $sender->getPosition() : $world->getSpawnLocation();
-			$x = $this->getRelativeDouble($pos->x, $sender, $args[1]);
-			$y = $this->getRelativeDouble($pos->y, $sender, $args[2], World::Y_MIN, World::Y_MAX);
-			$z = $this->getRelativeDouble($pos->z, $sender, $args[3]);
-			$target->setSpawn(new Position($x, $y, $z, $world));
+	private function atForSelf(Player $sender, RelativePosition $position) : void{
+		$this->setAt($sender, $sender, $position);
+	}
 
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($x, 2), (string) round($y, 2), (string) round($z, 2)));
-
-			return true;
-		}elseif(count($args) <= 1 && $sender instanceof Player){
-			$cpos = $sender->getPosition();
-			$pos = Position::fromObject($cpos->floor(), $cpos->getWorld());
-			$target->setSpawn($pos);
-
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($pos->x, 2), (string) round($pos->y, 2), (string) round($pos->z, 2)));
-			return true;
+	private function atForOther(CommandSender $sender, Player $target, RelativePosition $position) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_SPAWNPOINT_SELF, DefaultPermissionNames::COMMAND_SPAWNPOINT_OTHER)){
+			$this->setAt($sender, $target, $position);
 		}
+	}
 
-		throw new InvalidCommandSyntaxException();
+	private function setHere(Player $sender, Player $target) : void{
+		$position = $sender->getPosition();
+		$this->apply($sender, $target, Position::fromObject($position->floor(), $position->getWorld()));
+	}
+
+	private function setAt(CommandSender $sender, Player $target, RelativePosition $position) : void{
+		$resolved = $this->resolvePosition($sender, $position, ($sender instanceof Player ? $sender : $target)->getPosition());
+		if($resolved !== null){
+			$this->apply($sender, $target, Position::fromObject($resolved, $target->getWorld()));
+		}
+	}
+
+	private function apply(CommandSender $sender, Player $target, Position $spawn) : void{
+		$target->setSpawn($spawn);
+
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_command_spawnpoint_success($target->getName(), (string) round($spawn->x, 2), (string) round($spawn->y, 2), (string) round($spawn->z, 2)));
 	}
 }

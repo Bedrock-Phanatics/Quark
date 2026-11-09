@@ -25,14 +25,25 @@ namespace quark\command\defaults;
 
 use pocketmine\color\Color;
 use pocketmine\math\Vector3;
+use pocketmine\utils\Limits;
+use quark\block\Block;
 use quark\block\BlockTypeIds;
+use quark\command\argument\ArgumentParseException;
+use quark\command\argument\CommandEnum;
+use quark\command\argument\EnumArgument;
+use quark\command\argument\FloatArgument;
+use quark\command\argument\IntegerArgument;
+use quark\command\argument\PositionArgument;
+use quark\command\argument\RelativePosition;
+use quark\command\argument\StringArgument;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
+use quark\item\Item;
 use quark\item\StringToItemParser;
 use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\utils\AssumptionFailedError;
 use quark\utils\Random;
 use quark\utils\TextFormat;
 use quark\world\particle\AngryVillagerParticle;
@@ -65,58 +76,145 @@ use quark\world\particle\SporeParticle;
 use quark\world\particle\TerrainParticle;
 use quark\world\particle\WaterDripParticle;
 use quark\world\particle\WaterParticle;
-use quark\world\World;
+use function array_keys;
 use function count;
 use function explode;
-use function max;
 use function microtime;
 use function mt_rand;
-use function strtolower;
+use function preg_match;
 
 class ParticleCommand extends VanillaCommand{
+	public const MAX_COUNT = 1000;
+	public const MAX_SPREAD = 256.0;
+
+	/**
+	 * Builds a particle from the optional data argument, throwing when the data does not fit the particle.
+	 *
+	 * @var \Closure[]
+	 * @phpstan-var array<string, \Closure(string|null) : Particle>
+	 */
+	private array $particles;
 
 	public function __construct(){
 		parent::__construct(
 			"particle",
-			KnownTranslationFactory::quark_command_particle_description(),
-			KnownTranslationFactory::quark_command_particle_usage()
+			KnownTranslationFactory::quark_command_particle_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_PARTICLE);
+
+		$this->particles = [
+			"explode" => static fn() => new ExplodeParticle(),
+			"hugeexplosion" => static fn() => new HugeExplodeParticle(),
+			"hugeexplosionseed" => static fn() => new HugeExplodeSeedParticle(),
+			"bubble" => static fn() => new BubbleParticle(),
+			"splash" => static fn() => new SplashParticle(),
+			"wake" => static fn() => new WaterParticle(),
+			"water" => static fn() => new WaterParticle(),
+			"crit" => static fn() => new CriticalParticle(),
+			"smoke" => static fn(?string $data) => new SmokeParticle(self::int($data, 0)),
+			"spell" => static fn() => new EnchantParticle(new Color(0, 0, 0, 255)), //TODO: colour support
+			"instantspell" => static fn() => new InstantEnchantParticle(new Color(0, 0, 0, 255)), //TODO: colour support
+			"dripwater" => static fn() => new WaterDripParticle(),
+			"driplava" => static fn() => new LavaDripParticle(),
+			"townaura" => static fn() => new SporeParticle(),
+			"spore" => static fn() => new SporeParticle(),
+			"portal" => static fn() => new PortalParticle(),
+			"flame" => static fn() => new FlameParticle(),
+			"lava" => static fn() => new LavaParticle(),
+			"reddust" => static fn(?string $data) => new RedstoneParticle(self::int($data, 1)),
+			"snowballpoof" => static fn() => new ItemBreakParticle(VanillaItems::SNOWBALL()),
+			"slime" => static fn() => new ItemBreakParticle(VanillaItems::SLIMEBALL()),
+			"itembreak" => static fn(?string $data) => new ItemBreakParticle(self::item($data)),
+			"terrain" => static fn(?string $data) => new TerrainParticle(self::block($data)),
+			"heart" => static fn(?string $data) => new HeartParticle(self::int($data, 0)),
+			"ink" => static fn(?string $data) => new InkParticle(self::int($data, 0)),
+			"droplet" => static fn() => new RainSplashParticle(),
+			"enchantmenttable" => static fn() => new EnchantmentTableParticle(),
+			"happyvillager" => static fn() => new HappyVillagerParticle(),
+			"angryvillager" => static fn() => new AngryVillagerParticle(),
+			"forcefield" => static fn(?string $data) => new BlockForceFieldParticle(self::int($data, 0)),
+			"mobflame" => static fn() => new EntityFlameParticle(),
+			"iconcrack" => static fn(?string $data) => new ItemBreakParticle(self::item($data)),
+			"blockcrack" => static fn(?string $data) => new TerrainParticle(self::block($data)),
+			"blockdust" => static fn(?string $data) => new DustParticle(self::color($data)),
+			"sonicexplosion" => static fn() => new SonicExplosionParticle()
+		];
+
+		$this->syntax()
+			->registerArguments([
+				new EnumArgument("particle", CommandEnum::fromValues("Particle", array_keys($this->particles))),
+				new PositionArgument("position"),
+				new FloatArgument("xd", -self::MAX_SPREAD, self::MAX_SPREAD),
+				new FloatArgument("yd", -self::MAX_SPREAD, self::MAX_SPREAD),
+				new FloatArgument("zd", -self::MAX_SPREAD, self::MAX_SPREAD),
+				new IntegerArgument("count", 1, self::MAX_COUNT, optional: true),
+				new StringArgument("data", optional: true)
+			])
+			->handler($this->particle(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 7){
-			throw new InvalidCommandSyntaxException();
+	private static function int(?string $data, int $default) : int{
+		if($data === null){
+			return $default;
 		}
+		if(preg_match('/\A[+-]?[0-9]{1,10}\z/', $data) !== 1 || ($value = (int) $data) < Limits::INT32_MIN || $value > Limits::INT32_MAX){
+			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidValue($data));
+		}
+		return $value;
+	}
 
+	private static function item(?string $data) : Item{
+		$item = $data === null ? null : StringToItemParser::getInstance()->parse($data);
+		if($item === null || $item->isNull()){
+			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidValue($data ?? ""));
+		}
+		return $item;
+	}
+
+	private static function block(?string $data) : Block{
+		$block = self::item($data)->getBlock();
+		if($block->getTypeId() === BlockTypeIds::AIR){
+			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidValue($data ?? ""));
+		}
+		return $block;
+	}
+
+	private static function color(?string $data) : Color{
+		//red_green_blue with an optional alpha, defaulting to opaque
+		$parts = $data === null ? [] : explode("_", $data, limit: 5);
+		if(count($parts) < 3 || count($parts) > 4){
+			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidValue($data ?? ""));
+		}
+		$channels = [];
+		foreach($parts as $part){
+			$channel = self::int($part, 0);
+			if($channel < 0 || $channel > 255){
+				throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidValue($data ?? ""));
+			}
+			$channels[] = $channel;
+		}
+		return new Color($channels[0], $channels[1], $channels[2], $channels[3] ?? 255);
+	}
+
+	private function particle(CommandSender $sender, string $name, RelativePosition $position, float $xd, float $yd, float $zd, int $count = 1, ?string $data = null) : void{
 		if($sender instanceof Player){
-			$senderPos = $sender->getPosition();
-			$world = $senderPos->getWorld();
-			$pos = new Vector3(
-				$this->getRelativeDouble($senderPos->getX(), $sender, $args[1]),
-				$this->getRelativeDouble($senderPos->getY(), $sender, $args[2], World::Y_MIN, World::Y_MAX),
-				$this->getRelativeDouble($senderPos->getZ(), $sender, $args[3])
-			);
+			$base = $sender->getPosition();
+			$world = $base->getWorld();
 		}else{
-			$world = $sender->getServer()->getWorldManager()->getDefaultWorld();
-			$pos = new Vector3((float) $args[1], (float) $args[2], (float) $args[3]);
+			$base = new Vector3(0.0, 0.0, 0.0);
+			$world = $sender->getServer()->getWorldManager()->getDefaultWorld() ?? throw new AssumptionFailedError("No default world");
 		}
 
-		$name = strtolower($args[0]);
+		$pos = $this->resolvePosition($sender, $position, $base);
+		if($pos === null){
+			return;
+		}
 
-		$xd = (float) $args[4];
-		$yd = (float) $args[5];
-		$zd = (float) $args[6];
-
-		$count = isset($args[7]) ? max(1, (int) $args[7]) : 1;
-
-		$data = $args[8] ?? null;
-
-		$particle = $this->getParticle($name, $data);
-
-		if($particle === null){
-			$sender->sendMessage(KnownTranslationFactory::commands_particle_notFound($name)->prefix(TextFormat::RED));
-			return true;
+		try{
+			$particle = ($this->particles[$name] ?? throw new AssumptionFailedError("Unknown particle $name"))($data);
+		}catch(ArgumentParseException $e){
+			$sender->sendMessage(KnownTranslationFactory::quark_command_error_invalidArgument("data", $e->getUserMessage())->prefix(TextFormat::RED));
+			return;
 		}
 
 		$sender->sendMessage(KnownTranslationFactory::commands_particle_success($name, (string) $count));
@@ -130,115 +228,5 @@ class ParticleCommand extends VanillaCommand{
 				$random->nextSignedFloat() * $zd
 			), $particle);
 		}
-
-		return true;
-	}
-
-	private function getParticle(string $name, ?string $data = null) : ?Particle{
-		switch($name){
-			case "explode":
-				return new ExplodeParticle();
-			case "hugeexplosion":
-				return new HugeExplodeParticle();
-			case "hugeexplosionseed":
-				return new HugeExplodeSeedParticle();
-			case "bubble":
-				return new BubbleParticle();
-			case "splash":
-				return new SplashParticle();
-			case "wake":
-			case "water":
-				return new WaterParticle();
-			case "crit":
-				return new CriticalParticle();
-			case "smoke":
-				return new SmokeParticle((int) ($data ?? 0));
-			case "spell":
-				return new EnchantParticle(new Color(0, 0, 0, 255)); //TODO: colour support
-			case "instantspell":
-				return new InstantEnchantParticle(new Color(0, 0, 0, 255)); //TODO: colour support
-			case "dripwater":
-				return new WaterDripParticle();
-			case "driplava":
-				return new LavaDripParticle();
-			case "townaura":
-			case "spore":
-				return new SporeParticle();
-			case "portal":
-				return new PortalParticle();
-			case "flame":
-				return new FlameParticle();
-			case "lava":
-				return new LavaParticle();
-			case "reddust":
-				return new RedstoneParticle((int) ($data ?? 1));
-			case "snowballpoof":
-				return new ItemBreakParticle(VanillaItems::SNOWBALL());
-			case "slime":
-				return new ItemBreakParticle(VanillaItems::SLIMEBALL());
-			case "itembreak":
-				if($data !== null){
-					$item = StringToItemParser::getInstance()->parse($data);
-					if($item !== null && !$item->isNull()){
-						return new ItemBreakParticle($item);
-					}
-				}
-				break;
-			case "terrain":
-				if($data !== null){
-					$block = StringToItemParser::getInstance()->parse($data)?->getBlock();
-					if($block !== null && $block->getTypeId() !== BlockTypeIds::AIR){
-						return new TerrainParticle($block);
-					}
-				}
-				break;
-			case "heart":
-				return new HeartParticle((int) ($data ?? 0));
-			case "ink":
-				return new InkParticle((int) ($data ?? 0));
-			case "droplet":
-				return new RainSplashParticle();
-			case "enchantmenttable":
-				return new EnchantmentTableParticle();
-			case "happyvillager":
-				return new HappyVillagerParticle();
-			case "angryvillager":
-				return new AngryVillagerParticle();
-			case "forcefield":
-				return new BlockForceFieldParticle((int) ($data ?? 0));
-			case "mobflame":
-				return new EntityFlameParticle();
-			case "iconcrack":
-				if($data !== null && ($item = StringToItemParser::getInstance()->parse($data)) !== null && !$item->isNull()){
-					return new ItemBreakParticle($item);
-				}
-				break;
-			case "blockcrack":
-				if($data !== null && ($block = StringToItemParser::getInstance()->parse($data)?->getBlock()) !== null && $block->getTypeId() !== BlockTypeIds::AIR){
-					return new TerrainParticle($block);
-				}
-				break;
-			case "blockdust":
-				if($data !== null){
-					//to preserve the old unlimited explode behaviour, allow this to split into at most 5 parts
-					//this allows the 4th argument to be processed normally if given without forcing it to also consume
-					//any unexpected parts
-					//we probably ought to error in this case, but this will do for now
-					$d = explode("_", $data, limit: 5);
-					if(count($d) >= 3){
-						return new DustParticle(new Color(
-							((int) $d[0]) & 0xff,
-							((int) $d[1]) & 0xff,
-							((int) $d[2]) & 0xff,
-							((int) ($d[3] ?? 255)) & 0xff
-						));
-					}
-				}
-				break;
-			case "sonicexplosion":
-				return new SonicExplosionParticle();
-		}
-
-		return null;
 	}
 }

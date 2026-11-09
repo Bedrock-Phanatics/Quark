@@ -23,79 +23,79 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\utils\Limits;
+use quark\command\argument\IntegerArgument;
+use quark\command\argument\PlayerArgument;
+use quark\command\argument\StringArgument;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
+use quark\command\CommandSyntax;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use function array_slice;
-use function count;
-use function implode;
+use quark\player\Player;
 
 class TitleCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"title",
-			KnownTranslationFactory::quark_command_title_description(),
-			KnownTranslationFactory::commands_title_usage()
+			KnownTranslationFactory::quark_command_title_description()
 		);
 		$this->setPermissions([
 			DefaultPermissionNames::COMMAND_TITLE_SELF,
 			DefaultPermissionNames::COMMAND_TITLE_OTHER
 		]);
+
+		$this->targeting("clear")->handler($this->clear(...));
+		$this->targeting("reset")->handler($this->reset(...));
+		$this->targeting("title")->registerArgument(new StringArgument("text", greedy: true))->handler($this->title(...));
+		$this->targeting("subtitle")->registerArgument(new StringArgument("text", greedy: true))->handler($this->subtitle(...));
+		$this->targeting("actionbar")->registerArgument(new StringArgument("text", greedy: true))->handler($this->actionbar(...));
+		$this->targeting("times")
+			->registerArguments([
+				new IntegerArgument("fadeIn", 0, Limits::INT32_MAX),
+				new IntegerArgument("stay", 0, Limits::INT32_MAX),
+				new IntegerArgument("fadeOut", 0, Limits::INT32_MAX)
+			])
+			->handler($this->times(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 2){
-			throw new InvalidCommandSyntaxException();
+	private function targeting(string $word) : CommandSyntax{
+		return $this->syntax()
+			->registerArgument(new PlayerArgument("target", partial: true, self: true))
+			->literal($word);
+	}
+
+	private function clear(CommandSender $sender, Player $target) : void{
+		$this->apply($sender, $target, $target->removeTitles(...));
+	}
+
+	private function reset(CommandSender $sender, Player $target) : void{
+		$this->apply($sender, $target, $target->resetTitles(...));
+	}
+
+	private function title(CommandSender $sender, Player $target, string $text) : void{
+		$this->apply($sender, $target, static fn() => $target->sendTitle($text));
+	}
+
+	private function subtitle(CommandSender $sender, Player $target, string $text) : void{
+		$this->apply($sender, $target, static fn() => $target->sendSubTitle($text));
+	}
+
+	private function actionbar(CommandSender $sender, Player $target, string $text) : void{
+		$this->apply($sender, $target, static fn() => $target->sendActionBarMessage($text));
+	}
+
+	private function times(CommandSender $sender, Player $target, int $fadeIn, int $stay, int $fadeOut) : void{
+		$this->apply($sender, $target, static fn() => $target->setTitleDuration($fadeIn, $stay, $fadeOut));
+	}
+
+	/**
+	 * @phpstan-param \Closure() : void $action
+	 */
+	private function apply(CommandSender $sender, Player $target, \Closure $action) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_TITLE_SELF, DefaultPermissionNames::COMMAND_TITLE_OTHER)){
+			$action();
+			$sender->sendMessage(KnownTranslationFactory::commands_title_success());
 		}
-
-		$player = $this->fetchPermittedPlayerTarget($sender, $args[0], DefaultPermissionNames::COMMAND_TITLE_SELF, DefaultPermissionNames::COMMAND_TITLE_OTHER);
-		if($player === null){
-			return true;
-		}
-
-		switch($args[1]){
-			case "clear":
-				$player->removeTitles();
-				break;
-			case "reset":
-				$player->resetTitles();
-				break;
-			case "title":
-				if(count($args) < 3){
-					throw new InvalidCommandSyntaxException();
-				}
-
-				$player->sendTitle(implode(" ", array_slice($args, 2)));
-				break;
-			case "subtitle":
-				if(count($args) < 3){
-					throw new InvalidCommandSyntaxException();
-				}
-
-				$player->sendSubTitle(implode(" ", array_slice($args, 2)));
-				break;
-			case "actionbar":
-				if(count($args) < 3){
-					throw new InvalidCommandSyntaxException();
-				}
-
-				$player->sendActionBarMessage(implode(" ", array_slice($args, 2)));
-				break;
-			case "times":
-				if(count($args) < 5){
-					throw new InvalidCommandSyntaxException();
-				}
-
-				$player->setTitleDuration($this->getInteger($sender, $args[2]), $this->getInteger($sender, $args[3]), $this->getInteger($sender, $args[4]));
-				break;
-			default:
-				throw new InvalidCommandSyntaxException();
-		}
-
-		$sender->sendMessage(KnownTranslationFactory::commands_title_success());
-
-		return true;
 	}
 }

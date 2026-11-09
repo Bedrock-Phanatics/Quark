@@ -24,14 +24,22 @@ declare(strict_types=1);
 namespace quark\command\defaults;
 
 use pocketmine\utils\Limits;
+use quark\command\argument\ArgumentParseException;
+use quark\command\argument\BooleanArgument;
+use quark\command\argument\IntegerArgument;
+use quark\command\argument\MappedArgument;
+use quark\command\argument\PlayerArgument;
+use quark\command\argument\StringArgument;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
+use quark\entity\effect\Effect;
 use quark\entity\effect\EffectInstance;
 use quark\entity\effect\StringToEffectParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\player\Player;
 use quark\utils\TextFormat;
 use function count;
+use function intdiv;
 use function strtolower;
 
 class EffectCommand extends VanillaCommand{
@@ -39,94 +47,104 @@ class EffectCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"effect",
-			KnownTranslationFactory::quark_command_effect_description(),
-			KnownTranslationFactory::commands_effect_usage()
+			KnownTranslationFactory::quark_command_effect_description()
 		);
 		$this->setPermissions([
 			DefaultPermissionNames::COMMAND_EFFECT_SELF,
 			DefaultPermissionNames::COMMAND_EFFECT_OTHER
 		]);
+
+		//a plain word here, since "clear" and effect names cannot be told apart by a declared syntax
+		$this->syntax()
+			->registerArguments([self::target(), new StringArgument("effect")])
+			->handler($this->byName(...));
+		$this->syntax()
+			->registerArguments([self::target(), self::effect(), new IntegerArgument("seconds", 0, intdiv(Limits::INT32_MAX, 20))])
+			->registerArguments(self::options())
+			->handler($this->timed(...));
+		$this->syntax()
+			->registerArguments([self::target(), self::effect()])
+			->literal("infinite")
+			->registerArguments(self::options())
+			->handler($this->infinite(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 2){
-			throw new InvalidCommandSyntaxException();
+	private static function target() : PlayerArgument{
+		return new PlayerArgument("target", partial: true, self: true);
+	}
+
+	/**
+	 * @return MappedArgument<Effect>
+	 */
+	private static function effect() : MappedArgument{
+		return new MappedArgument(
+			"effect",
+			static fn(string $name) : Effect => StringToEffectParser::getInstance()->parse($name) ?? throw new ArgumentParseException(KnownTranslationFactory::commands_effect_notFound($name)),
+			Effect::class
+		);
+	}
+
+	/**
+	 * @return array{IntegerArgument, BooleanArgument}
+	 */
+	private static function options() : array{
+		return [new IntegerArgument("amplifier", 0, 255, optional: true), new BooleanArgument("hideParticles", optional: true)];
+	}
+
+	private function byName(CommandSender $sender, Player $target, string $name) : void{
+		if(!$this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER)){
+			return;
+		}
+		if(strtolower($name) === "clear"){
+			$target->getEffects()->clear();
+			$sender->sendMessage(KnownTranslationFactory::commands_effect_success_removed_all($target->getDisplayName()));
+			return;
 		}
 
-		$player = $this->fetchPermittedPlayerTarget($sender, $args[0], DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER);
-		if($player === null){
-			return true;
-		}
-		$effectManager = $player->getEffects();
-
-		if(strtolower($args[1]) === "clear"){
-			$effectManager->clear();
-
-			$sender->sendMessage(KnownTranslationFactory::commands_effect_success_removed_all($player->getDisplayName()));
-			return true;
-		}
-
-		$effect = StringToEffectParser::getInstance()->parse($args[1]);
+		$effect = StringToEffectParser::getInstance()->parse($name);
 		if($effect === null){
-			$sender->sendMessage(KnownTranslationFactory::commands_effect_notFound($args[1])->prefix(TextFormat::RED));
-			return true;
+			$sender->sendMessage(KnownTranslationFactory::commands_effect_notFound($name)->prefix(TextFormat::RED));
+			return;
 		}
+		$this->apply($sender, $target, $effect, null, false, 0, false);
+	}
 
-		$amplification = 0;
-		$infinite = false;
-
-		if(count($args) >= 3){
-			if(strtolower($args[2]) === "infinite"){
-				$duration = null;
-				$infinite = true;
-			}else{
-				if(($d = $this->getBoundedInt($sender, $args[2], 0, (int) (Limits::INT32_MAX / 20))) === null){
-					return false;
-				}
-				$duration = $d * 20; // ticks
-			}
-		}else{
-			$duration = null;
+	private function timed(CommandSender $sender, Player $target, Effect $effect, int $seconds, int $amplifier = 0, bool $hideParticles = false) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER)){
+			$this->apply($sender, $target, $effect, $seconds, false, $amplifier, $hideParticles);
 		}
+	}
 
-		if(count($args) >= 4){
-			$amplification = $this->getBoundedInt($sender, $args[3], 0, 255);
-			if($amplification === null){
-				return false;
-			}
+	private function infinite(CommandSender $sender, Player $target, Effect $effect, int $amplifier = 0, bool $hideParticles = false) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER)){
+			$this->apply($sender, $target, $effect, null, true, $amplifier, $hideParticles);
 		}
+	}
 
-		$visible = true;
-		if(count($args) >= 5){
-			$v = strtolower($args[4]);
-			if($v === "on" || $v === "true" || $v === "t" || $v === "1"){
-				$visible = false;
-			}
-		}
-
-		if($duration === 0){
-			if(!$effectManager->has($effect)){
-				if(count($effectManager->all()) === 0){
-					$sender->sendMessage(KnownTranslationFactory::commands_effect_failure_notActive_all($player->getDisplayName()));
+	private function apply(CommandSender $sender, Player $target, Effect $effect, ?int $seconds, bool $infinite, int $amplifier, bool $hideParticles) : void{
+		$effects = $target->getEffects();
+		if($seconds === 0){
+			if(!$effects->has($effect)){
+				if(count($effects->all()) === 0){
+					$sender->sendMessage(KnownTranslationFactory::commands_effect_failure_notActive_all($target->getDisplayName()));
 				}else{
-					$sender->sendMessage(KnownTranslationFactory::commands_effect_failure_notActive($effect->getName(), $player->getDisplayName()));
+					$sender->sendMessage(KnownTranslationFactory::commands_effect_failure_notActive($effect->getName(), $target->getDisplayName()));
 				}
-				return true;
+				return;
 			}
 
-			$effectManager->remove($effect);
-			$sender->sendMessage(KnownTranslationFactory::commands_effect_success_removed($effect->getName(), $player->getDisplayName()));
-		}else{
-			$instance = new EffectInstance($effect, $duration, $amplification, $visible, infinite: $infinite);
-			$effectManager->add($instance);
-
-			if($infinite){
-				self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_effect_success_infinite($effect->getName(), (string) $instance->getAmplifier(), $player->getDisplayName()));
-			}else{
-				self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_effect_success($effect->getName(), (string) $instance->getAmplifier(), $player->getDisplayName(), (string) ($instance->getDuration() / 20)));
-			}
+			$effects->remove($effect);
+			$sender->sendMessage(KnownTranslationFactory::commands_effect_success_removed($effect->getName(), $target->getDisplayName()));
+			return;
 		}
 
-		return true;
+		$instance = new EffectInstance($effect, $seconds === null ? null : $seconds * 20, $amplifier, !$hideParticles, infinite: $infinite);
+		$effects->add($instance);
+
+		if($infinite){
+			self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_effect_success_infinite($effect->getName(), (string) $instance->getAmplifier(), $target->getDisplayName()));
+		}else{
+			self::broadcastCommandMessage($sender, KnownTranslationFactory::commands_effect_success($effect->getName(), (string) $instance->getAmplifier(), $target->getDisplayName(), (string) ($instance->getDuration() / 20)));
+		}
 	}
 }
