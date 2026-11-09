@@ -37,7 +37,7 @@ trait AnyFacingTrait{
 
 	/** @return $this */
 	public function setFacing(int $facing) : self{
-		Facing::validate($this->facing);
+		Facing::validate($facing);
 		$this->facing = $facing;
 		return $this;
 	}
