@@ -23,13 +23,12 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\IpAddressArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use function count;
-use function inet_pton;
 
 class PardonIpCommand extends VanillaCommand{
 
@@ -37,25 +36,17 @@ class PardonIpCommand extends VanillaCommand{
 		parent::__construct(
 			"pardon-ip",
 			KnownTranslationFactory::quark_command_unban_ip_description(),
-			KnownTranslationFactory::commands_unbanip_usage(),
+			null,
 			["unban-ip"]
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_UNBAN_IP);
+		$this->registerArgument(new IpAddressArgument("address"));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) !== 1){
-			throw new InvalidCommandSyntaxException();
-		}
-
-		if(inet_pton($args[0]) !== false){
-			$sender->getServer()->getIPBans()->remove($args[0]);
-			$sender->getServer()->getNetwork()->unblockAddress($args[0]);
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_unbanip_success($args[0]));
-		}else{
-			$sender->sendMessage(KnownTranslationFactory::commands_unbanip_invalid());
-		}
-
-		return true;
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$ip = $args->string("address");
+		$sender->getServer()->getIPBans()->remove($ip);
+		$sender->getServer()->getNetwork()->unblockAddress($ip);
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_unbanip_success($ip));
 	}
 }

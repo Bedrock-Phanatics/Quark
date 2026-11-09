@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -38,14 +39,12 @@ class SeedCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_SEED);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		if($sender instanceof Player){
 			$seed = $sender->getPosition()->getWorld()->getSeed();
 		}else{
 			$seed = $sender->getServer()->getWorldManager()->getDefaultWorld()->getSeed();
 		}
 		$sender->sendMessage(KnownTranslationFactory::commands_seed_success((string) $seed));
-
-		return true;
 	}
 }

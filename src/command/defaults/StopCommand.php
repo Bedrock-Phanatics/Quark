@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\command\defaults;
 
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -38,11 +39,8 @@ class StopCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_STOP);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_stop_start());
-
 		$sender->getServer()->shutdown();
-
-		return true;
 	}
 }

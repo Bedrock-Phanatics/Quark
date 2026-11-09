@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\command\defaults;
 
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -38,11 +39,8 @@ class SaveOnCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_SAVE_ENABLE);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		$sender->getServer()->getWorldManager()->setAutoSave(true);
-
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_save_enabled());
-
-		return true;
 	}
 }

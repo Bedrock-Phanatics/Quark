@@ -23,8 +23,9 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\EnumArgument;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\BanEntry;
 use quark\permission\DefaultPermissionNames;
@@ -32,7 +33,6 @@ use function array_map;
 use function count;
 use function implode;
 use function sort;
-use function strtolower;
 use const SORT_STRING;
 
 class BanListCommand extends VanillaCommand{
@@ -40,41 +40,21 @@ class BanListCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"banlist",
-			KnownTranslationFactory::quark_command_banlist_description(),
-			KnownTranslationFactory::commands_banlist_usage()
+			KnownTranslationFactory::quark_command_banlist_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_BAN_LIST);
+		$this->registerArgument(new EnumArgument("type", ["ips", "players"], optional: true));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(isset($args[0])){
-			$args[0] = strtolower($args[0]);
-			if($args[0] === "ips"){
-				$list = $sender->getServer()->getIPBans();
-			}elseif($args[0] === "players"){
-				$list = $sender->getServer()->getNameBans();
-			}else{
-				throw new InvalidCommandSyntaxException();
-			}
-		}else{
-			$list = $sender->getServer()->getNameBans();
-			$args[0] = "players";
-		}
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$ips = $args->string("type", "players") === "ips";
+		$server = $sender->getServer();
 
-		$list = array_map(function(BanEntry $entry) : string{
-			return $entry->getName();
-		}, $list->getEntries());
-		sort($list, SORT_STRING);
-		$message = implode(", ", $list);
+		$names = array_map(static fn(BanEntry $entry) : string => $entry->getName(), ($ips ? $server->getIPBans() : $server->getNameBans())->getEntries());
+		sort($names, SORT_STRING);
 
-		if($args[0] === "ips"){
-			$sender->sendMessage(KnownTranslationFactory::commands_banlist_ips((string) count($list)));
-		}else{
-			$sender->sendMessage(KnownTranslationFactory::commands_banlist_players((string) count($list)));
-		}
-
-		$sender->sendMessage($message);
-
-		return true;
+		$count = (string) count($names);
+		$sender->sendMessage($ips ? KnownTranslationFactory::commands_banlist_ips($count) : KnownTranslationFactory::commands_banlist_players($count));
+		$sender->sendMessage(implode(", ", $names));
 	}
 }

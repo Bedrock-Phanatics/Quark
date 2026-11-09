@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory as l10n;
 use quark\lang\Translatable;
@@ -63,7 +64,7 @@ class StatusCommand extends VanillaCommand{
 		return l10n::quark_command_status_memory_stat(number_format(round(($bytes / 1024) / 1024, 2), 2))->prefix(TextFormat::RED);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		$mUsage = Process::getAdvancedMemoryUsage();
 
 		$server = $sender->getServer();
@@ -128,7 +129,5 @@ class StatusCommand extends VanillaCommand{
 				l10n::quark_command_status_world_timeStat(strval(round($world->getTickRateTime(), 2)))->prefix($timeColor)
 			));
 		}
-
-		return true;
 	}
 }

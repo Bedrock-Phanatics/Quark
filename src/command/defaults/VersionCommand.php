@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace quark\command\defaults;
 
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use quark\command\argument\StringArgument;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
@@ -45,14 +47,15 @@ class VersionCommand extends VanillaCommand{
 		parent::__construct(
 			"version",
 			KnownTranslationFactory::quark_command_version_description(),
-			KnownTranslationFactory::quark_command_version_usage(),
+			null,
 			["ver", "about"]
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_VERSION);
+		$this->registerArgument(new StringArgument("plugin", optional: true, greedy: true));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		if(!$args->has("plugin")){
 			$versionColor = VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : TextFormat::GREEN;
 
 			$jitMode = Utils::getOpcacheJitMode();
@@ -83,13 +86,13 @@ class VersionCommand extends VanillaCommand{
 				KnownTranslationFactory::quark_command_version_operatingSystem(TextFormat::GREEN . Utils::getOS() . TextFormat::RESET)
 			]);
 		}else{
-			$pluginName = implode(" ", $args);
+			$pluginName = $args->string("plugin");
 			$exactPlugin = $sender->getServer()->getPluginManager()->getPlugin($pluginName);
 
 			if($exactPlugin instanceof Plugin){
 				$this->describeToSender($exactPlugin, $sender);
 
-				return true;
+				return;
 			}
 
 			$found = false;
@@ -105,8 +108,6 @@ class VersionCommand extends VanillaCommand{
 				$sender->sendMessage(KnownTranslationFactory::quark_command_version_noSuchPlugin());
 			}
 		}
-
-		return true;
 	}
 
 	private function describeToSender(Plugin $plugin, CommandSender $sender) : void{

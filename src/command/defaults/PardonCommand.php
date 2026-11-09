@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\StringArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use function count;
 
 class PardonCommand extends VanillaCommand{
 
@@ -36,21 +36,16 @@ class PardonCommand extends VanillaCommand{
 		parent::__construct(
 			"pardon",
 			KnownTranslationFactory::quark_command_unban_player_description(),
-			KnownTranslationFactory::commands_unban_usage(),
+			null,
 			["unban"]
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_UNBAN_PLAYER);
+		$this->registerArgument(new StringArgument("player"));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) !== 1){
-			throw new InvalidCommandSyntaxException();
-		}
-
-		$sender->getServer()->getNameBans()->remove($args[0]);
-
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_unban_success($args[0]));
-
-		return true;
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$name = $args->string("player");
+		$sender->getServer()->getNameBans()->remove($name);
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_unban_success($name));
 	}
 }

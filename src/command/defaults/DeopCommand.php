@@ -23,43 +23,29 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\UserNameArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\player\Player;
 use quark\utils\TextFormat;
-use function array_shift;
-use function count;
 
 class DeopCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"deop",
-			KnownTranslationFactory::quark_command_deop_description(),
-			KnownTranslationFactory::commands_deop_usage()
+			KnownTranslationFactory::quark_command_deop_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_OP_TAKE);
+		$this->registerArgument(new UserNameArgument("player"));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			throw new InvalidCommandSyntaxException();
-		}
-
-		$name = array_shift($args);
-		if(!Player::isValidUserName($name)){
-			throw new InvalidCommandSyntaxException();
-		}
-
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$name = $args->string("player");
 		$sender->getServer()->removeOp($name);
-		if(($player = $sender->getServer()->getPlayerExact($name)) !== null){
-			$player->sendMessage(KnownTranslationFactory::commands_deop_message()->prefix(TextFormat::GRAY));
-		}
+		$sender->getServer()->getPlayerExact($name)?->sendMessage(KnownTranslationFactory::commands_deop_message()->prefix(TextFormat::GRAY));
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_deop_success($name));
-
-		return true;
 	}
 }
