@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
 use quark\block\BlockBreakInfo as BreakInfo;
 use quark\block\BlockIdentifier as BID;
 use quark\block\BlockToolType as ToolType;
@@ -71,6 +70,7 @@ use quark\item\enchantment\ItemEnchantmentTags as EnchantmentTags;
 use quark\item\Item;
 use quark\item\ToolTier;
 use quark\item\VanillaItems;
+use quark\math\Facing;
 use quark\utils\RegistrySource;
 use quark\world\generator\object\TreeType;
 use function is_int;

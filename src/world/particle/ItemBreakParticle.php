@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
 use quark\item\Item;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\TypeConverter;
 
 class ItemBreakParticle implements Particle{

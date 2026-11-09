@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world;
 
-use pocketmine\math\Vector3;
+use quark\math\Vector3;
 use quark\utils\AssumptionFailedError;
 use function assert;
 

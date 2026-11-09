@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace quark\block\custom;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\BlockIdentifier;
 use quark\block\BlockTypeInfo;
@@ -13,6 +11,8 @@ use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\data\runtime\RuntimeDataWriter;
 use quark\item\Item;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use quark\math\Vector3;
 
 class XpCollectSound implements Sound{
 

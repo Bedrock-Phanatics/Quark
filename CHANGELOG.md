@@ -17,6 +17,8 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Added `zlib` and `snappy` packet-batch compression modes.
 - Added safe fallback to zlib when Snappy is selected but `ext-snappy` is unavailable.
 - Added configurable compression thresholds, levels, asynchronous compression, and asynchronous size thresholds.
+- Replaced `pocketmine/math` and `pocketmine/color` with the native ext-qmath extension.
+- Entity movement collision, block collision queries, projectile raycasts, explosion rays and exposure, world generation noise and nearby entity queries run natively, with identical results. Collision data is cached per world in native sections loaded straight from chunk palettes, and block changes only refresh the cells they affect.
 - Added optional low-latency combat feedback with at most one early packet batch per player per tick.
 - Reduced work in entity, armor, world-storage, serialization, and network hot paths.
 - Expanded use of native extensions for encoding, serialization, compression, database access, and networking.
@@ -54,7 +56,10 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 ## API
 
 - Changed the root PHP namespace from `pocketmine` to `quark`.
-- Renamed the Composer root package to `quark/quark` while retaining the existing `axolotl-pm/*` and `pocketmine/*` dependencies.
+- Moved math and colour types to `quark\math` and `quark\color`, removing legacy getters such as `Vector3::getX()` and `RayTraceResult::getHitVector()`. See [Math](docs/MIGRATING-FROM-POCKETMINE-5.md#math).
+- Added `World::getCollisionRegion()` for native collision queries.
+- Made `Block::calculateIntercept()` and `quark\world\generator\noise\Simplex` final.
+- Renamed the Composer root package to `quark/quark` while retaining the existing `axolotl-pm/*` and other `pocketmine/*` dependencies.
 - Renamed the bootstrap to `src/Quark.php`, the release artifact to `Quark.phar`, and the main configuration to `quark.yml`.
 - Replaced the inherited example plugin with a Quark 6 example and updated the script example to API 6.0.0.
 - Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.

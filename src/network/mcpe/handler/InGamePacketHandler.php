@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\network\mcpe\handler;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
@@ -89,6 +87,8 @@ use quark\item\VanillaItems;
 use quark\item\WritableBook;
 use quark\item\WritableBookPage;
 use quark\item\WrittenBook;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\convert\ItemTranslator;
 use quark\network\mcpe\InventoryManager;
@@ -560,12 +560,12 @@ class InGamePacketHandler extends PacketHandler{
 	 */
 	private function syncBlocksNearby(Vector3 $blockPos, ?int $face) : void{
 		if($blockPos->distanceSquared($this->player->getLocation()) < 10000){
-			$blocks = $blockPos->sidesArray();
+			$blocks = $blockPos->sides();
 			if($face !== null){
 				$sidePos = $blockPos->getSide($face);
 
 				/** @var Vector3[] $blocks */
-				array_push($blocks, ...$sidePos->sidesArray()); //getAllSides() on each of these will include $blockPos and $sidePos because they are next to each other
+				array_push($blocks, ...$sidePos->sides()); //getAllSides() on each of these will include $blockPos and $sidePos because they are next to each other
 			}else{
 				$blocks[] = $blockPos;
 			}

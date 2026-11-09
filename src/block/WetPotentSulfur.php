@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
-use pocketmine\math\VoxelRayTrace;
 use quark\entity\effect\EffectInstance;
 use quark\entity\effect\VanillaEffects;
 use quark\entity\Living;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
+use quark\math\VoxelRayTrace;
 use function count;
 
 class WetPotentSulfur extends PotentSulfur{

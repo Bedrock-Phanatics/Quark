@@ -27,9 +27,6 @@ declare(strict_types=1);
 namespace quark\world;
 
 use Bedwire\Nbt as NativeNbt;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NbtException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -98,6 +95,11 @@ use quark\item\LegacyStringToItemParser;
 use quark\item\StringToItemParser;
 use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
+use quark\math\AxisAlignedBB;
+use quark\math\collision\CollisionRegion;
+use quark\math\collision\Spatial;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\BlockTranslator;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkBroadcastUtils;
@@ -141,8 +143,10 @@ use function array_key_exists;
 use function array_keys;
 use function array_map;
 use function array_merge;
+use function array_push;
 use function array_sum;
 use function assert;
+use function chr;
 use function cos;
 use function count;
 use function floor;
@@ -203,6 +207,10 @@ class World implements ChunkManager{
 
 	//TODO: this could probably do with being a lot bigger
 	private const BLOCK_CACHE_SIZE_CAP = 2048;
+	/** Collision sections kept between cache clears, mixed sections cost about 16 KiB each */
+	private const COLLISION_SECTION_CAP = 2048;
+	/** Room for one more query on top of the soft cap, CollisionRegion refuses queries above 4096 sections */
+	private const COLLISION_SECTION_LIMIT = self::COLLISION_SECTION_CAP + 4096;
 
 	private const DEFERRED_SCHEDULED = 1;
 	private const DEFERRED_NEIGHBOUR = 2;
@@ -254,11 +262,7 @@ class World implements ChunkManager{
 	 */
 	private array $blockCache = [];
 	private int $blockCacheSize = 0;
-	/**
-	 * @var AxisAlignedBB[][][] chunkHash => [relativeBlockHash => AxisAlignedBB[]]
-	 * @phpstan-var array<ChunkPosHash, array<ChunkBlockPosHash, list<AxisAlignedBB>>>
-	 */
-	private array $blockCollisionBoxCache = [];
+	private CollisionRegion $collisionRegion;
 
 	private int $sendTimeTicker = 0;
 
@@ -577,6 +581,7 @@ class World implements ChunkManager{
 		$this->blockStateRegistry = RuntimeBlockStateRegistry::getInstance();
 		$this->minY = $this->provider->getWorldMinY();
 		$this->maxY = $this->provider->getWorldMaxY();
+		$this->collisionRegion = new CollisionRegion(self::COLLISION_SECTION_LIMIT);
 
 		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_preparing($this->displayName)));
 		$generator = GeneratorManager::getInstance()->getGenerator($this->provider->getWorldData()->getGenerator()) ??
@@ -753,7 +758,7 @@ class World implements ChunkManager{
 		$this->provider->close();
 		$this->blockCache = [];
 		$this->blockCacheSize = 0;
-		$this->blockCollisionBoxCache = [];
+		$this->collisionRegion->invalidateAll();
 
 		$this->unloaded = true;
 	}
@@ -1405,7 +1410,7 @@ class World implements ChunkManager{
 		if($force){
 			$this->blockCache = [];
 			$this->blockCacheSize = 0;
-			$this->blockCollisionBoxCache = [];
+			$this->collisionRegion->invalidateAll();
 		}else{
 			//Recalculate this when we're asked - blockCacheSize may be higher than the real size
 			$this->blockCacheSize = 0;
@@ -1418,14 +1423,8 @@ class World implements ChunkManager{
 				}
 			}
 
-			$count = 0;
-			foreach($this->blockCollisionBoxCache as $list){
-				$count += count($list);
-				if($count > self::BLOCK_CACHE_SIZE_CAP){
-					//TODO: Is this really the best logic?
-					$this->blockCollisionBoxCache = [];
-					break;
-				}
+			if($this->collisionRegion->getSectionCount() > self::COLLISION_SECTION_CAP){
+				$this->collisionRegion->invalidateAll();
 			}
 		}
 	}
@@ -1992,46 +1991,90 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * Returns a list of all block AABBs which overlap the full block area at the given coordinates.
-	 * This checks a padding of 1 block around the coordinates to account for oversized AABBs of blocks like fences.
-	 * Larger AABBs (>= 2 blocks on any axis) are not accounted for.
+	 * Returns the world's collision region with every section the box can touch loaded. Unloaded chunks and cells
+	 * outside the world collide like air, as they always have, and are reloaded once their chunk loads. Query the
+	 * region straight away, since any block change can drop the data again. It is the world's own cache, so only query it.
+	 *
+	 * @throws \ValueError if the box is not finite or lies outside the coordinates CollisionRegion supports
+	 */
+	public function getCollisionRegion(AxisAlignedBB $bb) : CollisionRegion{
+		$region = $this->collisionRegion;
+		//a plugin block changing the world while its shape is read could drop sections again, so check once more
+		for($attempt = 0; count($missing = $region->missingSections($bb)) !== 0; ++$attempt){
+			if($attempt === 2){
+				throw new AssumptionFailedError("Collision data keeps changing while it is being loaded");
+			}
+			if($region->getSectionCount() + intdiv(count($missing), 3) > self::COLLISION_SECTION_LIMIT){
+				$region->invalidateAll();
+				$missing = $region->missingSections($bb);
+			}
+			$collisionInfo = $this->blockStateRegistry->collisionInfo;
+			for($i = 0, $count = count($missing); $i < $count; $i += 3){
+				$this->loadCollisionSection($missing[$i], $missing[$i + 1], $missing[$i + 2], $collisionInfo);
+			}
+		}
+		return $region;
+	}
+
+	/**
+	 * @param int[] $collisionInfo
+	 * @phpstan-param array<int, int> $collisionInfo
+	 */
+	private function loadCollisionSection(int $sectionX, int $sectionY, int $sectionZ, array $collisionInfo) : void{
+		$region = $this->collisionRegion;
+		//after a few block changes only those cells are unknown, past that the palette is cheaper than cell by cell
+		$cells = $region->unknownCells($sectionX, $sectionY, $sectionZ);
+		if($cells === null || count($cells) > 256){
+			$cells = $this->setCollisionSection($sectionX, $sectionY, $sectionZ, $collisionInfo);
+		}
+
+		$baseX = $sectionX << SubChunk::COORD_BIT_SIZE;
+		$baseY = $sectionY << SubChunk::COORD_BIT_SIZE;
+		$baseZ = $sectionZ << SubChunk::COORD_BIT_SIZE;
+		foreach($cells as $index){
+			$x = $baseX | ($index >> 8);
+			$y = $baseY | ($index & SubChunk::COORD_MASK);
+			$z = $baseZ | (($index >> 4) & SubChunk::COORD_MASK);
+			$info = $this->getBlockCollisionInfo($x, $y, $z, $collisionInfo);
+			$region->setCell($x, $y, $z, $info, $info === RuntimeBlockStateRegistry::COLLISION_CUSTOM || $info === RuntimeBlockStateRegistry::COLLISION_MAY_OVERFLOW ?
+				$this->getBlockAt($x, $y, $z)->getCollisionBoxes() :
+				[]
+			);
+		}
+	}
+
+	/**
+	 * Stores a section's collision info straight from the chunk palette.
 	 *
 	 * @param int[] $collisionInfo
 	 * @phpstan-param array<int, int> $collisionInfo
 	 *
-	 * @return AxisAlignedBB[]
-	 * @phpstan-return list<AxisAlignedBB>
+	 * @return int[] indexes of the cells whose boxes still have to be set
+	 * @phpstan-return list<int>
 	 */
-	private function getBlockCollisionBoxesForCell(int $x, int $y, int $z, array $collisionInfo) : array{
-		$stateCollisionInfo = $this->getBlockCollisionInfo($x, $y, $z, $collisionInfo);
-		$boxes = match($stateCollisionInfo){
-			RuntimeBlockStateRegistry::COLLISION_NONE => [],
-			RuntimeBlockStateRegistry::COLLISION_CUBE => [AxisAlignedBB::one()->offset($x, $y, $z)],
-			default => $this->getBlockAt($x, $y, $z)->getCollisionBoxes()
-		};
-
-		//overlapping AABBs can't make any difference if this is a cube, so we can save some CPU cycles in this common case
-		if($stateCollisionInfo !== RuntimeBlockStateRegistry::COLLISION_CUBE){
-			$cellBB = null;
-			foreach(Facing::OFFSET as [$dx, $dy, $dz]){
-				$offsetX = $x + $dx;
-				$offsetY = $y + $dy;
-				$offsetZ = $z + $dz;
-				$stateCollisionInfo = $this->getBlockCollisionInfo($offsetX, $offsetY, $offsetZ, $collisionInfo);
-				if($stateCollisionInfo === RuntimeBlockStateRegistry::COLLISION_MAY_OVERFLOW){
-					//avoid allocating this unless it's needed
-					$cellBB ??= AxisAlignedBB::one()->offset($x, $y, $z);
-					$extraBoxes = $this->getBlockAt($offsetX, $offsetY, $offsetZ)->getCollisionBoxes();
-					foreach($extraBoxes as $extraBox){
-						if($extraBox->intersectsWith($cellBB)){
-							$boxes[] = $extraBox;
-						}
-					}
-				}
-			}
+	private function setCollisionSection(int $sectionX, int $sectionY, int $sectionZ, array $collisionInfo) : array{
+		$region = $this->collisionRegion;
+		$minY = $sectionY << SubChunk::COORD_BIT_SIZE;
+		$maxY = $minY + SubChunk::EDGE_LENGTH - 1;
+		$chunk = $this->getChunk($sectionX, $sectionZ);
+		if($chunk === null || $maxY < $this->minY || $minY >= $this->maxY){
+			return $region->setSectionPalette($sectionX, $sectionY, $sectionZ, 0, "", chr(RuntimeBlockStateRegistry::COLLISION_NONE));
+		}
+		if($minY < $this->minY || $maxY >= $this->maxY){
+			//world bounds that don't line up with sections, every cell is looked up on its own
+			return $region->setSectionPalette($sectionX, $sectionY, $sectionZ, 0, "", chr(RuntimeBlockStateRegistry::COLLISION_CUSTOM));
 		}
 
-		return $boxes;
+		$subChunk = $chunk->getSubChunk($sectionY);
+		$layer = $subChunk->getBlockLayer0();
+		if($layer === null){
+			return $region->setSectionPalette($sectionX, $sectionY, $sectionZ, 0, "", chr($collisionInfo[$subChunk->getEmptyBlockId()]));
+		}
+		$infos = "";
+		foreach($layer->getPalette() as $stateId){
+			$infos .= chr($collisionInfo[$stateId]);
+		}
+		return $region->setSectionPalette($sectionX, $sectionY, $sectionZ, $layer->getBitsPerBlock(), $layer->getWordArray(), $infos);
 	}
 
 	/**
@@ -2039,34 +2082,7 @@ class World implements ChunkManager{
 	 * @phpstan-return list<AxisAlignedBB>
 	 */
 	public function getBlockCollisionBoxes(AxisAlignedBB $bb) : array{
-		$minX = (int) floor($bb->minX);
-		$minY = (int) floor($bb->minY);
-		$minZ = (int) floor($bb->minZ);
-		$maxX = (int) floor($bb->maxX);
-		$maxY = (int) floor($bb->maxY);
-		$maxZ = (int) floor($bb->maxZ);
-
-		$collides = [];
-
-		$collisionInfo = $this->blockStateRegistry->collisionInfo;
-
-		for($z = $minZ; $z <= $maxZ; ++$z){
-			for($x = $minX; $x <= $maxX; ++$x){
-				$chunkPosHash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
-				$columnHash = World::chunkBlockHash($x, 0, $z);
-				for($y = $minY; $y <= $maxY; ++$y){
-					$boxes = $this->blockCollisionBoxCache[$chunkPosHash][$columnHash | ($y << (2 * Chunk::COORD_BIT_SIZE))] ??= $this->getBlockCollisionBoxesForCell($x, $y, $z, $collisionInfo);
-
-					foreach($boxes as $blockBB){
-						if($blockBB->intersectsWith($bb)){
-							$collides[] = $blockBB;
-						}
-					}
-				}
-			}
-		}
-
-		return $collides;
+		return $this->getCollisionRegion($bb)->getCollisionBoxes($bb);
 	}
 
 	/**
@@ -2533,19 +2549,8 @@ class World implements ChunkManager{
 			unset($this->blockCache[$chunkHash][$relativeBlockHash]);
 			$this->blockCacheSize--;
 		}
-		if(count($this->blockCollisionBoxCache) > 0){
-			unset($this->blockCollisionBoxCache[$chunkHash][$relativeBlockHash]);
-			//blocks like fences have collision boxes that reach into neighbouring blocks, so we need to invalidate the
-			//caches for those blocks as well
-			foreach(Facing::OFFSET as [$offsetX, $offsetY, $offsetZ]){
-				$sideX = $x + $offsetX;
-				$sideZ = $z + $offsetZ;
-				$sideChunkHash = ($sideX >> Chunk::COORD_BIT_SIZE) === $chunkX && ($sideZ >> Chunk::COORD_BIT_SIZE) === $chunkZ ?
-					$chunkHash :
-					World::chunkHash($sideX >> Chunk::COORD_BIT_SIZE, $sideZ >> Chunk::COORD_BIT_SIZE);
-				unset($this->blockCollisionBoxCache[$sideChunkHash][World::chunkBlockHash($sideX, $y + $offsetY, $sideZ)]);
-			}
-		}
+		//neighbours too, since their shapes may connect to this block
+		$this->collisionRegion->invalidateBlock($x, $y, $z);
 
 		$this->changedBlocks[$chunkHash][$relativeBlockHash] = true;
 
@@ -2915,25 +2920,11 @@ class World implements ChunkManager{
 		$minZ = ((int) floor($bb->minZ - 2)) >> Chunk::COORD_BIT_SIZE;
 		$maxZ = ((int) floor($bb->maxZ + 2)) >> Chunk::COORD_BIT_SIZE;
 
-		//inlined intersectsWith() since this runs for every nearby entity
-		$bbMinX = $bb->minX;
-		$bbMinY = $bb->minY;
-		$bbMinZ = $bb->minZ;
-		$bbMaxX = $bb->maxX;
-		$bbMaxY = $bb->maxY;
-		$bbMaxZ = $bb->maxZ;
 		for($x = $minX; $x <= $maxX; ++$x){
 			for($z = $minZ; $z <= $maxZ; ++$z){
-				foreach($this->getChunkEntities($x, $z) as $ent){
-					$entBB = $ent->boundingBox;
-					if(
-						$ent !== $entity &&
-						$bbMaxX - $entBB->minX > 0.00001 && $entBB->maxX - $bbMinX > 0.00001 &&
-						$bbMaxY - $entBB->minY > 0.00001 && $entBB->maxY - $bbMinY > 0.00001 &&
-						$bbMaxZ - $entBB->minZ > 0.00001 && $entBB->maxZ - $bbMinZ > 0.00001
-					){
-						$nearby[] = $ent;
-					}
+				$chunkEntities = $this->getChunkEntities($x, $z);
+				if(count($chunkEntities) !== 0){
+					array_push($nearby, ...Spatial::overlapping($chunkEntities, $bb, $entity));
 				}
 			}
 		}
@@ -3183,7 +3174,7 @@ class World implements ChunkManager{
 
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
-		unset($this->blockCollisionBoxCache[$chunkHash]);
+		$this->collisionRegion->invalidateChunk($chunkX, $chunkZ);
 		unset($this->changedBlocks[$chunkHash]);
 		$chunk->setTerrainDirty();
 		$this->markTickingChunkForRecheck($chunkX, $chunkZ); //this replacement chunk may not meet the conditions for ticking
@@ -3516,7 +3507,7 @@ class World implements ChunkManager{
 
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
-		unset($this->blockCollisionBoxCache[$chunkHash]);
+		$this->collisionRegion->invalidateChunk($x, $z);
 
 		$this->initChunk($x, $z, $chunkData, $chunk);
 
@@ -3612,6 +3603,7 @@ class World implements ChunkManager{
 					//TODO: in the future we should pull tile reading logic out of readStateFromWorld() and do it only
 					//when the tile is loaded - this would be cleaner and faster
 					$chunk->setBlockStateId($tilePosition->getFloorX() & Chunk::COORD_MASK, $tilePosition->getFloorY(), $tilePosition->getFloorZ() & Chunk::COORD_MASK, $actualStateId);
+					$this->collisionRegion->invalidateBlock($tilePosition->getFloorX(), $tilePosition->getFloorY(), $tilePosition->getFloorZ());
 					$this->logger->debug("Tile " . $tile::class . " at x=$tilePosition->x,y=$tilePosition->y,z=$tilePosition->z updated block state ID from $expectedStateId to $actualStateId");
 				}
 			}
@@ -3694,7 +3686,7 @@ class World implements ChunkManager{
 		unset($this->chunks[$chunkHash], $this->savedChunkStates[$chunkHash]);
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
-		unset($this->blockCollisionBoxCache[$chunkHash]);
+		$this->collisionRegion->invalidateChunk($x, $z);
 		unset($this->changedBlocks[$chunkHash]);
 		unset($this->registeredTickingChunks[$chunkHash]);
 		$this->markTickingChunkForRecheck($x, $z);

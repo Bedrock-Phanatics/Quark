@@ -23,10 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use quark\block\tile\Bell as TileBell;
 use quark\block\utils\BellAttachmentType;
 use quark\block\utils\HorizontalFacing;
@@ -35,6 +31,10 @@ use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\projectile\Projectile;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\RayTraceResult;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\sound\BellRingSound;

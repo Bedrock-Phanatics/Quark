@@ -28,10 +28,6 @@ namespace quark\block;
 
 use pmmp\encoding\BE;
 use pmmp\encoding\LE;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\block\tile\Spawnable;
 use quark\block\tile\Tile;
@@ -49,6 +45,10 @@ use quark\item\enchantment\ItemEnchantmentTags;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
 use quark\item\ItemBlock;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\RayTraceResult;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\Position;
@@ -956,7 +956,7 @@ class Block{
 	 * Performs a ray trace along the line between the two positions using the block's collision boxes.
 	 * Returns the intersection point closest to pos1, or null if no intersection occurred.
 	 */
-	public function calculateIntercept(Vector3 $pos1, Vector3 $pos2) : ?RayTraceResult{
+	final public function calculateIntercept(Vector3 $pos1, Vector3 $pos2) : ?RayTraceResult{
 		$bbs = $this->getCollisionBoxes();
 		if(count($bbs) === 0){
 			return null;

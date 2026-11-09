@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\utils\RedstoneSignalEmitter;
 use quark\block\utils\StaticSupportTrait;
 use quark\block\utils\SupportType;
 use quark\entity\Entity;
 use quark\event\block\PressurePlateUpdateEvent;
+use quark\math\Axis;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\world\sound\PressurePlateActivateSound;
 use quark\world\sound\PressurePlateDeactivateSound;
 use function count;

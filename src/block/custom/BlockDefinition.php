@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace quark\block\custom;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\BlockBreakInfo;
 use quark\block\BlockIdentifier;
@@ -35,6 +33,8 @@ use quark\inventory\CreativeGroup;
 use quark\item\custom\ItemDefinition;
 use quark\item\Item;
 use quark\item\ToolTier;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\utils\Utils;
 use function array_values;
 use function explode;

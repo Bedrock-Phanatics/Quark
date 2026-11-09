@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
-use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
@@ -41,6 +40,7 @@ use quark\event\entity\EntityDamageByEntityEvent;
 use quark\event\entity\EntityDamageEvent;
 use quark\item\FireworkRocket as FireworkItem;
 use quark\item\FireworkRocketExplosion;
+use quark\math\VoxelRayTrace;
 use quark\utils\Utils;
 use quark\world\sound\FireworkCrackleSound;
 use quark\world\sound\FireworkLaunchSound;

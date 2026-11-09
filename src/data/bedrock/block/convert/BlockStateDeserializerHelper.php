@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\convert;
 
-use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\Button;
 use quark\block\Candle;
@@ -59,6 +58,7 @@ use quark\data\bedrock\block\BlockStateNames;
 use quark\data\bedrock\block\BlockStateNames as StateNames;
 use quark\data\bedrock\block\convert\property\ValueMappings;
 use quark\data\bedrock\MushroomBlockTypeIdMap;
+use quark\math\Facing;
 
 /**
  * @deprecated

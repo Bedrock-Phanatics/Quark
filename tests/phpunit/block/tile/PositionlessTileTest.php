@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\block\tile;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
+use quark\math\Vector3;
 use quark\Server;
 use quark\utils\ReversePriorityQueue;
 use quark\world\format\Chunk;

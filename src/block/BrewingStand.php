@@ -23,9 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\inventory\window\BrewingStandInventoryWindow;
 use quark\block\tile\BrewingStand as TileBrewingStand;
 use quark\block\utils\BrewingStandSlot;
@@ -34,6 +31,9 @@ use quark\block\utils\ContainerTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\inventory\Inventory;
+use quark\math\Axis;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\world\Position;

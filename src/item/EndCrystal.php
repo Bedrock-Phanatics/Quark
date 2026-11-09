@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\BlockTypeIds;
 use quark\entity\Location;
 use quark\entity\object\EndCrystal as EntityEndCrystal;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use function count;
 
@@ -40,7 +40,7 @@ class EndCrystal extends Item{
 			$pos = $blockClicked->getPosition();
 			$world = $pos->getWorld();
 			$bb = AxisAlignedBB::one()
-				->offset($pos->getX(), $pos->getY(), $pos->getZ())
+				->offset($pos->x, $pos->y, $pos->z)
 				->extend(Facing::UP, 1);
 			if(
 				count($world->getNearbyEntities($bb)) === 0 &&

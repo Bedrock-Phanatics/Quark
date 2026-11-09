@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\entity\effect;
 
-use pocketmine\color\Color;
 use pocketmine\utils\Limits;
+use quark\color\Color;
 
 /**
  * Immutable description of an effect. The ticks left on an active effect are tracked by the {@see EffectCollection}

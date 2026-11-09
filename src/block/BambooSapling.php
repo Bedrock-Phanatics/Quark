@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\StaticSupportTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\event\block\StructureGrowEvent;
@@ -32,6 +30,8 @@ use quark\item\Bamboo as ItemBamboo;
 use quark\item\Fertilizer;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 

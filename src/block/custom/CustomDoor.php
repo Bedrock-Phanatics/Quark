@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace quark\block\custom;
 
-use pocketmine\math\Facing;
 use quark\block\Door;
+use quark\math\Facing;
 
 /**
  * Clients render each custom door half from its own state, so redstone must update the saved state of both halves.

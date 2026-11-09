@@ -7,8 +7,24 @@ Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to name
 ### Namespaces
 
 - Core namespace: `pocketmine\` → `quark\`
-- External libraries such as `pocketmine\math` and `pocketmine\nbt` remain unchanged.
+- Math and colour types come from the native ext-qmath extension: `pocketmine\math` → `quark\math` and `pocketmine\color` → `quark\color`, with the same class names. See [Math](#math).
+- Other external libraries such as `pocketmine\nbt` remain unchanged.
 - Update reflection strings, serialized class names, PHPStan configuration, tests, and scripts referencing the old namespace.
+
+### Math
+
+`pocketmine/math` and `pocketmine/color` are replaced by [ext-qmath](https://github.com/Bedrock-Phanatics/ext-qmath), which Quark requires at runtime. Results match pmmp/Math 1.0 and pocketmine/color 0.3 exactly. Besides the namespace:
+
+- `Vector3::getX()`, `getY()`, `getZ()` and `Vector2::getX()`, `getY()` are gone, read `->x`, `->y`, `->z`.
+- `RayTraceResult::getBoundingBox()`, `getHitFace()`, `getHitVector()` are gone, read `->bb`, `->hitFace`, `->hitVector`. The properties are readonly.
+- `Vector3::sidesArray()` is gone. `sides()` and `sidesAroundAxis()` return arrays keyed by facing instead of generators.
+- `Vector3::maxPlainDistance()`, `getIntermediateWith*Value()`, `AxisAlignedBB::isVectorIn*()` and `Matrix` are gone.
+- `VoxelRayTrace` returns a lazy `VoxelRayIterator` instead of a generator.
+- Serialized vectors from PocketMine do not unserialize into the new classes.
+- `Block::calculateIntercept()` is final, block raycasts use the block's collision boxes.
+- `quark\world\generator\noise\Simplex` is final and samples natively.
+- Collision queries outside ±33,554,432 blocks horizontally are not supported. Entities there stay in place instead of moving.
+- `World::getBlockCollisionBoxes()` and `getCollisionRegion()` cover at most 4096 chunk sections per query, about 256 × 256 × 256 blocks, and throw `quark\math\collision\CollisionDataException` beyond that.
 
 ### Composer
 

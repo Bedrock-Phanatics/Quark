@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quarktests\TesterPlugin;
 
-use pocketmine\math\AxisAlignedBB;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\block\custom\BlockDefinition;
 use quark\block\custom\BlockRegistry;
@@ -40,6 +39,7 @@ use quark\item\ArmorTypeInfo;
 use quark\item\custom\ItemDefinition;
 use quark\item\custom\ItemRegistry;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
 use quark\network\mcpe\cache\StaticPacketCache;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\plugin\PluginBase;

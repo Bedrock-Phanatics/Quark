@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\data;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use quark\math\Vector3;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
 use quark\world\format\io\WorldData;

@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\entity\effect;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\MobEffectPacket;
 use pocketmine\utils\Limits;
@@ -39,6 +38,7 @@ use quark\event\entity\EntityRegainHealthEvent;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\RegisteredListener;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\PacketBroadcaster;
 use quark\network\mcpe\StandardEntityEventBroadcaster;

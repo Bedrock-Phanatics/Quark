@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\color\Color;
+use quark\color\Color;
 use function spl_object_id;
 
 /**

@@ -93,7 +93,7 @@ Everything the client must agree on is derived from the server block for every s
 ## Light-emitting blocks and custom behavior
 
 ```php
-use pocketmine\math\Vector3;
+use quark\math\Vector3;
 use quark\block\BlockIdentifier;
 use quark\block\BlockTypeInfo;
 use quark\block\custom\CustomBlock;

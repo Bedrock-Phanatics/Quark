@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\convert;
 
-use pocketmine\math\Facing;
 use quark\block\ActivatorRail;
 use quark\block\AmethystCluster;
 use quark\block\Anvil;
@@ -128,6 +127,7 @@ use quark\data\bedrock\block\convert\property\ValueFromIntProperty;
 use quark\data\bedrock\block\convert\property\ValueFromStringProperty;
 use quark\data\bedrock\block\convert\property\ValueMappings;
 use quark\data\bedrock\block\convert\property\ValueSetFromIntProperty;
+use quark\math\Facing;
 use function array_map;
 use function min;
 use function range;

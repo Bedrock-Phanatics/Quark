@@ -24,11 +24,11 @@ declare(strict_types=1);
 namespace quark\world\redstone;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Facing;
 use quark\block\RedstoneLamp;
 use quark\block\RedstoneRepeater;
 use quark\block\utils\redstone\RedstoneRepeaterBlockData;
 use quark\block\VanillaBlocks;
+use quark\math\Facing;
 use quark\world\ChunkListener;
 use quark\world\ChunkListenerNoOpTrait;
 

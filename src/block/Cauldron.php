@@ -23,9 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\tile\Cauldron as TileCauldron;
 use quark\block\utils\SupportType;
 use quark\item\Item;
@@ -34,6 +31,9 @@ use quark\item\Potion;
 use quark\item\PotionType;
 use quark\item\SplashPotion;
 use quark\item\VanillaItems;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use function assert;
 

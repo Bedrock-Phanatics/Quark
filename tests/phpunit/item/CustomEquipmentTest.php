@@ -6,7 +6,6 @@ namespace quark\item;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use quark\block\tile\dispenser\ArmorDispensableItem;
 use quark\entity\animation\Animation;
 use quark\entity\AttributeMap;
@@ -31,6 +30,7 @@ use quark\inventory\transaction\TransactionValidationException;
 use quark\item\custom\CustomSword;
 use quark\item\enchantment\ItemEnchantmentTags;
 use quark\item\enchantment\VanillaEnchantments;
+use quark\math\Vector3;
 use quark\player\GameMode;
 use quark\player\Player;
 use quark\player\PlayerInventoryType;
