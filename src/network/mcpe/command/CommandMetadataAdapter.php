@@ -98,27 +98,6 @@ final class CommandMetadataAdapter{
 	}
 
 	/**
-	 * Identifies everything about the packet that depends on the player, so players with the same signature can
-	 * share one packet.
-	 *
-	 * @param Command[] $commands
-	 * @phpstan-param array<string, Command> $commands
-	 */
-	public static function createSignature(array $commands, Player $player) : string{
-		$signature = $player->getLanguage()->getLang();
-		foreach($commands as $command){
-			if(!self::isListed($command, $commands, $player)){
-				continue;
-			}
-			$signature .= "|" . $command->getLabel() . ":";
-			foreach($command->getPreparedSyntaxes() ?? [] as $syntax){
-				$signature .= $syntax->testPermissionSilent($player) ? "1" : "0";
-			}
-		}
-		return $signature;
-	}
-
-	/**
 	 * @param Command[] $commands
 	 * @phpstan-param array<string, Command> $commands
 	 */

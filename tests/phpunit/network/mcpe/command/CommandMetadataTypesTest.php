@@ -32,7 +32,6 @@ use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use function array_map;
-use function count;
 
 final class CommandMetadataTypesTest extends TestCase{
 	private const int VALID = AvailableCommandsPacket::ARG_FLAG_VALID;
@@ -160,37 +159,5 @@ final class CommandMetadataTypesTest extends TestCase{
 		$packet = $this->packet($versions);
 		self::assertSame([], $packet->softEnums);
 		self::assertSame([], $versions);
-	}
-
-	public function testPlayersWithTheSameCommandsShareOnePacketPerResync() : void{
-		$manager = PermissionManager::getInstance();
-		if($manager->getPermission("test.admin") === null){
-			$manager->addPermission(new Permission("test.admin"));
-		}
-		$command = $this->command("warp");
-		$command->syntax("list");
-		$command->syntax("admin")->permission("test.admin");
-		$this->map->register("test", $command);
-
-		$cache = new CommandMetadataCache();
-		$commands = $this->map->getCommands();
-		$versions = [];
-		$first = $cache->get($commands, $this->player(), $versions);
-		self::assertSame($first, $cache->get($commands, $this->player(), $versions));
-
-		$admin = TestCommandSender::closedPlayer(self::createStub(Player::class));
-		$admin->method("getLanguage")->willReturn(TestCommandSender::language());
-		$admin->method("hasPermission")->willReturn(true);
-		$other = $cache->get($commands, $admin, $versions);
-		self::assertNotSame($first, $other, "a player who may use more syntaxes needs their own packet");
-		$overloadCount = static function(AvailableCommandsPacket $packet) : int{
-			foreach($packet->commandData as $data){
-				if($data->getName() === "warp"){
-					return count($data->getOverloads());
-				}
-			}
-			return 0;
-		};
-		self::assertSame([2, 3], [$overloadCount($first), $overloadCount($other)]);
 	}
 }

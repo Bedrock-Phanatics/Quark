@@ -83,10 +83,6 @@ final class SoftEnum{
 		return array_values($this->values);
 	}
 
-	public function count() : int{
-		return count($this->values);
-	}
-
 	public function has(string $value) : bool{
 		return isset($this->values[strtolower($value)]);
 	}

@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\command\argument;
 
 use quark\command\CommandSender;
+use quark\lang\KnownTranslationFactory;
 use function preg_match;
 
 /**
@@ -38,7 +39,7 @@ final class StringArgument extends Argument{
 	}
 
 	public function parse(string $input, CommandSender $sender) : string{
-		return $input;
+		return $this->matches($input) ? $input : throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidValue($input));
 	}
 
 	public function matches(string $token, int $slot = 0) : bool{

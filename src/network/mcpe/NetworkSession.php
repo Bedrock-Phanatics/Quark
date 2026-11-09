@@ -84,7 +84,6 @@ use quark\lang\Translatable;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\cache\ChunkCache;
 use quark\network\mcpe\command\CommandMetadataAdapter;
-use quark\network\mcpe\command\CommandMetadataCache;
 use quark\network\mcpe\command\SoftEnumUpdates;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
@@ -1599,18 +1598,12 @@ class NetworkSession{
 		));
 	}
 
-	/**
-	 * @param CommandMetadataCache|null $cache lets players with identical commands share the packet within one resync
-	 */
-	public function syncAvailableCommands(?CommandMetadataCache $cache = null) : void{
+	public function syncAvailableCommands() : void{
 		if($this->player === null){
 			throw new \LogicException("Cannot sync available commands before the player is created");
 		}
 		$this->commandSyncPending = false;
-		$commands = $this->server->getCommandMap()->getCommands();
-		$this->sendDataPacket($cache !== null ?
-			$cache->get($commands, $this->player, $this->softEnumVersions) :
-			CommandMetadataAdapter::createPacket($commands, $this->player, $this->softEnumVersions));
+		$this->sendDataPacket(CommandMetadataAdapter::createPacket($this->server->getCommandMap()->getCommands(), $this->player, $this->softEnumVersions));
 	}
 
 	/**

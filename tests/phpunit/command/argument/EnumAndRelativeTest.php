@@ -7,6 +7,7 @@ namespace quark\command\argument;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use quark\command\CommandSender;
+use quark\command\defaults\XpLevelsArgument;
 use function array_map;
 use function str_repeat;
 
@@ -174,6 +175,36 @@ final class EnumAndRelativeTest extends TestCase{
 		self::assertFalse($name->allowsNumbers());
 		self::assertSame([false, false, true, true], array_map(fn(string $t) => $name->matches($t), ["12", "-1.5", "tp", "~"]));
 		self::assertTrue((new StringArgument("any"))->matches("12"));
+	}
+
+	public function testShapeChecksNeverRejectWhatParsingAccepts() : void{
+		$arguments = [
+			new IntegerArgument("i", -5, 100),
+			new FloatArgument("f", -1.5, 1e10),
+			new BooleanArgument("b"),
+			new EnumArgument("e", ["a", "b-c", "0"]),
+			new EnumArgument("n", EnumTestMode::class),
+			new SoftEnumArgument("s", new SoftEnum("words", ["One", "two"])),
+			new RelativeFloatArgument("r"),
+			new DurationArgument("d", 0.0, 100.0),
+			new StringArgument("w", numbers: false),
+			new StringArgument("any"),
+			new XpLevelsArgument("x"),
+			new LiteralArgument("lit"),
+			new PositionArgument("p"),
+			new RotationArgument("q"),
+		];
+		$tokens = ["0", "-5", "+7", "007", "100", "101", "1.5", ".5", "5.", "1e3", "1E3", "-0", "~", "~1", "~-.5", "true", "FALSE", "a", "B-C", "fast", "Slow-MO", "one", "TWO", "10s", "5m", "1.5h", "250ms", "3L", "-3l", "lit", "LIT", "x y", "", "nan", "inf", "1e999", "0x1", "١٢٣", "9223372036854775807", "-9223372036854775808", "9223372036854775808"];
+		foreach($arguments as $argument){
+			foreach($tokens as $token){
+				try{
+					$argument->parseTokens([$token, $token, $token], 0, $this->sender());
+				}catch(ArgumentParseException){
+					continue;
+				}
+				self::assertTrue($argument->matches($token), $argument::class . " rejected \"$token\" in matches() but accepts it in parse()");
+			}
+		}
 	}
 
 	public function testPlayerArgumentOptions() : void{

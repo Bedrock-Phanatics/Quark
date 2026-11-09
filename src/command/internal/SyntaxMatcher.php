@@ -43,7 +43,6 @@ use function ksort;
 use function max;
 use function preg_match;
 use function rtrim;
-use function str_contains;
 use function strcmp;
 use function strtolower;
 use function substr;
@@ -283,10 +282,6 @@ final class SyntaxMatcher{
 		$node = $prepared->root;
 		$consumed = 0;
 		foreach($args as $arg){
-			//a quoted token may contain spaces and must not match several words
-			if(str_contains($arg, " ")){
-				break;
-			}
 			//clients match enum values case-insensitively, literals are sent as enums
 			$next = $node->children[strtolower($arg)] ?? null;
 			if($next === null){
@@ -454,9 +449,6 @@ final class SyntaxMatcher{
 		$node = $prepared->root;
 		$consumed = 0;
 		foreach($args as $arg){
-			if(str_contains($arg, " ")){
-				break;
-			}
 			$next = $node->children[strtolower($arg)] ?? null;
 			if($next === null){
 				break;
