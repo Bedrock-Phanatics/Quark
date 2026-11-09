@@ -51,6 +51,8 @@ class Anvil extends Transparent implements MenuAccessor, Fallable, HorizontalFac
 	use FallableTrait;
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	public const UNDAMAGED = 0;
 	public const SLIGHTLY_DAMAGED = 1;
 	public const VERY_DAMAGED = 2;

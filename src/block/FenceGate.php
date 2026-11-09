@@ -41,6 +41,8 @@ class FenceGate extends Transparent implements HorizontalFacing, WoodMaterial{
 	use WoodTypeTrait;
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	protected bool $open = false;
 	protected bool $inWall = false;
 

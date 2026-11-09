@@ -41,6 +41,8 @@ class PinkPetals extends Flowable implements HorizontalFacing{
 		canBePlacedAt as supportedWhenPlacedAt;
 	}
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	public const MIN_COUNT = 1;
 	public const MAX_COUNT = 4;
 

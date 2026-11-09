@@ -27,7 +27,7 @@ use pocketmine\math\Facing;
 use quark\data\runtime\RuntimeDataDescriber;
 
 trait AnyFacingTrait{
-	protected int $facing = Facing::DOWN;
+	protected int $facing = self::DEFAULT_FACING;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
 		$w->facing($this->facing);

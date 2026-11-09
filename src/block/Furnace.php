@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\inventory\window\FurnaceInventoryWindow;
 use quark\block\tile\Furnace as TileFurnace;
 use quark\block\utils\Container;
@@ -43,6 +44,8 @@ class Furnace extends Opaque implements Container, Lightable, HorizontalFacing{
 	use ContainerTrait;
 	use FacesOppositePlacingPlayerTrait;
 	use LightableTrait;
+
+	public const int DEFAULT_FACING = Facing::SOUTH;
 
 	protected FurnaceType $furnaceType;
 

@@ -28,7 +28,7 @@ use pocketmine\math\Facing;
 use quark\data\runtime\RuntimeDataDescriber;
 
 trait HorizontalFacingTrait{
-	protected int $facing = Facing::NORTH;
+	protected int $facing = self::DEFAULT_FACING;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
 		$w->horizontalFacing($this->facing);
