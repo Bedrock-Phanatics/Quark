@@ -398,6 +398,7 @@ final class KnownTranslationParameterInfo{
 		Keys::QUARK_COMMAND_GC_HEADER => [],
 		Keys::QUARK_COMMAND_GC_MEMORYFREED => ["memoryFreed"],
 		Keys::QUARK_COMMAND_GIVE_DESCRIPTION => [],
+		Keys::QUARK_COMMAND_GIVE_NOSPACE => ["item", "player"],
 		Keys::QUARK_COMMAND_GIVE_USAGE => [],
 		Keys::QUARK_COMMAND_HELP_DESCRIPTION => [],
 		Keys::QUARK_COMMAND_HELP_SPECIFICCOMMAND_ALIASES => ["aliasList"],

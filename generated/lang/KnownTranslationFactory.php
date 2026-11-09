@@ -1758,6 +1758,13 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_DESCRIPTION, []);
 	}
 
+	public static function quark_command_give_noSpace(Translatable|string $item, Translatable|string $player) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_NOSPACE, [
+			"item" => $item,
+			"player" => $player,
+		]);
+	}
+
 	public static function quark_command_give_usage() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_USAGE, []);
 	}

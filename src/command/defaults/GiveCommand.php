@@ -97,7 +97,7 @@ class GiveCommand extends VanillaCommand{
 
 		$inventory = $target->getInventory();
 		if(!$inventory->canAddItem($item)){
-			$sender->sendMessage(TextFormat::RED . "Could not give " . $item->getName() . " to " . $target->getName() . ", not enough inventory space");
+			$sender->sendMessage(KnownTranslationFactory::quark_command_give_noSpace($item->getName(), $target->getName())->prefix(TextFormat::RED));
 			return;
 		}
 		$inventory->addItem($item);
