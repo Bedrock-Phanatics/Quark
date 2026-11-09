@@ -55,7 +55,7 @@ class Dispenser extends Opaque implements Container, AnyFacing, Powerable, Power
 	use PowerableTrait;
 	use PoweredByRedstoneTrait;
 
-	protected int $facing = Facing::DOWN;
+	protected int $facing = Facing::SOUTH;
 	private(set) int $activation_delay = 0;
 	private(set) int $deactivation_delay = 1;
 	private(set) bool $requires_strong_power = false;

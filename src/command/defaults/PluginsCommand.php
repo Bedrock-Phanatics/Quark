@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -46,13 +47,12 @@ class PluginsCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_PLUGINS);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		$list = array_map(function(Plugin $plugin) : string{
 			return ($plugin->isEnabled() ? TextFormat::GREEN : TextFormat::RED) . $plugin->getDescription()->getFullName();
 		}, $sender->getServer()->getPluginManager()->getPlugins());
 		sort($list, SORT_STRING);
 
 		$sender->sendMessage(KnownTranslationFactory::quark_command_plugins_success((string) count($list), implode(TextFormat::RESET . ", ", $list)));
-		return true;
 	}
 }

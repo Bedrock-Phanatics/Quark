@@ -23,36 +23,30 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\StringArgument;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\console\ConsoleCommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\utils\TextFormat;
-use function count;
-use function implode;
 
 class SayCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"say",
-			KnownTranslationFactory::quark_command_say_description(),
-			KnownTranslationFactory::commands_say_usage()
+			KnownTranslationFactory::quark_command_say_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_SAY);
+		$this->registerArgument(new StringArgument("message", greedy: true));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			throw new InvalidCommandSyntaxException();
-		}
-
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		$sender->getServer()->broadcastMessage(KnownTranslationFactory::chat_type_announcement(
 			$sender instanceof Player ? $sender->getDisplayName() : ($sender instanceof ConsoleCommandSender ? "Server" : $sender->getName()),
-			implode(" ", $args)
+			$args->string("message")
 		)->prefix(TextFormat::LIGHT_PURPLE));
-		return true;
 	}
 }

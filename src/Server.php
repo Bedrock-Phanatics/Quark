@@ -86,13 +86,14 @@ use quark\network\upnp\UPnPNetworkInterface;
 use quark\permission\AccessStorage;
 use quark\permission\BanList;
 use quark\permission\DefaultPermissions;
+use quark\player\CorruptPlayerDataException;
 use quark\player\DatFilePlayerDataProvider;
 use quark\player\GameMode;
 use quark\player\OfflinePlayer;
 use quark\player\Player;
-use quark\player\PlayerDataLoadException;
 use quark\player\PlayerDataProvider;
 use quark\player\PlayerInfo;
+use quark\player\QueuedPlayerSave;
 use quark\plugin\PharPluginLoader;
 use quark\plugin\PluginEnableOrder;
 use quark\plugin\PluginGraylist;
@@ -325,6 +326,10 @@ class Server{
 	private PlayerDataProvider $playerDataProvider;
 	/** @var array<string, Promise<mixed>> last unfinished provider operation per lowercase player name */
 	private array $playerDataTails = [];
+	/** @var array<string, QueuedPlayerSave> saves that are still waiting behind earlier operations, by lowercase player name */
+	private array $queuedPlayerSaves = [];
+	/** Runs player data writes on their own thread so they never wait behind chunk generation. */
+	private AsyncPool $playerDataPool;
 
 	private QueryInfo $queryInfo;
 
@@ -729,7 +734,7 @@ class Server{
 	public function getOfflinePlayerData(string $name) : Promise{
 		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataLoad->time(fn() => $this->playerDataProvider->loadData($name)))
 			->catch(function(\Throwable $e) use ($name) : ?CompoundTag{
-				if(!$e instanceof PlayerDataLoadException){
+				if(!$e instanceof CorruptPlayerDataException){
 					throw $e;
 				}
 				$this->logger->debug("Failed to load player data for $name: " . $e->getMessage());
@@ -749,12 +754,26 @@ class Server{
 			return Promise::resolved(null);
 		}
 
-		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $data)))
-			->catch(function(\Throwable $e) use ($name) : null{
-				$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
-				$this->logger->logException($e);
-				return null;
-			});
+		$key = strtolower($name);
+		$queued = $this->queuedPlayerSaves[$key] ?? null;
+		if($queued !== null && $queued->result !== null && $queued->tail === ($this->playerDataTails[$key] ?? null)){
+			//nothing has been queued after it, so only the newest data needs to be written
+			$queued->data = $data;
+			return $queued->result;
+		}
+
+		$queued = $this->queuedPlayerSaves[$key] = new QueuedPlayerSave($data);
+		$queued->tail = $this->queuePlayerData($name, function() use ($key, $name, $queued) : Promise{
+			if(($this->queuedPlayerSaves[$key] ?? null) === $queued){
+				unset($this->queuedPlayerSaves[$key]);
+			}
+			return PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $queued->data));
+		});
+		return $queued->result = $queued->tail->catch(function(\Throwable $e) use ($name) : null{
+			$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
+			$this->logger->logException($e);
+			return null;
+		});
 	}
 
 	/**
@@ -852,6 +871,7 @@ class Server{
 		$deadline = microtime(true) + 30;
 		while($this->playerDataTails !== [] && microtime(true) < $deadline){
 			if(isset($this->asyncPool)){ $this->asyncPool->collectTasks(); }
+			if(isset($this->playerDataPool)){ $this->playerDataPool->collectTasks(); }
 			usleep(1000);
 		}
 		if($this->playerDataTails !== []){
@@ -1355,7 +1375,8 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players());
+			$this->playerDataPool = new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->playerDataPool);
 
 			register_shutdown_function($this->crashDump(...));
 
@@ -1414,7 +1435,7 @@ class Server{
 			$splash = "\n\n";
 			foreach([
 				KnownTranslationFactory::quark_server_url_discord("{$highlight}https://discord.gg/Yv9qPRQNc3{$reset}"),
-				KnownTranslationFactory::quark_server_url_docs("{$highlight}{$github}/blob/v6.0.0/README.md{$reset}"),
+				KnownTranslationFactory::quark_server_url_docs("{$highlight}{$github}/blob/main/README.md{$reset}"),
 				KnownTranslationFactory::quark_server_url_sourceCode("{$highlight}{$github}{$reset}"),
 				KnownTranslationFactory::quark_server_url_bugReporting("{$highlight}{$github}/issues{$reset}")
 			] as $link){
@@ -1897,6 +1918,9 @@ class Server{
 				$this->drainPulseReports();
 				$this->pulseReportPool?->shutdown();
 				$this->pulseReportPool = null;
+				if(isset($this->playerDataPool)){
+					$this->playerDataPool->shutdown();
+				}
 				if(isset($this->asyncPool)){
 					$this->logger->debug("Shutting down async task worker pool");
 					$this->asyncPool->shutdown();
@@ -2193,16 +2217,27 @@ class Server{
 
 			$schedulerAsyncScope = PulseZones::$schedulerAsync->start();
 			$this->asyncPool->collectTasks();
+			if($this->playerDataTails !== []){
+				$this->playerDataPool->collectTasks();
+			}
 			PulseZones::$schedulerAsync->stop($schedulerAsyncScope);
 
 			$this->worldManager->tick($this->tickCounter);
 			$this->redstoneWorldManager?->tick();
 
 			//one resync per tick for any number of command map changes
+			$softEnumChanges = $this->commandMap->consumeSoftEnumChanges();
 			if($this->commandMap->consumeClientMetadataChanges()){
+				//the new command list carries the current soft enum values
 				foreach($this->getOnlinePlayers() as $player){
 					if($player->isConnected()){
 						$player->getNetworkSession()->syncAvailableCommands();
+					}
+				}
+			}elseif(count($softEnumChanges) !== 0){
+				foreach($this->getOnlinePlayers() as $player){
+					if($player->isConnected()){
+						$player->getNetworkSession()->syncSoftEnums($softEnumChanges);
 					}
 				}
 			}

@@ -27,7 +27,6 @@ use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use quark\command\argument\IntegerArgument;
 use quark\command\argument\StringArgument;
-use quark\command\defaults\HelpCommand;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
@@ -408,6 +407,10 @@ final class SimpleCommandMapTest extends TestCase{
 		$manager->disablePlugin($quiet);
 	}
 
+	private function help() : Command{
+		return $this->map->getCommand("help") ?? throw new \LogicException("Missing help command");
+	}
+
 	public function testHelpHidesCommandsOfDisabledPlugins() : void{
 		$enabled = true;
 		$plugin = $this->plugin($enabled);
@@ -417,7 +420,7 @@ final class SimpleCommandMapTest extends TestCase{
 		$this->server->method("getCommandMap")->willReturn($this->map);
 		$sender = $this->sender();
 		$sender->setBasePermission(DefaultPermissionNames::COMMAND_HELP, true);
-		$help = new HelpCommand();
+		$help = $this->help();
 
 		$help->execute($sender, "help", []);
 		self::assertStringContainsString("/manifest", implode("\n", $sender->messages));
@@ -447,7 +450,7 @@ final class SimpleCommandMapTest extends TestCase{
 		$this->installAliases(["foo" => ["open \$1"]]);
 		$sender = $this->sender();
 
-		(new HelpCommand())->execute($sender, "help", []);
+		($this->help())->execute($sender, "help", []);
 		$output = implode("\n", $sender->messages);
 		self::assertStringContainsString("/foo: User-defined custom command", $output);
 		self::assertStringNotContainsString("original description", $output);

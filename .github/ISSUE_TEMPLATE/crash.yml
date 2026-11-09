@@ -8,7 +8,7 @@ body:
         > [!CAUTION]
         > If the crash can be triggered over the network (e.g. by a player / hack client), DO NOT report it here.
         > 
-        > Read our [Security Policy](https://github.com/Bedrock-Phanatics/Quark/blob/v6.0.0/SECURITY.md) first.
+        > Read our [Security Policy](https://github.com/Bedrock-Phanatics/Quark/blob/main/SECURITY.md) first.
 
         > [!TIP]
         > Don't paste raw crashdump data into the issue.

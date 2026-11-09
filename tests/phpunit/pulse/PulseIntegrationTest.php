@@ -26,9 +26,11 @@ namespace quark\pulse;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
+use quark\command\argument\ArgumentParseException;
+use quark\command\argument\DurationArgument;
 use quark\command\CommandSender;
-use quark\command\defaults\PulseCommand;
-use quark\command\utils\InvalidCommandSyntaxException;
+use quark\command\SimpleCommandMap;
+use quark\command\TestCommandSender;
 use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
@@ -101,21 +103,17 @@ final class PulseIntegrationTest extends TestCase{
 	}
 
 	public function testCommandDurationValidatesUnitsAndLimits() : void{
-		self::assertSame(0, PulseCommand::parseDuration([]));
-		self::assertSame(60000000000, PulseCommand::parseDuration(["60s"]));
-		self::assertSame(60000000000, PulseCommand::parseDuration(["60"]));
-		self::assertSame(1500000000, PulseCommand::parseDuration(["1.5s"]));
-		self::assertSame(300000000000, PulseCommand::parseDuration(["5M"]));
-		self::assertSame(86400000000000, PulseCommand::parseDuration(["24h"]));
-		foreach([
-			["0s"], ["-1s"], ["86401s"], ["25h"], ["1e9s"], ["1s
-"], ["nans"], ["60s", "extra"], [str_repeat("9", 100) . "s"]
-		] as $args){
+		$sender = self::createStub(CommandSender::class);
+		$argument = new DurationArgument("time", 1e-9, 86400.0);
+		foreach([["60s", 60.0], ["60", 60.0], ["1.5s", 1.5], ["5M", 300.0], ["24h", 86400.0], ["250ms", 0.25]] as [$input, $seconds]){
+			self::assertSame($seconds, $argument->parse($input, $sender), $input);
+		}
+		foreach(["0s", "-1s", "86401s", "25h", "1e9s", "1s\n", "nans", "", "1 s", str_repeat("9", 100) . "s"] as $input){
 			try{
-				PulseCommand::parseDuration($args);
-				self::fail("Invalid Pulse options accepted");
-			}catch(InvalidCommandSyntaxException){
-				self::assertFalse(Pulse::isRecording());
+				$argument->parse($input, $sender);
+				self::fail("Invalid Pulse duration accepted: $input");
+			}catch(ArgumentParseException){
+				$this->addToAssertionCount(1);
 			}
 		}
 	}
@@ -137,17 +135,18 @@ final class PulseIntegrationTest extends TestCase{
 		$sender = self::createStub(CommandSender::class);
 		$sender->method("getServer")->willReturn($server);
 		$sender->method("getName")->willReturn("test");
+		$sender->method("hasPermission")->willReturn(true);
+		$sender->method("getLanguage")->willReturn(TestCommandSender::language());
 		$sender->method("sendMessage")->willReturnCallback(static function(Translatable|string $message) use ($messages) : void{
-			self::assertIsString($message);
-			$messages[] = TextFormat::clean($message);
+			$messages[] = TextFormat::clean($message instanceof Translatable ? TestCommandSender::language()->translate($message) : $message);
 		});
-		$command = new PulseCommand();
-		$command->execute($sender, "pulse", []);
+		$map = new SimpleCommandMap($server);
+		$map->dispatchParsed($sender, "pulse", []);
 		self::assertStringContainsString("[Pulse] Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
-		$command->execute($sender, "pulse", ["help"]);
+		$map->dispatchParsed($sender, "pulse", ["help"]);
 		self::assertCount(4, $messages);
-		$command->execute($sender, "pulse", ["start", "1m"]);
+		$map->dispatchParsed($sender, "pulse", ["start", "1m"]);
 		$session = $recorder->getSession();
 		self::assertNotNull($session);
 		self::assertSame(60000000000, $session->getStats()["duration_ns"]);
@@ -155,25 +154,25 @@ final class PulseIntegrationTest extends TestCase{
 		$scope = $zone->start();
 		$zone->stop($scope);
 		$messages->exchangeArray([]);
-		$command->execute($sender, "pulse", ["top", "1"]);
+		$map->dispatchParsed($sender, "pulse", ["top", "1"]);
 		self::assertCount(2, $messages);
 		self::assertStringContainsString("command.work BAD", $messages[1] ?? "");
 		self::assertStringNotContainsString("\n", $messages[1] ?? "");
 		self::assertStringNotContainsString("\x1b", $messages[1] ?? "");
 		$messages->exchangeArray([]);
-		$command->execute($sender, "pulse", ["stop"]);
+		$map->dispatchParsed($sender, "pulse", ["stop"]);
 		self::assertFalse($session->isRecording());
 		self::assertSame(1, $saves);
 		self::assertStringStartsWith("[Pulse] Collecting report", $messages[count($messages) - 2] ?? "");
 		self::assertSame("[Pulse] Report saved to test.qpulse", $messages[count($messages) - 1]);
 		foreach([["start", "60s", "1s"], ["start", "--spikes"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
 			$messages->exchangeArray([]);
-			$command->execute($sender, "pulse", $args);
-			self::assertStringStartsWith("[Pulse] Usage:", $messages[0] ?? "");
+			$map->dispatchParsed($sender, "pulse", $args);
+			self::assertMatchesRegularExpression('/^(Usage: \/pulse|Invalid value for <)/', $messages[0] ?? "");
 			self::assertSame($session, $recorder->getSession());
 			self::assertFalse($session->isRecording());
 		}
-		$command->execute($sender, "pulse", ["reset"]);
+		$map->dispatchParsed($sender, "pulse", ["reset"]);
 		self::assertNull($recorder->getSession());
 	}
 
@@ -326,8 +325,9 @@ final class PulseIntegrationTest extends TestCase{
 		$server->method("getPulse")->willReturn($recorder);
 		$sender = self::createMock(CommandSender::class);
 		$sender->method("getServer")->willReturn($server);
+		$sender->method("hasPermission")->willReturn(true);
 		$sender->expects(self::once())->method("sendMessage")->with(self::callback(static fn(string $m) : bool => TextFormat::clean($m) === "[Pulse] Waiting for 1 worker operations"));
-		(new PulseCommand())->execute($sender, "pulse", ["status"]);
+		(new SimpleCommandMap($server))->dispatchParsed($sender, "pulse", ["status"]);
 		try{ $recorder->start(); self::fail("Restart must wait for worker reset"); }catch(\LogicException){}
 		self::assertInstanceOf(PulseControlTask::class, $task);
 		$task->onCompletion();

@@ -38,7 +38,7 @@ use quark\world\BlockTransaction;
 
 class Lever extends Flowable implements PowerSource, RedstoneSignalEmitter{
 	use LeverRedstoneTrait;
-	protected LeverFacing $facing = LeverFacing::UP_AXIS_X;
+	protected LeverFacing $facing = LeverFacing::DOWN_AXIS_X;
 	protected bool $activated = false;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{

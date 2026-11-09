@@ -80,8 +80,16 @@ final class IntegerArgument extends Argument{
 		return $value;
 	}
 
+	public function matches(string $token, int $slot = 0) : bool{
+		return preg_match('/\A[+-]?[0-9]+\z/', $token) === 1;
+	}
+
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::INTEGER;
+	}
+
+	public function getValueType() : string{
+		return "int";
 	}
 
 	private function tooSmall(string $input) : ArgumentParseException{

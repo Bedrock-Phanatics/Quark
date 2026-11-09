@@ -41,6 +41,8 @@ use function count;
 class Lectern extends Transparent implements HorizontalFacing, RedstoneSignalEmitter{
 	use FacesOppositePlacingPlayerTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	protected int $viewedPage = 0;
 	protected ?WritableBookBase $book = null;
 

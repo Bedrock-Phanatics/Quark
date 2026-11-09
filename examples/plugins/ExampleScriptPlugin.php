@@ -9,7 +9,7 @@ use quark\plugin\PluginBase;
 /**
  * Script plugins are self-contained .php files. They are intended for quick testing only.
  * They don't support all the features of a normal plugin.
- * See the documentation at https://github.com/Bedrock-Phanatics/Quark/tree/stable/docs
+ * See the documentation at https://github.com/Bedrock-Phanatics/Quark/tree/main/docs
  *
  * Required fields
  * @main quark\ExampleScriptPlugin\Main

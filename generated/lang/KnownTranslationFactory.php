@@ -1678,6 +1678,12 @@ final class KnownTranslationFactory{
 		]);
 	}
 
+	public static function quark_command_error_invalidValue(Translatable|string $value) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_INVALIDVALUE, [
+			"value" => $value,
+		]);
+	}
+
 	public static function quark_command_error_permission(Translatable|string $commandName) : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_PERMISSION, [
 			"commandName" => $commandName,
@@ -1750,6 +1756,13 @@ final class KnownTranslationFactory{
 
 	public static function quark_command_give_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_DESCRIPTION, []);
+	}
+
+	public static function quark_command_give_noSpace(Translatable|string $item, Translatable|string $player) : Translatable{
+		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_GIVE_NOSPACE, [
+			"item" => $item,
+			"player" => $player,
+		]);
 	}
 
 	public static function quark_command_give_usage() : Translatable{

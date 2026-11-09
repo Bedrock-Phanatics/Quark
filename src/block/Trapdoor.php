@@ -38,6 +38,8 @@ use quark\world\sound\DoorSound;
 class Trapdoor extends Transparent implements HorizontalFacing{
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::EAST;
+
 	protected bool $open = false;
 	protected bool $top = false;
 

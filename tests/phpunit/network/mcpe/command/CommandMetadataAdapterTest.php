@@ -45,7 +45,6 @@ use quark\command\Command;
 use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\command\SimpleCommandMap;
-use quark\command\Subcommand;
 use quark\command\TestCommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -204,7 +203,7 @@ final class CommandMetadataAdapterTest extends TestCase{
 		self::assertEquals([
 			new CommandEnumRawData("literal_custom", [0]),
 			new CommandEnumRawData("literal_flag", [1]),
-			new CommandEnumRawData("enabled", [2, 3]),
+			new CommandEnumRawData("Boolean", [2, 3]),
 			new CommandEnumRawData("literal_float", [4]),
 			new CommandEnumRawData("literal_int", [5]),
 			new CommandEnumRawData("literal_mode", [6]),
@@ -226,15 +225,10 @@ final class CommandMetadataAdapterTest extends TestCase{
 		], array_map(fn(CommandOverloadRawData $o) => $o->getParameters(), $packet->commandData[0]->getOverloads()));
 	}
 
-	public function testSubcommandClassesAreAdvertisedLikeSyntaxes() : void{
-		$set = new class("set") extends Subcommand{
-			protected function run(CommandSender $sender, CommandArgs $args) : void{}
-		};
-		$set->setPermission("test.admin");
-		$set->registerArgument(new StringArgument("name"));
+	public function testSyntaxPermissionsHideOverloadsFromTheClient() : void{
 		$command = new class("warp") extends Command{};
 		$command->setPermission("test.root");
-		$command->registerSubcommand($set);
+		$command->syntax("set")->permission("test.admin")->registerArgument(new StringArgument("name"))->handler(function(CommandSender $sender, string $name) : void{});
 		$this->map->register("test", $command);
 
 		$overloads = fn(array $permissions) => CommandMetadataAdapter::createPacket($this->map->getCommands(), $this->player($permissions))->commandData;

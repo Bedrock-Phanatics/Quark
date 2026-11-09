@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block;
 
+use pocketmine\math\Facing;
 use quark\block\inventory\window\LoomInventoryWindow;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
@@ -35,6 +36,8 @@ use quark\world\Position;
 final class Loom extends Opaque implements MenuAccessor, HorizontalFacing{
 	use MenuAccessorTrait;
 	use FacesOppositePlacingPlayerTrait;
+
+	public const int DEFAULT_FACING = Facing::SOUTH;
 
 	protected function newMenu(Player $player, Position $position) : InventoryWindow{
 		return new LoomInventoryWindow($player, $position);

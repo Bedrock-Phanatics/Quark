@@ -26,6 +26,7 @@ namespace quark\block\utils;
 use quark\math\Facing;
 
 interface AnyFacing{
+	public const int DEFAULT_FACING = Facing::DOWN;
 
 	/**
 	 * @see Facing

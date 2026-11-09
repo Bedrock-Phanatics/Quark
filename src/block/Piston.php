@@ -67,7 +67,7 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 	public const int STATE_RETRACT_WAITING = 3;
 	public const int STATE_RETRACT_IDLE = 4;
 
-	protected int $facing = Facing::NORTH;
+	protected int $facing = Facing::UP;
 
 	/** @var self::STATE_* */
 	protected int $state = self::STATE_RETRACT_IDLE;

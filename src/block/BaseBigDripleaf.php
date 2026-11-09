@@ -37,6 +37,8 @@ use quark\world\BlockTransaction;
 abstract class BaseBigDripleaf extends Transparent implements HorizontalFacing{
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	abstract protected function isHead() : bool;
 
 	private function canBeSupportedBy(Block $block, bool $head) : bool{

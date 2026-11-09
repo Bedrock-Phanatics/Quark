@@ -23,60 +23,53 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\PositionArgument;
+use quark\command\argument\RelativePosition;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\math\Vector3;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\utils\TextFormat;
+use quark\utils\AssumptionFailedError;
 use quark\world\World;
-use function count;
 
 class SetWorldSpawnCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"setworldspawn",
-			KnownTranslationFactory::quark_command_setworldspawn_description(),
-			KnownTranslationFactory::commands_setworldspawn_usage()
+			KnownTranslationFactory::quark_command_setworldspawn_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_SETWORLDSPAWN);
+
+		$this->syntax()->handler($this->here(...));
+		$this->syntax()->registerArgument(new PositionArgument("position"))->handler($this->at(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			if($sender instanceof Player){
-				$location = $sender->getPosition();
-				$world = $location->getWorld();
-				$pos = $location->asVector3()->floor();
-			}else{
-				$sender->sendMessage(KnownTranslationFactory::quark_command_error_playerUserOnly()->prefix(TextFormat::RED));
+	private function here(Player $sender) : void{
+		$position = $sender->getPosition();
+		$this->apply($sender, $position->getWorld(), $position->asVector3()->floor());
+	}
 
-				return true;
-			}
-		}elseif(count($args) === 3){
-			if($sender instanceof Player){
-				$base = $sender->getPosition();
-				$world = $base->getWorld();
-			}else{
-				$base = new Vector3(0.0, 0.0, 0.0);
-				$world = $sender->getServer()->getWorldManager()->getDefaultWorld();
-			}
-			$pos = (new Vector3(
-				$this->getRelativeDouble($base->x, $sender, $args[0]),
-				$this->getRelativeDouble($base->y, $sender, $args[1], World::Y_MIN, World::Y_MAX),
-				$this->getRelativeDouble($base->z, $sender, $args[2]),
-			))->floor();
+	private function at(CommandSender $sender, RelativePosition $position) : void{
+		if($sender instanceof Player){
+			$base = $sender->getPosition();
+			$world = $base->getWorld();
 		}else{
-			throw new InvalidCommandSyntaxException();
+			$base = new Vector3(0.0, 0.0, 0.0);
+			$world = $sender->getServer()->getWorldManager()->getDefaultWorld() ?? throw new AssumptionFailedError("No default world");
 		}
 
+		$resolved = $this->resolvePosition($sender, $position, $base);
+		if($resolved !== null){
+			$this->apply($sender, $world, $resolved->floor());
+		}
+	}
+
+	private function apply(CommandSender $sender, World $world, Vector3 $pos) : void{
 		$world->setSpawnLocation($pos);
 
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_setworldspawn_success((string) $pos->x, (string) $pos->y, (string) $pos->z));
-
-		return true;
 	}
 }

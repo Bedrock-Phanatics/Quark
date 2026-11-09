@@ -43,6 +43,8 @@ final class AmethystCluster extends Transparent implements AnyFacing{
 	use AmethystTrait;
 	use AnyFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::UP;
+
 	public const STAGE_SMALL_BUD = 0;
 	public const STAGE_MEDIUM_BUD = 1;
 	public const STAGE_LARGE_BUD = 2;

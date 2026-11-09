@@ -23,43 +23,37 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\StringArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\player\Player;
-use function array_shift;
-use function count;
-use function implode;
 
 class BanCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"ban",
-			KnownTranslationFactory::quark_command_ban_player_description(),
-			KnownTranslationFactory::commands_ban_usage()
+			KnownTranslationFactory::quark_command_ban_player_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_BAN_PLAYER);
+		$this->registerArguments([
+			new StringArgument("player"),
+			new StringArgument("reason", optional: true, greedy: true)
+		]);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			throw new InvalidCommandSyntaxException();
-		}
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$name = $args->string("player");
+		$reason = $args->string("reason", "");
 
-		$name = array_shift($args);
-		$reason = implode(" ", $args);
+		$server = $sender->getServer();
+		$server->getNameBans()->addBan($name, $reason, null, $sender->getName());
 
-		$sender->getServer()->getNameBans()->addBan($name, $reason, null, $sender->getName());
-
-		if(($player = $sender->getServer()->getPlayerExact($name)) instanceof Player){
-			$player->kick($reason !== "" ? KnownTranslationFactory::quark_disconnect_ban($reason) : KnownTranslationFactory::quark_disconnect_ban_noReason());
-		}
+		$player = $server->getPlayerExact($name);
+		$player?->kick($reason !== "" ? KnownTranslationFactory::quark_disconnect_ban($reason) : KnownTranslationFactory::quark_disconnect_ban_noReason());
 
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_ban_success($player !== null ? $player->getName() : $name));
-
-		return true;
 	}
 }

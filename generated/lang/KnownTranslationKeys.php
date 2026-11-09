@@ -380,6 +380,7 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_ERROR_INVALIDENUM = "quark.command.error.invalidEnum";
 	public const QUARK_COMMAND_ERROR_INVALIDINTEGER = "quark.command.error.invalidInteger";
 	public const QUARK_COMMAND_ERROR_INVALIDNUMBER = "quark.command.error.invalidNumber";
+	public const QUARK_COMMAND_ERROR_INVALIDVALUE = "quark.command.error.invalidValue";
 	public const QUARK_COMMAND_ERROR_PERMISSION = "quark.command.error.permission";
 	public const QUARK_COMMAND_ERROR_PLAYERNOTFOUND = "quark.command.error.playerNotFound";
 	public const QUARK_COMMAND_ERROR_PLAYERUSERONLY = "quark.command.error.playerUserOnly";
@@ -394,6 +395,7 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_GC_HEADER = "quark.command.gc.header";
 	public const QUARK_COMMAND_GC_MEMORYFREED = "quark.command.gc.memoryFreed";
 	public const QUARK_COMMAND_GIVE_DESCRIPTION = "quark.command.give.description";
+	public const QUARK_COMMAND_GIVE_NOSPACE = "quark.command.give.noSpace";
 	public const QUARK_COMMAND_GIVE_USAGE = "quark.command.give.usage";
 	public const QUARK_COMMAND_HELP_DESCRIPTION = "quark.command.help.description";
 	public const QUARK_COMMAND_HELP_SPECIFICCOMMAND_ALIASES = "quark.command.help.specificCommand.aliases";

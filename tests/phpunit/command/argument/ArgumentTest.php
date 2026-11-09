@@ -266,9 +266,9 @@ final class ArgumentTest extends TestCase{
 		self::assertSame(ArgumentKind::WORD, (new StringArgument("s"))->getKind());
 		self::assertSame(ArgumentKind::TEXT, (new StringArgument("s", greedy: true))->getKind());
 		$bool = new BooleanArgument("b");
-		self::assertSame([ArgumentKind::ENUM, ["true", "false"]], [$bool->getKind(), $bool->getEnumValues()]);
+		self::assertSame([ArgumentKind::ENUM, ["true", "false"]], [$bool->getKind(), $bool->getChoices()]);
 		$enum = new EnumArgument("e", ["b", "a"]);
-		self::assertSame([ArgumentKind::ENUM, ["b", "a"]], [$enum->getKind(), $enum->getEnumValues()]);
+		self::assertSame([ArgumentKind::ENUM, ["b", "a"]], [$enum->getKind(), $enum->getChoices()]);
 	}
 
 	/**

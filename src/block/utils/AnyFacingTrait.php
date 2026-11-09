@@ -27,7 +27,7 @@ use quark\data\runtime\RuntimeDataDescriber;
 use quark\math\Facing;
 
 trait AnyFacingTrait{
-	protected int $facing = Facing::DOWN;
+	protected int $facing = self::DEFAULT_FACING;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
 		$w->facing($this->facing);
@@ -37,7 +37,7 @@ trait AnyFacingTrait{
 
 	/** @return $this */
 	public function setFacing(int $facing) : self{
-		Facing::validate($this->facing);
+		Facing::validate($facing);
 		$this->facing = $facing;
 		return $this;
 	}

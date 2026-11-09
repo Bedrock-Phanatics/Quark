@@ -101,6 +101,7 @@ $player->sendForm($form);
 
 - `PlayerExhaustEvent` → `EntityExhaustEvent` (Replace `getPlayer()` with `getEntity()`, returning the affected `Human`).
 - Event priorities were renamed and renumbered so lower values run first: `LOWEST` → `EARLIEST`, `LOW` → `EARLY`, `HIGH` → `LATE`, `HIGHEST` → `LATEST`. `NORMAL` and `MONITOR` keep their names. The old names no longer exist, so update both `@priority` tags and `EventPriority::` constants. Never persist the numeric values, they changed.
+- `LegacyRawChatFormatter` was removed. Implement `ChatFormatter` directly.
 
 ### Inventories
 
@@ -127,6 +128,12 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 - `new MyTile()` takes no arguments. Blocks still create their tiles automatically. Internally `World->addTile($tile, $pos)` attaches a tile and `World->removeTile($tile)` detaches it without closing it.
 - `Tile->getPosition()` throws while the tile isn't in a world. Check `Tile->isAttached()` first. `Tile->$position` is private.
 - `Tile->saveNBT()` no longer writes `x`/`y`/`z`, and `TileFactory->createFromData($nbt)` doesn't take a world. Copy a tile with `TileFactory::getInstance()->createFromData($tile->saveNBT())`.
+- `Campfire::getInventory()` is nullable and reads the campfire tile at the block's position, since the tile owns the inventory and cooking progress. `getCookingTime()` and `setCookingTime()` go through the tile too, and do nothing without one.
+
+### Blocks
+
+- Default block states follow Bedrock Dedicated Server, so items from `asItem()` match the creative inventory and recipe ingredients. Stairs and trapdoors default to east, anvils, bells, furnaces, fence gates and lecterns to south, pistons and amethyst clusters to up, and sea pickles start underwater.
+- To change the default facing of a custom block, override `DEFAULT_FACING` on the class. `HorizontalFacing` and `AnyFacing` declare it.
 
 ### Enums
 
@@ -180,13 +187,17 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 Player data storage is asynchronous so a provider backed by SQL or a remote service never blocks the main thread.
 
 - `PlayerDataProvider::hasData()`, `loadData()` and `saveData()` return a `Vow\Promise`. A failed load rejects with `PlayerDataLoadException` and a failed save with `PlayerDataSaveException`. Operations for the same player run one at a time in call order, so providers don't have to order them.
+- A load rejects with `CorruptPlayerDataException` when the data was damaged and has been set aside. The player then starts over. Any other `PlayerDataLoadException` means the data may still be intact, so the login fails rather than risk overwriting it.
+- The default provider compresses and writes saves on a worker thread of its own, so they never wait behind chunk generation. Loads stay on the main thread because decoding has to happen there anyway.
+- A save that is still waiting behind an earlier operation for the same player is replaced by a newer save, so a stalled disk never builds up more than one queued save per player. Every caller's promise resolves when the newest data is written.
+- Saves are written off the main thread, so a save only reaches disk when its promise resolves. A crash or normal shutdown waits for pending saves, but killing the process outright (`kill -9`, the OOM killer) right after a save was requested can lose that one save.
 - `Server::getOfflinePlayer()`, `getOfflinePlayerData()`, `hasOfflinePlayerData()`, `saveOfflinePlayerData()` and `Player::save()` return promises too. Saves never reject, failures are logged.
 - `OfflinePlayer` exposes `getInventory()`, `getArmorInventory()`, `getOffHandInventory()` and `getEnderInventory()` read from the saved data. To change them, use `Server::updateOfflinePlayer($name, fn(OfflinePlayer $player) => ...)`, which loads, updates and saves as one queued step so a joining player can't overwrite the change. It resolves with `false` without saving if the player is online or connecting, or has no saved data. Unlike a join, an item that can't be loaded makes the getters throw `SavedDataLoadingException` instead of turning into air, so the update rejects without saving.
 - The server waits up to 30 seconds for pending saves on shutdown.
 
 ### Removed Mechanics
 
-- Thorns and Frost Walker no longer function or appear through normal acquisition.
+- Thorns and Frost Walker no longer function or appear through normal acquisition. `EntityFrostWalkerEvent` and the never-fired `BlockItemPickupEvent` are gone.
 - Armor no longer receives unconditional per-tick callbacks.
 - Turtle Helmets no longer grant Water Breathing.
 - Plugins relying on these mechanics must implement their own behavior.

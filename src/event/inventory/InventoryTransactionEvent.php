@@ -39,7 +39,7 @@ use quark\inventory\transaction\InventoryTransaction;
  * - taking an item from the creative inventory menu
  * - destroying (trashing) an item
  *
- * @see https://github.com/Bedrock-Phanatics/Quark/tree/stable/docs for more information on inventory transactions
+ * @see https://github.com/Bedrock-Phanatics/Quark/tree/main/docs for more information on inventory transactions
  */
 class InventoryTransactionEvent extends Event implements Cancellable{
 	use CancellableTrait;

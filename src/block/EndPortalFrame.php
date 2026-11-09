@@ -32,6 +32,8 @@ use quark\math\Facing;
 class EndPortalFrame extends Opaque implements HorizontalFacing{
 	use FacesOppositePlacingPlayerTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	protected bool $eye = false;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{

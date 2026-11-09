@@ -33,19 +33,37 @@ use function str_starts_with;
  */
 final class PlayerArgument extends Argument{
 
-	public function __construct(string $name, bool $optional = false, private bool $suggest = true){
+	/**
+	 * @param bool $partial accept the start of a name when it matches one online player
+	 * @param bool $self    accept "@s" for the sender when it is a player
+	 */
+	public function __construct(
+		string $name,
+		bool $optional = false,
+		private bool $suggest = true,
+		private bool $partial = false,
+		private bool $self = false
+	){
 		parent::__construct($name, $optional);
 	}
 
 	public function parse(string $input, CommandSender $sender) : Player{
+		if($this->self && $input === "@s"){
+			return $sender instanceof Player ? $sender : throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_playerNotFound($input));
+		}
 		if(str_starts_with($input, "@")){
 			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_selectorUnsupported($input));
 		}
-		return $sender->getServer()->getPlayerExact($input) ??
+		$server = $sender->getServer();
+		return ($this->partial ? $server->getPlayerByPrefix($input) : $server->getPlayerExact($input)) ??
 			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_playerNotFound($input));
 	}
 
 	public function getKind() : ArgumentKind{
 		return $this->suggest ? ArgumentKind::PLAYER : ArgumentKind::WORD;
+	}
+
+	public function getValueType() : string{
+		return Player::class;
 	}
 }

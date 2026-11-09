@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\command\utils;
 
 use PHPUnit\Framework\TestCase;
+use function count;
 
 class CommandStringHelperTest extends TestCase{
 
@@ -54,5 +55,33 @@ class CommandStringHelperTest extends TestCase{
 		$actual = CommandStringHelper::parseQuoteAware($commandLine);
 
 		self::assertSame($expected, $actual);
+	}
+
+	public static function tokenOffsetProvider() : \Generator{
+		yield ['say hi', [0, 4]];
+		yield ['  say   "a b"   c  ', [2, 8, 16]];
+		yield ['say "" x', [0, 7]];
+		yield ['say "unterminated words', [0, 4, 18]];
+		yield ['say \"q\" "r s" end', [0, 4, 10, 16]];
+		yield ['', []];
+		yield ["tab\tsep\tx", [0, 4, 8]];
+	}
+
+	/**
+	 * @param int[] $offsets
+	 * @phpstan-param list<int> $offsets
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider("tokenOffsetProvider")]
+	public function testTokenOffsetsAgreeWithTokenization(string $commandLine, array $offsets) : void{
+		self::assertCount(count($offsets), CommandStringHelper::parseQuoteAware($commandLine));
+		foreach($offsets as $index => $offset){
+			self::assertSame($offset, CommandStringHelper::tokenOffset($commandLine, $index), "token $index of '$commandLine'");
+		}
+		self::assertNull(CommandStringHelper::tokenOffset($commandLine, count($offsets)));
+	}
+
+	public function testTokenOffsetOfInvalidUtf8IsNull() : void{
+		self::assertNull(CommandStringHelper::tokenOffset("say \xff\xfe", 1));
+		self::assertSame([], CommandStringHelper::parseQuoteAware("say \xff\xfe"));
 	}
 }

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -42,7 +43,7 @@ class GarbageCollectorCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_GC);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		$chunksCollected = 0;
 		$entitiesCollected = 0;
 
@@ -65,6 +66,5 @@ class GarbageCollectorCommand extends VanillaCommand{
 
 		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_cycles(TextFormat::RED . number_format($cyclesCollected))->prefix(TextFormat::GOLD));
 		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_memoryFreed(TextFormat::RED . number_format(round((($memory - memory_get_usage()) / 1024) / 1024, 2), 2))->prefix(TextFormat::GOLD));
-		return true;
 	}
 }

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command;
 
+use quark\command\argument\SoftEnum;
 use quark\command\defaults\BanCommand;
 use quark\command\defaults\BanIpCommand;
 use quark\command\defaults\BanListCommand;
@@ -82,6 +83,7 @@ use function array_shift;
 use function array_values;
 use function count;
 use function implode;
+use function spl_object_id;
 use function str_contains;
 use function strcasecmp;
 use function strtolower;
@@ -96,6 +98,21 @@ class SimpleCommandMap implements CommandMap{
 	protected array $knownCommands = [];
 
 	private bool $clientMetadataDirty = false;
+
+	/**
+	 * @var SoftEnum[]
+	 * @phpstan-var array<string, SoftEnum>
+	 */
+	private array $softEnums = [];
+	/** @phpstan-var array<string, int> */
+	private array $softEnumReferences = [];
+	/**
+	 * @var string[][]
+	 * @phpstan-var array<int, list<string>>
+	 */
+	private array $commandSoftEnums = [];
+	/** @phpstan-var array<string, SoftEnum> */
+	private array $dirtySoftEnums = [];
 
 	public function __construct(private Server $server){
 		$this->setDefaultCommands();
@@ -174,6 +191,13 @@ class SimpleCommandMap implements CommandMap{
 		$fallbackPrefix = strtolower(trim($fallbackPrefix));
 
 		$prepared = SyntaxMatcher::prepare($command);
+		if($prepared !== null){
+			foreach(Utils::stringifyKeys($prepared->softEnums) as $name => $softEnum){
+				if(isset($this->softEnums[$name]) && $this->softEnums[$name] !== $softEnum){
+					throw new \InvalidArgumentException("Another command already uses a different soft enum named \"$name\"");
+				}
+			}
+		}
 
 		$previousCommands = $this->knownCommands;
 		$previousLabel = $command->getLabel();
@@ -211,7 +235,8 @@ class SimpleCommandMap implements CommandMap{
 		}
 
 		if($prepared !== null){
-			$command->setPreparedSyntaxes($prepared);
+			$command->setPrepared($prepared);
+			$this->acquireSoftEnums($command, $prepared->softEnums);
 		}
 		$this->clientMetadataDirty = true;
 
@@ -225,10 +250,46 @@ class SimpleCommandMap implements CommandMap{
 			}
 		}
 
+		$this->releaseSoftEnums($command);
 		$command->unregister($this);
 		$this->clientMetadataDirty = true;
 
 		return true;
+	}
+
+	/**
+	 * @param SoftEnum[] $softEnums
+	 * @phpstan-param array<string, SoftEnum> $softEnums
+	 */
+	private function acquireSoftEnums(Command $command, array $softEnums) : void{
+		if(count($softEnums) === 0){
+			return;
+		}
+		$names = [];
+		foreach(Utils::stringifyKeys($softEnums) as $name => $softEnum){
+			if(!isset($this->softEnums[$name])){
+				$this->softEnums[$name] = $softEnum;
+				//what is registered right now is what clients get with the command list
+				$softEnum->consumeChanges();
+				$softEnum->watch($this, function() use ($name, $softEnum) : void{
+					$this->dirtySoftEnums[$name] = $softEnum;
+				});
+			}
+			$this->softEnumReferences[$name] = ($this->softEnumReferences[$name] ?? 0) + 1;
+			$names[] = $name;
+		}
+		$this->commandSoftEnums[spl_object_id($command)] = $names;
+	}
+
+	private function releaseSoftEnums(Command $command) : void{
+		$id = spl_object_id($command);
+		foreach($this->commandSoftEnums[$id] ?? [] as $name){
+			if(--$this->softEnumReferences[$name] === 0){
+				$this->softEnums[$name]->unwatch($this);
+				unset($this->softEnums[$name], $this->softEnumReferences[$name], $this->dirtySoftEnums[$name]);
+			}
+		}
+		unset($this->commandSoftEnums[$id]);
 	}
 
 	/**
@@ -269,14 +330,15 @@ class SimpleCommandMap implements CommandMap{
 			$sender->sendMessage(KnownTranslationFactory::quark_command_notFound("", "/help")->prefix(TextFormat::RED));
 			return false;
 		}
-		return $this->dispatchParsed($sender, $sentCommandLabel, $args);
+		return $this->dispatchParsed($sender, $sentCommandLabel, $args, $commandLine);
 	}
 
 	/**
 	 * @param string[] $args
 	 * @phpstan-param list<string> $args
+	 * @param string|null $commandLine the raw line $args came from, so greedy arguments keep quotes and spacing
 	 */
-	public function dispatchParsed(CommandSender $sender, string $commandLabel, array $args) : bool{
+	public function dispatchParsed(CommandSender $sender, string $commandLabel, array $args, ?string $commandLine = null) : bool{
 		$target = $this->getCommand($commandLabel);
 		if($target === null){
 			$sender->sendMessage(KnownTranslationFactory::quark_command_notFound($commandLabel, "/help")->prefix(TextFormat::RED));
@@ -288,7 +350,7 @@ class SimpleCommandMap implements CommandMap{
 
 		try{
 			if(self::isOwnerEnabled($target) && $target->testPermission($sender)){
-				$target->execute($sender, $commandLabel, $args);
+				$target->dispatchLine($sender, $commandLabel, $args, $commandLine);
 			}
 		}catch(CommandInputException $e){
 			$message = $e->getUserMessage();
@@ -317,6 +379,13 @@ class SimpleCommandMap implements CommandMap{
 		foreach($this->knownCommands as $command){
 			$command->unregister($this);
 		}
+		foreach($this->softEnums as $softEnum){
+			$softEnum->unwatch($this);
+		}
+		$this->softEnums = [];
+		$this->softEnumReferences = [];
+		$this->commandSoftEnums = [];
+		$this->dirtySoftEnums = [];
 		$this->knownCommands = [];
 		$this->setDefaultCommands();
 		$this->clientMetadataDirty = true;
@@ -336,6 +405,27 @@ class SimpleCommandMap implements CommandMap{
 		$dirty = $this->clientMetadataDirty;
 		$this->clientMetadataDirty = false;
 		return $dirty;
+	}
+
+	/**
+	 * Takes the soft enum changes not yet sent to clients. Each entry is the enum, its pending changes, and the enum
+	 * version before and after them.
+	 *
+	 * @internal
+	 * @return mixed[][]
+	 * @phpstan-return list<array{SoftEnum, list<array{int, list<string>}>, int, int}>
+	 */
+	public function consumeSoftEnumChanges() : array{
+		$result = [];
+		foreach($this->dirtySoftEnums as $softEnum){
+			$since = $softEnum->getConsumedVersion();
+			$changes = $softEnum->consumeChanges();
+			if(count($changes) !== 0){
+				$result[] = [$softEnum, $changes, $since, $softEnum->getVersion()];
+			}
+		}
+		$this->dirtySoftEnums = [];
+		return $result;
 	}
 
 	public function getCommand(string $name) : ?Command{

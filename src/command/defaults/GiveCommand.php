@@ -24,87 +24,84 @@ declare(strict_types=1);
 namespace quark\command\defaults;
 
 use pocketmine\nbt\JsonNbtParser;
-use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\NbtException;
+use quark\command\argument\ArgumentParseException;
+use quark\command\argument\IntegerArgument;
+use quark\command\argument\MappedArgument;
+use quark\command\argument\PlayerArgument;
+use quark\command\argument\StringArgument;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
+use quark\item\Item;
 use quark\item\LegacyStringToItemParser;
 use quark\item\LegacyStringToItemParserException;
 use quark\item\StringToItemParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\player\Player;
 use quark\utils\TextFormat;
-use function array_slice;
-use function count;
-use function implode;
 
 class GiveCommand extends VanillaCommand{
+	private const MAX_COUNT = 32767;
 
 	public function __construct(){
 		parent::__construct(
 			"give",
-			KnownTranslationFactory::quark_command_give_description(),
-			KnownTranslationFactory::quark_command_give_usage()
+			KnownTranslationFactory::quark_command_give_description()
 		);
 		$this->setPermissions([
 			DefaultPermissionNames::COMMAND_GIVE_SELF,
 			DefaultPermissionNames::COMMAND_GIVE_OTHER
 		]);
+
+		$this->syntax()
+			->registerArguments([
+				new PlayerArgument("target", partial: true, self: true),
+				self::item(),
+				new IntegerArgument("count", 1, self::MAX_COUNT, optional: true),
+				new StringArgument("tags", optional: true, greedy: true)
+			])
+			->handler($this->give(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 2){
-			throw new InvalidCommandSyntaxException();
-		}
-
-		$player = $this->fetchPermittedPlayerTarget($sender, $args[0], DefaultPermissionNames::COMMAND_GIVE_SELF, DefaultPermissionNames::COMMAND_GIVE_OTHER);
-		if($player === null){
-			return true;
-		}
-
-		try{
-			$item = StringToItemParser::getInstance()->parse($args[1]) ?? LegacyStringToItemParser::getInstance()->parse($args[1]);
-		}catch(LegacyStringToItemParserException $e){
-			$sender->sendMessage(KnownTranslationFactory::commands_give_item_notFound($args[1])->prefix(TextFormat::RED));
-			return true;
-		}
-
-		if(!isset($args[2])){
-			$item->setCount($item->getMaxStackSize());
-		}else{
-			$count = $this->getBoundedInt($sender, $args[2], 1, 32767);
-			if($count === null){
-				return true;
-			}
-			$item->setCount($count);
-		}
-
-		if(isset($args[3])){
-			$data = implode(" ", array_slice($args, 3));
+	/**
+	 * Looks an item up by name, including legacy ids. Air is not an item that can be given or cleared.
+	 *
+	 * @return MappedArgument<Item>
+	 */
+	public static function item(bool $optional = false) : MappedArgument{
+		return new MappedArgument("item", static function(string $name) : Item{
 			try{
-				$tags = JsonNbtParser::parseJson($data);
-			}catch(NbtDataException $e){
-				$sender->sendMessage(KnownTranslationFactory::commands_give_tagError($e->getMessage()));
-				return true;
+				$item = StringToItemParser::getInstance()->parse($name) ?? LegacyStringToItemParser::getInstance()->parse($name);
+			}catch(LegacyStringToItemParserException){
+				throw new ArgumentParseException(KnownTranslationFactory::commands_give_item_notFound($name));
 			}
+			return $item->isNull() ? throw new ArgumentParseException(KnownTranslationFactory::commands_give_item_notFound($name)) : $item;
+		}, Item::class, $optional);
+	}
 
+	private function give(CommandSender $sender, Player $target, Item $item, ?int $count = null, ?string $tags = null) : void{
+		if(!$this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_GIVE_SELF, DefaultPermissionNames::COMMAND_GIVE_OTHER)){
+			return;
+		}
+
+		$item->setCount($count ?? $item->getMaxStackSize());
+		if($tags !== null){
 			try{
-				$item->setNamedTag($tags);
+				$item->setNamedTag(JsonNbtParser::parseJson($tags));
 			}catch(NbtException $e){
 				$sender->sendMessage(KnownTranslationFactory::commands_give_tagError($e->getMessage()));
-				return true;
+				return;
 			}
 		}
 
-		//TODO: overflow
-		$player->getInventory()->addItem($item);
+		$inventory = $target->getInventory();
+		if(!$inventory->canAddItem($item)){
+			$sender->sendMessage(KnownTranslationFactory::quark_command_give_noSpace($item->getName(), $target->getName())->prefix(TextFormat::RED));
+			return;
+		}
+		$inventory->addItem($item);
 
-		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_give_success(
-			$item->getName() . " (" . $args[1] . ")",
-			(string) $item->getCount(),
-			$player->getName()
-		));
-		return true;
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_give_success($item->getName(), (string) $item->getCount(), $target->getName()));
 	}
 }

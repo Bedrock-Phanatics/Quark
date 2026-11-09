@@ -23,50 +23,36 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\CommandEnum;
+use quark\command\argument\EnumArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\ServerProperties;
 use quark\world\World;
-use function count;
 
 class DifficultyCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"difficulty",
-			KnownTranslationFactory::quark_command_difficulty_description(),
-			KnownTranslationFactory::commands_difficulty_usage()
+			KnownTranslationFactory::quark_command_difficulty_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_DIFFICULTY);
+		$this->registerArgument(new EnumArgument("difficulty", CommandEnum::fromValues("Difficulty", ["peaceful", "p", "0", "easy", "e", "1", "normal", "n", "2", "hard", "h", "3"])));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) !== 1){
-			throw new InvalidCommandSyntaxException();
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$server = $sender->getServer();
+		$difficulty = $server->isHardcore() ? World::DIFFICULTY_HARD : World::getDifficultyFromString($args->string("difficulty"));
+
+		$server->getConfigGroup()->setConfigInt(ServerProperties::DIFFICULTY, $difficulty);
+		//TODO: add per-world support
+		foreach($server->getWorldManager()->getWorlds() as $world){
+			$world->setDifficulty($difficulty);
 		}
-
-		$difficulty = World::getDifficultyFromString($args[0]);
-
-		if($sender->getServer()->isHardcore()){
-			$difficulty = World::DIFFICULTY_HARD;
-		}
-
-		if($difficulty !== -1){
-			$sender->getServer()->getConfigGroup()->setConfigInt(ServerProperties::DIFFICULTY, $difficulty);
-
-			//TODO: add per-world support
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
-				$world->setDifficulty($difficulty);
-			}
-
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_difficulty_success((string) $difficulty));
-		}else{
-			throw new InvalidCommandSyntaxException();
-		}
-
-		return true;
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_difficulty_success((string) $difficulty));
 	}
 }

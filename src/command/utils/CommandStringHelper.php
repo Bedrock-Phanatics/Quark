@@ -25,8 +25,11 @@ namespace quark\command\utils;
 
 use quark\utils\AssumptionFailedError;
 use function preg_last_error_msg;
+use function preg_match;
 use function preg_match_all;
 use function preg_replace;
+use function strlen;
+use const PREG_OFFSET_CAPTURE;
 
 final class CommandStringHelper{
 
@@ -59,5 +62,25 @@ final class CommandStringHelper{
 		}
 
 		return $args;
+	}
+
+	/**
+	 * Finds where the token at $index starts in the raw command line, counting tokens the same way as
+	 * {@link CommandStringHelper::parseQuoteAware()}. Returns null if there is no such token.
+	 */
+	public static function tokenOffset(string $commandLine, int $index) : ?int{
+		$position = 0;
+		$seen = 0;
+		while(preg_match('/"((?:\\\\.|[^\\\\"])*)"|(\S+)/u', $commandLine, $match, PREG_OFFSET_CAPTURE, $position) === 1){
+			$position = $match[0][1] + strlen($match[0][0]);
+			if($match[1][0] === "" && ($match[2][0] ?? "") === ""){
+				continue;
+			}
+			if($seen === $index){
+				return $match[0][1];
+			}
+			++$seen;
+		}
+		return null;
 	}
 }

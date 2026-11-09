@@ -25,55 +25,51 @@ namespace quark\command\argument;
 
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
-use function array_flip;
-use function array_is_list;
-use function count;
 use function implode;
-use function is_string;
-use function preg_match;
-use function strtolower;
+use function is_array;
 
 /**
- * @phpstan-extends Argument<string>
+ * @phpstan-extends Argument<mixed>
  */
 final class EnumArgument extends Argument{
-	/** @phpstan-var array<int|string, int> */
-	private array $lookup;
+	private CommandEnum $enum;
 
 	/**
-	 * @param string[] $values
-	 * @phpstan-param list<string> $values
+	 * @param CommandEnum|string[]|string $enum an enum definition, a list of words or a native enum class
+	 * @phpstan-param CommandEnum|list<string>|class-string<\UnitEnum> $enum
 	 * @throws \InvalidArgumentException
 	 */
-	public function __construct(string $name, private array $values, bool $optional = false){
-		if(count($values) === 0 || !array_is_list($values)){
-			throw new \InvalidArgumentException("Enum values must be a non-empty list");
-		}
-		foreach($values as $value){
-			if(!is_string($value) || preg_match('/\A[a-z0-9_-]+\z/', $value) !== 1){
-				throw new \InvalidArgumentException("Enum values must be lowercase words");
-			}
-		}
-		$this->lookup = array_flip($values);
-		if(count($this->lookup) !== count($values)){
-			throw new \InvalidArgumentException("Enum values must be unique");
-		}
+	public function __construct(string $name, CommandEnum|array|string $enum, bool $optional = false){
+		$this->enum = match(true){
+			$enum instanceof CommandEnum => $enum,
+			is_array($enum) => CommandEnum::fromValues($name, $enum),
+			default => CommandEnum::fromCases($enum)
+		};
 		parent::__construct($name, $optional);
 	}
 
-	public function parse(string $input, CommandSender $sender) : string{
-		$value = strtolower($input);
-		if(!isset($this->lookup[$value])){
-			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidEnum($input, implode(", ", $this->values)));
-		}
-		return $value;
+	public function parse(string $input, CommandSender $sender) : mixed{
+		return $this->enum->find($input) ??
+			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidEnum($input, implode(", ", $this->enum->getValues())));
+	}
+
+	public function matches(string $token, int $slot = 0) : bool{
+		return $this->enum->find($token) !== null;
 	}
 
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::ENUM;
 	}
 
-	public function getEnumValues() : array{
-		return $this->values;
+	public function getChoices() : array{
+		return $this->enum->getValues();
+	}
+
+	public function getEnum() : CommandEnum{
+		return $this->enum;
+	}
+
+	public function getValueType() : string{
+		return $this->enum->getValueType();
 	}
 }

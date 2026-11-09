@@ -39,6 +39,8 @@ use quark\world\BlockTransaction;
 class Stair extends Transparent implements HorizontalFacing{
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::EAST;
+
 	protected bool $upsideDown = false;
 	protected StairShape $shape = StairShape::STRAIGHT;
 

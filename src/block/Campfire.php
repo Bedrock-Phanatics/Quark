@@ -40,7 +40,6 @@ use quark\event\block\CampfireCookEvent;
 use quark\event\entity\EntityDamageByBlockEvent;
 use quark\event\entity\EntityDamageEvent;
 use quark\inventory\Inventory;
-use quark\inventory\SimpleInventory;
 use quark\item\Durable;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
@@ -72,43 +71,14 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 
 	private const UPDATE_INTERVAL_TICKS = 10;
 
-	/**
-	 * @deprecated This was added by mistake. It can't be relied on as the inventory won't be initialized if this block
-	 * has never been set in the world.
-	 */
-	protected Inventory $inventory;
-
-	/**
-	 * @var int[] slot => ticks
-	 * @phpstan-var array<int, int>
-	 */
-	protected array $cookingTimes = [];
-
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{
 		$this->encodeFacingState($w);
 		$this->encodeLitState($w);
 	}
 
-	public function readStateFromWorld() : Block{
-		parent::readStateFromWorld();
+	private function getTile() : ?TileCampfire{
 		$tile = $this->position->getWorld()->getTile($this->position);
-		if($tile instanceof TileCampfire){
-			$this->inventory = $tile->getInventory();
-			$this->cookingTimes = $tile->getCookingTimes();
-		}else{
-			$this->inventory = new SimpleInventory(4);
-			$this->inventory->setMaxStackSize(1);
-		}
-
-		return $this;
-	}
-
-	public function writeStateToWorld() : void{
-		parent::writeStateToWorld();
-		$tile = $this->position->getWorld()->getTile($this->position);
-		if($tile instanceof TileCampfire){
-			$tile->setCookingTimes($this->cookingTimes);
-		}
+		return $tile instanceof TileCampfire ? $tile : null;
 	}
 
 	public function hasEntityCollision() : bool{
@@ -138,11 +108,10 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 	}
 
 	/**
-	 * @deprecated This was added by mistake. It can't be relied on as the inventory won't be initialized if this block
-	 * has never been set in the world.
+	 * Returns the inventory held by the tile at this block's position, or null if there is no campfire tile there.
 	 */
-	public function getInventory() : Inventory{
-		return $this->inventory;
+	public function getInventory() : ?Inventory{
+		return $this->getTile()?->getInventory();
 	}
 
 	protected function getFurnaceType() : FurnaceType{
@@ -163,14 +132,14 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 		if($time < 0 || $time > $this->getFurnaceType()->getCookDurationTicks()){
 			throw new \InvalidArgumentException("CookingTime must be in range 0-" . $this->getFurnaceType()->getCookDurationTicks());
 		}
-		$this->cookingTimes[$slot] = $time;
+		$this->getTile()?->setCookingTime($slot, $time);
 	}
 
 	/**
 	 * Returns the number of ticks during the item in the given slot has been cooked.
 	 */
 	public function getCookingTime(int $slot) : int{
-		return $this->cookingTimes[$slot] ?? 0;
+		return $this->getTile()?->getCookingTime($slot) ?? 0;
 	}
 
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
@@ -204,10 +173,11 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 			return true;
 		}
 
-		if($this->position->getWorld()->getServer()->getCraftingManager()->getFurnaceRecipeManager($this->getFurnaceType())->match($item) !== null){
+		$tile = $this->getTile();
+		if($tile !== null && $this->position->getWorld()->getServer()->getCraftingManager()->getFurnaceRecipeManager($this->getFurnaceType())->match($item) !== null){
 			$ingredient = clone $item;
 			$ingredient->setCount(1);
-			if(count($this->inventory->addItem($ingredient)) === 0){
+			if(count($tile->getInventory()->addItem($ingredient)) === 0){
 				$item->pop();
 				$this->position->getWorld()->addSound($this->position, new ItemFrameAddItemSound());
 				return true;
@@ -242,38 +212,43 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 	}
 
 	public function onScheduledUpdate() : void{
-		if($this->lit){
-			$items = $this->inventory->getContents();
-			$furnaceType = $this->getFurnaceType();
-			$maxCookDuration = $furnaceType->getCookDurationTicks();
-			foreach($items as $slot => $item){
-				$this->setCookingTime($slot, min($maxCookDuration, $this->getCookingTime($slot) + self::UPDATE_INTERVAL_TICKS));
-				if($this->getCookingTime($slot) >= $maxCookDuration){
-					$result =
-						($recipe = $this->position->getWorld()->getServer()->getCraftingManager()->getFurnaceRecipeManager($furnaceType)->match($item)) instanceof FurnaceRecipe ?
-							$recipe->getResult() :
-							VanillaItems::AIR();
-
-					$ev = new CampfireCookEvent($this, $slot, $item, $result);
-					$ev->call();
-
-					if ($ev->isCancelled()){
-						continue;
-					}
-
-					$this->inventory->setItem($slot, VanillaItems::AIR());
-					$this->setCookingTime($slot, 0);
-					$this->position->getWorld()->dropItem($this->position->add(0.5, 1, 0.5), $ev->getResult());
-				}
-			}
-			if(count($items) > 0){
-				$this->position->getWorld()->setBlock($this->position, $this);
-			}
-			if(mt_rand(1, 6) === 1){
-				$this->position->getWorld()->addSound($this->position, $furnaceType->getCookSound());
-			}
-			$this->position->getWorld()->scheduleDelayedBlockUpdate($this->position, self::UPDATE_INTERVAL_TICKS);
+		$tile = $this->lit ? $this->getTile() : null;
+		if($tile === null){
+			return;
 		}
+		$world = $this->position->getWorld();
+		$inventory = $tile->getInventory();
+		$furnaceType = $this->getFurnaceType();
+		$maxCookDuration = $furnaceType->getCookDurationTicks();
+		foreach($inventory->getContents() as $slot => $item){
+			$cookingTime = min($maxCookDuration, $tile->getCookingTime($slot) + self::UPDATE_INTERVAL_TICKS);
+			$tile->setCookingTime($slot, $cookingTime);
+			if($cookingTime < $maxCookDuration){
+				continue;
+			}
+
+			$result =
+				($recipe = $world->getServer()->getCraftingManager()->getFurnaceRecipeManager($furnaceType)->match($item)) instanceof FurnaceRecipe ?
+					$recipe->getResult() :
+					VanillaItems::AIR();
+
+			$ev = new CampfireCookEvent($this, $slot, $item, $result);
+			$ev->call();
+
+			if($ev->isCancelled()){
+				continue;
+			}
+			if($this->getTile() !== $tile){
+				return;
+			}
+
+			$inventory->setItem($slot, VanillaItems::AIR());
+			$world->dropItem($this->position->add(0.5, 1, 0.5), $ev->getResult());
+		}
+		if(mt_rand(1, 6) === 1){
+			$world->addSound($this->position, $furnaceType->getCookSound());
+		}
+		$world->scheduleDelayedBlockUpdate($this->position, self::UPDATE_INTERVAL_TICKS);
 	}
 
 	private function extinguish() : void{

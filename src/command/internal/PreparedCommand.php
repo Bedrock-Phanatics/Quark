@@ -21,21 +21,26 @@
 
 declare(strict_types=1);
 
-namespace quark\player\chat;
+namespace quark\command\internal;
 
-use function str_replace;
+use quark\command\argument\SoftEnum;
+use quark\command\CommandSyntax;
 
 /**
- * Legacy raw string chat formatter with the same behaviour as the old PlayerChatEvent::setFormat() API.
- * The format string should contain the placeholders {%0} and {%1} for the username and message respectively.
+ * Routing data computed once when a command is registered.
+ *
+ * @internal
  */
-final class LegacyRawChatFormatter implements ChatFormatter{
-
+final class PreparedCommand{
+	/**
+	 * @param CommandSyntax[] $syntaxes  all syntaxes in deterministic order
+	 * @param SoftEnum[]      $softEnums
+	 * @phpstan-param list<CommandSyntax>     $syntaxes
+	 * @phpstan-param array<string, SoftEnum> $softEnums
+	 */
 	public function __construct(
-		private string $format
+		public readonly SyntaxNode $root,
+		public readonly array $syntaxes,
+		public readonly array $softEnums
 	){}
-
-	public function format(string $username, string $message) : string{
-		return str_replace(["{%0}", "{%1}"], [$username, $message], $this->format);
-	}
 }

@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\StringArgument;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -34,14 +36,13 @@ class DumpMemoryCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"dumpmemory",
-			KnownTranslationFactory::quark_command_dumpmemory_description(),
-			"/dumpmemory [path]"
+			KnownTranslationFactory::quark_command_dumpmemory_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_DUMPMEMORY);
+		$this->registerArgument(new StringArgument("path", optional: true));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$sender->getServer()->getMemoryManager()->dumpServerMemory($args[0] ?? (Path::join($sender->getServer()->getFilesystemPaths()->profiles(), "memory_dumps", date("D_M_j-H.i.s-T_Y"))), 48, 80);
-		return true;
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$sender->getServer()->getMemoryManager()->dumpServerMemory($args->string("path", Path::join($sender->getServer()->getFilesystemPaths()->profiles(), "memory_dumps", date("D_M_j-H.i.s-T_Y"))), 48, 80);
 	}
 }
