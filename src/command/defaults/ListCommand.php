@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -44,7 +45,7 @@ class ListCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_LIST);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		$playerNames = array_map(function(Player $player) : string{
 			return $player->getName();
 		}, array_filter($sender->getServer()->getOnlinePlayers(), function(Player $player) use ($sender) : bool{
@@ -54,7 +55,5 @@ class ListCommand extends VanillaCommand{
 
 		$sender->sendMessage(KnownTranslationFactory::commands_players_list((string) count($playerNames), (string) $sender->getServer()->getMaxPlayers()));
 		$sender->sendMessage(implode(", ", $playerNames));
-
-		return true;
 	}
 }
