@@ -81,7 +81,7 @@ final class PlayerActionCommandsTest extends DefaultCommandTestCase{
 
 		self::assertStringContainsString("Cannot find a player matching \"Nobody\"", $this->dispatch("kill Nobody", $steve)[0]);
 		self::assertStringContainsString("not supported", $this->dispatch("kill @a", $steve)[0]);
-		self::assertSame(["Usage: /kill <target>", "Usage: /kill"], $this->dispatch("kill Alex Steve", $steve));
+		self::assertSame(["Usage: /kill", "Usage: /kill <target>"], $this->dispatch("kill Alex Steve", $steve));
 		self::assertSame([], $this->killed);
 	}
 
