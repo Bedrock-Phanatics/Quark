@@ -37,7 +37,7 @@ Take a look at the table below if you can't find the class or function you're lo
 
 ## Choosing a target branch
 
-Target `v6.0.0` for Quark 6 changes. Verify the base branch before opening a pull request.
+Target `dev` for changes. `main` only receives releases from `dev`. Verify the base branch before opening a pull request.
 
 ## Making a pull request
 The basic procedure to create a pull request is:

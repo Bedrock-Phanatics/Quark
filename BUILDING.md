@@ -45,7 +45,7 @@ To select an output filename, first install production dependencies with `compos
 
 CI runs native NBT and lifecycle checks, PHPStan, PHPUnit, integration tests and two clean code-generation passes on PHP 8.4. CI also checks handwritten PHP style, translations, tracked shell scripts and Docker startup/plugin persistence. Generated PHP is owned by the generators; formatting must be corrected in the generator rather than applied to generated output.
 
-Push builds cover `stable` and `v6.0.0`; other branches are checked through pull requests or manual dispatch to avoid duplicate push/PR builds.
+Push builds cover `main` and `dev`; other branches are checked through pull requests or manual dispatch to avoid duplicate push/PR builds.
 
 To prepare a release, set `IS_DEVELOPMENT_BUILD` to `false`, verify the version/channel in `src/VersionInfo.php`, update `CHANGELOG.md`, and push a matching version tag (for example `6.0.0` or `v6.0.0`). After CI passes, the tag workflow builds `Quark.phar`, launcher scripts, `build_info.json` and core permission documentation, then creates a draft release. Publishing the draft starts the container pipeline for `ghcr.io/bedrock-phanatics/quark`; stable releases also receive major, minor and `latest` tags. Container smoke tests must pass before tags are pushed.
 

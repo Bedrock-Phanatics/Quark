@@ -1435,7 +1435,7 @@ class Server{
 			$splash = "\n\n";
 			foreach([
 				KnownTranslationFactory::quark_server_url_discord("{$highlight}https://discord.gg/Yv9qPRQNc3{$reset}"),
-				KnownTranslationFactory::quark_server_url_docs("{$highlight}{$github}/blob/v6.0.0/README.md{$reset}"),
+				KnownTranslationFactory::quark_server_url_docs("{$highlight}{$github}/blob/main/README.md{$reset}"),
 				KnownTranslationFactory::quark_server_url_sourceCode("{$highlight}{$github}{$reset}"),
 				KnownTranslationFactory::quark_server_url_bugReporting("{$highlight}{$github}/issues{$reset}")
 			] as $link){
