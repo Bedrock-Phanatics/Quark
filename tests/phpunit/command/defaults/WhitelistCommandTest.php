@@ -33,6 +33,7 @@ use quark\utils\Config;
 use quark\utils\TextFormat;
 use function array_keys;
 use function bin2hex;
+use function count;
 use function file_exists;
 use function random_bytes;
 use function strtolower;

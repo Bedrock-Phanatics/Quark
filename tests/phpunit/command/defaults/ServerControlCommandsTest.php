@@ -146,7 +146,7 @@ final class ServerControlCommandsTest extends DefaultCommandTestCase{
 	public function testNoArgumentCommandsRejectTrailingInputWithoutRunning() : void{
 		$console = $this->console();
 		foreach(["stop now", "save-all now", "save-on x", "save-off x", "gc all"] as $line){
-			[$name] = explode(" ", $line);
+			[$name] = explode(" ", $line, 2);
 			self::assertSame(["Usage: /$name"], $this->dispatch($line, $console), $line);
 		}
 		self::assertSame(0, $this->shutdowns);

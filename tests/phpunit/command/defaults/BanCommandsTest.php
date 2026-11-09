@@ -71,7 +71,8 @@ final class BanCommandsTest extends DefaultCommandTestCase{
 	}
 
 	protected function tearDown() : void{
-		foreach(glob($this->dir . "/*") ?: [] as $file){
+		$files = glob($this->dir . "/*");
+		foreach($files === false ? [] : $files as $file){
 			unlink($file);
 		}
 		if(file_exists($this->dir)){

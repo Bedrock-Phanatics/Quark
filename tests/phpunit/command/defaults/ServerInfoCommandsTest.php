@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use PHPUnit\Framework\MockObject\Stub;
 use quark\network\BidirectionalBandwidthStatsTracker;
 use quark\network\Network;
 use quark\permission\DefaultPermissionNames;
@@ -69,7 +70,7 @@ final class ServerInfoCommandsTest extends DefaultCommandTestCase{
 		$this->plugins[$name] = $plugin;
 	}
 
-	private function visible(Player $player, bool ...$sees) : void{
+	private function visible(Player&Stub $player, bool ...$sees) : void{
 		$player->method("canSee")->willReturnCallback(fn(Player $other) : bool => $sees[$other->getName()] ?? true);
 	}
 
