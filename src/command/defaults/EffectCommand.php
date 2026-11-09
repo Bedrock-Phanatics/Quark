@@ -29,7 +29,6 @@ use quark\command\argument\BooleanArgument;
 use quark\command\argument\IntegerArgument;
 use quark\command\argument\MappedArgument;
 use quark\command\argument\PlayerArgument;
-use quark\command\argument\StringArgument;
 use quark\command\CommandSender;
 use quark\entity\effect\Effect;
 use quark\entity\effect\EffectInstance;
@@ -37,10 +36,8 @@ use quark\entity\effect\StringToEffectParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\utils\TextFormat;
 use function count;
 use function intdiv;
-use function strtolower;
 
 class EffectCommand extends VanillaCommand{
 
@@ -54,10 +51,13 @@ class EffectCommand extends VanillaCommand{
 			DefaultPermissionNames::COMMAND_EFFECT_OTHER
 		]);
 
-		//a plain word here, since "clear" and effect names cannot be told apart by a declared syntax
 		$this->syntax()
-			->registerArguments([self::target(), new StringArgument("effect")])
-			->handler($this->byName(...));
+			->registerArgument(self::target())
+			->literal("clear")
+			->handler($this->clear(...));
+		$this->syntax()
+			->registerArguments([self::target(), self::effect()])
+			->handler($this->byDefault(...));
 		$this->syntax()
 			->registerArguments([self::target(), self::effect(), new IntegerArgument("seconds", 0, intdiv(Limits::INT32_MAX, 20))])
 			->registerArguments(self::options())
@@ -91,22 +91,17 @@ class EffectCommand extends VanillaCommand{
 		return [new IntegerArgument("amplifier", 0, 255, optional: true), new BooleanArgument("hideParticles", optional: true)];
 	}
 
-	private function byName(CommandSender $sender, Player $target, string $name) : void{
-		if(!$this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER)){
-			return;
-		}
-		if(strtolower($name) === "clear"){
+	private function clear(CommandSender $sender, Player $target) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER)){
 			$target->getEffects()->clear();
 			$sender->sendMessage(KnownTranslationFactory::commands_effect_success_removed_all($target->getDisplayName()));
-			return;
 		}
+	}
 
-		$effect = StringToEffectParser::getInstance()->parse($name);
-		if($effect === null){
-			$sender->sendMessage(KnownTranslationFactory::commands_effect_notFound($name)->prefix(TextFormat::RED));
-			return;
+	private function byDefault(CommandSender $sender, Player $target, Effect $effect) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_EFFECT_SELF, DefaultPermissionNames::COMMAND_EFFECT_OTHER)){
+			$this->apply($sender, $target, $effect, null, false, 0, false);
 		}
-		$this->apply($sender, $target, $effect, null, false, 0, false);
 	}
 
 	private function timed(CommandSender $sender, Player $target, Effect $effect, int $seconds, int $amplifier = 0, bool $hideParticles = false) : void{

@@ -214,6 +214,10 @@ final class SyntaxMatcher{
 	 * @phpstan-param Argument<mixed> $b
 	 */
 	private static function slotsOverlap(Argument $a, Argument $b) : bool{
+		//a literal reserves its word against open input, like leading words do
+		if(($a instanceof LiteralArgument && $b->getChoices() === null) || ($b instanceof LiteralArgument && $a->getChoices() === null)){
+			return false;
+		}
 		$choicesA = $a->getChoices();
 		$choicesB = $b->getChoices();
 		if($choicesA !== null && $choicesB !== null){
@@ -343,12 +347,17 @@ final class SyntaxMatcher{
 	}
 
 	/**
-	 * A failure further along is closer to what was meant, and a typed argument explains more than a missing word.
+	 * A typed argument explains more than a missing word, and among the same kind a failure further along is closer to what was meant.
 	 */
 	private static function isCloser(SyntaxFailure $candidate, ?SyntaxFailure $best) : bool{
-		return $best === null ||
-			$candidate->position > $best->position ||
-			($candidate->position === $best->position && $best->argument instanceof LiteralArgument && !$candidate->argument instanceof LiteralArgument);
+		if($best === null){
+			return true;
+		}
+		$candidateLiteral = $candidate->argument instanceof LiteralArgument;
+		if($candidateLiteral !== ($best->argument instanceof LiteralArgument)){
+			return !$candidateLiteral;
+		}
+		return $candidate->position > $best->position;
 	}
 
 	/**

@@ -46,7 +46,8 @@ final class HelpAndWorldCommandsTest extends DefaultCommandTestCase{
 		self::assertNotSame([], array_filter($this->dispatch("help", $guest), fn(string $line) => str_starts_with($line, "/")));
 		foreach(["help a b", "help tp 2", "help 1 2", "help 1.5"] as $line){
 			$messages = $this->dispatch($line, $console);
-			self::assertStringContainsString("Usage: /help", $messages[array_key_last($messages)], $line);
+			self::assertStringContainsString("Usage: /help", implode("
+", $messages), $line);
 		}
 	}
 

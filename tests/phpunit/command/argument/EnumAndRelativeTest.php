@@ -59,6 +59,14 @@ final class EnumAndRelativeTest extends TestCase{
 		self::assertSame($sizes, $argument->getEnum(), "commands share one definition so clients see one enum");
 	}
 
+	public function testNumericWordsStayStrings() : void{
+		$enum = CommandEnum::fromValues("Numbers", ["0", "1", "easy"]);
+		self::assertSame(["0", "1", "easy"], $enum->getValues());
+		self::assertSame(["0", "1", "easy"], (new EnumArgument("n", $enum))->getChoices());
+		self::assertSame("1", $enum->find("1"));
+		self::assertSame(["7"], CommandEnum::fromMap("Seven", ["7" => true])->getValues());
+	}
+
 	/**
 	 * @phpstan-return \Generator<string, array{\Closure() : mixed}, void, void>
 	 */

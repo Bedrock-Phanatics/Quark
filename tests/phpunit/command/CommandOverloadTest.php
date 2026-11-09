@@ -197,6 +197,21 @@ final class CommandOverloadTest extends TestCase{
 		self::assertSame([], $this->calls);
 	}
 
+	public function testLiteralsReserveTheirWordAgainstOpenArguments() : void{
+		$command = $this->command("lookup");
+		$command->syntax()->registerArguments([new StringArgument("name"), new LiteralArgument("clear")])
+			->handler(fn(CommandSender $s, string $name) => $this->log("clear $name"));
+		$command->syntax()->registerArguments([new StringArgument("name"), new StringArgument("value")])
+			->handler(fn(CommandSender $s, string $name, string $value) => $this->log("set $name $value"));
+		$this->map->register("test", $command);
+
+		$this->dispatch("lookup a CLEAR");
+		$this->dispatch("lookup a b");
+		self::assertSame(["set a b"], $this->calls);
+		$this->dispatch("lookup a clear");
+		self::assertSame(["clear a"], $this->calls);
+	}
+
 	public function testResolutionNeverRunsHandlersOrParsesRejectedOverloads() : void{
 		/** @var \ArrayObject<int, string> $parsed */
 		$parsed = new \ArrayObject();

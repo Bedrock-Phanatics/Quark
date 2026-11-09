@@ -26,12 +26,14 @@ namespace quark\command\argument;
 use function array_is_list;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function array_unique;
 use function count;
 use function get_debug_type;
 use function is_string;
 use function preg_match;
 use function strtolower;
+use function strval;
 
 /**
  * A fixed set of lowercase words, each mapped to a value. Share one instance between commands so the client sees
@@ -75,7 +77,8 @@ final class CommandEnum{
 			$clean[$key] = $value;
 		}
 		$this->map = $clean;
-		$this->values = array_keys($clean);
+		//numeric words become integer array keys
+		$this->values = array_map(strval(...), array_keys($clean));
 		$this->valueType = count($types) === 1 ? array_keys($types)[0] : "mixed";
 	}
 
@@ -103,7 +106,7 @@ final class CommandEnum{
 
 	/**
 	 * @param mixed[] $map
-	 * @phpstan-param array<string, mixed> $map
+	 * @phpstan-param array<int|string, mixed> $map
 	 * @throws \InvalidArgumentException
 	 */
 	public static function fromMap(string $name, array $map) : self{
