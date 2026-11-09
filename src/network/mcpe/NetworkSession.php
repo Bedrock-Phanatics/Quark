@@ -68,6 +68,7 @@ use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
+use pocketmine\network\mcpe\protocol\UpdateSoftEnumPacket;
 use pocketmine\utils\Limits;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
@@ -82,6 +83,7 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\cache\ChunkCache;
+use quark\command\argument\SoftEnum;
 use quark\network\mcpe\command\CommandMetadataAdapter;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
@@ -206,6 +208,9 @@ class NetworkSession{
 	private \SplQueue $compressedQueue;
 	private bool $latencySensitiveFlushEnabled;
 	private bool $latencySensitiveFlushPerformedThisTick = false;
+	private bool $commandSyncPending = false;
+	/** @phpstan-var array<string, int> */
+	private array $softEnumVersions = [];
 	private bool $forceAsyncCompression = true;
 	private bool $enableCompression = false; //disabled until handshake completed
 
@@ -359,9 +364,10 @@ class NetworkSession{
 
 		$permissionHooks = $this->player->getPermissionRecalculationCallbacks();
 		$permissionHooks->add($permHook = function() : void{
-			$this->logger->debug("Syncing available commands and abilities/permissions due to permission recalculation");
+			$this->logger->debug("Syncing abilities/permissions and queueing available commands due to permission recalculation");
 			$this->syncAbilities($this->player);
-			$this->syncAvailableCommands();
+			//several recalculations in a tick need only one command list
+			$this->commandSyncPending = true;
 		});
 		$this->disposeHooks->add(static function() use ($permissionHooks, $permHook) : void{
 			$permissionHooks->remove($permHook);
@@ -1596,7 +1602,33 @@ class NetworkSession{
 		if($this->player === null){
 			throw new \LogicException("Cannot sync available commands before the player is created");
 		}
-		$this->sendDataPacket(CommandMetadataAdapter::createPacket($this->server->getCommandMap()->getCommands(), $this->player));
+		$this->commandSyncPending = false;
+		$this->sendDataPacket(CommandMetadataAdapter::createPacket($this->server->getCommandMap()->getCommands(), $this->player, $this->softEnumVersions));
+	}
+
+	/**
+	 * Sends soft enum changes for the enums this client was given, without resending the command list.
+	 *
+	 * @internal
+	 * @param mixed[][] $changes
+	 * @phpstan-param list<array{SoftEnum, list<array{int, list<string>}>, int, int}> $changes
+	 */
+	public function syncSoftEnums(array $changes) : void{
+		foreach($changes as [$softEnum, $pending, $since, $until]){
+			$name = $softEnum->getName();
+			$known = $this->softEnumVersions[$name] ?? null;
+			if($known === null || $known >= $until){
+				continue;
+			}
+			//a client that is not exactly at the start of the batch gets the whole list to stay consistent
+			if($known !== $since){
+				$pending = [[SoftEnum::TYPE_SET, $softEnum->getValues()]];
+			}
+			foreach($pending as [$type, $values]){
+				$this->sendDataPacket(UpdateSoftEnumPacket::create($name, $values, $type));
+			}
+			$this->softEnumVersions[$name] = $until;
+		}
 	}
 
 	/**
@@ -1822,6 +1854,9 @@ class NetworkSession{
 		if($this->player !== null){
 			$this->player->doChunkRequests();
 			$this->synchronizePlayerAttributes();
+			if($this->commandSyncPending){
+				$this->syncAvailableCommands();
+			}
 		}
 		$playerNetworkSendInventorySyncScope = PulseZones::$playerNetworkSendInventorySync->start();
 		try{

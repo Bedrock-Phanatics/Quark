@@ -32,6 +32,8 @@ use function preg_match;
  * @phpstan-extends Argument<float>
  */
 final class FloatArgument extends Argument{
+	public const string PATTERN = '/\A[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/';
+
 
 	/**
 	 * @throws \InvalidArgumentException
@@ -52,7 +54,7 @@ final class FloatArgument extends Argument{
 	}
 
 	public function parse(string $input, CommandSender $sender) : float{
-		if(preg_match('/\A[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/', $input) !== 1){
+		if(!$this->matches($input)){
 			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_invalidNumber($input));
 		}
 		$value = (float) $input;
@@ -68,7 +70,15 @@ final class FloatArgument extends Argument{
 		return $value;
 	}
 
+	public function matches(string $token, int $slot = 0) : bool{
+		return preg_match(self::PATTERN, $token) === 1;
+	}
+
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::FLOAT;
+	}
+
+	public function getValueType() : string{
+		return "float";
 	}
 }

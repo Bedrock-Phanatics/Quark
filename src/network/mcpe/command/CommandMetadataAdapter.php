@@ -30,17 +30,21 @@ use pocketmine\network\mcpe\protocol\types\command\CommandHardEnum;
 use pocketmine\network\mcpe\protocol\types\command\CommandOverload;
 use pocketmine\network\mcpe\protocol\types\command\CommandParameter;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
+use pocketmine\network\mcpe\protocol\types\command\CommandSoftEnum;
 use quark\command\argument\Argument;
 use quark\command\argument\ArgumentKind;
+use quark\command\argument\CommandEnum;
+use quark\command\argument\LiteralArgument;
 use quark\command\Command;
 use quark\command\SimpleCommandMap;
 use quark\lang\Translatable;
 use quark\player\Player;
+use function array_push;
 use function array_values;
 use function count;
-use function implode;
 use function in_array;
 use function mb_strcut;
+use function spl_object_id;
 use function strlen;
 use function strtolower;
 use function ucfirst;
@@ -51,10 +55,16 @@ use function ucfirst;
 final class CommandMetadataAdapter{
 	public const int MAX_COMMAND_TEXT_BYTES = 1000;
 
-	/** @phpstan-var array<string, CommandHardEnum> */
+	/** @phpstan-var array<int, CommandHardEnum> */
 	private array $enums = [];
+	/** @phpstan-var array<string, CommandHardEnum> */
+	private array $literalEnums = [];
 	/** @phpstan-var array<string, true> */
 	private array $enumNames = [];
+	/** @phpstan-var array<string, CommandSoftEnum> */
+	private array $softEnums = [];
+	/** @phpstan-var array<string, int> */
+	private array $softEnumVersions = [];
 
 	private function __construct(
 		private Player $player
@@ -63,8 +73,10 @@ final class CommandMetadataAdapter{
 	/**
 	 * @param Command[] $commands
 	 * @phpstan-param array<string, Command> $commands
+	 * @param int[] $softEnumVersions filled with the version of every soft enum the packet carries
+	 * @phpstan-param array<string, int> $softEnumVersions
 	 */
-	public static function createPacket(array $commands, Player $player) : AvailableCommandsPacket{
+	public static function createPacket(array $commands, Player $player, array &$softEnumVersions = []) : AvailableCommandsPacket{
 		$adapter = new self($player);
 		$commandData = [];
 		foreach($commands as $command){
@@ -86,6 +98,7 @@ final class CommandMetadataAdapter{
 			}
 		}
 
+		$softEnumVersions = $adapter->softEnumVersions;
 		return AvailableCommandsPacketAssembler::assemble(array_values($commandData), [], []);
 	}
 
@@ -114,7 +127,7 @@ final class CommandMetadataAdapter{
 				//work around a client bug which makes the original name not show when aliases are used
 				$aliases[] = $lname;
 			}
-			$aliasEnum = $this->getEnum(ucfirst($label) . "Aliases", $aliases);
+			$aliasEnum = new CommandHardEnum($this->uniqueName(ucfirst($label) . "Aliases"), $aliases);
 		}
 
 		$description = $command->getDescription();
@@ -150,46 +163,87 @@ final class CommandMetadataAdapter{
 			}
 			$parameters = [];
 			foreach($syntax->getLiterals() as $literal){
-				$parameters[] = CommandParameter::enum($literal, $this->getEnum("literal_" . $literal, [$literal]), 0);
+				$parameters[] = $this->createLiteralParameter($literal);
 			}
 			foreach($syntax->getArguments() as $argument){
-				$parameters[] = $this->createParameter($argument);
+				array_push($parameters, ...$this->createParameters($argument));
 			}
 			$overloads[] = new CommandOverload(chaining: false, parameters: $parameters);
 		}
 		return $overloads;
 	}
 
-	/**
-	 * @phpstan-param Argument<mixed> $argument
-	 */
-	private function createParameter(Argument $argument) : CommandParameter{
-		$name = $argument->getName();
-		$optional = $argument->isOptional();
-		return match($argument->getKind()){
-			ArgumentKind::WORD => CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_STRING, 0, $optional),
-			ArgumentKind::INTEGER => CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_INT, 0, $optional),
-			ArgumentKind::FLOAT => CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_FLOAT, 0, $optional),
-			ArgumentKind::TEXT => CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, $optional),
-			ArgumentKind::PLAYER => CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_TARGET, 0, $optional),
-			ArgumentKind::ENUM => CommandParameter::enum($name, $this->getEnum($name, $argument->getEnumValues()), 0, $optional),
-		};
+	private function createLiteralParameter(string $literal) : CommandParameter{
+		$enum = $this->literalEnums[$literal] ??= new CommandHardEnum($this->uniqueName("literal_" . $literal), [$literal]);
+		return CommandParameter::enum($literal, $enum, 0);
 	}
 
 	/**
-	 * @param string[] $values
-	 * @phpstan-param list<string> $values
+	 * @phpstan-param Argument<mixed> $argument
+	 * @return CommandParameter[]
+	 * @phpstan-return list<CommandParameter>
 	 */
-	private function getEnum(string $name, array $values) : CommandHardEnum{
-		$key = implode(",", $values);
-		if(isset($this->enums[$key])){
-			return $this->enums[$key];
+	private function createParameters(Argument $argument) : array{
+		$name = $argument->getName();
+		$optional = $argument->isOptional();
+		if($argument instanceof LiteralArgument){
+			return [$this->createLiteralParameter($argument->getLiteral())];
 		}
-		//names stay unique even when commands reuse one for different values
-		if(isset($this->enumNames[$name])){
-			$name .= "#" . count($this->enums);
+		switch($argument->getKind()){
+			case ArgumentKind::WORD:
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_STRING, 0, $optional)];
+			case ArgumentKind::INTEGER:
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_INT, 0, $optional)];
+			case ArgumentKind::FLOAT:
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_FLOAT, 0, $optional)];
+			case ArgumentKind::TEXT:
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_RAWTEXT, 0, $optional)];
+			case ArgumentKind::PLAYER:
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_TARGET, 0, $optional)];
+			case ArgumentKind::POSITION:
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_POSITION, 0, $optional)];
+			case ArgumentKind::VALUE:
+				//values are sent as plain numbers that clients let you prefix with ~
+				if($argument->getWidth() === 2){
+					return [
+						CommandParameter::standard("yaw", AvailableCommandsPacket::ARG_TYPE_VALUE, 0, $optional),
+						CommandParameter::standard("pitch", AvailableCommandsPacket::ARG_TYPE_VALUE, 0, $optional)
+					];
+				}
+				return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_VALUE, 0, $optional)];
+			case ArgumentKind::ENUM:
+				$enum = $argument->getEnum();
+				return [$enum !== null ?
+					CommandParameter::enum($name, $this->getEnum($enum), 0, $optional) :
+					CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_STRING, 0, $optional)];
+			case ArgumentKind::SOFT_ENUM:
+				$softEnum = $argument->getSoftEnum();
+				if($softEnum === null){
+					return [CommandParameter::standard($name, AvailableCommandsPacket::ARG_TYPE_STRING, 0, $optional)];
+				}
+				$enumName = $softEnum->getName();
+				if(!isset($this->softEnums[$enumName])){
+					$this->softEnums[$enumName] = new CommandSoftEnum($enumName, $softEnum->getValues());
+					$this->softEnumVersions[$enumName] = $softEnum->getVersion();
+				}
+				return [CommandParameter::softEnum($name, $this->softEnums[$enumName], 0, $optional)];
+			case ArgumentKind::LITERAL:
+				break;
 		}
-		$this->enumNames[$name] = true;
-		return $this->enums[$key] = new CommandHardEnum($name, $values);
+		throw new \LogicException("Unhandled argument kind");
+	}
+
+	private function getEnum(CommandEnum $enum) : CommandHardEnum{
+		return $this->enums[spl_object_id($enum)] ??= new CommandHardEnum($this->uniqueName($enum->getName()), $enum->getValues());
+	}
+
+	//the client identifies enums by name, so distinct enums that share one need to be told apart
+	private function uniqueName(string $name) : string{
+		$unique = $name;
+		for($i = 2; isset($this->enumNames[$unique]); ++$i){
+			$unique = $name . "#" . $i;
+		}
+		$this->enumNames[$unique] = true;
+		return $unique;
 	}
 }

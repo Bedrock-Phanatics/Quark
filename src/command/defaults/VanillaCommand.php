@@ -23,18 +23,47 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\math\Vector3;
+use quark\command\argument\RelativePosition;
 use quark\command\Command;
 use quark\command\CommandSender;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\player\Player;
 use quark\utils\TextFormat;
+use quark\world\World;
 use function is_numeric;
+use function round;
 use function substr;
 
 abstract class VanillaCommand extends Command{
 	public const MAX_COORD = 30000000;
 	public const MIN_COORD = -30000000;
+
+	/**
+	 * Checks the permission for acting on $target, replying to the sender when it is missing.
+	 */
+	protected function canTarget(CommandSender $sender, Player $target, string $selfPermission, string $otherPermission) : bool{
+		return $this->testPermission($sender, $target === $sender ? $selfPermission : $otherPermission);
+	}
+
+	/**
+	 * Resolves a position against a base and replies with the violated limit when it falls outside the world.
+	 */
+	protected function resolvePosition(CommandSender $sender, RelativePosition $position, Vector3 $base, int $minY = World::Y_MIN, int $maxY = World::Y_MAX) : ?Vector3{
+		$resolved = $position->resolve($base);
+		foreach([[$resolved->x, self::MIN_COORD, self::MAX_COORD], [$resolved->y, $minY, $maxY], [$resolved->z, self::MIN_COORD, self::MAX_COORD]] as [$value, $min, $max]){
+			if($value < $min){
+				$sender->sendMessage(KnownTranslationFactory::commands_generic_num_tooSmall((string) round($value, 2), (string) $min)->prefix(TextFormat::RED));
+				return null;
+			}
+			if($value > $max){
+				$sender->sendMessage(KnownTranslationFactory::commands_generic_num_tooBig((string) round($value, 2), (string) $max)->prefix(TextFormat::RED));
+				return null;
+			}
+		}
+		return $resolved;
+	}
 
 	protected function fetchPermittedPlayerTarget(CommandSender $sender, ?string $target, string $selfPermission, string $otherPermission) : ?Player{
 		//TODO: we need proper command selector support, but this one is useful and easy to hack in for now

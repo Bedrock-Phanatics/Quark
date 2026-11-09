@@ -45,6 +45,7 @@ use quark\pulse\Pulse;
 use quark\Server;
 use function array_column;
 use function array_keys;
+use function array_map;
 use function array_reverse;
 use function array_values;
 use function implode;
@@ -261,7 +262,7 @@ final class CommandSyntaxTest extends TestCase{
 		self::assertSame(["Invalid value for <radius>: The number you have entered (9) is too big, it must be at most 8", "Usage: /eco claim [radius]"], $this->dispatch("eco claim 9"));
 
 		$this->dispatch("eco say  hello   \"big   world\" \\\"x\\\"  \"\" end");
-		self::assertSame("hello big   world \"x\" end", $this->calls[0][1]->string("message"));
+		self::assertSame("hello   \"big   world\" \\\"x\\\"  \"\" end", $this->calls[0][1]->string("message"));
 		self::assertSame(["Usage: /eco say <message...>"], $this->dispatch("eco say"));
 
 		$this->dispatch("eco set on");
@@ -368,78 +369,37 @@ final class CommandSyntaxTest extends TestCase{
 	}
 
 	/**
-	 * @phpstan-param \Closure(CommandArgs) : void $recorder
-	 */
-	private function subcommand(string $path, \Closure $recorder) : Subcommand{
-		return new class($path, $recorder) extends Subcommand{
-			/**
-			 * @phpstan-param \Closure(CommandArgs) : void $recorder
-			 */
-			public function __construct(string $path, private \Closure $recorder){
-				parent::__construct($path);
-			}
-
-			protected function run(CommandSender $sender, CommandArgs $args) : void{
-				($this->recorder)($args);
-			}
-		};
-	}
-
-	public function testSubcommandClassesHandleTheirOwnRoutes() : void{
-		$set = $this->subcommand("set", $this->recorder("class:"));
-		$set->setPermission("test.admin");
-		$set->registerArgument(new StringArgument("name"));
-		$nested = $this->subcommand("admin clear", $this->recorder("class:"));
-		$nested->registerArguments([new IntegerArgument("n", optional: true)]);
-
-		$command = new class("warp") extends Command{};
-		$command->setPermission("test.root");
-		$command->registerSubcommand($set);
-		$command->registerSubcommand($nested);
-		$this->map->register("test", $command);
-
-		$this->dispatch("warp set home");
-		self::assertSame("class:set", $this->calls[0][0]);
-		self::assertSame("home", $this->calls[0][1]->string("name"));
-		$this->dispatch("warp admin clear 3");
-		self::assertSame("class:admin clear", $this->calls[0][0]);
-
-		self::assertSame(["You don't have permission to use the command: warp"], $this->dispatch("warp set home", $this->sender()));
-		self::assertSame([], $this->calls);
-		//no run() means no implicit root, so the bare command lists what exists
-		self::assertSame(["Usage: /warp admin clear [n]", "Usage: /warp set <name>"], $this->dispatch("warp"));
-	}
-
-	public function testSubcommandClassesAndRunCanBeMixed() : void{
-		$command = $this->command("warp");
-		$command->syntax("list");
-		$command->registerSubcommand($this->subcommand("set", $this->recorder("class:")));
-		$this->map->register("test", $command);
-
-		foreach(["warp" => "", "warp list" => "list", "warp set" => "class:set"] as $input => $expected){
-			$this->dispatch($input);
-			self::assertSame($expected, $this->calls[0][0], $input);
-		}
-	}
-
-	/**
 	 * @phpstan-return \Generator<string, array{\Closure(Command) : mixed}, void, void>
 	 */
-	public static function duplicatePathProvider() : \Generator{
+	public static function ambiguousProvider() : \Generator{
 		yield "root" => [function(Command $c) : void{
 			$c->registerArgument(new StringArgument("a"));
-			$c->syntax();
+			$c->syntax()->registerArgument(new StringArgument("b"));
 		}];
 		yield "literal" => [fn(Command $c) => [$c->syntax("pay"), $c->syntax(" pay ")]];
+		yield "number and decimal" => [function(Command $c) : void{
+			$c->syntax("x")->registerArgument(new IntegerArgument("a"));
+			$c->syntax("x")->registerArgument(new FloatArgument("b"));
+		}];
+		yield "word and enum" => [function(Command $c) : void{
+			$c->syntax("x")->registerArgument(new StringArgument("a"));
+			$c->syntax("x")->registerArgument(new EnumArgument("b", ["on", "off"]));
+		}];
+		yield "optional tails" => [function(Command $c) : void{
+			$c->syntax("x")->registerArguments([new IntegerArgument("a"), new IntegerArgument("b", optional: true)]);
+			$c->syntax("x")->registerArguments([new IntegerArgument("c"), new StringArgument("d", optional: true)]);
+		}];
 	}
 
 	/**
 	 * @phpstan-param \Closure(Command) : mixed $definition
 	 */
-	#[DataProvider("duplicatePathProvider")]
-	public function testOnePathHasOneSyntax(\Closure $definition) : void{
-		$this->expectExceptionMessage("already declares the syntax");
-		$definition($this->command());
+	#[DataProvider("ambiguousProvider")]
+	public function testAmbiguousSyntaxesAreRejectedWhenRegistered(\Closure $definition) : void{
+		$command = $this->command();
+		$definition($command);
+		$this->expectExceptionMessage("are ambiguous");
+		$this->map->register("test", $command);
 	}
 
 	public function testInvalidDefinitionsLeaveTheMapUnchanged() : void{
@@ -472,9 +432,6 @@ final class CommandSyntaxTest extends TestCase{
 			fn() => $command->syntax("r1")->registerArguments([new StringArgument("a", optional: true), new StringArgument("b")]),
 			fn() => $command->syntax("r2")->registerArguments([new StringArgument("a", greedy: true), new StringArgument("b", optional: true)]),
 			fn() => $command->syntax("r3")->registerArguments([new StringArgument("a"), new IntegerArgument("a")]),
-			fn() => new class("Bad.Path") extends Subcommand{
-				protected function run(CommandSender $sender, CommandArgs $args) : void{}
-			},
 		] as $definition){
 			try{
 				$definition();
@@ -504,9 +461,9 @@ final class CommandSyntaxTest extends TestCase{
 				protected function run(CommandSender $sender, CommandArgs $args) : void{}
 			},
 			"must override run() or execute()" => new class("neither") extends Command{},
-			"needs run() or a subcommand class" => new class("nohandler") extends Command{},
+			"needs a handler, or the command must override run()" => new class("nohandler") extends Command{},
 		];
-		$cases["needs run() or a subcommand class"]->syntax("x");
+		$cases["needs a handler, or the command must override run()"]->syntax("x");
 		$legacyWithSyntax = new class("mixed") extends Command{
 			public function execute(CommandSender $sender, string $commandLabel, array $args){
 				return null;
@@ -532,7 +489,7 @@ final class CommandSyntaxTest extends TestCase{
 		$command = new class("warp") extends Command{};
 		$method = new \ReflectionMethod(Command::class, "run");
 		$this->expectExceptionMessage("must override run()");
-		$method->invoke($command, $this->sender(), new CommandArgs("warp", "", []));
+		$method->invoke($command, $this->sender(), new CommandArgs("warp", new CommandSyntax(), []));
 	}
 
 	public function testDefinitionsCannotChangeWhileRegistered() : void{
@@ -547,7 +504,6 @@ final class CommandSyntaxTest extends TestCase{
 			fn() => $command->syntax("late"),
 			fn() => $command->registerArgument(new StringArgument("late")),
 			fn() => $command->registerArguments([new StringArgument("late")]),
-			fn() => $command->registerSubcommand($this->subcommand("late", $this->recorder())),
 		] as $mutation){
 			try{
 				$mutation();
@@ -591,9 +547,9 @@ final class CommandSyntaxTest extends TestCase{
 		}
 
 		self::assertTrue($this->map->register("test", $command));
-		self::assertSame(["", "pay"], array_keys($command->getPreparedSyntaxes() ?? []));
-		self::assertSame(["pay"], array_keys($command->getSyntaxes()));
-		self::assertSame($syntax, ($command->getPreparedSyntaxes() ?? [])["pay"]);
+		self::assertSame(["", "pay"], array_map(fn(CommandSyntax $s) => $s->getPath(), $command->getPreparedSyntaxes() ?? []));
+		self::assertSame([$syntax], $command->getSyntaxes());
+		self::assertContains($syntax, $command->getPreparedSyntaxes() ?? []);
 		$this->dispatch("e");
 		self::assertSame("", $this->calls[0][0]);
 	}
@@ -601,19 +557,12 @@ final class CommandSyntaxTest extends TestCase{
 	public function testRetainedSyntaxesAreLockedWhileRegistered() : void{
 		$command = $this->command();
 		$syntax = $command->syntax("admin")->permission("test.admin");
-		$shared = $this->subcommand("shared", $this->recorder());
-		$command->registerSubcommand($shared);
-		$other = $this->command("other");
-		$other->registerSubcommand($shared);
 		$this->map->register("test", $command);
-		$this->map->register("test", $other);
 
 		foreach([
 			fn() => $syntax->permission(null),
 			fn() => $syntax->registerArgument(new StringArgument("late")),
 			fn() => $syntax->registerArguments([new StringArgument("late")]),
-			fn() => $shared->setPermission(null),
-			fn() => $shared->registerArgument(new StringArgument("late")),
 		] as $mutation){
 			try{
 				$mutation();
@@ -626,9 +575,7 @@ final class CommandSyntaxTest extends TestCase{
 
 		$this->map->unregister($command);
 		$syntax->permission("test.sub");
-		//still registered through the other command
-		$this->expectException(\LogicException::class);
-		$shared->setPermission(null);
+		self::assertSame("test.sub", $syntax->getPermission());
 	}
 
 	public function testFailedRegistrationLeavesDefinitionsEditable() : void{
@@ -681,7 +628,7 @@ final class CommandSyntaxTest extends TestCase{
 				return ArgumentKind::ENUM;
 			}
 		});
-		$this->expectExceptionMessage("has no values");
+		$this->expectExceptionMessage("needs an enum");
 		$this->map->register("test", $command);
 	}
 
@@ -773,7 +720,7 @@ final class CommandSyntaxTest extends TestCase{
 		$command->syntax("a c");
 		$command->syntax("a");
 		$this->map->register("test", $command);
-		self::assertSame(["", "a", "a c", "b"], array_keys($command->getPreparedSyntaxes() ?? []));
+		self::assertSame(["", "a", "a c", "b"], array_map(fn(CommandSyntax $s) => $s->getPath(), $command->getPreparedSyntaxes() ?? []));
 	}
 
 	public function testUnregisteredCommandsAreFreedWithoutTheCycleCollector() : void{
@@ -782,9 +729,6 @@ final class CommandSyntaxTest extends TestCase{
 		};
 		$command->setPermission("test.root");
 		$command->syntax("pay")->registerArgument(new IntegerArgument("amount"));
-		$command->registerSubcommand(new class("set") extends Subcommand{
-			protected function run(CommandSender $sender, CommandArgs $args) : void{}
-		});
 		$reference = \WeakReference::create($command);
 
 		$this->map->register("test", $command);

@@ -38,7 +38,7 @@ final class CommandArgs{
 	 */
 	public function __construct(
 		private string $label,
-		private string $subcommand,
+		private CommandSyntax $syntax,
 		private array $values
 	){}
 
@@ -46,8 +46,26 @@ final class CommandArgs{
 		return $this->label;
 	}
 
+	/**
+	 * Leading words of the syntax that matched, empty for the plain command.
+	 */
 	public function subcommand() : string{
-		return $this->subcommand;
+		return $this->syntax->getPath();
+	}
+
+	/**
+	 * The syntax that matched, to tell apart overloads that share the same leading words.
+	 */
+	public function syntax() : CommandSyntax{
+		return $this->syntax;
+	}
+
+	/**
+	 * @return mixed[]
+	 * @phpstan-return array<string, mixed>
+	 */
+	public function all() : array{
+		return $this->values;
 	}
 
 	public function has(string $name) : bool{

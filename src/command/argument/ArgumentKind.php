@@ -29,5 +29,9 @@ enum ArgumentKind{
 	case FLOAT;
 	case TEXT;
 	case ENUM;
+	case SOFT_ENUM;
 	case PLAYER;
+	case LITERAL;
+	case POSITION;
+	case VALUE;
 }

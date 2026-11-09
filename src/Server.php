@@ -2199,10 +2199,18 @@ class Server{
 			$this->redstoneWorldManager?->tick();
 
 			//one resync per tick for any number of command map changes
+			$softEnumChanges = $this->commandMap->consumeSoftEnumChanges();
 			if($this->commandMap->consumeClientMetadataChanges()){
+				//the new command list carries the current soft enum values
 				foreach($this->getOnlinePlayers() as $player){
 					if($player->isConnected()){
 						$player->getNetworkSession()->syncAvailableCommands();
+					}
+				}
+			}elseif(count($softEnumChanges) !== 0){
+				foreach($this->getOnlinePlayers() as $player){
+					if($player->isConnected()){
+						$player->getNetworkSession()->syncSoftEnums($softEnumChanges);
 					}
 				}
 			}

@@ -25,45 +25,63 @@ namespace quark\command;
 
 use quark\command\argument\Argument;
 use quark\command\argument\ArgumentKind;
+use quark\command\argument\LiteralArgument;
+use quark\command\internal\HandlerBinding;
+use function count;
 use function implode;
-use function preg_match;
 use function preg_split;
 use const PHP_INT_MAX;
 use const PREG_SPLIT_NO_EMPTY;
 
+/**
+ * One way to call a command: leading words, then typed arguments. A command can declare several syntaxes, even
+ * with the same leading words, as long as no input could match two of them.
+ */
 final class CommandSyntax{
-	private string $path;
 	/**
 	 * @var string[]
 	 * @phpstan-var list<string>
 	 */
-	private array $literals;
+	private array $literals = [];
+	private string $path = "";
 	/**
+	 * Everything after the leading words, in order. Words in the middle are {@link LiteralArgument}s.
+	 *
 	 * @var Argument[]
-	 * @phpstan-var array<string, Argument<mixed>>
+	 * @phpstan-var list<Argument<mixed>>
 	 */
 	private array $arguments = [];
-	private int $minArguments = 0;
-	private int $maxArguments = 0;
+	/** @phpstan-var array<string, true> */
+	private array $names = [];
+	private bool $optionalSeen = false;
+	private bool $greedySeen = false;
 	private ?string $permission = null;
+	/** @phpstan-var anyClosure|null */
+	private ?\Closure $handler = null;
 	private int $registrations = 0;
+	private ?HandlerBinding $binding = null;
+
+	private int $minTokens = 0;
+	/**
+	 * @var bool[]
+	 * @phpstan-var array<int, true>
+	 */
+	private array $counts = [0 => true];
+	private ?int $openFrom = null;
+	private int $literalCount = 0;
 
 	/**
 	 * @internal
 	 * @throws \InvalidArgumentException
 	 */
-	public function __construct(string $path){
-		$literals = preg_split('/\s+/', $path, -1, PREG_SPLIT_NO_EMPTY);
-		if($literals === false){
+	public function __construct(string $path = ""){
+		$words = preg_split('/\s+/', $path, -1, PREG_SPLIT_NO_EMPTY);
+		if($words === false){
 			throw new \InvalidArgumentException("Invalid syntax path \"$path\"");
 		}
-		foreach($literals as $literal){
-			if(preg_match('/\A[a-z0-9_-]+\z/', $literal) !== 1){
-				throw new \InvalidArgumentException("Syntax literal \"$literal\" must be a lowercase word");
-			}
+		foreach($words as $word){
+			$this->addArgument(new LiteralArgument($word));
 		}
-		$this->literals = $literals;
-		$this->path = implode(" ", $literals);
 	}
 
 	/**
@@ -73,25 +91,7 @@ final class CommandSyntax{
 	 */
 	public function registerArgument(Argument $argument) : self{
 		$this->checkNotRegistered();
-		$name = $argument->getName();
-		if(isset($this->arguments[$name])){
-			throw new \InvalidArgumentException("Duplicate argument name \"$name\" in syntax \"$this->path\"");
-		}
-		if($this->maxArguments === PHP_INT_MAX){
-			throw new \InvalidArgumentException("Argument \"$name\" cannot follow a greedy argument in syntax \"$this->path\"");
-		}
-		if($argument->isOptional()){
-			$this->maxArguments++;
-		}elseif($this->minArguments !== $this->maxArguments){
-			throw new \InvalidArgumentException("Required argument \"$name\" cannot follow an optional argument in syntax \"$this->path\"");
-		}else{
-			$this->minArguments++;
-			$this->maxArguments++;
-		}
-		if($argument->getKind() === ArgumentKind::TEXT){
-			$this->maxArguments = PHP_INT_MAX;
-		}
-		$this->arguments[$name] = $argument;
+		$this->addArgument($argument);
 		return $this;
 	}
 
@@ -109,11 +109,99 @@ final class CommandSyntax{
 	}
 
 	/**
+	 * Requires a fixed word at this position. Case-insensitive, and not passed to the handler.
+	 *
+	 * @throws \InvalidArgumentException
+	 * @throws \LogicException
+	 */
+	public function literal(string $word) : self{
+		return $this->registerArgument(new LiteralArgument($word));
+	}
+
+	/**
+	 * @phpstan-param Argument<mixed> $argument
+	 */
+	private function addArgument(Argument $argument) : void{
+		$name = $argument->getName();
+		$literal = $argument instanceof LiteralArgument;
+		if($this->greedySeen){
+			throw new \InvalidArgumentException("Argument \"$name\" cannot follow a greedy argument in syntax \"$this->path\"");
+		}
+		if(!$literal && isset($this->names[$name])){
+			throw new \InvalidArgumentException("Duplicate argument name \"$name\" in syntax \"$this->path\"");
+		}
+		if($argument->getWidth() < 1){
+			throw new \InvalidArgumentException("Argument \"$name\" must span at least one token");
+		}
+
+		if($literal && count($this->arguments) === 0){
+			$this->literals[] = $argument->getLiteral();
+			$this->path = implode(" ", $this->literals);
+			$this->literalCount++;
+			return;
+		}
+
+		$greedy = $argument->getKind() === ArgumentKind::TEXT;
+		if($argument->isOptional()){
+			$this->optionalSeen = true;
+		}elseif($this->optionalSeen){
+			throw new \InvalidArgumentException("Required argument \"$name\" cannot follow an optional argument in syntax \"$this->path\"");
+		}
+
+		$width = $argument->getWidth();
+		if($greedy){
+			$this->greedySeen = true;
+			if($argument->isOptional()){
+				$this->openFrom = $this->maxFinite() + 1;
+			}else{
+				$this->minTokens += 1;
+				$this->counts = [];
+				$this->openFrom = $this->minTokens;
+			}
+		}elseif($argument->isOptional()){
+			$this->counts[$this->maxFinite() + $width] = true;
+		}else{
+			$this->minTokens += $width;
+			$this->counts = [$this->minTokens => true];
+		}
+
+		if($literal){
+			$this->literalCount++;
+		}else{
+			$this->names[$name] = true;
+		}
+		$this->arguments[] = $argument;
+	}
+
+	private function maxFinite() : int{
+		$max = $this->minTokens;
+		foreach($this->counts as $count => $_){
+			$max = $count > $max ? $count : $max;
+		}
+		return $max;
+	}
+
+	/**
 	 * @throws \LogicException
 	 */
 	public function permission(?string $permission) : self{
 		$this->checkNotRegistered();
 		$this->permission = $permission;
+		return $this;
+	}
+
+	/**
+	 * Handles this syntax. Either accept `(CommandSender $sender, CommandArgs $args)`, or the sender followed by one
+	 * typed parameter per argument in order, skipping literals. Optional arguments need a default value. A sender
+	 * parameter typed as a subclass such as Player restricts the syntax to that kind of sender. The signature is
+	 * checked when the command is registered.
+	 *
+	 * @phpstan-param anyClosure $handler
+	 * @throws \LogicException
+	 */
+	public function handler(\Closure $handler) : self{
+		$this->checkNotRegistered();
+		$this->handler = $handler;
 		return $this;
 	}
 
@@ -123,7 +211,7 @@ final class CommandSyntax{
 
 	/**
 	 * @return Argument[]
-	 * @phpstan-return array<string, Argument<mixed>>
+	 * @phpstan-return list<Argument<mixed>>
 	 */
 	public function getArguments() : array{
 		return $this->arguments;
@@ -131,6 +219,13 @@ final class CommandSyntax{
 
 	public function getPermission() : ?string{
 		return $this->permission;
+	}
+
+	/**
+	 * @phpstan-return anyClosure|null
+	 */
+	public function getHandler() : ?\Closure{
+		return $this->handler;
 	}
 
 	public function testPermissionSilent(CommandSender $sender) : bool{
@@ -147,18 +242,63 @@ final class CommandSyntax{
 	}
 
 	/** @internal */
-	public function getMinArguments() : int{
-		return $this->minArguments;
+	public function getLiteralCount() : int{
+		return $this->literalCount;
+	}
+
+	/**
+	 * Whether the arguments after the leading words can be given exactly $count tokens.
+	 *
+	 * @internal
+	 */
+	public function acceptsTokenCount(int $count) : bool{
+		return isset($this->counts[$count]) || ($this->openFrom !== null && $count >= $this->openFrom);
 	}
 
 	/** @internal */
-	public function getMaxArguments() : int{
-		return $this->maxArguments;
+	public function getMinTokens() : int{
+		return $this->minTokens;
+	}
+
+	/**
+	 * Largest number of tokens the arguments can take, PHP_INT_MAX for greedy ones.
+	 *
+	 * @internal
+	 */
+	public function getMaxTokens() : int{
+		return $this->openFrom !== null ? PHP_INT_MAX : $this->maxFinite();
+	}
+
+	/**
+	 * @internal
+	 * @return int[]
+	 * @phpstan-return list<int>
+	 */
+	public function getAcceptedCounts() : array{
+		$counts = [];
+		foreach($this->counts as $count => $_){
+			$counts[] = $count;
+		}
+		return $counts;
+	}
+
+	/** @internal */
+	public function getOpenFrom() : ?int{
+		return $this->openFrom;
+	}
+
+	/** @internal */
+	public function getBinding() : ?HandlerBinding{
+		return $this->binding;
+	}
+
+	/** @internal */
+	public function setBinding(?HandlerBinding $binding) : void{
+		$this->binding = $binding;
 	}
 
 	/** @internal */
 	public function markRegistered(bool $registered) : void{
-		//subcommand objects can be shared between commands
 		$this->registrations += $registered ? 1 : -1;
 	}
 
@@ -175,7 +315,11 @@ final class CommandSyntax{
 			$usage .= " " . $this->path;
 		}
 		foreach($this->arguments as $argument){
-			$name = $argument->getName();
+			if($argument instanceof LiteralArgument){
+				$usage .= " " . $argument->getLiteral();
+				continue;
+			}
+			$name = $argument->getUsageLabel();
 			if($argument->getKind() === ArgumentKind::TEXT){
 				$name .= "...";
 			}

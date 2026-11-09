@@ -380,6 +380,7 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_ERROR_INVALIDENUM = "quark.command.error.invalidEnum";
 	public const QUARK_COMMAND_ERROR_INVALIDINTEGER = "quark.command.error.invalidInteger";
 	public const QUARK_COMMAND_ERROR_INVALIDNUMBER = "quark.command.error.invalidNumber";
+	public const QUARK_COMMAND_ERROR_INVALIDVALUE = "quark.command.error.invalidValue";
 	public const QUARK_COMMAND_ERROR_PERMISSION = "quark.command.error.permission";
 	public const QUARK_COMMAND_ERROR_PLAYERNOTFOUND = "quark.command.error.playerNotFound";
 	public const QUARK_COMMAND_ERROR_PLAYERUSERONLY = "quark.command.error.playerUserOnly";

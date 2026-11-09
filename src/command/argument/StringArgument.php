@@ -26,10 +26,11 @@ namespace quark\command\argument;
 use quark\command\CommandSender;
 
 /**
+ * A greedy argument takes the rest of the line exactly as typed, including quotes, escapes and spacing.
+ *
  * @phpstan-extends Argument<string>
  */
 final class StringArgument extends Argument{
-
 	public function __construct(string $name, bool $optional = false, private bool $greedy = false){
 		parent::__construct($name, $optional);
 	}
@@ -40,5 +41,9 @@ final class StringArgument extends Argument{
 
 	public function getKind() : ArgumentKind{
 		return $this->greedy ? ArgumentKind::TEXT : ArgumentKind::WORD;
+	}
+
+	public function getValueType() : string{
+		return "string";
 	}
 }

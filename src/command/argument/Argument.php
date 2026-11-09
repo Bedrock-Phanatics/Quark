@@ -52,20 +52,82 @@ abstract class Argument{
 	}
 
 	/**
+	 * Parses the value of a single-token argument.
+	 *
 	 * @phpstan-return TValue
 	 * @throws ArgumentParseException
 	 */
 	abstract public function parse(string $input, CommandSender $sender) : mixed;
+
+	/**
+	 * Parses the value from the tokens starting at $offset. Arguments wider than one token override this.
+	 *
+	 * @param string[] $tokens
+	 * @phpstan-param list<string> $tokens
+	 * @phpstan-return TValue
+	 * @throws ArgumentParseException
+	 */
+	public function parseTokens(array $tokens, int $offset, CommandSender $sender) : mixed{
+		return $this->parse($tokens[$offset], $sender);
+	}
+
+	/**
+	 * Number of tokens consumed. Only greedy text takes a variable amount.
+	 */
+	public function getWidth() : int{
+		return 1;
+	}
+
+	/**
+	 * Cheap shape check used to choose between overloads before parsing. It must not have side effects and must
+	 * accept everything that {@link Argument::parse()} accepts.
+	 */
+	public function matches(string $token, int $slot = 0) : bool{
+		return true;
+	}
 
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::WORD;
 	}
 
 	/**
-	 * @return string[]
-	 * @phpstan-return list<string>
+	 * Whether a plain number can be a valid value. Arguments that never accept one let overloads with a number in the
+	 * same position coexist. Their {@link Argument::matches()} must reject numbers.
 	 */
-	public function getEnumValues() : array{
-		return [];
+	public function allowsNumbers() : bool{
+		return true;
+	}
+
+	/**
+	 * Name shown in usage messages.
+	 */
+	public function getUsageLabel() : string{
+		return $this->name;
+	}
+
+	/**
+	 * Lowercase values accepted by this argument, or null when it accepts open input. Used to detect ambiguous
+	 * overloads at registration.
+	 *
+	 * @return string[]|null
+	 * @phpstan-return list<string>|null
+	 */
+	public function getChoices() : ?array{
+		return null;
+	}
+
+	public function getEnum() : ?CommandEnum{
+		return null;
+	}
+
+	public function getSoftEnum() : ?SoftEnum{
+		return null;
+	}
+
+	/**
+	 * PHP type of the parsed value, checked against typed handlers when the command is registered.
+	 */
+	public function getValueType() : string{
+		return "mixed";
 	}
 }

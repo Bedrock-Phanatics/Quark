@@ -383,6 +383,7 @@ final class KnownTranslationParameterInfo{
 		Keys::QUARK_COMMAND_ERROR_INVALIDENUM => ["value", "values"],
 		Keys::QUARK_COMMAND_ERROR_INVALIDINTEGER => ["value"],
 		Keys::QUARK_COMMAND_ERROR_INVALIDNUMBER => ["value"],
+		Keys::QUARK_COMMAND_ERROR_INVALIDVALUE => ["value"],
 		Keys::QUARK_COMMAND_ERROR_PERMISSION => ["commandName"],
 		Keys::QUARK_COMMAND_ERROR_PLAYERNOTFOUND => ["playerName"],
 		Keys::QUARK_COMMAND_ERROR_PLAYERUSERONLY => [],

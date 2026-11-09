@@ -31,6 +31,8 @@ use function strtolower;
  * @phpstan-extends Argument<bool>
  */
 final class BooleanArgument extends Argument{
+	private static ?CommandEnum $enum = null;
+
 
 	public function parse(string $input, CommandSender $sender) : bool{
 		return match(strtolower($input)){
@@ -40,11 +42,26 @@ final class BooleanArgument extends Argument{
 		};
 	}
 
+	public function matches(string $token, int $slot = 0) : bool{
+		return match(strtolower($token)){
+			"true", "false" => true,
+			default => false
+		};
+	}
+
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::ENUM;
 	}
 
-	public function getEnumValues() : array{
+	public function getChoices() : array{
 		return ["true", "false"];
+	}
+
+	public function getEnum() : CommandEnum{
+		return self::$enum ??= CommandEnum::fromValues("Boolean", ["true", "false"]);
+	}
+
+	public function getValueType() : string{
+		return "bool";
 	}
 }
