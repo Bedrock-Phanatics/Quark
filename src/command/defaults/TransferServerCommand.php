@@ -23,40 +23,29 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
-use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
+use quark\command\argument\IntegerArgument;
+use quark\command\argument\StringArgument;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use quark\utils\TextFormat;
-use function count;
 
 class TransferServerCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"transferserver",
-			KnownTranslationFactory::quark_command_transferserver_description(),
-			KnownTranslationFactory::quark_command_transferserver_usage()
+			KnownTranslationFactory::quark_command_transferserver_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_TRANSFERSERVER);
+		$this->syntax()
+			->registerArguments([
+				new StringArgument("address"),
+				new IntegerArgument("port", 0, 65535, optional: true)
+			])
+			->handler($this->transfer(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 1){
-			throw new InvalidCommandSyntaxException();
-		}elseif(!($sender instanceof Player)){
-			$sender->sendMessage(KnownTranslationFactory::quark_command_error_playerUserOnly()->prefix(TextFormat::RED));
-
-			return false;
-		}
-
-		$port = $this->getBoundedInt($sender, $args[1] ?? "19132", 0, 65535);
-		if($port === null){
-			return false;
-		}
-		$sender->transfer($args[0], $port);
-
-		return true;
+	private function transfer(Player $sender, string $address, ?int $port = null) : void{
+		$sender->transfer($address, $port ?? 19132);
 	}
 }

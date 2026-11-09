@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\PlayerArgument;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\event\entity\EntityDamageEvent;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use function count;
+use quark\player\Player;
 
 class KillCommand extends VanillaCommand{
 
@@ -37,29 +37,35 @@ class KillCommand extends VanillaCommand{
 		parent::__construct(
 			"kill",
 			KnownTranslationFactory::quark_command_kill_description(),
-			KnownTranslationFactory::quark_command_kill_usage(),
+			null,
 			["suicide"]
 		);
 		$this->setPermissions([DefaultPermissionNames::COMMAND_KILL_SELF, DefaultPermissionNames::COMMAND_KILL_OTHER]);
+
+		$this->syntax()
+			->permission(DefaultPermissionNames::COMMAND_KILL_SELF)
+			->handler($this->killSelf(...));
+		$this->syntax()
+			->registerArgument(new PlayerArgument("target", partial: true, self: true))
+			->handler($this->killTarget(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) >= 2){
-			throw new InvalidCommandSyntaxException();
-		}
+	private function killSelf(Player $sender) : void{
+		$this->kill($sender, $sender);
+	}
 
-		$player = $this->fetchPermittedPlayerTarget($sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_KILL_SELF, DefaultPermissionNames::COMMAND_KILL_OTHER);
-		if($player === null){
-			return true;
+	private function killTarget(CommandSender $sender, Player $target) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_KILL_SELF, DefaultPermissionNames::COMMAND_KILL_OTHER)){
+			$this->kill($sender, $target);
 		}
+	}
 
+	private function kill(CommandSender $sender, Player $player) : void{
 		$player->attack(new EntityDamageEvent($player, EntityDamageEvent::CAUSE_SUICIDE, $player->getHealth()));
 		if($player === $sender){
 			$sender->sendMessage(KnownTranslationFactory::commands_kill_successful($sender->getName()));
 		}else{
 			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_kill_successful($player->getName()));
 		}
-
-		return true;
 	}
 }
