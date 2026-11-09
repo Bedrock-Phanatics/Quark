@@ -23,18 +23,17 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\utils\Limits;
+use quark\command\argument\IntegerArgument;
+use quark\command\argument\PlayerArgument;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\inventory\Inventory;
 use quark\item\Item;
-use quark\item\LegacyStringToItemParser;
-use quark\item\LegacyStringToItemParserException;
-use quark\item\StringToItemParser;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
+use quark\player\Player;
 use quark\utils\TextFormat;
-use function count;
 use function min;
 
 class ClearCommand extends VanillaCommand{
@@ -42,38 +41,36 @@ class ClearCommand extends VanillaCommand{
 	public function __construct(){
 		parent::__construct(
 			"clear",
-			KnownTranslationFactory::quark_command_clear_description(),
-			KnownTranslationFactory::quark_command_clear_usage()
+			KnownTranslationFactory::quark_command_clear_description()
 		);
 		$this->setPermissions([DefaultPermissionNames::COMMAND_CLEAR_SELF, DefaultPermissionNames::COMMAND_CLEAR_OTHER]);
+
+		$this->syntax()
+			->permission(DefaultPermissionNames::COMMAND_CLEAR_SELF)
+			->handler($this->clearSelf(...));
+		$this->syntax()
+			->registerArguments([
+				new PlayerArgument("target", partial: true, self: true),
+				GiveCommand::item(optional: true),
+				new IntegerArgument("maxCount", -1, Limits::INT32_MAX, optional: true)
+			])
+			->handler($this->clearOther(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) > 3){
-			throw new InvalidCommandSyntaxException();
+	private function clearSelf(Player $sender) : void{
+		$this->clear($sender, $sender, null, -1);
+	}
+
+	private function clearOther(CommandSender $sender, Player $target, ?Item $item = null, int $maxCount = -1) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_CLEAR_SELF, DefaultPermissionNames::COMMAND_CLEAR_OTHER)){
+			$this->clear($sender, $target, $item, $maxCount);
 		}
+	}
 
-		$target = $this->fetchPermittedPlayerTarget($sender, $args[0] ?? null, DefaultPermissionNames::COMMAND_CLEAR_SELF, DefaultPermissionNames::COMMAND_CLEAR_OTHER);
-		if($target === null){
-			return true;
-		}
-
-		$targetItem = null;
-		$maxCount = -1;
-		if(isset($args[1])){
-			try{
-				$targetItem = StringToItemParser::getInstance()->parse($args[1]) ?? LegacyStringToItemParser::getInstance()->parse($args[1]);
-
-				if(isset($args[2])){
-					$targetItem->setCount($maxCount = $this->getInteger($sender, $args[2], -1));
-				}
-			}catch(LegacyStringToItemParserException $e){
-				//vanilla checks this at argument parsing layer, can't come up with a better alternative
-				$sender->sendMessage(KnownTranslationFactory::commands_give_item_notFound($args[1])->prefix(TextFormat::RED));
-				return true;
-			}
-		}
-
+	/**
+	 * @param int $maxCount -1 clears every match, 0 only counts them
+	 */
+	private function clear(CommandSender $sender, Player $target, ?Item $targetItem, int $maxCount) : void{
 		/**
 		 * @var Inventory[] $inventories - This is the order that vanilla would clear items in.
 		 */
@@ -93,7 +90,7 @@ class ClearCommand extends VanillaCommand{
 				$sender->sendMessage(KnownTranslationFactory::commands_clear_failure_no_items($target->getName())->prefix(TextFormat::RED));
 			}
 
-			return true;
+			return;
 		}
 
 		$clearedCount = 0;
@@ -103,27 +100,25 @@ class ClearCommand extends VanillaCommand{
 			foreach($inventories as $inventory){
 				$inventory->clearAll();
 			}
-		}else{
+		}elseif($maxCount === -1){
 			// Clear the item from target's inventory irrelevant of the count
-			if($maxCount === -1){
-				$clearedCount += $this->countItems($inventories, $targetItem);
-				foreach($inventories as $inventory){
-					$inventory->remove($targetItem);
-				}
-			}else{
-				// Clear the item from target's inventory up to maxCount
-				foreach($inventories as $inventory){
-					foreach($inventory->all($targetItem) as $index => $item){
-						// The count to reduce from the item and max count
-						$reductionCount = min($item->getCount(), $maxCount);
-						$item->pop($reductionCount);
-						$clearedCount += $reductionCount;
-						$inventory->setItem($index, $item);
+			$clearedCount += $this->countItems($inventories, $targetItem);
+			foreach($inventories as $inventory){
+				$inventory->remove($targetItem);
+			}
+		}else{
+			// Clear the item from target's inventory up to maxCount
+			foreach($inventories as $inventory){
+				foreach($inventory->all($targetItem) as $index => $item){
+					// The count to reduce from the item and max count
+					$reductionCount = min($item->getCount(), $maxCount);
+					$item->pop($reductionCount);
+					$clearedCount += $reductionCount;
+					$inventory->setItem($index, $item);
 
-						$maxCount -= $reductionCount;
-						if($maxCount <= 0){
-							break 2;
-						}
+					$maxCount -= $reductionCount;
+					if($maxCount <= 0){
+						break 2;
 					}
 				}
 			}
@@ -134,8 +129,6 @@ class ClearCommand extends VanillaCommand{
 		}else{
 			$sender->sendMessage(KnownTranslationFactory::commands_clear_failure_no_items($target->getName())->prefix(TextFormat::RED));
 		}
-
-		return true;
 	}
 
 	/**
