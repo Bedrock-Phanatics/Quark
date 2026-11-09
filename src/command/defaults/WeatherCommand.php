@@ -23,55 +23,41 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\EnumArgument;
+use quark\command\argument\IntegerArgument;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\utils\AssumptionFailedError;
 use quark\utils\TextFormat;
 use quark\world\Weather;
-use function count;
-use function preg_match;
 use function strtolower;
 
 final class WeatherCommand extends VanillaCommand{
 	public const MAX_DURATION = 1000000;
 
 	public function __construct(){
-		parent::__construct("weather", "Changes the weather", "/weather <clear|rain|thunder> [duration in ticks] OR /weather query");
+		parent::__construct("weather", "Changes the weather");
 		$this->setPermission(DefaultPermissionNames::COMMAND_WEATHER);
+
+		$this->syntax("query")->handler($this->query(...));
+		$this->syntax()
+			->registerArguments([
+				new EnumArgument("weather", Weather::class),
+				new IntegerArgument("duration", 1, self::MAX_DURATION, optional: true)
+			])
+			->handler($this->change(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 1 || count($args) > 2){
-			throw new InvalidCommandSyntaxException();
-		}
+	private function query(CommandSender $sender) : void{
+		$world = $sender instanceof Player ? $sender->getWorld() : $sender->getServer()->getWorldManager()->getDefaultWorld() ?? throw new AssumptionFailedError("No default world");
+		$sender->sendMessage("The weather in " . $world->getFolderName() . " is " . strtolower($world->getWeather()->name) . (
+			$world->isWeatherCycleEnabled() ? " for " . $world->getWeatherDuration() . " more ticks" : " until it is changed"
+		));
+	}
 
-		$mode = strtolower($args[0]);
-		if($mode === "query"){
-			$world = $sender instanceof Player ? $sender->getWorld() : $sender->getServer()->getWorldManager()->getDefaultWorld();
-			if($world === null || count($args) !== 1){
-				throw new InvalidCommandSyntaxException();
-			}
-			$sender->sendMessage("The weather in " . $world->getFolderName() . " is " . strtolower($world->getWeather()->name) . (
-				$world->isWeatherCycleEnabled() ? " for " . $world->getWeatherDuration() . " more ticks" : " until it is changed"
-			));
-			return true;
-		}
-
-		$weather = match($mode){
-			"clear" => Weather::CLEAR,
-			"rain" => Weather::RAIN,
-			"thunder" => Weather::THUNDER,
-			default => throw new InvalidCommandSyntaxException()
-		};
-		$duration = null;
-		if(isset($args[1])){
-			if(preg_match('/^[1-9][0-9]{0,6}$/D', $args[1]) !== 1 || ($duration = (int) $args[1]) > self::MAX_DURATION){
-				throw new InvalidCommandSyntaxException();
-			}
-		}
-
+	private function change(CommandSender $sender, Weather $weather, ?int $duration = null) : void{
 		$worlds = $sender instanceof Player ? [$sender->getWorld()] : $sender->getServer()->getWorldManager()->getWorlds();
 		$changed = 0;
 		foreach($worlds as $world){
@@ -81,9 +67,8 @@ final class WeatherCommand extends VanillaCommand{
 		}
 		if($changed === 0){
 			$sender->sendMessage(TextFormat::RED . "The weather change was cancelled");
-			return true;
+			return;
 		}
-		Command::broadcastCommandMessage($sender, "Changed the weather to " . $mode);
-		return true;
+		Command::broadcastCommandMessage($sender, "Changed the weather to " . strtolower($weather->name));
 	}
 }

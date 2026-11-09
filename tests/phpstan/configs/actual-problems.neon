@@ -559,12 +559,6 @@ parameters:
 			path: ../../../src/command/defaults/SetWorldSpawnCommand.php
 
 		-
-			message: '#^Cannot call method getTime\(\) on quark\\world\\World\|null\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: ../../../src/command/defaults/TimeCommand.php
-
-		-
 			message: '#^Parameter \#1 \$array of function sort expects an array of values castable to string, array\<mixed\> given\.$#'
 			identifier: argument.type
 			count: 1

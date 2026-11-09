@@ -23,22 +23,25 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use pocketmine\utils\Limits;
+use quark\command\argument\CommandEnum;
+use quark\command\argument\EnumArgument;
+use quark\command\argument\IntegerArgument;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\utils\AssumptionFailedError;
 use quark\world\World;
-use function count;
+use function intdiv;
 
 class TimeCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"time",
-			KnownTranslationFactory::quark_command_time_description(),
-			KnownTranslationFactory::quark_command_time_usage()
+			KnownTranslationFactory::quark_command_time_description()
 		);
 		$this->setPermissions([
 			DefaultPermissionNames::COMMAND_TIME_ADD,
@@ -47,95 +50,69 @@ class TimeCommand extends VanillaCommand{
 			DefaultPermissionNames::COMMAND_TIME_STOP,
 			DefaultPermissionNames::COMMAND_TIME_QUERY
 		]);
+
+		$this->syntax("start")->permission(DefaultPermissionNames::COMMAND_TIME_START)->handler($this->start(...));
+		$this->syntax("stop")->permission(DefaultPermissionNames::COMMAND_TIME_STOP)->handler($this->stop(...));
+		$this->syntax("query")
+			->permission(DefaultPermissionNames::COMMAND_TIME_QUERY)
+			->registerArgument(new EnumArgument("type", ["daytime", "gametime", "day"], optional: true))
+			->handler($this->query(...));
+		$this->syntax("set")
+			->permission(DefaultPermissionNames::COMMAND_TIME_SET)
+			->registerArgument(new IntegerArgument("time", 0, Limits::INT32_MAX))
+			->handler($this->set(...));
+		$this->syntax("set")
+			->permission(DefaultPermissionNames::COMMAND_TIME_SET)
+			->registerArgument(new EnumArgument("time", CommandEnum::fromMap("TimeSpec", [
+				"day" => World::TIME_DAY,
+				"noon" => World::TIME_NOON,
+				"sunset" => World::TIME_SUNSET,
+				"night" => World::TIME_NIGHT,
+				"midnight" => World::TIME_MIDNIGHT,
+				"sunrise" => World::TIME_SUNRISE
+			])))
+			->handler($this->set(...));
+		$this->syntax("add")
+			->permission(DefaultPermissionNames::COMMAND_TIME_ADD)
+			->registerArgument(new IntegerArgument("time", 0, Limits::INT32_MAX))
+			->handler($this->add(...));
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) < 1){
-			throw new InvalidCommandSyntaxException();
+	private function start(CommandSender $sender) : void{
+		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			$world->startTime();
 		}
+		Command::broadcastCommandMessage($sender, "Restarted the time");
+	}
 
-		if($args[0] === "start"){
-			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_START)){
-				return true;
-			}
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
-				$world->startTime();
-			}
-			Command::broadcastCommandMessage($sender, "Restarted the time");
-			return true;
-		}elseif($args[0] === "stop"){
-			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_STOP)){
-				return true;
-			}
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
-				$world->stopTime();
-			}
-			Command::broadcastCommandMessage($sender, "Stopped the time");
-			return true;
-		}elseif($args[0] === "query"){
-			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_QUERY)){
-				return true;
-			}
-			if($sender instanceof Player){
-				$world = $sender->getWorld();
-			}else{
-				$world = $sender->getServer()->getWorldManager()->getDefaultWorld();
-			}
-			$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_time_query((string) $world->getTime())));
-			return true;
+	private function stop(CommandSender $sender) : void{
+		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			$world->stopTime();
 		}
+		Command::broadcastCommandMessage($sender, "Stopped the time");
+	}
 
-		if(count($args) < 2){
-			throw new InvalidCommandSyntaxException();
+	private function query(CommandSender $sender, string $type = "gametime") : void{
+		$world = $sender instanceof Player ? $sender->getWorld() : $sender->getServer()->getWorldManager()->getDefaultWorld() ?? throw new AssumptionFailedError("No default world");
+		$time = match($type){
+			"daytime" => $world->getTimeOfDay(),
+			"day" => intdiv($world->getTime(), World::TIME_FULL),
+			default => $world->getTime()
+		};
+		$sender->sendMessage($sender->getLanguage()->translate(KnownTranslationFactory::commands_time_query((string) $time)));
+	}
+
+	private function set(CommandSender $sender, int $time) : void{
+		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			$world->setTime($time);
 		}
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_time_set((string) $time));
+	}
 
-		if($args[0] === "set"){
-			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_SET)){
-				return true;
-			}
-
-			switch($args[1]){
-				case "day":
-					$value = World::TIME_DAY;
-					break;
-				case "noon":
-					$value = World::TIME_NOON;
-					break;
-				case "sunset":
-					$value = World::TIME_SUNSET;
-					break;
-				case "night":
-					$value = World::TIME_NIGHT;
-					break;
-				case "midnight":
-					$value = World::TIME_MIDNIGHT;
-					break;
-				case "sunrise":
-					$value = World::TIME_SUNRISE;
-					break;
-				default:
-					$value = $this->getInteger($sender, $args[1], 0);
-					break;
-			}
-
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
-				$world->setTime($value);
-			}
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_time_set((string) $value));
-		}elseif($args[0] === "add"){
-			if(!$this->testPermission($sender, DefaultPermissionNames::COMMAND_TIME_ADD)){
-				return true;
-			}
-
-			$value = $this->getInteger($sender, $args[1], 0);
-			foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
-				$world->setTime($world->getTime() + $value);
-			}
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_time_added((string) $value));
-		}else{
-			throw new InvalidCommandSyntaxException();
+	private function add(CommandSender $sender, int $time) : void{
+		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
+			$world->setTime($world->getTime() + $time);
 		}
-
-		return true;
+		Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_time_added((string) $time));
 	}
 }
