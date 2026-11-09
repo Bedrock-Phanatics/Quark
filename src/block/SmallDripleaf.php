@@ -40,6 +40,8 @@ use function mt_rand;
 class SmallDripleaf extends Transparent implements HorizontalFacing{
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::EAST;
+
 	protected bool $top = false;
 
 	public function describeBlockOnlyState(RuntimeDataDescriber $w) : void{

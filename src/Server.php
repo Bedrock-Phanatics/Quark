@@ -87,11 +87,11 @@ use quark\network\upnp\UPnPNetworkInterface;
 use quark\permission\AccessStorage;
 use quark\permission\BanList;
 use quark\permission\DefaultPermissions;
+use quark\player\CorruptPlayerDataException;
 use quark\player\DatFilePlayerDataProvider;
 use quark\player\GameMode;
 use quark\player\OfflinePlayer;
 use quark\player\Player;
-use quark\player\PlayerDataLoadException;
 use quark\player\PlayerDataProvider;
 use quark\player\PlayerInfo;
 use quark\plugin\PharPluginLoader;
@@ -730,7 +730,7 @@ class Server{
 	public function getOfflinePlayerData(string $name) : Promise{
 		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataLoad->time(fn() => $this->playerDataProvider->loadData($name)))
 			->catch(function(\Throwable $e) use ($name) : ?CompoundTag{
-				if(!$e instanceof PlayerDataLoadException){
+				if(!$e instanceof CorruptPlayerDataException){
 					throw $e;
 				}
 				$this->logger->debug("Failed to load player data for $name: " . $e->getMessage());
@@ -1356,7 +1356,7 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players());
+			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->asyncPool);
 
 			register_shutdown_function($this->crashDump(...));
 

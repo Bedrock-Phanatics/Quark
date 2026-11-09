@@ -31,6 +31,7 @@ use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
 use quark\network\mcpe\convert\TypeConverter;
+use function array_keys;
 
 class Campfire extends Spawnable implements ContainerTile{
 	use ContainerTileTrait;
@@ -55,40 +56,52 @@ class Campfire extends Spawnable implements ContainerTile{
 		$this->inventory->setMaxStackSize(1);
 		//a weak reference keeps the listener from tying the tile into a reference cycle
 		$tile = \WeakReference::create($this);
-		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(
-			static function(Inventory $unused) use ($tile) : void{
+		$this->inventory->getListeners()->add(new CallbackInventoryListener(
+			static function(Inventory $unused, int $slot, Item $oldItem) use ($tile) : void{
 				$campfire = $tile->get();
-				if($campfire === null || !$campfire->isAttached()){
+				if($campfire !== null && !$campfire->inventory->getItem($slot)->equals($oldItem)){
+					unset($campfire->cookingTimes[$slot]);
+				}
+				$campfire?->refreshBlock();
+			},
+			static function(Inventory $unused, array $oldContents) use ($tile) : void{
+				$campfire = $tile->get();
+				if($campfire === null){
 					return;
 				}
-				$pos = $campfire->getPosition();
-				$world = $pos->getWorld();
-				$block = $world->getBlock($pos);
-				if($block instanceof BlockCampfire){
-					$world->setBlock($pos, $block);
+				foreach(array_keys($campfire->cookingTimes) as $slot){
+					$oldItem = $oldContents[$slot] ?? null;
+					if($oldItem === null || !$campfire->inventory->getItem($slot)->equals($oldItem)){
+						unset($campfire->cookingTimes[$slot]);
+					}
 				}
-			})
-		);
+				$campfire->refreshBlock();
+			}
+		));
+	}
+
+	private function refreshBlock() : void{
+		if(!$this->isAttached()){
+			return;
+		}
+		$pos = $this->getPosition();
+		$world = $pos->getWorld();
+		$block = $world->getBlock($pos);
+		if($block instanceof BlockCampfire){
+			$world->setBlock($pos, $block);
+		}
 	}
 
 	public function getInventory() : Inventory{
 		return $this->inventory;
 	}
 
-	/**
-	 * @return int[]
-	 * @phpstan-return array<int, int>
-	 */
-	public function getCookingTimes() : array{
-		return $this->cookingTimes;
+	public function getCookingTime(int $slot) : int{
+		return $this->cookingTimes[$slot] ?? 0;
 	}
 
-	/**
-	 * @param int[] $cookingTimes
-	 * @phpstan-param array<int, int> $cookingTimes
-	 */
-	public function setCookingTimes(array $cookingTimes) : void{
-		$this->cookingTimes = $cookingTimes;
+	public function setCookingTime(int $slot, int $time) : void{
+		$this->cookingTimes[$slot] = $time;
 	}
 
 	public function readSaveData(CompoundTag $nbt) : void{
@@ -106,7 +119,7 @@ class Campfire extends Spawnable implements ContainerTile{
 			if(($tag = $nbt->getTag($itemTag)) instanceof CompoundTag){
 				$items[$slot] = Item::safeNbtDeserialize($tag, "$baseErrorContext slot $slot");
 			}
-			if(($tag = $nbt->getTag($cookingTimeTag)) instanceof IntTag){
+			if(isset($items[$slot]) && ($tag = $nbt->getTag($cookingTimeTag)) instanceof IntTag){
 				$this->cookingTimes[$slot] = $tag->getValue();
 			}
 		}

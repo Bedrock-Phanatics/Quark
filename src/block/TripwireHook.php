@@ -37,6 +37,8 @@ use quark\world\BlockTransaction;
 class TripwireHook extends Flowable implements HorizontalFacing, RedstoneSignalEmitter{
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	protected bool $connected = false;
 	protected bool $powered = false;
 

@@ -42,6 +42,8 @@ use quark\world\sound\BellRingSound;
 final class Bell extends Transparent implements HorizontalFacing{
 	use HorizontalFacingTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	private BellAttachmentType $attachmentType = BellAttachmentType::FLOOR;
 
 	protected function describeBlockOnlyState(RuntimeDataDescriber $w) : void{

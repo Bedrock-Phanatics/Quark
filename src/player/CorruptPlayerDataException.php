@@ -21,21 +21,11 @@
 
 declare(strict_types=1);
 
-namespace quark\player\chat;
-
-use function str_replace;
+namespace quark\player;
 
 /**
- * Legacy raw string chat formatter with the same behaviour as the old PlayerChatEvent::setFormat() API.
- * The format string should contain the placeholders {%0} and {%1} for the username and message respectively.
+ * The stored data was damaged and has been set aside, so the player can safely start over.
  */
-final class LegacyRawChatFormatter implements ChatFormatter{
+final class CorruptPlayerDataException extends PlayerDataLoadException{
 
-	public function __construct(
-		private string $format
-	){}
-
-	public function format(string $username, string $message) : string{
-		return str_replace(["{%0}", "{%1}"], [$username, $message], $this->format);
-	}
 }

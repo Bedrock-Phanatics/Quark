@@ -45,6 +45,8 @@ class ChiseledBookshelf extends Opaque implements HorizontalFacing{
 	use HorizontalFacingTrait;
 	use FacesOppositePlacingPlayerTrait;
 
+	public const int DEFAULT_FACING = Facing::SOUTH;
+
 	/**
 	 * @var ChiseledBookshelfSlot[]
 	 * @phpstan-var array<int, ChiseledBookshelfSlot>

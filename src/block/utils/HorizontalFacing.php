@@ -26,6 +26,7 @@ namespace quark\block\utils;
 use pocketmine\math\Facing;
 
 interface HorizontalFacing{
+	public const int DEFAULT_FACING = Facing::NORTH;
 
 	/**
 	 * @see Facing
