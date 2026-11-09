@@ -157,7 +157,7 @@ Aliases in the `[aliases]` section of `config/server.toml` run their targets wit
 
 Declare everything in the constructor. `register()` throws on an invalid definition and leaves the map unchanged, and changing a definition while its command is registered throws.
 
-Declarative commands that implement `PluginOwned` are unregistered when their plugin is disabled, along with their soft enum tracking. Create and register them again from `onEnable()`. Other commands stay registered, and a declarative command that doesn't implement `PluginOwned` keeps running after its plugin is disabled.
+Declarative commands that implement `PluginOwned` are unregistered when their plugin is disabled, along with their soft enum tracking. A handler like `$this->go(...)` ties the command to itself, so PHP's cycle collector frees it, not reference counting. Create and register them again from `onEnable()`. Other commands stay registered, and a declarative command that doesn't implement `PluginOwned` keeps running after its plugin is disabled.
 
 ## Legacy commands
 
