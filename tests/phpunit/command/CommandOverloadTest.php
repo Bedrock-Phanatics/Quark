@@ -24,10 +24,13 @@ use quark\permission\DefaultPermissions;
 use quark\permission\Permission;
 use quark\permission\PermissionManager;
 use quark\player\Player;
+use quark\plugin\Plugin;
+use quark\plugin\PluginOwned;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
 use function array_reverse;
+use function gc_collect_cycles;
 use function implode;
 use function strtolower;
 use function strtr;
@@ -423,6 +426,39 @@ final class CommandOverloadTest extends TestCase{
 		self::assertSame([], $this->dispatch("x edit 5", $admin));
 		self::assertSame(["edit 5"], $this->calls);
 		self::assertSame(["Usage: /x edit <n>", "Usage: /x view"], $this->dispatch("x", $admin));
+	}
+
+	public function testPluginCommandsWithHandlersAreUnregisteredAndReleased() : void{
+		$plugin = self::createStub(Plugin::class);
+		$plugin->method("isEnabled")->willReturn(true);
+		$command = new class("owned", $plugin, $this->log(...)) extends Command implements PluginOwned{
+			/** @phpstan-param \Closure(string) : void $log */
+			public function __construct(string $name, private Plugin $plugin, private \Closure $log){
+				parent::__construct($name);
+				$this->setPermission("test.root");
+				$this->syntax("go")->registerArgument(new IntegerArgument("n"))->handler($this->go(...));
+			}
+
+			private function go(CommandSender $sender, int $n) : void{
+				($this->log)("go $n");
+			}
+
+			public function getOwningPlugin() : Plugin{
+				return $this->plugin;
+			}
+		};
+		$this->map->register("test", $command);
+		$this->dispatch("owned go 4");
+		self::assertSame(["go 4"], $this->calls);
+
+		$reference = \WeakReference::create($command);
+		$this->map->unregisterPluginSyntaxCommands($plugin);
+		self::assertNull($this->map->getCommand("owned"));
+		self::assertFalse($command->isRegistered());
+		unset($command);
+		//the handler is bound to the command, so PHP's cycle collector frees it
+		gc_collect_cycles();
+		self::assertNull($reference->get());
 	}
 
 	public function testNumbersFailCleanlyAtTheBoundaries() : void{

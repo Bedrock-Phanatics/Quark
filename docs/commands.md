@@ -168,6 +168,6 @@ Calling `execute()` directly skips the permission checks. Use `Server::dispatchC
 ## Limitations
 
 - A syntax whose leading words are a prefix of another's can't take those words as values, the longer one wins.
-- `run()`, `syntax()`, `getSyntaxes()`, `registerArgument()`, `registerArguments()`, `getSoftEnums()`, `dispatchLine()`, `setPrepared()`, `getPreparedSyntaxes()` and `canReachPermittedSyntax()` conflict with existing subclasses that declare incompatible methods with those names.
+- `run()`, `syntax()`, `getSyntaxes()`, `registerArgument()`, `registerArguments()`, `dispatchLine()`, `setPrepared()`, `getPreparedSyntaxes()` and `canReachPermittedSyntax()` conflict with existing subclasses that declare incompatible methods with those names.
 - `execute()` is no longer abstract, so a subclass can't redeclare it as abstract.
 - Clients only know int and float number types, so they don't validate `~` forms of numbers the way the server does.

@@ -269,24 +269,6 @@ final class CommandSyntax{
 		return $this->openFrom !== null ? PHP_INT_MAX : $this->maxFinite();
 	}
 
-	/**
-	 * @internal
-	 * @return int[]
-	 * @phpstan-return list<int>
-	 */
-	public function getAcceptedCounts() : array{
-		$counts = [];
-		foreach($this->counts as $count => $_){
-			$counts[] = $count;
-		}
-		return $counts;
-	}
-
-	/** @internal */
-	public function getOpenFrom() : ?int{
-		return $this->openFrom;
-	}
-
 	/** @internal */
 	public function getBinding() : ?HandlerBinding{
 		return $this->binding;

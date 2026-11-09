@@ -27,7 +27,6 @@ declare(strict_types=1);
 namespace quark\command;
 
 use quark\command\argument\Argument;
-use quark\command\argument\SoftEnum;
 use quark\command\internal\HandlerBinding;
 use quark\command\internal\PreparedCommand;
 use quark\command\internal\SyntaxMatcher;
@@ -244,15 +243,6 @@ abstract class Command{
 	 */
 	public function getPreparedSyntaxes() : ?array{
 		return $this->prepared?->syntaxes;
-	}
-
-	/**
-	 * @internal
-	 * @return SoftEnum[]
-	 * @phpstan-return array<string, SoftEnum>
-	 */
-	public function getSoftEnums() : array{
-		return $this->prepared->softEnums ?? [];
 	}
 
 	public function getName() : string{
