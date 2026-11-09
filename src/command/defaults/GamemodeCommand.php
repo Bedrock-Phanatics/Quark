@@ -23,61 +23,69 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\CommandEnum;
+use quark\command\argument\EnumArgument;
+use quark\command\argument\PlayerArgument;
 use quark\command\Command;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\GameMode;
-use function count;
+use quark\player\Player;
 
 class GamemodeCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"gamemode",
-			KnownTranslationFactory::quark_command_gamemode_description(),
-			KnownTranslationFactory::commands_gamemode_usage()
+			KnownTranslationFactory::quark_command_gamemode_description()
 		);
 		$this->setPermissions([
 			DefaultPermissionNames::COMMAND_GAMEMODE_SELF,
 			DefaultPermissionNames::COMMAND_GAMEMODE_OTHER
 		]);
-	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			throw new InvalidCommandSyntaxException();
-		}
-
-		$gameMode = GameMode::fromString($args[0]);
-		if($gameMode === null){
-			$sender->sendMessage(KnownTranslationFactory::quark_command_gamemode_unknown($args[0]));
-			return true;
-		}
-
-		$target = $this->fetchPermittedPlayerTarget($sender, $args[1] ?? null, DefaultPermissionNames::COMMAND_GAMEMODE_SELF, DefaultPermissionNames::COMMAND_GAMEMODE_OTHER);
-		if($target === null){
-			return true;
-		}
-
-		if($target->getGamemode() === $gameMode){
-			$sender->sendMessage(KnownTranslationFactory::quark_command_gamemode_failure($target->getName()));
-			return true;
-		}
-
-		$target->setGamemode($gameMode);
-		if($gameMode !== $target->getGamemode()){
-			$sender->sendMessage(KnownTranslationFactory::quark_command_gamemode_failure($target->getName()));
-		}else{
-			if($target === $sender){
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_gamemode_success_self($gameMode->getTranslatableName()));
-			}else{
-				$target->sendMessage(KnownTranslationFactory::gameMode_changed($gameMode->getTranslatableName()));
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_gamemode_success_other($gameMode->getTranslatableName(), $target->getName()));
+		$modes = [];
+		foreach(GameMode::cases() as $case){
+			foreach($case->getAliases() as $alias){
+				$modes[$alias] = $case;
 			}
 		}
+		$mode = new EnumArgument("mode", CommandEnum::fromMap("GameMode", $modes));
 
-		return true;
+		$this->syntax()
+			->permission(DefaultPermissionNames::COMMAND_GAMEMODE_SELF)
+			->registerArgument($mode)
+			->handler($this->setOwn(...));
+		$this->syntax()
+			->registerArguments([$mode, new PlayerArgument("target", partial: true, self: true)])
+			->handler($this->setOther(...));
+	}
+
+	private function setOwn(Player $sender, GameMode $mode) : void{
+		$this->change($sender, $sender, $mode);
+	}
+
+	private function setOther(CommandSender $sender, GameMode $mode, Player $target) : void{
+		if($this->canTarget($sender, $target, DefaultPermissionNames::COMMAND_GAMEMODE_SELF, DefaultPermissionNames::COMMAND_GAMEMODE_OTHER)){
+			$this->change($sender, $target, $mode);
+		}
+	}
+
+	private function change(CommandSender $sender, Player $target, GameMode $mode) : void{
+		if($target->getGamemode() === $mode){
+			$sender->sendMessage(KnownTranslationFactory::quark_command_gamemode_failure($target->getName()));
+			return;
+		}
+
+		$target->setGamemode($mode);
+		if($mode !== $target->getGamemode()){
+			$sender->sendMessage(KnownTranslationFactory::quark_command_gamemode_failure($target->getName()));
+		}elseif($target === $sender){
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_gamemode_success_self($mode->getTranslatableName()));
+		}else{
+			$target->sendMessage(KnownTranslationFactory::gameMode_changed($mode->getTranslatableName()));
+			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_gamemode_success_other($mode->getTranslatableName(), $target->getName()));
+		}
 	}
 }
