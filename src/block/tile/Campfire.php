@@ -119,7 +119,7 @@ class Campfire extends Spawnable implements ContainerTile{
 			if(($tag = $nbt->getTag($itemTag)) instanceof CompoundTag){
 				$items[$slot] = Item::safeNbtDeserialize($tag, "$baseErrorContext slot $slot");
 			}
-			if(($tag = $nbt->getTag($cookingTimeTag)) instanceof IntTag){
+			if(isset($items[$slot]) && ($tag = $nbt->getTag($cookingTimeTag)) instanceof IntTag){
 				$this->cookingTimes[$slot] = $tag->getValue();
 			}
 		}

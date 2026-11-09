@@ -104,6 +104,19 @@ final class CampfireTest extends TestCase{
 		self::assertSame(0, $copy->getCookingTime(0));
 	}
 
+	public function testCookingTimeWithoutAnItemIsIgnoredOnLoad() : void{
+		$tile = new Campfire();
+		$tile->getInventory()->setItem(1, VanillaItems::RAW_BEEF());
+		$tile->setCookingTime(1, 250);
+		$nbt = $tile->saveNBT();
+		$nbt->setInt("ItemTime3", 400);
+
+		$copy = TileFactory::getInstance()->createFromData($nbt);
+		self::assertInstanceOf(Campfire::class, $copy);
+		self::assertSame(250, $copy->getCookingTime(1));
+		self::assertSame(0, $copy->getCookingTime(2), "an empty slot has no progress to inherit");
+	}
+
 	public function testCookingTimeResetsWhenTheItemChanges() : void{
 		$tile = new Campfire();
 		$tile->getInventory()->setItem(0, VanillaItems::RAW_BEEF());
