@@ -33,10 +33,13 @@ use quark\utils\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use function bin2hex;
 use function file_exists;
+use function file_get_contents;
 use function file_put_contents;
+use function is_dir;
 use function mkdir;
 use function random_bytes;
 use function sys_get_temp_dir;
+use function zlib_decode;
 use function zlib_encode;
 use const ZLIB_ENCODING_GZIP;
 
@@ -83,8 +86,31 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 		self::assertIsString($contents);
 		file_put_contents(Path::join($this->path, "steve.dat"), $contents);
 		$result = (new DatFilePlayerDataProvider($this->path))->loadData("Steve");
-		self::assertInstanceOf(PlayerDataLoadException::class, $result->reason());
+		self::assertInstanceOf(CorruptPlayerDataException::class, $result->reason());
 		$result->observe(null, static fn() => null);
 		self::assertTrue(file_exists(Path::join($this->path, "steve.dat.bak")));
+		self::assertFalse(file_exists(Path::join($this->path, "steve.dat")));
+	}
+
+	public function testSecondCorruptionKeepsTheFirstBackup() : void{
+		$provider = new DatFilePlayerDataProvider($this->path);
+		$file = Path::join($this->path, "steve.dat");
+		foreach(["first", "second"] as $content){
+			file_put_contents($file, zlib_encode($content, ZLIB_ENCODING_GZIP));
+			$provider->loadData("Steve")->observe(null, static fn() => null);
+		}
+		self::assertSame("first", zlib_decode(file_get_contents($file . ".bak") ?: ""));
+		self::assertSame("second", zlib_decode(file_get_contents($file . ".bak.1") ?: ""));
+	}
+
+	public function testUnreadableDataIsLeftInPlace() : void{
+		$file = Path::join($this->path, "steve.dat");
+		mkdir($file);
+		$result = (new DatFilePlayerDataProvider($this->path))->loadData("Steve");
+		$result->observe(null, static fn() => null);
+		self::assertTrue($result->isRejected());
+		self::assertNotInstanceOf(CorruptPlayerDataException::class, $result->reason());
+		self::assertInstanceOf(PlayerDataLoadException::class, $result->reason());
+		self::assertTrue(is_dir($file));
 	}
 }

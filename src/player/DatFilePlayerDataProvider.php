@@ -34,7 +34,6 @@ use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use Vow\Promise;
 use function file_exists;
-use function rename;
 use function strtolower;
 use function zlib_decode;
 use function zlib_encode;
@@ -53,9 +52,20 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 		return Path::join($this->path, strtolower($username) . '.dat');
 	}
 
-	private function handleCorruptedPlayerData(string $name) : void{
+	/**
+	 * Moves damaged data to a backup that doesn't replace an earlier one. Only data that was set aside is reported as
+	 * corrupt, anything that's still in place must not be treated as a new player or it would be overwritten.
+	 */
+	private function setAsideCorruptedPlayerData(string $name, string $problem, \Throwable $previous) : PlayerDataLoadException{
 		$path = $this->getPlayerDataPath($name);
-		rename($path, $path . '.bak');
+		$backup = $path . '.bak';
+		for($i = 1; file_exists($backup); ++$i){
+			$backup = $path . '.bak.' . $i;
+		}
+		if(@rename($path, $backup)){
+			return new CorruptPlayerDataException("$problem (moved to \"$backup\")", 0, $previous);
+		}
+		return new PlayerDataLoadException("$problem (and it couldn't be moved aside)", 0, $previous);
 	}
 
 	public function hasData(string $name) : Promise{
@@ -95,15 +105,13 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 		try{
 			$decompressed = ErrorToExceptionHandler::trapAndRemoveFalse(fn() => zlib_decode($contents));
 		}catch(\ErrorException $e){
-			$this->handleCorruptedPlayerData($name);
-			throw new PlayerDataLoadException("Failed to decompress raw player data for \"$name\": " . $e->getMessage(), 0, $e);
+			throw $this->setAsideCorruptedPlayerData($name, "Failed to decompress raw player data for \"$name\": " . $e->getMessage(), $e);
 		}
 
 		try{
 			return Nbt::read($decompressed, Nbt::JAVA)->mustGetCompoundTag();
 		}catch(NbtException|NbtDataException $e){ //corrupt data
-			$this->handleCorruptedPlayerData($name);
-			throw new PlayerDataLoadException("Failed to decode NBT data for \"$name\": " . $e->getMessage(), 0, $e);
+			throw $this->setAsideCorruptedPlayerData($name, "Failed to decode NBT data for \"$name\": " . $e->getMessage(), $e);
 		}
 	}
 

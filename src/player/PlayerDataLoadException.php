@@ -23,6 +23,6 @@ declare(strict_types=1);
 
 namespace quark\player;
 
-final class PlayerDataLoadException extends \RuntimeException{
+class PlayerDataLoadException extends \RuntimeException{
 
 }

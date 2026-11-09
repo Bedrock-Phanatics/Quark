@@ -144,11 +144,19 @@ final class ServerPlayerDataTest extends TestCase{
 		self::assertSame(["save:Steve", "load:Steve"], $this->provider->calls);
 	}
 
-	public function testUnreadableDataLoadsAsNull() : void{
+	public function testCorruptDataLoadsAsNull() : void{
 		$result = $this->server->getOfflinePlayerData("Steve");
-		$this->provider->fail("load:Steve", new PlayerDataLoadException("corrupt"));
+		$this->provider->fail("load:Steve", new CorruptPlayerDataException("corrupt"));
 		self::assertTrue($result->isFulfilled());
 		self::assertNull($result->value());
+		self::assertSame([], $this->tails());
+	}
+
+	public function testUnreadableDataRejectsInsteadOfStartingOver() : void{
+		$result = $this->server->getOfflinePlayerData("Steve");
+		$this->provider->fail("load:Steve", new PlayerDataLoadException("permission denied"));
+		self::assertTrue($result->isRejected());
+		$result->observe(null, static fn() => null);
 		self::assertSame([], $this->tails());
 	}
 
