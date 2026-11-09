@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\command\defaults;
 
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
@@ -41,15 +42,14 @@ class SaveCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_SAVE_PERFORM);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
 		Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_start());
-		$start = microtime(true);
 
+		$start = microtime(true);
 		$saves = [];
 		foreach($sender->getServer()->getOnlinePlayers() as $player){
 			$saves[] = $player->save();
 		}
-
 		foreach($sender->getServer()->getWorldManager()->getWorlds() as $world){
 			$world->save(true);
 		}
@@ -57,7 +57,5 @@ class SaveCommand extends VanillaCommand{
 		Promise::all($saves)->observe(static function() use ($sender, $start) : void{
 			Command::broadcastCommandMessage($sender, KnownTranslationFactory::quark_save_success((string) round(microtime(true) - $start, 3)));
 		});
-
-		return true;
 	}
 }
