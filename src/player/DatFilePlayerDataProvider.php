@@ -47,6 +47,9 @@ use const ZLIB_ENCODING_GZIP;
  *
  * With an async pool, saves are compressed and written by a worker. Loads always run inline because decoding has to
  * happen on the main thread anyway, so a worker would only add a round trip.
+ *
+ * A save is only on disk once its promise resolves. Killing the process (SIGKILL, the OOM killer) in the instant after
+ * a save was requested can lose it, while a crash or a normal shutdown waits for pending saves.
  */
 final class DatFilePlayerDataProvider implements PlayerDataProvider{
 

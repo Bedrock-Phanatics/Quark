@@ -30,8 +30,9 @@ use Vow\Promise;
  * Handles storage of player data. Implementations must treat player names in a case-insensitive manner.
  *
  * Operations may complete asynchronously so slow storage never blocks the main thread. The server runs operations for
- * the same player one at a time in call order, so implementations don't need to order them. Promises must be settled
- * on the main thread.
+ * the same player one at a time in call order, so implementations don't need to order them. Saves that are still
+ * waiting for an earlier operation are merged, so only the newest data is passed to the provider. Promises must be
+ * settled on the main thread.
  */
 interface PlayerDataProvider{
 

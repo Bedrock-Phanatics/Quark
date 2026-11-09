@@ -129,6 +129,67 @@ final class ServerPlayerDataTest extends TestCase{
 		self::assertSame([], $this->tails());
 	}
 
+	/**
+	 * @return array<string, QueuedPlayerSave>
+	 */
+	private function queuedSaves() : array{
+		/** @var array<string, QueuedPlayerSave> $queued */
+		$queued = new \ReflectionProperty(Server::class, "queuedPlayerSaves")->getValue($this->server);
+		return $queued;
+	}
+
+	public function testSavesWaitingBehindASlowOneAreMerged() : void{
+		$running = $this->server->saveOfflinePlayerData("Steve", CompoundTag::create()->setInt("n", 1));
+		$second = $this->server->saveOfflinePlayerData("Steve", CompoundTag::create()->setInt("n", 2));
+		$third = $this->server->saveOfflinePlayerData("steve", CompoundTag::create()->setInt("n", 3));
+		$fourth = $this->server->saveOfflinePlayerData("STEVE", CompoundTag::create()->setInt("n", 4));
+		self::assertSame(["save:Steve"], $this->provider->calls, "the disk is still busy with the first save");
+		self::assertSame($second, $third);
+		self::assertSame($second, $fourth);
+
+		$this->provider->settle("save:Steve");
+		self::assertTrue($running->isFulfilled());
+		self::assertSame(["save:Steve", "save:Steve"], $this->provider->calls);
+		self::assertSame(4, $this->provider->saved["Steve"]->getInt("n"), "only the newest data is written");
+		self::assertSame([], $this->queuedSaves());
+		self::assertTrue($second->isPending());
+
+		$this->provider->settle("save:Steve");
+		self::assertTrue($second->isFulfilled());
+		self::assertSame([], $this->tails());
+	}
+
+	public function testSaveIsNotMergedAcrossALoad() : void{
+		$this->server->saveOfflinePlayerData("Steve", CompoundTag::create()->setInt("n", 1));
+		$this->server->saveOfflinePlayerData("Steve", CompoundTag::create()->setInt("n", 2));
+		$this->server->getOfflinePlayerData("Steve")->observe(null);
+		$this->server->saveOfflinePlayerData("Steve", CompoundTag::create()->setInt("n", 3));
+
+		$this->provider->settle("save:Steve");
+		self::assertSame(2, $this->provider->saved["Steve"]->getInt("n"));
+		$this->provider->settle("save:Steve");
+		self::assertSame(["save:Steve", "save:Steve", "load:Steve"], $this->provider->calls, "the load sees the data saved before it");
+		$this->provider->settle("load:Steve");
+		self::assertSame(["save:Steve", "save:Steve", "load:Steve", "save:Steve"], $this->provider->calls);
+		self::assertSame(3, $this->provider->saved["Steve"]->getInt("n"));
+		$this->provider->settle("save:Steve");
+		self::assertSame([], $this->tails());
+		self::assertSame([], $this->queuedSaves());
+	}
+
+	public function testMergedSaveFailureIsReportedToEveryCaller() : void{
+		$this->server->saveOfflinePlayerData("Steve", CompoundTag::create());
+		$second = $this->server->saveOfflinePlayerData("Steve", CompoundTag::create());
+		$third = $this->server->saveOfflinePlayerData("Steve", CompoundTag::create());
+
+		$this->provider->settle("save:Steve");
+		$this->provider->fail("save:Steve", new PlayerDataSaveException("disk full"));
+		self::assertTrue($second->isFulfilled());
+		self::assertTrue($third->isFulfilled(), "saves never reject");
+		self::assertSame([], $this->tails());
+		self::assertSame([], $this->queuedSaves());
+	}
+
 	public function testDifferentPlayersDoNotWaitForEachOther() : void{
 		$this->server->getOfflinePlayerData("Steve")->observe(null);
 		$this->server->getOfflinePlayerData("Alex")->observe(null);

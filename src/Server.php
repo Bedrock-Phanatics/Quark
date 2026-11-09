@@ -93,6 +93,7 @@ use quark\player\OfflinePlayer;
 use quark\player\Player;
 use quark\player\PlayerDataProvider;
 use quark\player\PlayerInfo;
+use quark\player\QueuedPlayerSave;
 use quark\plugin\PharPluginLoader;
 use quark\plugin\PluginEnableOrder;
 use quark\plugin\PluginGraylist;
@@ -325,6 +326,10 @@ class Server{
 	private PlayerDataProvider $playerDataProvider;
 	/** @var array<string, Promise<mixed>> last unfinished provider operation per lowercase player name */
 	private array $playerDataTails = [];
+	/** @var array<string, QueuedPlayerSave> saves that are still waiting behind earlier operations, by lowercase player name */
+	private array $queuedPlayerSaves = [];
+	/** Runs player data writes on their own thread so they never wait behind chunk generation. */
+	private AsyncPool $playerDataPool;
 
 	private QueryInfo $queryInfo;
 
@@ -749,12 +754,26 @@ class Server{
 			return Promise::resolved(null);
 		}
 
-		return $this->queuePlayerData($name, fn() => PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $data)))
-			->catch(function(\Throwable $e) use ($name) : null{
-				$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
-				$this->logger->logException($e);
-				return null;
-			});
+		$key = strtolower($name);
+		$queued = $this->queuedPlayerSaves[$key] ?? null;
+		if($queued !== null && $queued->result !== null && $queued->tail === ($this->playerDataTails[$key] ?? null)){
+			//nothing has been queued after it, so only the newest data needs to be written
+			$queued->data = $data;
+			return $queued->result;
+		}
+
+		$queued = $this->queuedPlayerSaves[$key] = new QueuedPlayerSave($data);
+		$queued->tail = $this->queuePlayerData($name, function() use ($key, $name, $queued) : Promise{
+			if(($this->queuedPlayerSaves[$key] ?? null) === $queued){
+				unset($this->queuedPlayerSaves[$key]);
+			}
+			return PulseZones::$syncPlayerDataSave->time(fn() => $this->playerDataProvider->saveData($name, $queued->data));
+		});
+		return $queued->result = $queued->tail->catch(function(\Throwable $e) use ($name) : null{
+			$this->logger->critical($this->language->translate(KnownTranslationFactory::quark_data_saveError($name, $e->getMessage())));
+			$this->logger->logException($e);
+			return null;
+		});
 	}
 
 	/**
@@ -852,6 +871,7 @@ class Server{
 		$deadline = microtime(true) + 30;
 		while($this->playerDataTails !== [] && microtime(true) < $deadline){
 			if(isset($this->asyncPool)){ $this->asyncPool->collectTasks(); }
+			if(isset($this->playerDataPool)){ $this->playerDataPool->collectTasks(); }
 			usleep(1000);
 		}
 		if($this->playerDataTails !== []){
@@ -1355,7 +1375,8 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->asyncPool);
+			$this->playerDataPool = new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->playerDataPool);
 
 			register_shutdown_function($this->crashDump(...));
 
@@ -1897,6 +1918,9 @@ class Server{
 				$this->drainPulseReports();
 				$this->pulseReportPool?->shutdown();
 				$this->pulseReportPool = null;
+				if(isset($this->playerDataPool)){
+					$this->playerDataPool->shutdown();
+				}
 				if(isset($this->asyncPool)){
 					$this->logger->debug("Shutting down async task worker pool");
 					$this->asyncPool->shutdown();
@@ -2193,6 +2217,9 @@ class Server{
 
 			$schedulerAsyncScope = PulseZones::$schedulerAsync->start();
 			$this->asyncPool->collectTasks();
+			if($this->playerDataTails !== []){
+				$this->playerDataPool->collectTasks();
+			}
 			PulseZones::$schedulerAsync->stop($schedulerAsyncScope);
 
 			$this->worldManager->tick($this->tickCounter);
