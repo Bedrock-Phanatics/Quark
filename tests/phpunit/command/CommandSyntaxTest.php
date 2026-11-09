@@ -35,7 +35,6 @@ use quark\command\argument\FloatArgument;
 use quark\command\argument\IntegerArgument;
 use quark\command\argument\PlayerArgument;
 use quark\command\argument\StringArgument;
-use quark\command\defaults\HelpCommand;
 use quark\permission\DefaultPermissions;
 use quark\permission\Permission;
 use quark\permission\PermissionManager;
@@ -590,6 +589,10 @@ final class CommandSyntaxTest extends TestCase{
 		self::assertTrue($this->map->register("test", $command));
 	}
 
+	private function help() : Command{
+		return $this->map->getCommand("help") ?? throw new \LogicException("Missing help command");
+	}
+
 	public function testHelpListsThePermittedSyntaxes() : void{
 		$command = $this->command();
 		$command->syntax("pay")->registerArgument(new IntegerArgument("amount"));
@@ -601,7 +604,7 @@ final class CommandSyntaxTest extends TestCase{
 		$this->map->register("test", $custom);
 		$sender = $this->sender([DefaultPermissions::ROOT_USER => true, "test.root" => true]);
 
-		$help = new HelpCommand();
+		$help = $this->help();
 		$help->execute($sender, "help", ["eco"]);
 		$output = implode("\n", $sender->messages);
 		self::assertStringContainsString("/eco\n", $output);
