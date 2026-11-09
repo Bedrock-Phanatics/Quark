@@ -23,48 +23,35 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\PlayerArgument;
+use quark\command\argument\StringArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
-use quark\player\Player;
-use quark\utils\TextFormat;
-use function array_shift;
-use function count;
-use function implode;
-use function trim;
 
 class KickCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"kick",
-			KnownTranslationFactory::quark_command_kick_description(),
-			KnownTranslationFactory::commands_kick_usage()
+			KnownTranslationFactory::quark_command_kick_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_KICK);
+		$this->registerArguments([
+			new PlayerArgument("player", partial: true),
+			new StringArgument("reason", optional: true, greedy: true)
+		]);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			throw new InvalidCommandSyntaxException();
-		}
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$player = $args->player("player");
+		$reason = $args->string("reason", "");
 
-		$name = array_shift($args);
-		$reason = trim(implode(" ", $args));
-
-		if(($player = $sender->getServer()->getPlayerByPrefix($name)) instanceof Player){
-			$player->kick($reason !== "" ? KnownTranslationFactory::quark_disconnect_kick($reason) : KnownTranslationFactory::quark_disconnect_kick_noReason());
-			if($reason !== ""){
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_kick_success_reason($player->getName(), $reason));
-			}else{
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_kick_success($player->getName()));
-			}
-		}else{
-			$sender->sendMessage(KnownTranslationFactory::commands_generic_player_notFound()->prefix(TextFormat::RED));
-		}
-
-		return true;
+		$player->kick($reason !== "" ? KnownTranslationFactory::quark_disconnect_kick($reason) : KnownTranslationFactory::quark_disconnect_kick_noReason());
+		Command::broadcastCommandMessage($sender, $reason !== "" ?
+			KnownTranslationFactory::commands_kick_success_reason($player->getName(), $reason) :
+			KnownTranslationFactory::commands_kick_success($player->getName()));
 	}
 }

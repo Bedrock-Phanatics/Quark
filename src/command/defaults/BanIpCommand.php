@@ -23,54 +23,38 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
+use quark\command\argument\IpAddressArgument;
+use quark\command\argument\StringArgument;
 use quark\command\Command;
+use quark\command\CommandArgs;
 use quark\command\CommandSender;
-use quark\command\utils\InvalidCommandSyntaxException;
 use quark\lang\KnownTranslationFactory;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
-use function array_shift;
-use function count;
-use function implode;
-use function inet_pton;
 
 class BanIpCommand extends VanillaCommand{
 
 	public function __construct(){
 		parent::__construct(
 			"ban-ip",
-			KnownTranslationFactory::quark_command_ban_ip_description(),
-			KnownTranslationFactory::commands_banip_usage()
+			KnownTranslationFactory::quark_command_ban_ip_description()
 		);
 		$this->setPermission(DefaultPermissionNames::COMMAND_BAN_IP);
+		$this->registerArguments([
+			new IpAddressArgument("target", orPlayer: true),
+			new StringArgument("reason", optional: true, greedy: true)
+		]);
 	}
 
-	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		if(count($args) === 0){
-			throw new InvalidCommandSyntaxException();
-		}
+	protected function run(CommandSender $sender, CommandArgs $args) : void{
+		$target = $args->get("target");
+		$reason = $args->string("reason", "");
 
-		$value = array_shift($args);
-		$reason = implode(" ", $args);
-
-		if(inet_pton($value) !== false){
-			$this->processIPBan($value, $sender, $reason);
-
-			Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_banip_success($value));
-		}else{
-			if(($player = $sender->getServer()->getPlayerByPrefix($value)) instanceof Player){
-				$ip = $player->getNetworkSession()->getIp();
-				$this->processIPBan($ip, $sender, $reason);
-
-				Command::broadcastCommandMessage($sender, KnownTranslationFactory::commands_banip_success_players($ip, $player->getName()));
-			}else{
-				$sender->sendMessage(KnownTranslationFactory::commands_banip_invalid());
-
-				return false;
-			}
-		}
-
-		return true;
+		$ip = $target instanceof Player ? $target->getNetworkSession()->getIp() : $args->string("target");
+		$this->processIPBan($ip, $sender, $reason);
+		Command::broadcastCommandMessage($sender, $target instanceof Player ?
+			KnownTranslationFactory::commands_banip_success_players($ip, $target->getName()) :
+			KnownTranslationFactory::commands_banip_success($ip));
 	}
 
 	private function processIPBan(string $ip, CommandSender $sender, string $reason) : void{
