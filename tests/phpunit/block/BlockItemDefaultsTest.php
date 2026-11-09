@@ -25,6 +25,7 @@ namespace quark\block;
 
 use Bedwire\Nbt;
 use PHPUnit\Framework\TestCase;
+use pocketmine\math\Facing;
 use pocketmine\nbt\tag\Tag;
 use quark\crafting\CraftingManagerFromDataHelper;
 use quark\data\bedrock\BedrockDataFiles;
@@ -91,5 +92,14 @@ final class BlockItemDefaultsTest extends TestCase{
 
 		self::assertGreaterThan(400, $checked);
 		self::assertSame([], $errors, "Default block item states differ from vanilla:\n" . implode("\n", $errors));
+	}
+
+	public function testSetFacingValidatesTheNewFacing() : void{
+		$barrel = VanillaBlocks::BARREL();
+		$barrel->setFacing(Facing::EAST);
+		self::assertSame(Facing::EAST, $barrel->getFacing());
+
+		$this->expectException(\InvalidArgumentException::class);
+		$barrel->setFacing(99);
 	}
 }
