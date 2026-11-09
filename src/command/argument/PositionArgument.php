@@ -52,6 +52,10 @@ final class PositionArgument extends Argument{
 		return RelativeFloat::isValid($token);
 	}
 
+	public function getUsageLabel() : string{
+		return "x y z";
+	}
+
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::POSITION;
 	}

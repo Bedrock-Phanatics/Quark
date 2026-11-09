@@ -48,6 +48,10 @@ final class RotationArgument extends Argument{
 		return RelativeFloat::isValid($token);
 	}
 
+	public function getUsageLabel() : string{
+		return "yaw pitch";
+	}
+
 	public function getKind() : ArgumentKind{
 		return ArgumentKind::VALUE;
 	}

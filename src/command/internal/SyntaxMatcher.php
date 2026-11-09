@@ -150,7 +150,7 @@ final class SyntaxMatcher{
 			if($byLiterals !== 0){
 				return $byLiterals;
 			}
-			$byTokens = $b->getMinTokens() <=> $a->getMinTokens();
+			$byTokens = $a->getMinTokens() <=> $b->getMinTokens();
 			return $byTokens !== 0 ? $byTokens : strcmp($a->getUsage(""), $b->getUsage(""));
 		});
 		$count = count($node->syntaxes);
@@ -308,7 +308,7 @@ final class SyntaxMatcher{
 			if($checkShape){
 				$mismatch = self::findMismatch($syntax, $args, $consumed, $remaining);
 				if($mismatch !== null){
-					if($syntax->testPermissionSilent($sender) && ($failure === null || $mismatch->position > $failure->position)){
+					if($syntax->testPermissionSilent($sender) && self::isCloser($mismatch, $failure)){
 						$failure = $mismatch;
 					}
 					continue;
@@ -322,7 +322,7 @@ final class SyntaxMatcher{
 			if($result instanceof CommandArgs){
 				return $result;
 			}
-			if($failure === null || $result->position > $failure->position){
+			if(self::isCloser($result, $failure)){
 				$failure = $result;
 			}
 		}
@@ -341,6 +341,15 @@ final class SyntaxMatcher{
 			KnownTranslationFactory::quark_command_error_invalidArgument($argument->getName(), $message),
 			[$failure->syntax->getUsage($commandLabel)]
 		);
+	}
+
+	/**
+	 * A failure further along is closer to what was meant, and a typed argument explains more than a missing word.
+	 */
+	private static function isCloser(SyntaxFailure $candidate, ?SyntaxFailure $best) : bool{
+		return $best === null ||
+			$candidate->position > $best->position ||
+			($candidate->position === $best->position && $best->argument instanceof LiteralArgument && !$candidate->argument instanceof LiteralArgument);
 	}
 
 	/**

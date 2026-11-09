@@ -119,7 +119,7 @@ abstract class Command{
 	 * @return mixed
 	 * @throws CommandException
 	 */
-	public function dispatch(CommandSender $sender, string $commandLabel, array $args, ?string $commandLine = null){
+	public function dispatchLine(CommandSender $sender, string $commandLabel, array $args, ?string $commandLine = null){
 		return $this->prepared === null ? $this->execute($sender, $commandLabel, $args) : $this->executePrepared($sender, $commandLabel, $args, $commandLine);
 	}
 

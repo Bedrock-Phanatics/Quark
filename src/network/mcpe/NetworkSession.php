@@ -68,7 +68,6 @@ use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
-use pocketmine\network\mcpe\protocol\UpdateSoftEnumPacket;
 use pocketmine\utils\Limits;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
@@ -85,6 +84,7 @@ use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\cache\ChunkCache;
 use quark\command\argument\SoftEnum;
 use quark\network\mcpe\command\CommandMetadataAdapter;
+use quark\network\mcpe\command\SoftEnumUpdates;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
 use quark\network\mcpe\convert\TypeConverter;
@@ -1614,20 +1614,8 @@ class NetworkSession{
 	 * @phpstan-param list<array{SoftEnum, list<array{int, list<string>}>, int, int}> $changes
 	 */
 	public function syncSoftEnums(array $changes) : void{
-		foreach($changes as [$softEnum, $pending, $since, $until]){
-			$name = $softEnum->getName();
-			$known = $this->softEnumVersions[$name] ?? null;
-			if($known === null || $known >= $until){
-				continue;
-			}
-			//a client that is not exactly at the start of the batch gets the whole list to stay consistent
-			if($known !== $since){
-				$pending = [[SoftEnum::TYPE_SET, $softEnum->getValues()]];
-			}
-			foreach($pending as [$type, $values]){
-				$this->sendDataPacket(UpdateSoftEnumPacket::create($name, $values, $type));
-			}
-			$this->softEnumVersions[$name] = $until;
+		foreach(SoftEnumUpdates::createPackets($this->softEnumVersions, $changes) as $packet){
+			$this->sendDataPacket($packet);
 		}
 	}
 

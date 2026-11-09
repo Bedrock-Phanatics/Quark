@@ -350,7 +350,7 @@ class SimpleCommandMap implements CommandMap{
 
 		try{
 			if(self::isOwnerEnabled($target) && $target->testPermission($sender)){
-				$target->dispatch($sender, $commandLabel, $args, $commandLine);
+				$target->dispatchLine($sender, $commandLabel, $args, $commandLine);
 			}
 		}catch(CommandInputException $e){
 			$message = $e->getUserMessage();
