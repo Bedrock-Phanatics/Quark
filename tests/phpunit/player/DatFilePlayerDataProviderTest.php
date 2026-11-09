@@ -29,16 +29,25 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\TreeRoot;
+use pocketmine\snooze\SleeperHandler;
+use quark\scheduler\AsyncPool;
+use quark\thread\ThreadSafeClassLoader;
 use quark\utils\Filesystem;
+use quark\utils\MainLogger;
 use Symfony\Component\Filesystem\Path;
+use Vow\Promise;
 use function bin2hex;
+use function define;
+use function dirname;
 use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
 use function is_dir;
+use function microtime;
 use function mkdir;
 use function random_bytes;
 use function sys_get_temp_dir;
+use function usleep;
 use function zlib_decode;
 use function zlib_encode;
 use const ZLIB_ENCODING_GZIP;
@@ -99,8 +108,8 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 			file_put_contents($file, zlib_encode($content, ZLIB_ENCODING_GZIP));
 			$provider->loadData("Steve")->observe(null, static fn() => null);
 		}
-		self::assertSame("first", zlib_decode(file_get_contents($file . ".bak") ?: ""));
-		self::assertSame("second", zlib_decode(file_get_contents($file . ".bak.1") ?: ""));
+		self::assertSame("first", zlib_decode((string) file_get_contents($file . ".bak")));
+		self::assertSame("second", zlib_decode((string) file_get_contents($file . ".bak.1")));
 	}
 
 	public function testUnreadableDataIsLeftInPlace() : void{
@@ -112,5 +121,55 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 		self::assertNotInstanceOf(CorruptPlayerDataException::class, $result->reason());
 		self::assertInstanceOf(PlayerDataLoadException::class, $result->reason());
 		self::assertTrue(is_dir($file));
+	}
+
+	/**
+	 * @phpstan-param \Closure(AsyncPool) : void $test
+	 */
+	private function withPool(\Closure $test) : void{
+		@define('quark\\COMPOSER_AUTOLOADER_PATH', dirname(__DIR__, 3) . '/vendor/autoload.php');
+		$pool = new AsyncPool(2, 1024, new ThreadSafeClassLoader(), new MainLogger(null, false, "Main", new \DateTimeZone('UTC')), new SleeperHandler());
+		try{
+			$test($pool);
+		}finally{
+			$pool->shutdown();
+		}
+	}
+
+	/**
+	 * @phpstan-param Promise<null> $promise
+	 */
+	private static function settle(AsyncPool $pool, Promise $promise) : void{
+		$deadline = microtime(true) + 30;
+		while($promise->isPending() && microtime(true) < $deadline){
+			$pool->collectTasks();
+			usleep(1000);
+		}
+		self::assertFalse($promise->isPending(), "the save never settled");
+	}
+
+	public function testPooledSaveWritesOnAWorker() : void{
+		$this->withPool(function(AsyncPool $pool) : void{
+			$provider = new DatFilePlayerDataProvider($this->path, $pool);
+			$saved = $provider->saveData("Steve", self::data());
+			self::assertTrue($saved->isPending(), "the file is written off the main thread");
+			self::settle($pool, $saved);
+			self::assertTrue($saved->isFulfilled());
+
+			$loaded = $provider->loadData("steve")->value();
+			self::assertNotNull($loaded);
+			self::assertTrue(self::data()->equals($loaded));
+		});
+	}
+
+	public function testPooledSaveFailureRejectsThePromise() : void{
+		$this->withPool(function(AsyncPool $pool) : void{
+			$provider = new DatFilePlayerDataProvider(Path::join($this->path, "missing"), $pool);
+			$saved = $provider->saveData("Steve", self::data());
+			self::settle($pool, $saved);
+			self::assertTrue($saved->isRejected());
+			$saved->observe(null, static fn() => null);
+			self::assertInstanceOf(PlayerDataSaveException::class, $saved->reason());
+		});
 	}
 }

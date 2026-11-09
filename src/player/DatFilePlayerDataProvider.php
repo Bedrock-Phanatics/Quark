@@ -29,11 +29,14 @@ use pocketmine\errorhandler\ErrorToExceptionHandler;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
+use quark\scheduler\AsyncPool;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
+use Vow\Deferred;
 use Vow\Promise;
 use function file_exists;
+use function rename;
 use function strtolower;
 use function zlib_decode;
 use function zlib_encode;
@@ -41,11 +44,15 @@ use const ZLIB_ENCODING_GZIP;
 
 /**
  * Stores player data in a single .dat file per player. Each file is gzipped big-endian NBT.
+ *
+ * With an async pool, saves are compressed and written by a worker. Loads always run inline because decoding has to
+ * happen on the main thread anyway, so a worker would only add a round trip.
  */
 final class DatFilePlayerDataProvider implements PlayerDataProvider{
 
 	public function __construct(
-		private string $path
+		private string $path,
+		private ?AsyncPool $pool = null
 	){}
 
 	private function getPlayerDataPath(string $username) : string{
@@ -82,7 +89,21 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 
 	public function saveData(string $name, CompoundTag $data) : Promise{
 		try{
-			$this->write($name, $data);
+			$nbt = Nbt::write(new TreeRoot($data), Nbt::JAVA);
+		}catch(NbtException $e){
+			return Promise::rejected(new PlayerDataSaveException("Failed to encode player data: " . $e->getMessage(), 0, $e));
+		}
+
+		$path = $this->getPlayerDataPath($name);
+		if($this->pool !== null){
+			/** @var Deferred<null> $deferred */
+			$deferred = new Deferred();
+			$this->pool->submitTask(new PlayerDataWriteTask($path, $nbt, $deferred));
+			return $deferred->promise;
+		}
+
+		try{
+			self::writeFile($path, $nbt);
 			return Promise::resolved(null);
 		}catch(PlayerDataSaveException $e){
 			return Promise::rejected($e);
@@ -115,10 +136,13 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 		}
 	}
 
-	private function write(string $name, CompoundTag $data) : void{
-		$contents = Utils::assumeNotFalse(zlib_encode(Nbt::write(new TreeRoot($data), Nbt::JAVA), ZLIB_ENCODING_GZIP), "zlib_encode() failed unexpectedly");
+	/**
+	 * @internal
+	 */
+	public static function writeFile(string $path, string $nbt) : void{
+		$contents = Utils::assumeNotFalse(zlib_encode($nbt, ZLIB_ENCODING_GZIP), "zlib_encode() failed unexpectedly");
 		try{
-			Filesystem::safeFilePutContents($this->getPlayerDataPath($name), $contents);
+			Filesystem::safeFilePutContents($path, $contents);
 		}catch(\RuntimeException $e){
 			throw new PlayerDataSaveException("Failed to write player data file: " . $e->getMessage(), 0, $e);
 		}

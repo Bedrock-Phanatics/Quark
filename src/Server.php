@@ -1355,7 +1355,7 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players());
+			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->asyncPool);
 
 			register_shutdown_function($this->crashDump(...));
 
