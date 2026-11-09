@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
-use pocketmine\math\Vector3;
+use quark\math\Vector3;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\world\particle\DustParticle;

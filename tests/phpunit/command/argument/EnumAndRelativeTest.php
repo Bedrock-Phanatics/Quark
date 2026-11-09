@@ -145,7 +145,7 @@ final class EnumAndRelativeTest extends TestCase{
 		$position = new PositionArgument("pos");
 		self::assertSame(3, $position->getWidth());
 		$value = $position->parseTokens(["x", "~1", "-2", "~"], 1, $this->sender());
-		$resolved = $value->resolve(new \pocketmine\math\Vector3(10, 20, 30));
+		$resolved = $value->resolve(new \quark\math\Vector3(10, 20, 30));
 		self::assertSame([11.0, -2.0, 30.0], [$resolved->x, $resolved->y, $resolved->z]);
 
 		$rotation = new RotationArgument("rot");

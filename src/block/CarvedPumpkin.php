@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
+use quark\math\Facing;
 
 class CarvedPumpkin extends Opaque implements HorizontalFacing{
 	use FacesOppositePlacingPlayerTrait;
