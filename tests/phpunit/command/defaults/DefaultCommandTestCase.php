@@ -39,8 +39,8 @@ abstract class DefaultCommandTestCase extends TestCase{
 		$this->server = self::createStub(Server::class);
 		$this->server->method("getPlayerExact")->willReturnCallback(fn(string $name) : ?Player => $this->players[strtolower($name)] ?? null);
 		$this->server->method("getPlayerByPrefix")->willReturnCallback(function(string $name) : ?Player{
-			foreach($this->players as $lower => $player){
-				if(str_starts_with($lower, strtolower($name))){
+			foreach($this->players as $player){
+				if(str_starts_with(strtolower($player->getName()), strtolower($name))){
 					return $player;
 				}
 			}

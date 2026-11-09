@@ -42,6 +42,7 @@ use quark\player\Player;
 use function array_push;
 use function array_values;
 use function count;
+use function implode;
 use function in_array;
 use function mb_strcut;
 use function spl_object_id;
@@ -58,9 +59,11 @@ final class CommandMetadataAdapter{
 	/** @phpstan-var array<int, CommandHardEnum> */
 	private array $enums = [];
 	/** @phpstan-var array<string, CommandHardEnum> */
+	private array $enumsByValues = [];
+	/** @phpstan-var array<string, CommandHardEnum> */
 	private array $literalEnums = [];
-	/** @phpstan-var array<string, true> */
-	private array $enumNames = [];
+	/** @phpstan-var array<string, int> */
+	private array $enumNameCounts = [];
 	/** @phpstan-var array<string, CommandSoftEnum> */
 	private array $softEnums = [];
 	/** @phpstan-var array<string, int> */
@@ -81,15 +84,7 @@ final class CommandMetadataAdapter{
 		$commandData = [];
 		foreach($commands as $command){
 			$label = $command->getLabel();
-			if(
-				isset($commandData[$label]) ||
-				//a server alias can take over the label
-				($commands[$label] ?? null) !== $command ||
-				$label === "help" ||
-				strlen($label) > self::MAX_COMMAND_TEXT_BYTES ||
-				!SimpleCommandMap::isOwnerEnabled($command) ||
-				!$command->testPermissionSilent($player)
-			){
+			if(isset($commandData[$label]) || !self::isListed($command, $commands, $player)){
 				continue;
 			}
 			$data = $adapter->createCommandData($command, $commands);
@@ -100,6 +95,42 @@ final class CommandMetadataAdapter{
 
 		$softEnumVersions = $adapter->softEnumVersions;
 		return AvailableCommandsPacketAssembler::assemble(array_values($commandData), [], []);
+	}
+
+	/**
+	 * Identifies everything about the packet that depends on the player, so players with the same signature can
+	 * share one packet.
+	 *
+	 * @param Command[] $commands
+	 * @phpstan-param array<string, Command> $commands
+	 */
+	public static function createSignature(array $commands, Player $player) : string{
+		$signature = $player->getLanguage()->getLang();
+		foreach($commands as $command){
+			if(!self::isListed($command, $commands, $player)){
+				continue;
+			}
+			$signature .= "|" . $command->getLabel() . ":";
+			foreach($command->getPreparedSyntaxes() ?? [] as $syntax){
+				$signature .= $syntax->testPermissionSilent($player) ? "1" : "0";
+			}
+		}
+		return $signature;
+	}
+
+	/**
+	 * @param Command[] $commands
+	 * @phpstan-param array<string, Command> $commands
+	 */
+	private static function isListed(Command $command, array $commands, Player $player) : bool{
+		$label = $command->getLabel();
+		return
+			//a server alias can take over the label
+			($commands[$label] ?? null) === $command &&
+			$label !== "help" &&
+			strlen($label) <= self::MAX_COMMAND_TEXT_BYTES &&
+			SimpleCommandMap::isOwnerEnabled($command) &&
+			$command->testPermissionSilent($player);
 	}
 
 	/**
@@ -234,16 +265,20 @@ final class CommandMetadataAdapter{
 	}
 
 	private function getEnum(CommandEnum $enum) : CommandHardEnum{
-		return $this->enums[spl_object_id($enum)] ??= new CommandHardEnum($this->uniqueName($enum->getName()), $enum->getValues());
+		$id = spl_object_id($enum);
+		if(isset($this->enums[$id])){
+			return $this->enums[$id];
+		}
+		//clients only see words, so definitions with the same words share one enum
+		$values = $enum->getValues();
+		$key = implode(",", $values);
+		return $this->enums[$id] = $this->enumsByValues[$key] ??= new CommandHardEnum($this->uniqueName($enum->getName()), $values);
 	}
 
 	//the client identifies enums by name, so distinct enums that share one need to be told apart
 	private function uniqueName(string $name) : string{
-		$unique = $name;
-		for($i = 2; isset($this->enumNames[$unique]); ++$i){
-			$unique = $name . "#" . $i;
-		}
-		$this->enumNames[$unique] = true;
-		return $unique;
+		$count = ($this->enumNameCounts[$name] ?? 0) + 1;
+		$this->enumNameCounts[$name] = $count;
+		return $count === 1 ? $name : $name . "#" . $count;
 	}
 }

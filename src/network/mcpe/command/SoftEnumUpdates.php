@@ -41,8 +41,8 @@ final class SoftEnumUpdates{
 	 * Only enums the client already received are updated. A client that is not exactly at the start of a batch, for
 	 * example because its command list was built after the change, gets the whole list instead of a delta.
 	 *
-	 * @param int[]                 $known   soft enum versions the client has, updated in place
-	 * @param mixed[][]             $changes
+	 * @param int[]     $known   soft enum versions the client has, updated in place
+	 * @param mixed[][] $changes
 	 * @phpstan-param array<string, int> $known
 	 * @phpstan-param list<array{SoftEnum, list<array{int, list<string>}>, int, int}> $changes
 	 * @return UpdateSoftEnumPacket[]

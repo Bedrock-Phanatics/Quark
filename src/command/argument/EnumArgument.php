@@ -26,6 +26,7 @@ namespace quark\command\argument;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use function implode;
+use function is_array;
 
 /**
  * @phpstan-extends Argument<mixed>

@@ -27,10 +27,15 @@ use quark\entity\Location;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\world\World;
+use function array_keys;
 
 final class TeleportCommandTest extends DefaultCommandTestCase{
 	/** @phpstan-var array<string, Location> */
 	private array $teleports = [];
+
+	private function at(string $name) : Location{
+		return $this->teleports[$name] ?? throw new \LogicException("$name was not teleported");
+	}
 
 	/**
 	 * @param string[]|bool $permissions
@@ -54,18 +59,18 @@ final class TeleportCommandTest extends DefaultCommandTestCase{
 		$this->spawn("Alex", 1, 70, 2, 45.0, 5.0);
 
 		self::assertSame(["Teleported Steve to Alex"], $this->dispatch("tp Alex", $steve));
-		self::assertSame([1.0, 70.0, 2.0], [$this->teleports["Steve"]->x, $this->teleports["Steve"]->y, $this->teleports["Steve"]->z]);
+		self::assertSame([1.0, 70.0, 2.0], [$this->at("Steve")->x, $this->at("Steve")->y, $this->at("Steve")->z]);
 
 		$this->teleports = [];
 		self::assertSame(["Teleported Steve to 5, 66, 7"], $this->dispatch("tp 5 ~2 ~-3", $steve));
-		self::assertSame([5.0, 66.0, 7.0, 90.0, 10.0], [$this->teleports["Steve"]->x, $this->teleports["Steve"]->y, $this->teleports["Steve"]->z, $this->teleports["Steve"]->yaw, $this->teleports["Steve"]->pitch]);
+		self::assertSame([5.0, 66.0, 7.0, 90.0, 10.0], [$this->at("Steve")->x, $this->at("Steve")->y, $this->at("Steve")->z, $this->at("Steve")->yaw, $this->at("Steve")->pitch]);
 
 		$this->dispatch("tp 0 64 0 ~10 200", $steve);
-		self::assertSame([100.0, 90.0], [$this->teleports["Steve"]->yaw, $this->teleports["Steve"]->pitch]);
+		self::assertSame([100.0, 90.0], [$this->at("Steve")->yaw, $this->at("Steve")->pitch]);
 
 		$console = $this->console();
 		$this->dispatch("tp Alex 3 65 4 0 0", $console);
-		self::assertSame([3.0, 65.0, 4.0, 0.0, 0.0], [$this->teleports["Alex"]->x, $this->teleports["Alex"]->y, $this->teleports["Alex"]->z, $this->teleports["Alex"]->yaw, $this->teleports["Alex"]->pitch]);
+		self::assertSame([3.0, 65.0, 4.0, 0.0, 0.0], [$this->at("Alex")->x, $this->at("Alex")->y, $this->at("Alex")->z, $this->at("Alex")->yaw, $this->at("Alex")->pitch]);
 	}
 
 	public function testRejectsMalformedAndOutOfRangeInput() : void{

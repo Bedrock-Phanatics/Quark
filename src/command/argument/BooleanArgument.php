@@ -33,7 +33,6 @@ use function strtolower;
 final class BooleanArgument extends Argument{
 	private static ?CommandEnum $enum = null;
 
-
 	public function parse(string $input, CommandSender $sender) : bool{
 		return match(strtolower($input)){
 			"true" => true,

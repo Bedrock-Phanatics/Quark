@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\command\argument;
 
-use function array_key_exists;
 use function array_is_list;
+use function array_key_exists;
 use function array_keys;
 use function array_unique;
 use function count;

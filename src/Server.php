@@ -63,6 +63,7 @@ use quark\network\mcpe\bedwire\BedwireTransport;
 use quark\network\mcpe\cache\CraftingDataCache;
 use quark\network\mcpe\cache\CreativeInventoryCache;
 use quark\network\mcpe\cache\StaticPacketCache;
+use quark\network\mcpe\command\CommandMetadataCache;
 use quark\network\mcpe\compression\CompressBatchTask;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\SnappyCompressor;
@@ -2202,9 +2203,10 @@ class Server{
 			$softEnumChanges = $this->commandMap->consumeSoftEnumChanges();
 			if($this->commandMap->consumeClientMetadataChanges()){
 				//the new command list carries the current soft enum values
+				$metadataCache = new CommandMetadataCache();
 				foreach($this->getOnlinePlayers() as $player){
 					if($player->isConnected()){
-						$player->getNetworkSession()->syncAvailableCommands();
+						$player->getNetworkSession()->syncAvailableCommands($metadataCache);
 					}
 				}
 			}elseif(count($softEnumChanges) !== 0){

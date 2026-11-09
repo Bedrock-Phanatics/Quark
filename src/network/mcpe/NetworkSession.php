@@ -69,6 +69,7 @@ use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use pocketmine\network\mcpe\protocol\UpdateAdventureSettingsPacket;
 use pocketmine\utils\Limits;
+use quark\command\argument\SoftEnum;
 use quark\entity\effect\EffectInstance;
 use quark\event\player\PlayerDuplicateLoginEvent;
 use quark\event\player\PlayerIdentityVerifyEvent;
@@ -82,8 +83,8 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\cache\ChunkCache;
-use quark\command\argument\SoftEnum;
 use quark\network\mcpe\command\CommandMetadataAdapter;
+use quark\network\mcpe\command\CommandMetadataCache;
 use quark\network\mcpe\command\SoftEnumUpdates;
 use quark\network\mcpe\compression\Compressor;
 use quark\network\mcpe\compression\DecompressionException;
@@ -1598,12 +1599,18 @@ class NetworkSession{
 		));
 	}
 
-	public function syncAvailableCommands() : void{
+	/**
+	 * @param CommandMetadataCache|null $cache lets players with identical commands share the packet within one resync
+	 */
+	public function syncAvailableCommands(?CommandMetadataCache $cache = null) : void{
 		if($this->player === null){
 			throw new \LogicException("Cannot sync available commands before the player is created");
 		}
 		$this->commandSyncPending = false;
-		$this->sendDataPacket(CommandMetadataAdapter::createPacket($this->server->getCommandMap()->getCommands(), $this->player, $this->softEnumVersions));
+		$commands = $this->server->getCommandMap()->getCommands();
+		$this->sendDataPacket($cache !== null ?
+			$cache->get($commands, $this->player, $this->softEnumVersions) :
+			CommandMetadataAdapter::createPacket($commands, $this->player, $this->softEnumVersions));
 	}
 
 	/**

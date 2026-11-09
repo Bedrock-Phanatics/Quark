@@ -35,7 +35,7 @@ final class PlayerArgument extends Argument{
 
 	/**
 	 * @param bool $partial accept the start of a name when it matches one online player
-	 * @param bool $self   accept "@s" for the sender when it is a player
+	 * @param bool $self    accept "@s" for the sender when it is a player
 	 */
 	public function __construct(
 		string $name,

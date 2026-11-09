@@ -33,8 +33,8 @@ use quark\command\CommandSyntax;
  */
 final class PreparedCommand{
 	/**
-	 * @param CommandSyntax[]                 $syntaxes all syntaxes in deterministic order
-	 * @param SoftEnum[]                      $softEnums
+	 * @param CommandSyntax[] $syntaxes  all syntaxes in deterministic order
+	 * @param SoftEnum[]      $softEnums
 	 * @phpstan-param list<CommandSyntax>     $syntaxes
 	 * @phpstan-param array<string, SoftEnum> $softEnums
 	 */

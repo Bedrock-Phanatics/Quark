@@ -64,7 +64,7 @@ final class WorldCommand extends VanillaCommand{
 		$this->syntax("unload")->registerArgument($loaded())->handler($this->unload(...));
 		$this->syntax("create")->registerArguments([
 			$name(),
-			new MappedArgument("generator", static function(string $generator) : ?GeneratorManagerEntry{
+			new MappedArgument("generator", static function(string $generator) : GeneratorManagerEntry{
 				return GeneratorManager::getInstance()->getGenerator($generator) ??
 					throw new ArgumentParseException(TextFormat::RED . "Unknown generator \"$generator\", use one of " . implode(", ", GeneratorManager::getInstance()->getGeneratorList()));
 			}, GeneratorManagerEntry::class, optional: true),

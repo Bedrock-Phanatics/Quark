@@ -27,7 +27,6 @@ use quark\command\argument\Argument;
 use quark\command\argument\ArgumentKind;
 use quark\command\argument\ArgumentParseException;
 use quark\command\argument\LiteralArgument;
-use quark\command\argument\SoftEnum;
 use quark\command\Command;
 use quark\command\CommandArgs;
 use quark\command\CommandSender;

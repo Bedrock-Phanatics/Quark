@@ -147,10 +147,11 @@ abstract class Command{
 			$sender->sendMessage(KnownTranslationFactory::quark_command_error_playerUserOnly()->prefix(TextFormat::RED));
 			return null;
 		}
+		//the signature was matched against the arguments when the command was registered
 		if($binding->mode === HandlerBinding::ARGS){
-			$handler($sender, $parsed);
+			$handler($sender, $parsed); //@phpstan-ignore arguments.count, argument.type, argument.type
 		}else{
-			$handler($sender, ...array_values($parsed->all()));
+			$handler($sender, ...array_values($parsed->all())); //@phpstan-ignore arguments.count, argument.type, argument.type
 		}
 		return null;
 	}

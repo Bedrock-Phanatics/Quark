@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command;
 
+use quark\command\argument\SoftEnum;
 use quark\command\defaults\BanCommand;
 use quark\command\defaults\BanIpCommand;
 use quark\command\defaults\BanListCommand;
@@ -67,7 +68,6 @@ use quark\command\defaults\WeatherCommand;
 use quark\command\defaults\WhitelistCommand;
 use quark\command\defaults\WorldCommand;
 use quark\command\defaults\XpCommand;
-use quark\command\argument\SoftEnum;
 use quark\command\internal\CommandInputException;
 use quark\command\internal\SyntaxMatcher;
 use quark\command\utils\CommandStringHelper;

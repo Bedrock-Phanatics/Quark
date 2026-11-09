@@ -34,7 +34,6 @@ use function preg_match;
 final class FloatArgument extends Argument{
 	public const string PATTERN = '/\A[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/';
 
-
 	/**
 	 * @throws \InvalidArgumentException
 	 */
