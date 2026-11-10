@@ -49,6 +49,7 @@ use function min;
 use function mt_getrandmax;
 use function mt_rand;
 use function mt_srand;
+use const NAN;
 
 /**
  * Checks the native collision, raycast and explosion paths against the PHP code they replaced, on a world filled
@@ -290,5 +291,23 @@ final class NativeCollisionTest extends TestCase{
 			$fires = $ignitions->getValue($explosion);
 			self::assertSame($ignited, array_keys($fires), "ignitions of explosion $n");
 		}
+	}
+
+	public function testExplosionsPastTheNativeStepLimitUseTheRayMarch() : void{
+		$this->fill(8);
+		$grid = new \ReflectionMethod(Explosion::class, "createResistanceGrid");
+		$explosion = new Explosion(Position::fromObject(new Vector3(0.5, 64.5, 0.5), $this->world), 4.0);
+		self::assertNotNull($grid->invoke($explosion));
+		$explosion->stepLen = 0.0005;
+		self::assertNull($grid->invoke($explosion));
+
+		$explosion->stepLen = 0.0;
+		$this->expectException(\InvalidArgumentException::class);
+		$explosion->explodeA();
+	}
+
+	public function testExplosionRadiusMustBeFinite() : void{
+		$this->expectException(\InvalidArgumentException::class);
+		new Explosion(Position::fromObject(new Vector3(0.5, 64.5, 0.5), $this->world), NAN);
 	}
 }

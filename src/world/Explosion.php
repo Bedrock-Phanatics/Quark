@@ -53,6 +53,7 @@ use quark\world\utils\SubChunkExplorerStatus;
 use function ceil;
 use function count;
 use function floor;
+use function is_finite;
 use function min;
 use function mt_rand;
 use function pack;
@@ -64,6 +65,8 @@ class Explosion{
 
 	/** About radius 28, larger explosions use the PHP ray march instead of a 9 MiB grid */
 	private const MAX_GRID_CELLS = 1 << 20;
+	/** ExplosionMath refuses rays longer than this in total */
+	private const MAX_NATIVE_STEPS = 1 << 24;
 
 	private int $rays = 16;
 	public World $world;
@@ -87,6 +90,7 @@ class Explosion{
 			throw new \InvalidArgumentException("Position does not have a valid world");
 		}
 		$this->world = $this->source->getWorld();
+		Utils::checkFloatNotInfOrNaN("radius", $radius);
 		Utils::checkFloatNotInfOrNaN("fireChance", $fireChance);
 		if($fireChance < 0.0 || $fireChance > 1.0){
 			throw new \InvalidArgumentException("Fire chance must be a number between 0 and 1.");
@@ -103,6 +107,9 @@ class Explosion{
 	public function explodeA() : bool{
 		if($this->radius < 0.1){
 			return false;
+		}
+		if(!is_finite($this->stepLen) || $this->stepLen <= 0){
+			throw new \InvalidArgumentException("Explosion step length must be positive and finite, got $this->stepLen");
 		}
 
 		$incendiary = $this->fireChance > 0;
@@ -135,9 +142,12 @@ class Explosion{
 	}
 
 	/**
-	 * Blast resistance of every cell a ray can reach, null when that many cells would not fit in a grid.
+	 * Blast resistance of every cell a ray can reach, null when the native trace can't take this explosion.
 	 */
 	private function createResistanceGrid() : ?ResistanceGrid{
+		if($this->radius * 1.3 / ($this->stepLen * 0.75) * ExplosionMath::rayCount($this->rays) > self::MAX_NATIVE_STEPS){
+			return null;
+		}
 		//force drops by at least 0.75 * stepLen per step, so no ray gets further than this
 		$reach = $this->radius * 1.3 / 0.75 + $this->stepLen;
 		$minX = (int) floor($this->source->x - $reach) - 1;
