@@ -26,7 +26,7 @@
       "ext-pdo_sqlite": "*",
       "ext-phar": "*",
       "ext-pmmpthread": "^6.1.0",
-      "ext-qmath": "^0.3.0",
+      "ext-qmath": "^0.3.1",
       "ext-reflection": "*",
       "ext-simplexml": "*",
       "ext-sockets": "*",
