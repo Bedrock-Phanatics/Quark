@@ -45,9 +45,13 @@ use const PHP_INT_MAX;
 /**
  * The PHP collision, raycast and explosion code Quark used before ext-qmath, without its caches, kept as the
  * reference the native paths are checked against.
+ *
+ * Overflowing shapes follow ext-qmath 0.3.1 rather than the old code: a box that leaves its own cell is seen from
+ * every cell it reaches, diagonal ones included, by movement and by rays alike. The old code only looked at the six
+ * face neighbours for movement and never for rays, so an arrow flew through the top half of a fence.
  */
 final class LegacyCollision{
-	/** @var array<int, array<int, list<AxisAlignedBB>>> the per-cell cache World kept, for benchmarks */
+	/** @var array<int, array<int, array{int, list<AxisAlignedBB>}>> the per-cell cache World kept, for benchmarks */
 	private array $cache = [];
 
 	public function __construct(
@@ -75,38 +79,39 @@ final class LegacyCollision{
 		return RuntimeBlockStateRegistry::getInstance()->collisionInfo[$stateId];
 	}
 
-	/** @return list<AxisAlignedBB> */
-	private function cellBoxes(int $x, int $y, int $z) : array{
+	/**
+	 * @return array{int, list<AxisAlignedBB>} collision info and the block's own boxes
+	 */
+	private function cell(int $x, int $y, int $z) : array{
 		$info = $this->info($x, $y, $z);
 		$boxes = match($info){
 			RuntimeBlockStateRegistry::COLLISION_NONE => [],
 			RuntimeBlockStateRegistry::COLLISION_CUBE => [AxisAlignedBB::one()->offset($x, $y, $z)],
 			default => $this->world->getBlockAt($x, $y, $z)->getCollisionBoxes()
 		};
-		if($info !== RuntimeBlockStateRegistry::COLLISION_CUBE){
-			$cellBB = AxisAlignedBB::one()->offset($x, $y, $z);
-			foreach(Facing::OFFSET as [$dx, $dy, $dz]){
-				if($this->info($x + $dx, $y + $dy, $z + $dz) === RuntimeBlockStateRegistry::COLLISION_MAY_OVERFLOW){
-					foreach($this->world->getBlockAt($x + $dx, $y + $dy, $z + $dz)->getCollisionBoxes() as $extraBox){
-						if($extraBox->intersectsWith($cellBB)){
-							$boxes[] = $extraBox;
-						}
-					}
-				}
-			}
-		}
-		return $boxes;
+		return [$info, $boxes];
 	}
 
 	/** @return list<AxisAlignedBB> */
 	public function blockCollisionBoxes(AxisAlignedBB $bb) : array{
+		$minX = (int) floor($bb->minX);
+		$minY = (int) floor($bb->minY);
+		$minZ = (int) floor($bb->minZ);
+		$maxX = (int) floor($bb->maxX);
+		$maxY = (int) floor($bb->maxY);
+		$maxZ = (int) floor($bb->maxZ);
 		$collides = [];
-		for($z = (int) floor($bb->minZ); $z <= (int) floor($bb->maxZ); ++$z){
-			for($x = (int) floor($bb->minX); $x <= (int) floor($bb->maxX); ++$x){
-				for($y = (int) floor($bb->minY); $y <= (int) floor($bb->maxY); ++$y){
-					$boxes = $this->cached ?
-						($this->cache[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)][World::chunkBlockHash($x, $y, $z)] ??= $this->cellBoxes($x, $y, $z)) :
-						$this->cellBoxes($x, $y, $z);
+		for($z = $minZ - 1; $z <= $maxZ + 1; ++$z){
+			for($x = $minX - 1; $x <= $maxX + 1; ++$x){
+				for($y = $minY - 1; $y <= $maxY + 1; ++$y){
+					[$info, $boxes] = $this->cached ?
+						($this->cache[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)][World::chunkBlockHash($x, $y, $z)] ??= $this->cell($x, $y, $z)) :
+						$this->cell($x, $y, $z);
+					//the ring around the box only matters where a shape overflows into it
+					$covered = $x >= $minX && $x <= $maxX && $y >= $minY && $y <= $maxY && $z >= $minZ && $z <= $maxZ;
+					if(!$covered && $info !== RuntimeBlockStateRegistry::COLLISION_MAY_OVERFLOW){
+						continue;
+					}
 					foreach($boxes as $blockBB){
 						if($blockBB->intersectsWith($bb)){
 							$collides[] = $blockBB;
@@ -189,13 +194,51 @@ final class LegacyCollision{
 	 */
 	public function projectileBlocks(Vector3 $start, Vector3 $end) : ?array{
 		foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
-			$block = $this->world->getBlockAt((int) $vector3->x, (int) $vector3->y, (int) $vector3->z);
-			$hit = $block->calculateIntercept($start, $end);
+			$hit = $this->voxelIntercept((int) $vector3->x, (int) $vector3->y, (int) $vector3->z, $start, $end);
 			if($hit !== null){
-				return [$block, $hit];
+				return [$this->world->getBlockAt($hit[0], $hit[1], $hit[2]), $hit[3]];
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Nearest intercept lying inside one voxel, against its own boxes and those overflowing into it from the cells
+	 * around. Walking the voxels in order then gives the nearest hit overall.
+	 *
+	 * @return array{int, int, int, RayTraceResult}|null the block owning the box that was hit
+	 */
+	private function voxelIntercept(int $x, int $y, int $z, Vector3 $start, Vector3 $end) : ?array{
+		$best = null;
+		$bestDistance = PHP_INT_MAX;
+		$cells = [[$x, $y, $z]];
+		for($ox = $x - 1; $ox <= $x + 1; ++$ox){
+			for($oz = $z - 1; $oz <= $z + 1; ++$oz){
+				for($oy = $y - 1; $oy <= $y + 1; ++$oy){
+					if(($ox !== $x || $oy !== $y || $oz !== $z) && $this->info($ox, $oy, $oz) === RuntimeBlockStateRegistry::COLLISION_MAY_OVERFLOW){
+						$cells[] = [$ox, $oy, $oz];
+					}
+				}
+			}
+		}
+		foreach($cells as [$ox, $oy, $oz]){
+			foreach($this->cell($ox, $oy, $oz)[1] as $bb){
+				$hit = $bb->calculateIntercept($start, $end);
+				if($hit === null){
+					continue;
+				}
+				$v = $hit->hitVector;
+				if($v->x < $x - 1e-6 || $v->x > $x + 1 + 1e-6 || $v->y < $y - 1e-6 || $v->y > $y + 1 + 1e-6 || $v->z < $z - 1e-6 || $v->z > $z + 1 + 1e-6){
+					continue;
+				}
+				$distance = $v->distanceSquared($start);
+				if($distance < $bestDistance){
+					$best = [$ox, $oy, $oz, $hit];
+					$bestDistance = $distance;
+				}
+			}
+		}
+		return $best;
 	}
 
 	/**
@@ -239,7 +282,7 @@ final class LegacyCollision{
 					);
 					$intercepted = false;
 					foreach(VoxelRayTrace::betweenPoints($origin, $point) as $pos){
-						if($this->world->getBlock($pos)->calculateIntercept($origin, $point) !== null){
+						if($this->voxelIntercept((int) $pos->x, (int) $pos->y, (int) $pos->z, $origin, $point) !== null){
 							$intercepted = true;
 							break;
 						}
