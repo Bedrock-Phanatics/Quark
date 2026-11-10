@@ -221,6 +221,9 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 		$furnaceType = $this->getFurnaceType();
 		$maxCookDuration = $furnaceType->getCookDurationTicks();
 		foreach($inventory->getContents() as $slot => $item){
+			if($inventory->getMatchingItemCount($slot, $item, true) !== $item->getCount()){
+				continue;
+			}
 			$cookingTime = min($maxCookDuration, $tile->getCookingTime($slot) + self::UPDATE_INTERVAL_TICKS);
 			$tile->setCookingTime($slot, $cookingTime);
 			if($cookingTime < $maxCookDuration){
@@ -235,11 +238,11 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 			$ev = new CampfireCookEvent($this, $slot, $item, $result);
 			$ev->call();
 
-			if($ev->isCancelled()){
-				continue;
-			}
 			if($this->getTile() !== $tile){
 				return;
+			}
+			if($ev->isCancelled() || $inventory->getMatchingItemCount($slot, $item, true) !== $item->getCount() || $tile->getCookingTime($slot) !== $cookingTime){
+				continue;
 			}
 
 			$inventory->setItem($slot, VanillaItems::AIR());
