@@ -64,7 +64,7 @@ final class RedstoneHarness{
 		$set("folderName", "redstone_test");
 		$set("displayName", "redstone_test");
 		$set("logger", new class(function(string $message) : void{ $this->warnings[] = $message; }) extends \SimpleLogger{
-			/** @param \Closure(string) : void $onWarning */
+			/** @phpstan-param \Closure(string) : void $onWarning */
 			public function __construct(private \Closure $onWarning){}
 
 			public function warning($message){

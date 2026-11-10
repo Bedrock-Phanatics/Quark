@@ -128,11 +128,13 @@ final class DatFilePlayerDataProviderTest extends TestCase{
 	 */
 	private function withPool(\Closure $test) : void{
 		@define('quark\\COMPOSER_AUTOLOADER_PATH', dirname(__DIR__, 3) . '/vendor/autoload.php');
-		$pool = new AsyncPool(2, 1024, new ThreadSafeClassLoader(), new MainLogger(null, false, "Main", new \DateTimeZone('UTC')), new SleeperHandler());
+		$logger = new MainLogger(null, false, "Main", new \DateTimeZone('UTC'));
+		$pool = new AsyncPool(2, 1024, new ThreadSafeClassLoader(), $logger, new SleeperHandler());
 		try{
 			$test($pool);
 		}finally{
 			$pool->shutdown();
+			$logger->shutdownLogWriterThread();
 		}
 	}
 
