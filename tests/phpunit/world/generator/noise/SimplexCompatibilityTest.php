@@ -26,9 +26,6 @@ namespace quark\world\generator\noise;
 use PHPUnit\Framework\TestCase;
 use quark\utils\Random;
 
-/**
- * World generation must not change, so the native noise has to match the old PHP Simplex bit for bit.
- */
 final class SimplexCompatibilityTest extends TestCase{
 	/**
 	 * @return \Generator<string, array{int, int, float, float}>

@@ -1986,15 +1986,14 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * Returns the world's collision region with every section the box can touch loaded. Unloaded chunks and cells
-	 * outside the world collide like air, as they always have, and are reloaded once their chunk loads. Query the
-	 * region straight away, since any block change can drop the data again. It is the world's own cache, so only query it.
+	 * Returns the world's own collision cache with every section the box can touch loaded. Only query it, and do it
+	 * straight away since any block change can drop the data again.
 	 *
 	 * @throws \ValueError if the box is not finite or lies outside the coordinates CollisionRegion supports
 	 */
 	public function getCollisionRegion(AxisAlignedBB $bb) : CollisionRegion{
 		$region = $this->collisionRegion;
-		//a plugin block changing the world while its shape is read could drop sections again, so check once more
+		//a plugin block can change the world while its shape is read, so check again
 		for($attempt = 0; count($missing = $region->missingSections($bb)) !== 0; ++$attempt){
 			if($attempt === 2){
 				throw new AssumptionFailedError("Collision data keeps changing while it is being loaded");
@@ -2039,8 +2038,6 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * Stores a section's collision info straight from the chunk palette.
-	 *
 	 * @param int[] $collisionInfo
 	 * @phpstan-param array<int, int> $collisionInfo
 	 *

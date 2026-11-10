@@ -43,12 +43,8 @@ use function sqrt;
 use const PHP_INT_MAX;
 
 /**
- * The PHP collision, raycast and explosion code Quark used before ext-qmath, without its caches, kept as the
- * reference the native paths are checked against.
- *
- * Overflowing shapes follow ext-qmath 0.3.1 rather than the old code: a box that leaves its own cell is seen from
- * every cell it reaches, diagonal ones included, by movement and by rays alike. The old code only looked at the six
- * face neighbours for movement and never for rays, so an arrow flew through the top half of a fence.
+ * The PHP collision code from before ext-qmath, kept as the reference for the native paths. Overflowing shapes
+ * follow 0.3.1 instead, the old code let an arrow fly through the top half of a fence.
  */
 final class LegacyCollision{
 	/** @var array<int, array<int, array{int, list<AxisAlignedBB>}>> the per-cell cache World kept, for benchmarks */
@@ -59,7 +55,6 @@ final class LegacyCollision{
 		private bool $cached = false
 	){}
 
-	/** Drops a changed block and its neighbours from the cache, like World::setBlockAt() did. */
 	public function forget(int $x, int $y, int $z) : void{
 		unset($this->cache[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)][World::chunkBlockHash($x, $y, $z)]);
 		foreach(Facing::OFFSET as [$dx, $dy, $dz]){
@@ -203,8 +198,7 @@ final class LegacyCollision{
 	}
 
 	/**
-	 * Nearest intercept lying inside one voxel, against its own boxes and those overflowing into it from the cells
-	 * around. Walking the voxels in order then gives the nearest hit overall.
+	 * Nearest hit inside one voxel, counting boxes that overflow into it from the cells around.
 	 *
 	 * @return array{int, int, int, RayTraceResult}|null the block owning the box that was hit
 	 */

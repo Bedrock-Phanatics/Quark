@@ -33,7 +33,7 @@ use quark\utils\Random;
  * Stefan Gustavson at
  * http://staffwww.itn.liu.se/~stegu/simplexnoise/simplexnoise.pdf
  *
- * The permutation and offsets are drawn here so the RNG is consumed exactly as before, sampling runs natively.
+ * The RNG is consumed exactly as before, only sampling runs natively.
  */
 final class Simplex extends Noise{
 	private NativeSimplex $native;

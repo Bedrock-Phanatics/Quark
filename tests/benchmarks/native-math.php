@@ -75,7 +75,6 @@ $row = function(string $name, float $php, float $native) use (&$results) : void{
 	$results[] = [$name, $php, $native];
 };
 
-//entity moves: walking boxes near the floor, the common case
 mt_srand(2);
 $moves = [];
 for($i = 0; $i < 2000; ++$i){
@@ -115,7 +114,6 @@ $changeLegacy = new LegacyCollision($world, true);
 $setOnly = bench($runs, 2000, fn() => null, fn(int $i) => $h->set(($i % 50) - 25, 64, 5, $i % 2 === 0 ? VanillaBlocks::OAK_FENCE() : VanillaBlocks::AIR()));
 $row("block change + move (minus setBlockAt)", bench($runs, 2000, fn() => null, $changing($changeLegacy)) - $setOnly, bench($runs, 2000, fn() => null, $changing(null)) - $setOnly);
 
-//projectile block pass, arrows flying 3 blocks a tick
 mt_srand(3);
 $rays = [];
 for($i = 0; $i < 2000; ++$i){
@@ -128,19 +126,16 @@ $row("projectile block ray", bench($runs, 5000, fn() => null, fn(int $i) => $pla
 	Raycast::blocks($world->getCollisionRegion(new AxisAlignedBB(min($s->x, $e->x), min($s->y, $e->y), min($s->z, $e->z), max($s->x, $e->x), max($s->y, $e->y), max($s->z, $e->z))), $s, $e);
 }));
 
-//explosion exposure of one player-sized entity
 $origin = new Vector3(0.5, 64.5, 0.5);
 $target = new AxisAlignedBB(2.2, 64, 2.2, 2.8, 65.8, 2.8);
 $row("explosion exposure", bench($runs, 200, fn() => null, fn() => $plainLegacy->exposure($origin, $target)), bench($runs, 200, fn() => null, function() use ($world, $origin, $target) : void{
 	ExplosionMath::exposure($world->getCollisionRegion($target->union(new AxisAlignedBB(0.5, 64.5, 0.5, 0.5, 64.5, 0.5))), $origin, $target);
 }));
 
-//TNT block rays, including filling the resistance grid
 $row("explosion rays (TNT, radius 4)", bench($runs, 30, fn() => mt_srand(4), fn() => $plainLegacy->explodeA($origin, 4.0, 0.0)), bench($runs, 30, fn() => mt_srand(4), function() use ($origin, $world) : void{
 	(new Explosion(Position::fromObject($origin, $world), 4.0))->explodeA();
 }));
 
-//the 3D noise one Normal chunk samples
 $legacyNoise = new LegacySimplex(new Random(1), 4, 1 / 4, 1 / 32);
 $nativeNoise = new Simplex(new Random(1), 4, 1 / 4, 1 / 32);
 $row("noise per chunk (16x128x16)", bench($runs, 20, fn() => null, fn(int $i) => $legacyNoise->getFastNoise3D(16, 128, 16, 4, 8, 4, $i * 16, 0, 0)), bench($runs, 20, fn() => null, fn(int $i) => $nativeNoise->getFastNoise3D(16, 128, 16, 4, 8, 4, $i * 16, 0, 0)));

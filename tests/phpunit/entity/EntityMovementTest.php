@@ -205,7 +205,6 @@ final class EntityMovementTest extends TestCase{
 	}
 
 	public function testDragBeforeGravityMatchesTheOldFormula() : void{
-		//items, orbs and projectiles apply drag first
 		mt_srand(16);
 		for($i = 0; $i < 500; ++$i){
 			$motion = new Vector3(self::rand(-2, 2), self::rand(-2, 2), self::rand(-2, 2));

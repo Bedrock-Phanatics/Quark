@@ -947,7 +947,7 @@ abstract class Entity{
 				-1.0 //onUpdate() clamps, also for subclasses that replace this
 			);
 		}catch(\ValueError $e){
-			//motion that is not finite can only spread from here, so it ends here
+			//non-finite motion would spread from here, so drop it
 			$this->getWorld()->getLogger()->debug("Motion of " . get_class($this) . " reset: " . $e->getMessage());
 			$this->motion = Vector3::zero();
 		}
@@ -1244,7 +1244,7 @@ abstract class Entity{
 				$region = $this->getWorld()->getCollisionRegion(CollisionSolver::queryBox($this->boundingBox, $dx, $dy, $dz, $stepHeight));
 				$result = CollisionSolver::move($region, $this->boundingBox, $dx, $dy, $dz, $stepHeight, $this->onGround);
 			}catch(\ValueError | CollisionDataException $e){
-				//beyond the coordinates or the distance collision data supports, staying put is the only safe answer
+				//collision data can't cover this move, so stay put
 				$this->getWorld()->getLogger()->debug("Movement of " . get_class($this) . " blocked: " . $e->getMessage());
 				$dx = $dy = $dz = 0.0;
 				$result = null;

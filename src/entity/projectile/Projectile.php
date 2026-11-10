@@ -56,7 +56,7 @@ use function max;
 use function min;
 
 abstract class Projectile extends Entity{
-	/** A few voxels under the 4194304 a VoxelRayTrace visits, for the start cell and float slack on each axis */
+	/** VoxelRayTrace throws past 4194304 voxels, this leaves room for float slack */
 	private const MAX_FALLBACK_TRACE = (1 << 22) - 8;
 
 	private const TAG_STUCK_ON_BLOCK_POS = "StuckToBlockPos";
@@ -69,8 +69,7 @@ abstract class Projectile extends Entity{
 	private ?Player $pendingFeedbackOwner = null;
 
 	/**
-	 * Whether a projectile class collides with plain block shapes, so the native raycast can stand in for
-	 * calculateInterceptWithBlock()
+	 * Whether the native raycast can stand in for calculateInterceptWithBlock()
 	 * @var bool[]
 	 * @phpstan-var array<class-string<Projectile>, bool>
 	 */
@@ -202,10 +201,9 @@ abstract class Projectile extends Entity{
 					$hitResult = [$world->getBlockAt($hit->blockX, $hit->blockY, $hit->blockZ), $hit];
 				}
 			}catch(\ValueError | CollisionDataException){
-				//outside the coordinates or longer than collision data supports, the block-by-block trace still works
+				//collision data can't cover this ray, the PHP trace below still can
 			}
 		}
-		//only absurd motion is longer, it flies through instead of throwing
 		if(!$traced && abs($dx) + abs($dy) + abs($dz) < self::MAX_FALLBACK_TRACE){
 			foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
 				$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
@@ -230,7 +228,6 @@ abstract class Projectile extends Entity{
 			$candidates[] = $entity;
 			$boxes[] = $entity->boundingBox;
 		}
-		//nearest hit, each one shortening the segment for the next like the block pass
 		if(count($boxes) !== 0 && ($entityHit = Raycast::boxes($start, $end, $boxes, 0.3)) !== null){
 			[$index, $entityHitResult] = $entityHit;
 			$hitResult = [$candidates[$index] ?? throw new AssumptionFailedError("Raycast::boxes() returned a key it was not given"), $entityHitResult];

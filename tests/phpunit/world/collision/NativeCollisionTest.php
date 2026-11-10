@@ -53,10 +53,6 @@ use function mt_rand;
 use function mt_srand;
 use const NAN;
 
-/**
- * Checks the native collision, raycast and explosion paths against the PHP code they replaced, on a world filled
- * with every kind of block shape.
- */
 final class NativeCollisionTest extends TestCase{
 	private const MIN = -24;
 	private const MAX = 23;
@@ -165,7 +161,6 @@ final class NativeCollisionTest extends TestCase{
 		$this->assertCollisionMatches(300);
 		for($round = 0; $round < 20; ++$round){
 			for($n = 0; $n < 200; ++$n){
-				//chunk borders and section borders get extra attention
 				$x = mt_rand(0, 3) === 0 ? mt_rand(-1, 0) * 16 + mt_rand(-1, 0) : mt_rand(self::MIN, self::MAX);
 				$z = mt_rand(0, 3) === 0 ? mt_rand(-1, 0) * 16 + mt_rand(-1, 0) : mt_rand(self::MIN, self::MAX);
 				$y = mt_rand(0, 3) === 0 ? 63 + mt_rand(0, 1) : mt_rand(self::FLOOR + 1, self::TOP);

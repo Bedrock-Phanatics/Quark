@@ -33,9 +33,6 @@ use function array_map;
 use function serialize;
 use function unserialize;
 
-/**
- * Position and Location extend the native Vector3, whose declared properties are the only coordinate storage.
- */
 final class PositionLocationTest extends TestCase{
 	private World $world;
 

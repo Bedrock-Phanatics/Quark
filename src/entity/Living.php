@@ -613,7 +613,6 @@ abstract class Living extends Entity{
 			try{
 				$motion = Physics::knockBack($this->motion, $x, $z, $force, $verticalLimit);
 			}catch(\ValueError){
-				//a direction or force that is not finite knocks nothing back
 				return;
 			}
 			if($motion !== null){

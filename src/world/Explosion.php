@@ -63,9 +63,8 @@ use const NAN;
 class Explosion{
 	public const DEFAULT_FIRE_CHANCE = 1.0 / 3.0;
 
-	/** About radius 28, larger explosions use the PHP ray march instead of a 9 MiB grid */
+	/** About radius 28, bigger explosions use the PHP ray march */
 	private const MAX_GRID_CELLS = 1 << 20;
-	/** ExplosionMath refuses rays longer than this in total */
 	private const MAX_NATIVE_STEPS = 1 << 24;
 
 	private int $rays = 16;
@@ -122,7 +121,7 @@ class Explosion{
 				$this->affect($cells[$n], $cells[$n + 1], $cells[$n + 2], false);
 			}
 		}else{
-			//one ray at a time, so the fire rolls interleave with the mt_rand() of each ray as before
+			//one ray at a time so fire rolls keep their mt_rand() order
 			$mRays = $this->rays - 1;
 			for($i = 0; $i < $this->rays; ++$i){
 				for($j = 0; $j < $this->rays; ++$j){
@@ -141,9 +140,7 @@ class Explosion{
 		return true;
 	}
 
-	/**
-	 * Blast resistance of every cell a ray can reach, null when the native trace can't take this explosion.
-	 */
+	/** Null when the native trace can't handle this explosion */
 	private function createResistanceGrid() : ?ResistanceGrid{
 		if($this->radius * 1.3 / ($this->stepLen * 0.75) * ExplosionMath::rayCount($this->rays) > self::MAX_NATIVE_STEPS){
 			return null;
@@ -204,9 +201,6 @@ class Explosion{
 		}
 	}
 
-	/**
-	 * Ray march for explosions too large for a resistance grid.
-	 */
 	private function traceRays(bool $incendiary) : void{
 		$blockFactory = RuntimeBlockStateRegistry::getInstance();
 		$subChunkExplorer = new SubChunkExplorer($this->world);
@@ -403,7 +397,7 @@ class Explosion{
 			$region = $this->world->getCollisionRegion($bb->union(new AxisAlignedBB($origin->x, $origin->y, $origin->z, $origin->x, $origin->y, $origin->z)));
 			return ExplosionMath::exposure($region, $origin, $bb);
 		}catch(\ValueError){
-			//outside the coordinates collision data supports, or too many voxels for one native call
+			//too far out or too big for the native call
 		}
 
 		$diff = (new Vector3($bb->getXLength(), $bb->getYLength(), $bb->getZLength()))->multiply(2)->add(1, 1, 1);

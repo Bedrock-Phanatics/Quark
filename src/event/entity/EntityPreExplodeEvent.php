@@ -47,6 +47,7 @@ class EntityPreExplodeEvent extends EntityEvent implements Cancellable{
 		protected float $radius,
 		private float $fireChance = 0.0,
 	){
+		Utils::checkFloatNotInfOrNaN("radius", $radius);
 		if($radius <= 0){
 			throw new \InvalidArgumentException("Explosion radius must be positive");
 		}
@@ -62,6 +63,7 @@ class EntityPreExplodeEvent extends EntityEvent implements Cancellable{
 	}
 
 	public function setRadius(float $radius) : void{
+		Utils::checkFloatNotInfOrNaN("radius", $radius);
 		if($radius <= 0){
 			throw new \InvalidArgumentException("Explosion radius must be positive");
 		}
