@@ -360,14 +360,17 @@ namespace quark\math {
     {
         private function __construct() {}
 
-        /** @return \Iterator<int, Vector3> a lazy VoxelRayIterator, a zero-length ray throws once iterated */
+        /** @return \Iterator<int, Vector3> a lazy VoxelRayIterator, a zero-length or non-finite ray throws once iterated */
         public static function inDirection(Vector3 $start, Vector3 $directionVector, float $maxDistance): \Iterator {}
 
-        /** @return \Iterator<int, Vector3> a lazy VoxelRayIterator, a zero-length ray throws once iterated */
+        /** @return \Iterator<int, Vector3> a lazy VoxelRayIterator, a zero-length or non-finite ray throws once iterated */
         public static function betweenPoints(Vector3 $start, Vector3 $end): \Iterator {}
     }
 
-    /** @implements \Iterator<mixed, mixed> current() and key() return null once the ray is exhausted */
+    /**
+     * current() and key() return null once the ray is exhausted. A ray longer than 4194304 voxels throws ValueError.
+     * @implements \Iterator<mixed, mixed>
+     */
     final class VoxelRayIterator implements \Iterator
     {
         private function __construct() {}
@@ -389,7 +392,13 @@ namespace quark\math\collision {
     /** Thrown when a query needs collision data that was never provided. Missing data is never treated as air. */
     class CollisionDataException extends \RuntimeException {}
 
-    /** Sparse block collision data in 16x16x16 sections. Queries touching an unknown cell throw. */
+    /**
+     * Sparse block collision data in 16x16x16 sections. Queries touching an unknown cell throw.
+     *
+     * A box may reach up to one block out of its own cell in any direction, and anything beyond that is cut off.
+     * Movement, sweeps and raycasts all see such a box from every cell it reaches, diagonal ones included, which
+     * takes the cells around a query to be known too. missingSections() accounts for them.
+     */
     final class CollisionRegion
     {
         /** @var int */
@@ -418,14 +427,19 @@ namespace quark\math\collision {
 
         public function isKnown(int $x, int $y, int $z): bool {}
 
-        /** @param list<\quark\math\AxisAlignedBB> $boxes the block's own collision boxes in world coordinates */
+        /**
+         * INFO_CUSTOM and INFO_MAY_OVERFLOW are told apart by the boxes themselves, so getCellInfo() reports
+         * INFO_MAY_OVERFLOW exactly when a box leaves the cell. An empty list is a shape with no boxes.
+         * @param list<\quark\math\AxisAlignedBB> $boxes the block's own collision boxes in world coordinates
+         */
         public function setCell(int $x, int $y, int $z, int $info, array $boxes = []): void {}
 
         /** @param string $boxes six little-endian doubles per box, pack("e*") */
         public function setCellPacked(int $x, int $y, int $z, int $info, string $boxes): void {}
 
         /**
-         * Replaces a chunk section.
+         * Replaces a chunk section. Every INFO_CUSTOM and INFO_MAY_OVERFLOW cell needs an entry in $boxes, an empty
+         * list for a shape with no boxes, so a forgotten cell throws instead of becoming open space.
          * @param string $infos 4096 collision info bytes indexed (x << 8) | (z << 4) | y, like SubChunk
          * @param array<int, mixed> $boxes lists of AxisAlignedBB or packed strings for the custom and may-overflow cells, by the same index
          */
@@ -446,7 +460,7 @@ namespace quark\math\collision {
          */
         public function unknownCells(int $sectionX, int $sectionY, int $sectionZ): ?array {}
 
-        /** Marks every cell of an inclusive box as INFO_NONE or INFO_CUBE. */
+        /** Marks every cell of an inclusive box as INFO_NONE or INFO_CUBE. A fill that throws leaves the region as it was. */
         public function fillBox(int $minX, int $minY, int $minZ, int $maxX, int $maxY, int $maxZ, int $info): void {}
 
         /**
@@ -469,7 +483,7 @@ namespace quark\math\collision {
         /** Whether every cell needed by getCollisionBoxes() for this box is known. */
         public function isComplete(\quark\math\AxisAlignedBB $bb): bool {}
 
-        /** @return list<\quark\math\AxisAlignedBB> same boxes and order as World::getBlockCollisionBoxes() */
+        /** @return list<\quark\math\AxisAlignedBB> every box touching $bb once, including those overflowing in from the cells around it */
         public function getCollisionBoxes(\quark\math\AxisAlignedBB $bb): array {}
 
         public function collides(\quark\math\AxisAlignedBB $bb): bool {}
@@ -534,7 +548,7 @@ namespace quark\math\collision {
         public function __construct(\quark\math\AxisAlignedBB $bb, int $hitFace, \quark\math\Vector3 $hitVector, int $blockX, int $blockY, int $blockZ) {}
     }
 
-    /** Block traces visit at most 16777216 voxels per call and throw ValueError beyond that. */
+    /** Block traces visit at most 4194304 voxels per call and throw ValueError beyond that, or when an endpoint is not finite. */
     final class Raycast
     {
         private function __construct() {}
@@ -542,7 +556,10 @@ namespace quark\math\collision {
         /** @return list<int> flat x, y, z triples in VoxelRayTrace order */
         public static function voxels(\quark\math\Vector3 $start, \quark\math\Vector3 $end, int $limit = 4096): array {}
 
-        /** Projectile::move() block pass: first voxel whose own collision boxes intercept the segment. */
+        /**
+         * Projectile::move() block pass: the nearest collision box the segment meets, including the part of a box
+         * that overflows into a neighbouring cell. blockX, blockY and blockZ name the block owning the box.
+         */
         public static function blocks(CollisionRegion $region, \quark\math\Vector3 $start, \quark\math\Vector3 $end): ?VoxelHit {}
 
         public static function lineOfSight(CollisionRegion $region, \quark\math\Vector3 $start, \quark\math\Vector3 $end): bool {}
@@ -583,6 +600,7 @@ namespace quark\math\collision {
 
 namespace quark\math\physics {
 
+    /** Motion, positions and coefficients have to be finite, and so does the result. Anything else throws ValueError. */
     final class Physics
     {
         private function __construct() {}
@@ -635,7 +653,7 @@ namespace quark\math\physics {
         public function setPacked(string $values): void {}
     }
 
-    /** Block traces visit at most 16777216 voxels per call and throw ValueError beyond that. */
+    /** Block traces visit at most 4194304 voxels per call and throw ValueError beyond that. */
     final class ExplosionMath
     {
         private function __construct() {}
