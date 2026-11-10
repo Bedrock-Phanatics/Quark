@@ -610,7 +610,12 @@ abstract class Living extends Entity{
 			return;
 		}
 		if(mt_rand() / mt_getrandmax() > $this->knockbackResistanceAttr->getValue()){
-			$motion = Physics::knockBack($this->motion, $x, $z, $force, $verticalLimit);
+			try{
+				$motion = Physics::knockBack($this->motion, $x, $z, $force, $verticalLimit);
+			}catch(\ValueError){
+				//a direction or force that is not finite knocks nothing back
+				return;
+			}
 			if($motion !== null){
 				$this->setMotion($motion);
 			}

@@ -40,6 +40,7 @@ use quark\event\entity\ProjectileHitBlockEvent;
 use quark\event\entity\ProjectileHitEntityEvent;
 use quark\event\entity\ProjectileHitEvent;
 use quark\math\AxisAlignedBB;
+use quark\math\collision\CollisionDataException;
 use quark\math\collision\Raycast;
 use quark\math\physics\Physics;
 use quark\math\RayTraceResult;
@@ -196,8 +197,8 @@ abstract class Projectile extends Entity{
 					$end = $hit->hitVector;
 					$hitResult = [$world->getBlockAt($hit->blockX, $hit->blockY, $hit->blockZ), $hit];
 				}
-			}catch(\ValueError){
-				//outside the coordinates collision data supports, the block-by-block trace still works
+			}catch(\ValueError | CollisionDataException){
+				//outside the coordinates or longer than collision data supports, the block-by-block trace still works
 			}
 		}
 		if(!$traced){

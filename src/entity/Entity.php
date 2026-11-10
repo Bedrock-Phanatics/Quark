@@ -53,6 +53,7 @@ use quark\event\entity\EntitySpawnEvent;
 use quark\event\entity\EntityTeleportEvent;
 use quark\item\Item;
 use quark\math\AxisAlignedBB;
+use quark\math\collision\CollisionDataException;
 use quark\math\collision\CollisionSolver;
 use quark\math\Facing;
 use quark\math\physics\Physics;
@@ -935,15 +936,21 @@ abstract class Entity{
 	}
 
 	protected function tryChangeMovement() : void{
-		$this->motion = Physics::motionStep(
-			$this->motion,
-			$this->drag,
-			$this->gravity,
-			$this->gravityEnabled,
-			$this->applyDragBeforeGravity(),
-			$this->onGround ? $this->getWorld()->getBlockAt((int) floor($this->location->x), (int) floor($this->location->y - 1), (int) floor($this->location->z))->getFrictionFactor() : 1.0,
-			-1.0 //onUpdate() clamps, also for subclasses that replace this
-		);
+		try{
+			$this->motion = Physics::motionStep(
+				$this->motion,
+				$this->drag,
+				$this->gravity,
+				$this->gravityEnabled,
+				$this->applyDragBeforeGravity(),
+				$this->onGround ? $this->getWorld()->getBlockAt((int) floor($this->location->x), (int) floor($this->location->y - 1), (int) floor($this->location->z))->getFrictionFactor() : 1.0,
+				-1.0 //onUpdate() clamps, also for subclasses that replace this
+			);
+		}catch(\ValueError $e){
+			//motion that is not finite can only spread from here, so it ends here
+			$this->getWorld()->getLogger()->debug("Motion of " . get_class($this) . " reset: " . $e->getMessage());
+			$this->motion = Vector3::zero();
+		}
 	}
 
 	protected function checkObstruction(float $x, float $y, float $z) : bool{
@@ -1236,8 +1243,8 @@ abstract class Entity{
 			try{
 				$region = $this->getWorld()->getCollisionRegion(CollisionSolver::queryBox($this->boundingBox, $dx, $dy, $dz, $stepHeight));
 				$result = CollisionSolver::move($region, $this->boundingBox, $dx, $dy, $dz, $stepHeight, $this->onGround);
-			}catch(\ValueError $e){
-				//beyond the coordinates collision data supports, staying put is the only safe answer
+			}catch(\ValueError | CollisionDataException $e){
+				//beyond the coordinates or the distance collision data supports, staying put is the only safe answer
 				$this->getWorld()->getLogger()->debug("Movement of " . get_class($this) . " blocked: " . $e->getMessage());
 				$dx = $dy = $dz = 0.0;
 				$result = null;
