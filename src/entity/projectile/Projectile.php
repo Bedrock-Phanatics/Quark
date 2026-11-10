@@ -49,12 +49,16 @@ use quark\math\VoxelRayTrace;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\utils\AssumptionFailedError;
+use function abs;
 use function ceil;
 use function count;
 use function max;
 use function min;
 
 abstract class Projectile extends Entity{
+	/** A few voxels under the 4194304 a VoxelRayTrace visits, for the start cell and float slack on each axis */
+	private const MAX_FALLBACK_TRACE = (1 << 22) - 8;
+
 	private const TAG_STUCK_ON_BLOCK_POS = "StuckToBlockPos";
 	private const TAG_DAMAGE = "damage"; //TAG_Double
 	private const TAG_TILE_X = "tileX"; //TAG_Int
@@ -201,20 +205,17 @@ abstract class Projectile extends Entity{
 				//outside the coordinates or longer than collision data supports, the block-by-block trace still works
 			}
 		}
-		if(!$traced){
-			try{
-				foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
-					$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
+		//only absurd motion is longer, it flies through instead of throwing
+		if(!$traced && abs($dx) + abs($dy) + abs($dz) < self::MAX_FALLBACK_TRACE){
+			foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
+				$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
 
-					$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
-					if($blockHitResult !== null){
-						$end = $blockHitResult->hitVector;
-						$hitResult = [$block, $blockHitResult];
-						break;
-					}
+				$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
+				if($blockHitResult !== null){
+					$end = $blockHitResult->hitVector;
+					$hitResult = [$block, $blockHitResult];
+					break;
 				}
-			}catch(\ValueError){
-				//only absurd motion goes past the voxel trace limit, so it flies through instead of crashing the tick
 			}
 		}
 

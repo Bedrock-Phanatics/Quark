@@ -27,6 +27,7 @@ use PHPUnit\Framework\TestCase;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\VanillaBlocks;
+use quark\entity\projectile\Projectile;
 use quark\math\AxisAlignedBB;
 use quark\math\collision\CollisionRegion;
 use quark\math\collision\CollisionSolver;
@@ -34,6 +35,7 @@ use quark\math\collision\Raycast;
 use quark\math\physics\ExplosionMath;
 use quark\math\RayTraceResult;
 use quark\math\Vector3;
+use quark\math\VoxelRayTrace;
 use quark\world\ChunkLoader;
 use quark\world\Explosion;
 use quark\world\format\Chunk;
@@ -304,6 +306,19 @@ final class NativeCollisionTest extends TestCase{
 		$explosion->stepLen = 0.0;
 		$this->expectException(\InvalidArgumentException::class);
 		$explosion->explodeA();
+	}
+
+	public function testProjectileFallbackTraceStaysUnderTheVoxelLimit() : void{
+		$max = (new \ReflectionClassConstant(Projectile::class, "MAX_FALLBACK_TRACE"))->getValue();
+		self::assertIsInt($max);
+		//starting just under a corner and going diagonally adds a cell on every axis
+		$start = new Vector3(0.9999, 0.9999, 0.9999);
+		$d = ($max - 0.001) / 3;
+		$voxels = 0;
+		foreach(VoxelRayTrace::betweenPoints($start, $start->add($d, $d, $d)) as $_){
+			++$voxels;
+		}
+		self::assertGreaterThan($max, $voxels);
 	}
 
 	public function testExplosionRadiusMustBeFinite() : void{
