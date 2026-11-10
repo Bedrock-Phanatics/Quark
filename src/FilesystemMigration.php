@@ -130,7 +130,7 @@ final class FilesystemMigration{
 				$modern = true;
 			}
 		}
-		foreach([$this->paths->config(), $this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles()] as $path){
+		foreach([$this->paths->pluginData(), $this->paths->resourcePacks(), $this->paths->logs(), $this->paths->crashes(), $this->paths->profiles(), $this->paths->accessDatabase()] as $path){
 			$modern = $modern || $this->exists($path);
 		}
 		if($this->exists($this->paths->migrationJournal()) || $this->exists(Path::join($this->paths->root, ".quark-config-migration.json")) || $this->exists(Path::join($this->paths->root, ".quark-access-migration.json"))){
@@ -165,7 +165,11 @@ final class FilesystemMigration{
 				}
 			}
 		}
-		return ["state" => $legacy !== [] || $configLegacy || $accessLegacy ? ($modern ? "mixed" : "legacy") : ($modern ? "unversioned" : "empty"), "moves" => $legacy];
+		$this->assertSafe($this->paths->config());
+		if($legacy !== [] || $configLegacy || $accessLegacy){
+			return ["state" => $modern || $this->exists($this->paths->config()) ? "mixed" : "legacy", "moves" => $legacy];
+		}
+		return ["state" => $modern ? "unversioned" : "empty", "moves" => []];
 	}
 
 	public function prepare(bool $allowMigration = false, bool $dryRun = false) : string{
@@ -230,6 +234,7 @@ final class FilesystemMigration{
 				$configMigration->begin();
 				$this->migrate();
 			}else{
+				$configMigration->upgradeServer();
 				$this->writeJson($this->paths->migrationJournal(), ["version" => self::VERSION, "completed" => [], "copying" => null]);
 			}
 			$this->createDirectories();

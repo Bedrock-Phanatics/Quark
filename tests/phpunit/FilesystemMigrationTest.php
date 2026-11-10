@@ -25,6 +25,7 @@ use function flock;
 use function fopen;
 use function function_exists;
 use function glob;
+use function hash;
 use function hash_file;
 use function is_array;
 use function is_dir;
@@ -124,6 +125,16 @@ final class FilesystemMigrationTest extends TestCase{
 		file_put_contents($this->paths->resourcePacks() . "/resource_packs.yml", "force_resources: false\n");
 		self::assertSame("modern", $this->migration->prepare());
 		self::assertTrue(CoreConfig::load($this->paths->resourcePacks() . "/resource_packs.toml")["force_resources"]);
+	}
+
+	public function testFreshLayoutAcceptsProvisionedToml() : void{
+		mkdir($this->paths->config());
+		$path = $this->paths->serverToml();
+		$content = "config-version = " . CoreConfig::SERVER_VERSION . "\n[server]\nmotd = 'Provisioned'\n";
+		file_put_contents($path, $content);
+		self::assertSame("empty", $this->migration->prepare());
+		self::assertSame($content, Filesystem::fileGetContents($path));
+		self::assertSame("modern", $this->migration->prepare());
 	}
 
 	public function testVersionThreeRequiresUpgradeAndPreservesRestoreData() : void{
@@ -621,7 +632,7 @@ final class FilesystemMigrationTest extends TestCase{
 		if(!function_exists("yaml_parse_file")){
 			self::markTestSkipped("Requires the YAML extension");
 		}
-		file_put_contents($this->root . "/server.properties", "old");
+		file_put_contents($this->root . "/server.properties", "motd=old");
 		file_put_contents($this->root . "/quark.yml", "plugins:\n  legacy-data-dir: true\n");
 		$this->expectExceptionMessage("needs a migration handler");
 		$this->migration->prepare(true);
@@ -713,6 +724,10 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("fra", self::table($config, "server")["language"]);
 		self::assertSame(768, self::table($config, "memory")["main-hard-limit"]);
 		self::assertSame(0, self::table($config, "chunk-ticking")["tick-radius"]);
+		self::assertTrue(self::table($config, "tnt-limits")["enabled"]);
+		self::assertSame(2, self::table($config, "chunk-generation")["population-queue-size"]);
+		self::assertTrue(self::table($config, "network")["async-compression"]);
+		self::assertSame(40, self::table($config, "memory")["continuous-trigger-rate"]);
 		self::assertSame([1, "two"], self::table($config, "custom")["list"]);
 		self::assertArrayNotHasKey("suggest-channels", self::table($config, "auto-updater"));
 		self::assertStringContainsString("motd = 'Custom' # Keep this comment", $updated);
@@ -742,6 +757,44 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("001", $properties["level-seed"]);
 	}
 
+	public function testMalformedLegacyConfigCanBeFixedBeforeMovingWorlds() : void{
+		$properties = $this->root . "/server.properties";
+		file_put_contents($properties, "xbox-auth=invalid\n");
+		mkdir($this->root . "/worlds");
+		file_put_contents($this->root . "/worlds/keep", "world");
+		try{
+			$this->migration->prepare(true);
+			self::fail("Invalid legacy settings were accepted");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("server.xbox-auth", $e->getMessage());
+		}
+		self::assertFileExists($this->root . "/worlds/keep");
+		self::assertFileDoesNotExist($this->root . "/.quark-config-migration.json");
+		self::assertFileDoesNotExist($this->paths->serverToml());
+		file_put_contents($properties, "xbox-auth=on\n");
+		$this->migration->prepare(true);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "server")["xbox-auth"]);
+		self::assertFileExists($this->paths->worlds() . "/keep");
+	}
+
+	public function testCorrectedSourceReplacesAnInvalidSnapshotBeforePublication() : void{
+		mkdir($this->paths->config());
+		$backup = Path::join($this->paths->backups(), "config-invalid");
+		mkdir($backup, 0777, true);
+		$bad = "xbox-auth=invalid\n";
+		file_put_contents($backup . "/server.properties", $bad);
+		file_put_contents($this->root . "/.quark-config-migration.json", json_encode([
+			"version" => 2,
+			"backup" => $backup,
+			"originals" => ["server.properties" => ["path" => Path::join($this->root, "server.properties"), "hash" => hash("sha256", $bad)]],
+		]));
+		file_put_contents($this->paths->serverProperties(), "xbox-auth=on\n");
+		$this->migration->prepare(true);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "server")["xbox-auth"]);
+		self::assertSame($bad, file_get_contents($backup . "/server.properties"));
+		self::assertFileDoesNotExist($this->root . "/.quark-config-migration.json");
+	}
+
 	public function testConflictingLegacySettingIsRejected() : void{
 		file_put_contents($this->root . "/pocketmine.yml", "settings:\n  shutdown-message: One\n");
 		file_put_contents($this->root . "/quark.yml", "settings:\n  shutdown-message: Two\n");
@@ -750,9 +803,8 @@ final class FilesystemMigrationTest extends TestCase{
 			$this->migration->prepare(true);
 		}finally{
 			self::assertFileDoesNotExist($this->paths->serverToml());
-			$backups = glob($this->paths->backups() . "/config-*");
-			self::assertIsArray($backups);
-			self::assertFileExists($backups[0] . "/quark.yml");
+			self::assertFileExists($this->root . "/quark.yml");
+			self::assertFileDoesNotExist($this->root . "/.quark-config-migration.json");
 		}
 	}
 

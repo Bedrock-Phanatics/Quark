@@ -16,11 +16,13 @@ use function file_put_contents;
 use function is_array;
 use function json_encode;
 use function ksort;
+use function mkdir;
 use function random_bytes;
 use function str_replace;
 use function sys_get_temp_dir;
 use function unlink;
 use const INF;
+use const PHP_INT_MAX;
 use const SORT_STRING;
 
 final class CoreConfigTest extends TestCase{
@@ -121,6 +123,70 @@ final class CoreConfigTest extends TestCase{
 		self::assertSame(CoreConfig::encode($data), $updated, "a changed table array is written in full");
 	}
 
+	public function testUpdateKeepsCommentsBesideNan() : void{
+		$original = "# keep\ncustom = nan\nvalue = 1\n";
+		$data = CoreConfig::parse($original);
+		$data["value"] = 2;
+		self::assertSame("# keep\ncustom = nan\nvalue = 2\n", CoreConfig::update($original, $data));
+	}
+
+	public function testTomlSaveRejectsStaleValuesAndReloadsChanges() : void{
+		$path = sys_get_temp_dir() . "/quark-config-" . bin2hex(random_bytes(6)) . ".toml";
+		file_put_contents($path, "value = 1\n");
+		try{
+			$config = new Config($path);
+			file_put_contents($path, "value = 2\n");
+			self::assertSame(2, (new Config($path))->get("value"));
+			$config->set("other", 3);
+			try{
+				$config->save();
+				self::fail("Save overwrote a newer configuration");
+			}catch(\RuntimeException $e){
+				self::assertStringContainsString("changed since it was loaded", $e->getMessage());
+			}
+			self::assertSame("value = 2\n", Filesystem::fileGetContents($path));
+			$config->reload();
+			$config->set("other", 3);
+			$config->save();
+			self::assertSame(["value" => 2, "other" => 3], (new Config($path))->getAll());
+		}finally{
+			@unlink($path);
+		}
+	}
+
+	public function testYamlConversionRejectsMultipleDocumentsAndRecursiveAliases() : void{
+		foreach(["value: 1\n---\nvalue: 2\n", "loop: &loop\n  child: *loop\n"] as $yaml){
+			try{
+				ConfigurationMigration::yamlToToml($yaml, "config.yml");
+				self::fail("Unsafe YAML was converted");
+			}catch(\RuntimeException $e){
+				self::assertStringContainsString("config.yml", $e->getMessage());
+			}
+		}
+	}
+
+	public function testYamlConversionPreservesAConfigCreatedDuringRendering() : void{
+		$directory = sys_get_temp_dir() . "/quark-config-" . bin2hex(random_bytes(6));
+		mkdir($directory);
+		$yaml = $directory . "/config.yml";
+		$toml = $directory . "/config.toml";
+		file_put_contents($yaml, "value: 1\n");
+		try{
+			$this->expectExceptionMessage("Configuration changed before replacement");
+			ConfigurationMigration::convertYamlFile($yaml, $toml, $directory . "/backups", static function(array $data) use ($toml) : string{
+				file_put_contents($toml, "value = 2\n");
+				return CoreConfig::encode($data);
+			});
+		}finally{
+			try{
+				self::assertSame("value: 1\n", Filesystem::fileGetContents($yaml));
+				self::assertSame("value = 2\n", Filesystem::fileGetContents($toml));
+			}finally{
+				Filesystem::recursiveUnlink($directory);
+			}
+		}
+	}
+
 	public function testServerConfigSaveKeepsComments() : void{
 		$path = sys_get_temp_dir() . "/quark-config-" . bin2hex(random_bytes(6)) . ".toml";
 		$template = Filesystem::fileGetContents(RESOURCE_PATH . "/server.toml");
@@ -167,6 +233,7 @@ final class CoreConfigTest extends TestCase{
 	public static function invalidServerSettings() : iterable{
 		yield "config-version" => [["config-version" => CoreConfig::SERVER_VERSION + 1]];
 		yield "server.xbox-auth" => [["server" => ["xbox-auth" => "false"]]];
+		yield "server.max-players" => [["server" => ["max-players" => 0x100000000]]];
 		yield "server.gamemode" => [["server" => ["gamemode" => "SPECTATE"]]];
 		yield "network.enable-encryption" => [["network" => ["enable-encryption" => null]]];
 		yield "network.trusted-proxy-keys" => [["network" => ["trusted-proxy-keys" => [42]]]];
@@ -175,6 +242,7 @@ final class CoreConfigTest extends TestCase{
 		yield "transport.nethernet.port-range" => [["transport" => ["nethernet" => ["port-range" => [30000, 1]]]]];
 		yield "memory.main-limit" => [["memory" => ["main-limit" => 2048]]];
 		yield "ticks-per.autosave" => [["ticks-per" => ["autosave" => 0]]];
+		yield "chunk-sending.spawn-radius" => [["chunk-sending" => ["spawn-radius" => PHP_INT_MAX]]];
 		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
 		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
 	}
@@ -190,6 +258,7 @@ final class CoreConfigTest extends TestCase{
 	public function testNetherNetMuxCannotReserveTheQueryPort() : void{
 		$nethernet = ["port-range" => [19132, 19132], "ice-udp-mux" => true];
 		CoreConfig::validateServer(["transport" => ["name" => "raknet", "nethernet" => $nethernet]]);
+		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]], ["server" => ["enable-query" => false]]);
 		$this->expectExceptionMessage("already used by Query");
 		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]]);
 	}

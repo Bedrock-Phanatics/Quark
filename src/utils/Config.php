@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\utils;
 
 use pocketmine\errorhandler\ErrorToExceptionHandler;
+use quark\CoreConfig;
 use quark\permission\AccessStorage;
 use Symfony\Component\Filesystem\Path;
 use function array_change_key_case;
@@ -81,6 +82,8 @@ class Config{
 	 * @phpstan-var array<mixed, mixed>
 	 */
 	private array $config = [];
+	/** @var array<array-key, mixed>|null */
+	private ?array $tomlBaseline = null;
 
 	/**
 	 * @var mixed[]
@@ -131,12 +134,14 @@ class Config{
 	 */
 	public function reload() : void{
 		$this->config = [];
+		$this->tomlBaseline = null;
 		$this->nestedCache = [];
 		$this->accessIndex = [];
 		if($this->type === Config::TOML){
-			\quark\CoreConfig::forget($this->file);
+			CoreConfig::forget($this->file);
 		}
 		$this->load($this->file, $this->type);
+		$this->changed = false;
 	}
 
 	public function hasChanged() : bool{
@@ -206,7 +211,9 @@ class Config{
 					break;
 				case Config::TOML:
 					try{
-						$config = \quark\CoreConfig::load($this->file);
+						$config = CoreConfig::load($this->file);
+						CoreConfig::forget($this->file);
+						$this->tomlBaseline = $config;
 					}catch(\Exception $e){
 						throw ConfigLoadException::wrap($this->file, $e);
 					}
@@ -261,8 +268,18 @@ class Config{
 				$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
 				break;
 			case Config::TOML:
-				$content = is_file($this->file) ? \quark\CoreConfig::update(Filesystem::fileGetContents($this->file), $this->config) : \quark\CoreConfig::encode($this->config);
-				break;
+				$original = is_file($this->file) ? Filesystem::fileGetContents($this->file) : null;
+				if(!CoreConfig::equivalent($this->tomlBaseline, $original !== null ? CoreConfig::parse($original) : null)){
+					throw new \RuntimeException("Configuration changed since it was loaded: " . $this->file);
+				}
+				$content = $original !== null ? CoreConfig::update($original, $this->config) : CoreConfig::encode($this->config);
+				if($content !== $original){
+					Filesystem::atomicWrite($this->file, $content, $original);
+				}
+				$this->tomlBaseline = $this->config;
+				CoreConfig::forget($this->file);
+				$this->changed = false;
+				return;
 			case Config::SERIALIZED:
 				$content = serialize($this->config);
 				break;
@@ -274,9 +291,6 @@ class Config{
 		}
 
 		Filesystem::safeFilePutContents($this->file, $content);
-		if($this->type === Config::TOML){
-			\quark\CoreConfig::forget($this->file);
-		}
 
 		$this->changed = false;
 	}

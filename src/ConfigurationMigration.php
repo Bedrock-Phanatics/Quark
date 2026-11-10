@@ -15,20 +15,14 @@ use function array_replace;
 use function array_replace_recursive;
 use function basename;
 use function bin2hex;
-use function chmod;
-use function copy;
+use function clearstatcache;
+use function count;
 use function ctype_digit;
 use function dirname;
 use function disk_free_space;
-use function fclose;
 use function file_exists;
 use function file_get_contents;
-use function file_put_contents;
-use function fileperms;
 use function filesize;
-use function fopen;
-use function fsync;
-use function fwrite;
 use function gmdate;
 use function hash;
 use function hash_file;
@@ -40,21 +34,19 @@ use function is_file;
 use function is_int;
 use function is_link;
 use function is_string;
-use function is_writable;
 use function json_decode;
 use function json_encode;
 use function mkdir;
 use function parse_ini_string;
 use function preg_match;
 use function random_bytes;
-use function rename;
+use function rmdir;
 use function str_starts_with;
 use function strlen;
 use function strtoupper;
 use function trim;
 use function unlink;
 use function yaml_parse;
-use const DIRECTORY_SEPARATOR;
 use const INI_SCANNER_TYPED;
 use const JSON_THROW_ON_ERROR;
 use const PHP_INT_MAX;
@@ -63,10 +55,13 @@ use const PHP_INT_MAX;
  * The configuration stage runs while FilesystemMigration holds its exclusive lock.
  */
 final class ConfigurationMigration{
+	/** @var array{server: string, plugins: string}|null */
+	private ?array $prepared = null;
+
 	public function __construct(private FilesystemPaths $paths){}
 
 	public static function createServer(string $path) : void{
-		self::writeAtomically($path, Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "server.toml")));
+		Filesystem::atomicWrite($path, Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "server.toml")));
 	}
 
 	public function upgradeServer() : void{
@@ -81,7 +76,7 @@ final class ConfigurationMigration{
 		}
 		$original = Filesystem::fileGetContents($path);
 		$upgraded = self::upgradeSettings(CoreConfig::parse($original));
-		self::writeAtomically($path, CoreConfig::update($original, $upgraded), $original);
+		Filesystem::atomicWrite($path, CoreConfig::update($original, $upgraded), $original);
 		CoreConfig::forget($path);
 	}
 
@@ -104,7 +99,7 @@ final class ConfigurationMigration{
 	 * @param array<string, mixed> $data
 	 * @return array<string, mixed>
 	 */
-	private static function upgradeSettings(array $data) : array{
+	private static function upgradeSettings(array $data, bool $fromToml = true) : array{
 		if(array_key_exists("config-version", $data)){
 			if($data["config-version"] === CoreConfig::SERVER_VERSION){
 				CoreConfig::validateServer($data);
@@ -209,40 +204,17 @@ final class ConfigurationMigration{
 		}
 		$data["config-version"] = CoreConfig::SERVER_VERSION;
 		CoreConfig::validateServer($data);
-		$data = array_replace_recursive(CoreConfig::defaults(), $data);
+		// Sparse TOML used runtime fallbacks that differed from the shipped template.
+		$previousDefaults = $fromToml ? [
+			"tnt-limits" => ["enabled" => true],
+			"chunk-generation" => ["population-queue-size" => 2],
+			"chunk-ticking" => ["tick-radius" => 4],
+			"network" => ["async-compression" => true],
+			"memory" => ["continuous-trigger-rate" => 40],
+		] : [];
+		$data = array_replace_recursive(CoreConfig::defaults(), $previousDefaults, $data);
 		CoreConfig::validateServer($data);
 		return $data;
-	}
-
-	private static function writeAtomically(string $path, string $content, ?string $original = null) : void{
-		if($original !== null && !is_writable($path)){
-			throw new \RuntimeException("Cannot write migrated configuration: $path");
-		}
-		$tmp = $path . "." . bin2hex(random_bytes(8)) . ".migration-tmp";
-		$stream = @fopen($tmp, "xb");
-		if($stream === false){
-			throw new \RuntimeException("Cannot create temporary configuration: $tmp");
-		}
-		try{
-			try{
-				$mode = DIRECTORY_SEPARATOR === "/" && is_file($path) ? fileperms($path) : false;
-				if(($mode !== false && !@chmod($tmp, $mode & 0777)) || @fwrite($stream, $content) !== strlen($content) || !@fsync($stream)){
-					throw new \RuntimeException("Cannot write migrated configuration: $path");
-				}
-			}finally{
-				fclose($stream);
-			}
-			if(is_link($path) || $original !== null && Filesystem::fileGetContents($path) !== $original){
-				throw new \RuntimeException("Configuration changed during migration: $path");
-			}
-			if(!@rename($tmp, $path)){
-				throw new \RuntimeException("Cannot replace configuration: $path");
-			}
-		}finally{
-			if(is_file($tmp)){
-				@unlink($tmp);
-			}
-		}
 	}
 
 	/**
@@ -252,12 +224,8 @@ final class ConfigurationMigration{
 	 * @throws \RuntimeException if the YAML is malformed or can't be expressed as TOML
 	 */
 	public static function yamlToToml(string $yaml, string $origin, ?\Closure $render = null) : string{
-		$value = trim($yaml) === "" ? [] : @yaml_parse(Config::fixYAMLIndexes($yaml));
-		if(!is_array($value)){
-			throw new \RuntimeException("Invalid YAML configuration: $origin");
-		}
+		$value = self::parseLegacyYaml($yaml, $origin);
 		try{
-			/** @phpstan-var array<string, mixed> $value */
 			$toml = $render !== null ? $render($value) : CoreConfig::encode($value);
 			CoreConfig::parse($toml);
 		}catch(\InvalidArgumentException|\TomlException $e){
@@ -283,14 +251,23 @@ final class ConfigurationMigration{
 		$content = Filesystem::fileGetContents($yamlFile);
 		$toml = self::yamlToToml($content, $yamlFile, $render);
 		$backup = Path::join($backups, "yaml-" . gmdate("Ymd-His") . "-" . bin2hex(random_bytes(4)));
-		if(!@mkdir($backup, 0777, true) || @file_put_contents(Path::join($backup, basename($yamlFile)), $content) !== strlen($content)){
+		if(!@mkdir($backup, 0700, true)){
 			throw new \RuntimeException("Cannot snapshot $yamlFile to $backup");
 		}
-		self::writeAtomically($tomlFile, $toml);
-		if(!@unlink($yamlFile)){
+		Filesystem::atomicWrite(Path::join($backup, basename($yamlFile)), $content);
+		if(!self::matchesSource($yamlFile, $content)){
+			throw new \RuntimeException("Legacy configuration changed during migration: $yamlFile");
+		}
+		Filesystem::atomicWrite($tomlFile, $toml);
+		if(!self::matchesSource($yamlFile, $content) || !@unlink($yamlFile)){
 			throw new \RuntimeException("Cannot retire $yamlFile after converting it to $tomlFile");
 		}
 		return true;
+	}
+
+	private static function matchesSource(string $path, string $content) : bool{
+		clearstatcache(true, $path);
+		return !is_link($path) && is_file($path) && Filesystem::fileGetContents($path) === $content;
 	}
 
 	private function journalPath() : string{
@@ -362,25 +339,59 @@ final class ConfigurationMigration{
 
 	public function begin() : void{
 		$journalPath = $this->journalPath();
-		if(is_file($journalPath)){
-			$this->readJournal();
-			return;
-		}
 		if(!$this->hasLegacy()){
 			return;
 		}
+		$journal = is_file($journalPath) ? $this->readJournal() : null;
 		foreach([$this->paths->serverToml(), $this->paths->pluginsToml()] as $destination){
 			$this->safe($destination);
-			if(file_exists($destination) || is_link($destination)){
-				throw new \RuntimeException("Configuration migration collision: $destination already exists");
+			if(file_exists($destination)){
+				if($journal === null){
+					throw new \RuntimeException("Configuration migration collision: $destination already exists");
+				}
+				$this->prepared = $this->renderLegacy($this->readSnapshot($journal["backup"], $journal["originals"]));
+				return;
 			}
 		}
+		[$originals, $contents] = $this->readLegacySources();
+		if($journal !== null){
+			$changed = false;
+			foreach(Utils::stringifyKeys($journal["originals"]) as $name => $original){
+				if(!isset($originals[$name])){
+					throw new \RuntimeException("Legacy configuration missing before publication: $name");
+				}
+				$changed = $changed || $originals[$name]["hash"] !== $original["hash"];
+			}
+			if(!$changed && count($originals) === count($journal["originals"])){
+				$this->prepared = $this->renderLegacy($this->readSnapshot($journal["backup"], $journal["originals"]));
+				return;
+			}
+		}
+
+		$this->prepared = $this->renderLegacy($contents);
 		$backup = Path::join($this->paths->backups(), "config-" . gmdate("Ymd-His") . "-" . bin2hex(random_bytes(4)));
 		$this->safe($backup);
-		if(!@mkdir($backup, 0777, true)){
+		if(!@mkdir($backup, 0700, true)){
 			throw new \RuntimeException("Cannot create configuration snapshot: $backup");
 		}
+		try{
+			foreach(Utils::stringifyKeys($contents) as $name => $content){
+				Filesystem::atomicWrite(Path::join($backup, $name), $content);
+			}
+			$this->writeJournal(["version" => 2, "backup" => $backup, "originals" => $originals]);
+		}catch(\Throwable $e){
+			foreach(Utils::stringifyKeys($contents) as $name => $content){
+				@unlink(Path::join($backup, $name));
+			}
+			@rmdir($backup);
+			throw $e;
+		}
+	}
+
+	/** @return array{array<string, array{path: string, hash: string}>, array<string, string>} */
+	private function readLegacySources() : array{
 		$originals = [];
+		$contents = [];
 		foreach(Utils::stringifyKeys($this->sources()) as $name => $source){
 			$this->safe($source);
 			$rootSource = Path::join($this->paths->root, $name);
@@ -388,45 +399,45 @@ final class ConfigurationMigration{
 			if($name !== "pocketmine.yml" && $name !== "migration.ini" && is_file($rootSource)){
 				$source = $rootSource;
 			}
-			if(!is_file($source)){
+			if(!file_exists($source)){
 				continue;
 			}
-			$size = filesize($source);
-			$free = disk_free_space($backup);
-			if($size === false || $free === false || $size > $free){
-				throw new \RuntimeException("Insufficient disk space to snapshot $source");
+			if(!is_file($source)){
+				throw new \RuntimeException("Legacy configuration is not a file: $source");
 			}
-			$target = Path::join($backup, $name);
-			if(!@copy($source, $target) || hash_file("sha256", $source) !== hash_file("sha256", $target)){
-				throw new \RuntimeException("Cannot verify configuration snapshot: $source");
-			}
-			$originals[$name] = ["path" => $source, "hash" => hash_file("sha256", $target)];
+			$content = Filesystem::fileGetContents($source);
+			$contents[$name] = $content;
+			$originals[$name] = ["path" => $source, "hash" => hash("sha256", $content)];
 		}
-		$this->writeJournal(["version" => 2, "backup" => $backup, "originals" => $originals]);
+		return [$originals, $contents];
 	}
 
-	public function finish() : void{
-		if(!is_file($this->journalPath())){
-			return;
-		}
-		$journal = $this->readJournal();
-		$backup = $journal["backup"];
-		$originals = $journal["originals"];
-		$read = function(string $name) use ($backup, $originals) : ?string{
-			if(!isset($originals[$name])){
-				return null;
-			}
+	/**
+	 * @param array<string, array{path: string, hash: string}> $originals
+	 * @return array<string, string>
+	 */
+	private function readSnapshot(string $backup, array $originals) : array{
+		$contents = [];
+		foreach(Utils::stringifyKeys($originals) as $name => $original){
 			$path = Path::join($backup, $name);
 			$this->safe($path);
 			$content = @file_get_contents($path);
-			if($content === false || hash("sha256", $content) !== $originals[$name]["hash"]){
+			if($content === false || hash("sha256", $content) !== $original["hash"]){
 				throw new \RuntimeException("Configuration snapshot changed: $path");
 			}
-			return $content;
-		};
+			$contents[$name] = $content;
+		}
+		return $contents;
+	}
+
+	/**
+	 * @param array<string, string> $contents
+	 * @return array{server: string, plugins: string}
+	 */
+	private function renderLegacy(array $contents) : array{
 		$settings = [];
 		foreach(["pocketmine.yml", "quark.yml"] as $name){
-			$content = $read($name);
+			$content = $contents[$name] ?? null;
 			if($content === null){
 				continue;
 			}
@@ -444,7 +455,7 @@ final class ConfigurationMigration{
 				$strings[$key] = true;
 			}
 		}
-		$properties = $read("server.properties");
+		$properties = $contents["server.properties"] ?? null;
 		if($properties !== null){
 			$parsed = Config::parseProperties($properties, $strings, true);
 			foreach(Utils::promoteKeys($parsed) as $key => $value){
@@ -465,7 +476,7 @@ final class ConfigurationMigration{
 			$settings["server"] = $parsed;
 		}
 		$migrationSetting = false;
-		if(($content = $read("migration.ini")) !== null){
+		if(($content = $contents["migration.ini"] ?? null) !== null){
 			$ini = parse_ini_string($content, true, INI_SCANNER_TYPED);
 			if(!is_array($ini) || !is_bool($ini["migration"]["auto_on_startup"] ?? null)){
 				throw new \RuntimeException("Invalid legacy setting migration.auto_on_startup");
@@ -473,9 +484,9 @@ final class ConfigurationMigration{
 			$migrationSetting = $ini["migration"]["auto_on_startup"];
 		}
 		$settings["migration"] = ["auto_on_startup" => $migrationSetting];
-		$settings = self::upgradeSettings($settings);
+		$settings = self::upgradeSettings($settings, fromToml: false);
 		$plugins = ["mode" => "blacklist", "plugins" => []];
-		if(($content = $read("plugin_list.yml")) !== null){
+		if(($content = $contents["plugin_list.yml"] ?? null) !== null){
 			$value = self::parseLegacyYaml($content, "plugin_list.yml");
 			$value["plugins"] ??= [];
 			$plugins = array_replace($plugins, $value);
@@ -483,24 +494,43 @@ final class ConfigurationMigration{
 		$plugins["plugins"] = PluginGraylist::fromArray($plugins)->getPlugins();
 		$serverTemplate = Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "server.toml"));
 		$pluginsTemplate = Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "plugins.toml"));
-		$this->publish($this->paths->serverToml(), CoreConfig::update($serverTemplate, $settings), self::upgradeSettings(...));
-		$this->publish($this->paths->pluginsToml(), CoreConfig::update($pluginsTemplate, $plugins), static fn(array $data) => $data);
-		foreach(Utils::stringifyKeys($originals) as $name => $original){
-			foreach([$original["path"], $this->sources()[$name]] as $source){
+		return [
+			"server" => CoreConfig::update($serverTemplate, $settings),
+			"plugins" => CoreConfig::update($pluginsTemplate, $plugins),
+		];
+	}
+
+	public function finish() : void{
+		if(!is_file($this->journalPath())){
+			return;
+		}
+		$journal = $this->readJournal();
+		$prepared = $this->prepared ?? $this->renderLegacy($this->readSnapshot($journal["backup"], $journal["originals"]));
+		$sources = $this->sources();
+		$retire = [];
+		foreach(Utils::stringifyKeys($journal["originals"]) as $name => $original){
+			foreach([$original["path"], $sources[$name]] as $source){
 				$this->safe($source);
-				if(is_file($source)){
-					if(hash_file("sha256", $source) !== $original["hash"]){
-						throw new \RuntimeException("Legacy configuration changed during migration: $source");
-					}
-					if(!@unlink($source)){
-						throw new \RuntimeException("Cannot retire legacy configuration: $source");
-					}
+				if(file_exists($source) && (!is_file($source) || hash_file("sha256", $source) !== $original["hash"])){
+					throw new \RuntimeException("Legacy configuration changed during migration: $source");
 				}
+				if(is_file($source)){
+					$retire[$source] = $original["hash"];
+				}
+			}
+		}
+		$this->publish($this->paths->serverToml(), $prepared["server"], static fn(array $data) => self::upgradeSettings($data, fromToml: false));
+		$this->publish($this->paths->pluginsToml(), $prepared["plugins"], static fn(array $data) => $data);
+		foreach(Utils::stringifyKeys($retire) as $source => $hash){
+			$this->safe($source);
+			if(!is_file($source) || hash_file("sha256", $source) !== $hash || !@unlink($source)){
+				throw new \RuntimeException("Cannot retire legacy configuration: $source");
 			}
 		}
 		if(!@unlink($this->journalPath())){
 			throw new \RuntimeException("Cannot remove configuration migration journal");
 		}
+		$this->prepared = null;
 	}
 
 	/**
@@ -522,12 +552,35 @@ final class ConfigurationMigration{
 
 	/** @return array<string, mixed> */
 	private static function parseLegacyYaml(string $content, string $name) : array{
-		$value = @yaml_parse(Config::fixYAMLIndexes($content), 0, $documents);
-		if(!is_array($value) || $documents !== 1){
+		if(trim($content) === ""){
+			return [];
+		}
+		$documents = @yaml_parse(Config::fixYAMLIndexes($content), -1);
+		if(!is_array($documents) || count($documents) !== 1 || !is_array($value = $documents[0])){
 			throw new \RuntimeException("Invalid legacy configuration: $name");
 		}
+		// YAML aliases can create cycles or expand into much larger TOML documents.
+		$budget = 64 * 1024 * 1024;
+		self::checkYamlTree($value, $name, $budget);
 		/** @var array<string, mixed> $value */
 		return $value;
+	}
+
+	/** @param array<array-key, mixed> $node */
+	private static function checkYamlTree(array $node, string $name, int &$budget, int $depth = 0) : void{
+		$budget -= 64 * count($node);
+		if($budget < 0 || $depth >= 128){
+			throw new \RuntimeException("YAML configuration is too deeply nested or expands beyond the migration limit: $name");
+		}
+		foreach(Utils::promoteKeys($node) as $key => $value){
+			$budget -= (is_string($key) ? strlen($key) : 0) + (is_string($value) ? strlen($value) : 0);
+			if($budget < 0){
+				throw new \RuntimeException("YAML configuration expands beyond the migration limit: $name");
+			}
+			if(is_array($value)){
+				self::checkYamlTree($value, $name, $budget, $depth + 1);
+			}
+		}
 	}
 
 	/** @param callable(array<string, mixed>): array<string, mixed> $normalize */
@@ -541,7 +594,7 @@ final class ConfigurationMigration{
 			}
 			return;
 		}
-		self::writeAtomically($path, $content);
+		Filesystem::atomicWrite($path, $content);
 	}
 
 	/** @return array{version: int, backup: string, originals: array<string, array{path: string, hash: string}>} */
@@ -570,7 +623,8 @@ final class ConfigurationMigration{
 	private function writeJournal(array $data) : void{
 		$path = $this->journalPath();
 		$this->safe($path);
-		self::writeAtomically($path, json_encode($data, JSON_THROW_ON_ERROR));
+		$original = is_file($path) ? Filesystem::fileGetContents($path) : null;
+		Filesystem::atomicWrite($path, json_encode($data, JSON_THROW_ON_ERROR), $original);
 	}
 
 	private function safe(string $path) : void{

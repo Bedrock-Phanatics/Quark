@@ -16,6 +16,7 @@ use function array_key_exists;
 use function array_keys;
 use function array_map;
 use function array_push;
+use function array_replace_recursive;
 use function array_slice;
 use function count;
 use function explode;
@@ -31,7 +32,6 @@ use function is_nan;
 use function is_string;
 use function json_decode;
 use function json_encode;
-use function ksort;
 use function mb_check_encoding;
 use function ord;
 use function preg_match;
@@ -57,7 +57,6 @@ use function usort;
 use function var_export;
 use const JSON_THROW_ON_ERROR;
 use const PHP_INT_MAX;
-use const SORT_STRING;
 
 final class CoreConfig{
 	public const SERVER_VERSION = 1;
@@ -155,7 +154,7 @@ final class CoreConfig{
 	public static function update(string $original, array $data) : string{
 		try{
 			$patched = self::patch($original, $data);
-			if($patched !== null && self::canonical(self::parse($patched)) === self::canonical($data)){
+			if($patched !== null && self::equivalent(self::parse($patched), $data)){
 				return $patched;
 			}
 		}catch(\Throwable){
@@ -178,13 +177,13 @@ final class CoreConfig{
 			$data["__quark_nulls"] = $nulls;
 		}
 		$old = toml_parse($original);
-		if(self::canonical($old) === self::canonical($data)){
+		if(self::equivalent($old, $data)){
 			return $original;
 		}
 		[$entries, $headers, $tableArrays] = self::scan($original);
 		foreach($tableArrays as $path){
 			//entries under [[headers]] belong to whichever element came last, so those are left to encode()
-			if(self::canonical(self::lookup($old, $path)) !== self::canonical(self::lookup($data, $path))){
+			if(!self::equivalent(self::lookup($old, $path), self::lookup($data, $path))){
 				return null;
 			}
 		}
@@ -213,7 +212,7 @@ final class CoreConfig{
 			$covered[json_encode($entry["path"], JSON_THROW_ON_ERROR)] = true;
 			if(!self::exists($data, $entry["path"])){
 				$edits[] = [$entry["start"], $entry["end"] - $entry["start"], ""];
-			}elseif(self::canonical($value = self::lookup($data, $entry["path"])) !== self::canonical(self::lookup($old, $entry["path"]))){
+			}elseif(!self::equivalent($value = self::lookup($data, $entry["path"]), self::lookup($old, $entry["path"]))){
 				$edits[] = [$entry["valueStart"], $entry["valueEnd"] - $entry["valueStart"], self::encodeValue($value)];
 			}
 		}
@@ -541,23 +540,19 @@ final class CoreConfig{
 		return $data;
 	}
 
-	private static function canonical(mixed $value) : mixed{
-		if(!is_array($value)){
-			return $value;
+	public static function equivalent(mixed $left, mixed $right) : bool{
+		if(!is_array($left) || !is_array($right)){
+			return $left === $right || (is_float($left) && is_float($right) && is_nan($left) && is_nan($right));
 		}
-		$value = array_map(self::canonical(...), $value);
-		if(!array_is_list($value)){
-			ksort($value, SORT_STRING);
+		if(count($left) !== count($right)){
+			return false;
 		}
-		return $value;
-	}
-
-	/**
-	 * @param array<string, mixed> $left
-	 * @param array<string, mixed> $right
-	 */
-	public static function equivalent(array $left, array $right) : bool{
-		return self::canonical($left) === self::canonical($right);
+		foreach(Utils::promoteKeys($left) as $key => $value){
+			if(!array_key_exists($key, $right) || !self::equivalent($value, $right[$key])){
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -638,8 +633,21 @@ final class CoreConfig{
 		}
 	}
 
+	/**
+	 * @param array<string, mixed> $data
+	 * @param array<string, mixed> $overrides
+	 */
+	public static function validateServer(array $data, array $overrides = []) : void{
+		self::validateServerValues($data);
+		if($overrides !== []){
+			self::validateServerValues($overrides);
+			$data = array_replace_recursive($data, $overrides);
+		}
+		self::validateServerCombinations($data);
+	}
+
 	/** @param array<string, mixed> $data */
-	public static function validateServer(array $data) : void{
+	private static function validateServerValues(array $data) : void{
 		if(array_key_exists("config-version", $data)){
 			$version = $data["config-version"];
 			if(!is_int($version) || $version < 0 || $version > self::SERVER_VERSION){
@@ -654,32 +662,12 @@ final class CoreConfig{
 		}
 		$portRange = ["transport", "nethernet", "port-range"];
 		if(self::exists($data, $portRange)){
-			[$min, $max] = self::validateNetherNetPortRange(self::lookup($data, $portRange));
-			$transports = self::lookup($data, ["transport", "name"]);
-			if(
-				$min === $max &&
-				$min === (self::lookup($data, ["server", "server-port"]) ?? Server::DEFAULT_PORT_IPV4) &&
-				(self::lookup($data, ["server", "enable-query"]) ?? true) === true &&
-				self::lookup($data, ["transport", "nethernet", "ice-udp-mux"]) === true &&
-				(!is_string($transports) || in_array(BedwireTransport::NAME, array_map(trim(...), explode(",", strtolower($transports), Server::MAX_ACTIVE_TRANSPORTS + 1)), true))
-			){
-				throw new \InvalidArgumentException("Invalid transport.nethernet.port-range: the server port is already used by Query");
-			}
+			self::validateNetherNetPortRange(self::lookup($data, $portRange));
 		}
 
 		$logging = $data["logging"] ?? [];
-		if(is_array($logging)){
+		if(is_array($logging) && $logging !== []){
 			new log\LoggingConfig($logging);
-		}
-
-		$memory = $data["memory"] ?? [];
-		$memoryDefaults = $defaults["memory"] ?? [];
-		if(is_array($memory) && is_array($memoryDefaults)){
-			$hardLimit = $memory["main-hard-limit"] ?? $memoryDefaults["main-hard-limit"] ?? 0;
-			$softLimit = $memory["main-limit"] ?? 0;
-			if(is_int($hardLimit) && is_int($softLimit) && $hardLimit > 0 && $softLimit > $hardLimit){
-				throw new \InvalidArgumentException("Invalid memory.main-limit: exceeds memory.main-hard-limit");
-			}
 		}
 
 		foreach(["aliases", "worlds"] as $section){
@@ -713,6 +701,28 @@ final class CoreConfig{
 					throw new \InvalidArgumentException("Invalid $path.difficulty: expected peaceful, easy, normal, or hard");
 				}
 			}
+		}
+	}
+
+	/** @param array<string, mixed> $data */
+	private static function validateServerCombinations(array $data) : void{
+		$port = self::lookup($data, ["server", "server-port"]) ?? Server::DEFAULT_PORT_IPV4;
+		if(
+			self::lookup($data, ["transport", "nethernet", "port-range"]) === [$port, $port] &&
+			(self::lookup($data, ["server", "enable-query"]) ?? true) === true &&
+			self::lookup($data, ["transport", "nethernet", "ice-udp-mux"]) === true
+		){
+			$transports = self::lookup($data, ["transport", "name"]);
+			if(!is_string($transports) || in_array(BedwireTransport::NAME, array_map(trim(...), explode(",", strtolower($transports), Server::MAX_ACTIVE_TRANSPORTS + 1)), true)){
+				throw new \InvalidArgumentException("Invalid transport.nethernet.port-range: the server port is already used by Query");
+			}
+		}
+
+		$hardLimitPath = ["memory", "main-hard-limit"];
+		$hardLimit = self::lookup($data, $hardLimitPath) ?? self::lookup(self::defaults(), $hardLimitPath);
+		$softLimit = self::lookup($data, ["memory", "main-limit"]);
+		if(is_int($hardLimit) && is_int($softLimit) && $hardLimit > 0 && $softLimit > $hardLimit){
+			throw new \InvalidArgumentException("Invalid memory.main-limit: exceeds memory.main-hard-limit");
 		}
 	}
 
@@ -753,14 +763,16 @@ final class CoreConfig{
 			}
 			[$min, $max] = match($path){
 				"server.server-port", "server.server-portv6" => [1, 65535],
+				"server.max-players" => [1, 0xffffffff],
 				"server.difficulty" => [0, 3],
 				"network.batch-threshold" => [-1, PHP_INT_MAX],
 				"network.compression-level" => [1, 9],
 				"network.max-mtu-size" => [\raklib\generic\Session::MIN_MTU_SIZE, 65535],
 				"diagnostics.max-crash-reports", "diagnostics.max-profiles" => [0, 100000],
 				"entities.activation-range" => [0, World::MAX_ACTIVATION_RANGE],
+				"chunk-sending.spawn-radius" => [0, Server::MAX_VIEW_DISTANCE],
 				"memory.global-limit", "memory.main-limit", "memory.main-hard-limit", "memory.async-worker-hard-limit" => [0, PHP_INT_MAX >> 20],
-				"server.max-players", "server.view-distance", "ticks-per.autosave",
+				"server.view-distance", "ticks-per.autosave",
 				"memory.check-rate", "memory.continuous-trigger-rate", "entities.inactive-tick-interval",
 				"chunk-sending.per-tick", "chunk-generation.population-queue-size",
 				"redstone.max-wire-network-size", "redstone.max-scheduled-updates", "redstone.max-updates-per-tick",
@@ -776,7 +788,6 @@ final class CoreConfig{
 			}
 			$choices = match($path){
 				"network.compression-algorithm" => ["zlib", "snappy"],
-				"auto-updater.preferred-channel" => ["stable", "beta", "development", "dev"],
 				"redstone.world-policy" => ["all", "allowlist", "blocklist"],
 				"level-settings.format-migration" => ["off", "manual", "automatic"],
 				default => []

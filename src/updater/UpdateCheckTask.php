@@ -28,6 +28,7 @@ use quark\utils\Internet;
 use function is_array;
 use function is_string;
 use function json_decode;
+use function rawurlencode;
 
 class UpdateCheckTask extends AsyncTask{
 	private const TLS_KEY_UPDATER = "updater";
@@ -44,7 +45,7 @@ class UpdateCheckTask extends AsyncTask{
 
 	public function onRun() : void{
 		$error = "";
-		$response = Internet::getURL($this->endpoint . "?channel=" . $this->channel, 4, [], $error);
+		$response = Internet::getURL($this->endpoint . "?channel=" . rawurlencode($this->channel), 4, [], $error);
 		$this->error = $error;
 
 		if($response !== null){

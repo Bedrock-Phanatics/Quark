@@ -57,13 +57,14 @@ final class ServerConfigGroup{
 
 	/** @var array<string, string|int|float|bool> */
 	private array $overrides = [];
+	/** @var array<string, mixed> */
+	private array $configOverrides = [];
 
 	public static function load(string $path) : self{
 		if(!file_exists($path)){
 			ConfigurationMigration::createServer($path);
 		}
 		$config = new Config($path, Config::TOML);
-		CoreConfig::validateServer($config->getAll());
 		return new self($config, $config, true);
 	}
 
@@ -73,28 +74,27 @@ final class ServerConfigGroup{
 		private bool $toml = false
 	){
 		$arguments = $_SERVER["argv"] ?? [];
-		if(!is_array($arguments)){
-			return;
-		}
-		foreach($arguments as $argument){
-			if(is_string($argument) && str_starts_with($argument, "--")){
-				[$key, $value] = array_pad(explode("=", substr($argument, 2), 2), 2, false);
-				$key = (string) $key;
-				if($this->toml && str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
-					$key = substr($key, 7);
+		if(is_array($arguments)){
+			foreach($arguments as $argument){
+				if(is_string($argument) && str_starts_with($argument, "--")){
+					[$key, $value] = array_pad(explode("=", substr($argument, 2), 2), 2, false);
+					$key = (string) $key;
+					if($this->toml && str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
+						$key = substr($key, 7);
+					}
+					$this->overrides[$key] = $value;
 				}
-				$this->overrides[$key] = $value;
 			}
 		}
-		if($this->toml && $this->overrides !== []){
-			$this->validateOverrides();
+		if($this->toml){
+			$this->applyOverrides();
+			CoreConfig::validateServer($this->serverProperties->getAll(), $this->configOverrides);
 		}
 	}
 
-	private function validateOverrides() : void{
+	private function applyOverrides() : void{
 		$defaults = CoreConfig::defaults();
 		$serverDefaults = $defaults["server"] ?? [];
-		$effective = $this->serverProperties->getAll();
 		$changes = [];
 		foreach(Utils::stringifyKeys($this->overrides) as $name => $raw){
 			$path = is_array($serverDefaults) && isset($serverDefaults[$name]) ? ["server", $name] : explode(".", $name, 4);
@@ -124,9 +124,7 @@ final class ServerConfigGroup{
 			}
 			$changes = array_replace_recursive($changes, [$path[0] => $patch]);
 		}
-		if($changes !== []){
-			CoreConfig::validateServer(array_replace_recursive($effective, $changes));
-		}
+		$this->configOverrides = $changes;
 	}
 
 	/** @return array<string, mixed> */
@@ -223,7 +221,7 @@ final class ServerConfigGroup{
 	public function save() : void{
 		if($this->serverProperties->hasChanged()){
 			if($this->toml){
-				CoreConfig::validateServer($this->serverProperties->getAll());
+				CoreConfig::validateServer($this->serverProperties->getAll(), $this->configOverrides);
 			}
 			$this->serverProperties->save();
 		}
