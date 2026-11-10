@@ -218,7 +218,7 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 - Compression algorithm is configurable rather than fixed to zlib.
 - Plugins should use Quark's `Compressor` abstraction.
-- Snappy requires `ext-snappy`; invalid or unavailable compression modes fall back to zlib.
+- Snappy requires `ext-snappy` and falls back to zlib when the extension is unavailable.
 
 ### Async Tasks
 
@@ -226,9 +226,9 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 ## Configuration Migration
 
-Use `--migration-dry-run` to preview migration, then `--migrate-legacy` to convert supported legacy configurations with a recoverable snapshot.
+Quark upgrades older `config/server.toml` files automatically. The upgrade moves legacy language and memory-limit settings, translates disabled chunk ticking to a zero tick radius, and adds missing defaults. It preserves unrelated settings. Quark rejects unsupported config versions.
 
-Review the generated [server.toml](../resources/server.toml) and [plugins.toml](../resources/plugins.toml).
+Use `--migration-dry-run` to preview a legacy filesystem migration, then start with `--migrate-legacy` or set `[migration] auto_on_startup = true` in `config/migration.ini` before conversion. Quark snapshots the original YAML and properties files in `backups/`. Review the generated files. [Server template](../resources/server.toml) · [Plugin template](../resources/plugins.toml)
 
 ### New Configuration Options
 
@@ -236,6 +236,7 @@ Review the generated [server.toml](../resources/server.toml) and [plugins.toml](
 - `network.async-compression`
 - `network.async-compression-threshold`
 - `network.combat-low-latency-feedback`
+- `memory.garbage-collection.php-automatic`
 - `memory.garbage-collection.threshold`
 - `memory.garbage-collection.period`
 - `redstone.*`

@@ -403,15 +403,6 @@ JIT_WARNING
 		$opts = getopt("", [BootstrapOptions::NO_WIZARD, BootstrapOptions::ENABLE_ANSI, BootstrapOptions::DISABLE_ANSI, BootstrapOptions::NO_LOG_FILE]);
 		$logFile = isset($opts[BootstrapOptions::NO_LOG_FILE]) ? null : Path::join($paths->logs(), "server.log");
 
-		try{
-			$configuration = is_file($paths->serverToml()) ? CoreConfig::load($paths->serverToml()) : require __DIR__ . "/../generated/CoreConfigSchema.php";
-			CoreConfig::validateServer($configuration);
-		}catch(\Throwable $e){
-			critical_error($e->getMessage());
-			Filesystem::releaseLockFile($lockFilePath);
-			exit(1);
-		}
-		$logging = $configuration["logging"] ?? [];
 		if(isset($opts[BootstrapOptions::DISABLE_ANSI])){
 			Terminal::init(false);
 		}elseif(isset($opts[BootstrapOptions::ENABLE_ANSI])){
@@ -420,7 +411,13 @@ JIT_WARNING
 			Terminal::init();
 		}
 		try{
-			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), Path::join($paths->logs(), "archive"), $logging["max-file-size"] ?? 32 * 1024 * 1024, $logging["max-archives"] ?? 0, $logging);
+			if(!file_exists($paths->serverToml()) && !isset($opts[BootstrapOptions::NO_WIZARD]) && !(new SetupWizard($paths))->run()){
+				Filesystem::releaseLockFile($lockFilePath);
+				exit(-1);
+			}
+			$configGroup = ServerConfigGroup::load($paths->serverToml());
+			$logging = $configGroup->getLoggingSettings();
+			$logger = new MainLogger($logFile, Terminal::hasFormattingCodes(), "Server", new \DateTimeZone(Timezone::get()), Path::join($paths->logs(), "archive"), $configGroup->getPropertyInt("logging.max-file-size", 32 * 1024 * 1024), $configGroup->getPropertyInt("logging.max-archives", 0), $logging);
 		}catch(\Throwable $e){
 			critical_error($e->getMessage());
 			Filesystem::releaseLockFile($lockFilePath);
@@ -435,34 +432,21 @@ JIT_WARNING
 		emit_performance_warnings($logger);
 
 		$exitCode = 0;
-		do{
-			if(!file_exists($paths->serverToml()) && !isset($opts[BootstrapOptions::NO_WIZARD])){
-				$installer = new SetupWizard($paths);
-				if(!$installer->run()){
-					$exitCode = -1;
-					break;
-				}
-			}
+		$autoloader = new ThreadSafeClassLoader();
+		$autoloader->register(false);
 
-			/*
-			 * We now use the Composer autoloader, but this autoloader is still for loading plugins.
-			 */
-			$autoloader = new ThreadSafeClassLoader();
-			$autoloader->register(false);
+		new Server($autoloader, $logger, $dataPath, $pluginPath, $configGroup);
 
-			new Server($autoloader, $logger, $dataPath, $pluginPath);
+		$logger->info("Stopping other threads");
 
-			$logger->info("Stopping other threads");
+		$killer = new ServerKiller(8);
+		$killer->start();
+		usleep(10000); //Fixes ServerKiller not being able to start on single-core machines
 
-			$killer = new ServerKiller(8);
-			$killer->start();
-			usleep(10000); //Fixes ServerKiller not being able to start on single-core machines
-
-			if(ThreadManager::getInstance()->stopAll() > 0){
-				$logger->debug("Some threads could not be stopped, performing a force-kill");
-				Process::kill(Process::pid());
-			}
-		}while(false);
+		if(ThreadManager::getInstance()->stopAll() > 0){
+			$logger->debug("Some threads could not be stopped, performing a force-kill");
+			Process::kill(Process::pid());
+		}
 
 		try{
 			$logger->shutdownLogWriterThread();

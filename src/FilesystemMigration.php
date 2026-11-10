@@ -8,6 +8,7 @@ use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_push;
+use function array_replace;
 use function assert;
 use function basename;
 use function chmod;
@@ -36,7 +37,6 @@ use function is_link;
 use function is_string;
 use function json_decode;
 use function json_encode;
-use function ksort;
 use function mkdir;
 use function rename;
 use function rmdir;
@@ -96,12 +96,10 @@ final class FilesystemMigration{
 		ConfigurationMigration::convertYamlFile(Path::join($this->paths->resourcePacks(), "resource_packs.yml"), $this->resourcePacksToml(), $this->paths->backups(), function(array $settings) : string{
 			//the old default left resource_stack empty with only comments under it, which YAML reads as null
 			$settings["resource_stack"] ??= [];
-			ksort($settings);
+			CoreConfig::validateResourcePacks($settings);
 			$template = Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "resource_packs.toml"));
 			$defaults = CoreConfig::parse($template);
-			ksort($defaults);
-			//untouched settings keep the commented default rather than a bare conversion
-			return $settings === $defaults ? $template : CoreConfig::encode($settings);
+			return CoreConfig::update($template, array_replace($defaults, $settings));
 		});
 	}
 
@@ -216,7 +214,9 @@ final class FilesystemMigration{
 		}
 		try{
 			$state = $this->diagnose()["state"];
+			$configMigration = new ConfigurationMigration($this->paths);
 			if($state === "modern"){
+				$configMigration->upgradeServer();
 				$this->convertYamlConfigs();
 				return $state;
 			}
@@ -226,7 +226,6 @@ final class FilesystemMigration{
 			if($state === "unversioned"){
 				throw new \RuntimeException("Modern paths exist without a layout marker. Inspect this partial installation before retrying.");
 			}
-			$configMigration = new ConfigurationMigration($this->paths);
 			if($state !== "empty"){
 				$configMigration->begin();
 				$this->migrate();
@@ -235,6 +234,7 @@ final class FilesystemMigration{
 			}
 			$this->createDirectories();
 			$configMigration->finish();
+			$configMigration->upgradeServer();
 			(new AccessMigration($this->paths))->run();
 			$this->convertYamlConfigs();
 			$this->writeJson($this->paths->layoutFile(), ["version" => self::VERSION]);

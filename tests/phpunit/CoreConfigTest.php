@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace quark;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use quark\plugin\PluginGraylist;
 use quark\utils\Config;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
@@ -136,6 +138,75 @@ final class CoreConfigTest extends TestCase{
 		}finally{
 			@unlink($path);
 		}
+	}
+
+	public function testCliOverridesValidateAndKeepSavedSecurityDefaults() : void{
+		$path = sys_get_temp_dir() . "/quark-config-" . bin2hex(random_bytes(6)) . ".toml";
+		$template = Filesystem::fileGetContents(RESOURCE_PATH . "/server.toml");
+		file_put_contents($path, $template);
+		$argv = $_SERVER["argv"] ?? [];
+		try{
+			$_SERVER["argv"] = ["quark", "--plugins=/custom", "--xbox-auth=true", "--server.xbox-auth=false", "--network.enable-encryption=false"];
+			$group = ServerConfigGroup::load($path);
+			self::assertFalse($group->getConfigBool(ServerProperties::XBOX_AUTH, true));
+			self::assertFalse($group->getPropertyBool(YmlServerProperties::NETWORK_ENABLE_ENCRYPTION, true));
+			$group->save();
+			self::assertSame($template, Filesystem::fileGetContents($path));
+
+			$_SERVER["argv"] = ["quark", "--xbox-auth=typo"];
+			$this->expectExceptionMessage("--xbox-auth");
+			ServerConfigGroup::load($path);
+		}finally{
+			$_SERVER["argv"] = $argv;
+			CoreConfig::forget($path);
+			@unlink($path);
+		}
+	}
+
+	/** @return iterable<string, array{array<string, mixed>}> */
+	public static function invalidServerSettings() : iterable{
+		yield "config-version" => [["config-version" => CoreConfig::SERVER_VERSION + 1]];
+		yield "server.xbox-auth" => [["server" => ["xbox-auth" => "false"]]];
+		yield "server.gamemode" => [["server" => ["gamemode" => "SPECTATE"]]];
+		yield "network.enable-encryption" => [["network" => ["enable-encryption" => null]]];
+		yield "network.trusted-proxy-keys" => [["network" => ["trusted-proxy-keys" => [42]]]];
+		yield "network.batch-threshold" => [["network" => ["batch-threshold" => -2]]];
+		yield "network.max-mtu-size" => [["network" => ["max-mtu-size" => 399]]];
+		yield "transport.nethernet.port-range" => [["transport" => ["nethernet" => ["port-range" => [30000, 1]]]]];
+		yield "memory.main-limit" => [["memory" => ["main-limit" => 2048]]];
+		yield "ticks-per.autosave" => [["ticks-per" => ["autosave" => 0]]];
+		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
+		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
+	}
+
+	/** @param array<string, mixed> $data */
+	#[DataProvider("invalidServerSettings")]
+	public function testInvalidServerSettings(array $data) : void{
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage((string) $this->dataName());
+		CoreConfig::validateServer($data);
+	}
+
+	public function testNetherNetMuxCannotReserveTheQueryPort() : void{
+		$nethernet = ["port-range" => [19132, 19132], "ice-udp-mux" => true];
+		CoreConfig::validateServer(["transport" => ["name" => "raknet", "nethernet" => $nethernet]]);
+		$this->expectExceptionMessage("already used by Query");
+		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]]);
+	}
+
+	public function testServerValidationAllowsUnknownAndOmittedSettings() : void{
+		CoreConfig::validateServer(["server" => ["custom" => ["value" => 1]], "custom" => ["null" => null]]);
+		$this->addToAssertionCount(1);
+	}
+
+	public function testPluginGraylistRejectsAPluginTable() : void{
+		$this->expectExceptionMessage("expected a list of plugin names");
+		PluginGraylist::fromArray(["mode" => "whitelist", "plugins" => ["first" => "Example"]]);
+	}
+
+	public function testResourcePackPolicyRejectsAStringBoolean() : void{
+		$this->expectExceptionMessage("force_resources");
+		CoreConfig::validateResourcePacks(CoreConfig::parse("force_resources = 'false'"));
 	}
 
 	public function testEncodeRejectsWhatTomlCannotHold() : void{

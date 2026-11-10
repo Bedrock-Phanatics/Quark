@@ -163,7 +163,6 @@ use function extension_loaded;
 use function fclose;
 use function fflush;
 use function file_exists;
-use function file_put_contents;
 use function fopen;
 use function function_exists;
 use function get_class;
@@ -193,7 +192,6 @@ use function sleep;
 use function spl_object_id;
 use function sprintf;
 use function str_repeat;
-use function str_replace;
 use function strcasecmp;
 use function strlen;
 use function strncasecmp;
@@ -223,7 +221,7 @@ class Server{
 	public const DEFAULT_PORT_IPV6 = 19133;
 	public const DEFAULT_MAX_VIEW_DISTANCE = 16;
 	public const MAX_VIEW_DISTANCE = 96; //the client's own render distance limit
-	private const MAX_ACTIVE_TRANSPORTS = 8;
+	public const MAX_ACTIVE_TRANSPORTS = 8;
 
 	/**
 	 * Worlds, network, commands and most other things are polled this many times per second on average.
@@ -334,6 +332,8 @@ class Server{
 	private QueryInfo $queryInfo;
 
 	private ServerConfigGroup $configGroup;
+	private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD;
+	private bool $phpAutomaticGc = true;
 	private bool $lowLatencyCombatFeedbackEnabled;
 
 	/** @var Player[] */
@@ -653,7 +653,7 @@ class Server{
 		$directory = $this->getFilesystemPaths()->profiles();
 		if(isset($this->tickSleeper, $this->autoloader, $this->logger)){ //@phpstan-ignore isset.initializedProperty, isset.initializedProperty, isset.initializedProperty (tests build partial servers)
 			// Disk writes must not occupy the networking and generation workers.
-			$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper, $this->gcThreshold, $this->phpAutomaticGc);
 			/** @var Deferred<string> $deferred */
 			$deferred = new Deferred();
 			$this->pulseReportPool->submitTask(new PulseReportWriteTask($captures, $metadata, $directory, $deferred, $maxProfiles));
@@ -1091,7 +1091,8 @@ class Server{
 		private ThreadSafeClassLoader $autoloader,
 		private AttachableThreadSafeLogger $logger,
 		string $dataPath,
-		string $pluginPath
+		string $pluginPath,
+		?ServerConfigGroup $configGroup = null
 	){
 		if(self::$instance !== null){
 			throw new \LogicException("Only one server instance can exist at once");
@@ -1123,24 +1124,12 @@ class Server{
 			$this->paths = new FilesystemPaths($this->dataPath, $this->pluginPath);
 
 			$this->logger->info("Loading server configuration");
-			$serverTomlPath = $this->paths->serverToml();
-			if(!file_exists($serverTomlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "server.toml"));
-				if(VersionInfo::IS_DEVELOPMENT_BUILD){
-					$content = str_replace("preferred-channel = 'stable'", "preferred-channel = 'beta'", $content);
-				}
-				if(@file_put_contents($serverTomlPath, $content) === false){
-					throw new \RuntimeException("Cannot create $serverTomlPath");
-				}
-			}
-			$config = new Config($serverTomlPath, Config::TOML);
-			CoreConfig::validateServer($config->getAll());
-			$this->configGroup = new ServerConfigGroup($config, $config, true);
+			$this->configGroup = $configGroup ?? ServerConfigGroup::load($this->paths->serverToml());
 
 			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
 			$this->forceLanguage = $this->configGroup->getPropertyBool(Yml::SETTINGS_FORCE_LANGUAGE, false);
-			$selectedLang = $this->configGroup->getConfigString(ServerProperties::LANGUAGE, $this->configGroup->getPropertyString("settings.language", Language::FALLBACK_LANGUAGE));
+			$selectedLang = $this->configGroup->getConfigString(ServerProperties::LANGUAGE, Language::FALLBACK_LANGUAGE);
 			try{
 				$this->language = new Language($selectedLang);
 			}catch(LanguageNotFoundException $e){
@@ -1174,6 +1163,8 @@ class Server{
 				$this->logger->warning(str_repeat("-", 40));
 			}
 
+			$this->gcThreshold = $this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD);
+			$this->phpAutomaticGc = $this->configGroup->getPropertyBool(Yml::MEMORY_GARBAGE_COLLECTION_PHP_AUTOMATIC, true);
 			$this->memoryManager = new MemoryManager($this);
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
@@ -1195,17 +1186,15 @@ class Server{
 				$this->autoloader,
 				$this->logger,
 				$this->tickSleeper,
-				$this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD)
+				$this->gcThreshold,
+				$this->phpAutomaticGc
 			);
 			$this->pulse = new PulseRecorder($this->asyncPool, $this->logger instanceof MainLogger ? $this->logger->getLogWriterThread() : null, $this->autoloader);
 			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
 				$this->pulse->start();
 			}
 
-			$netCompressionThreshold = -1;
-			if($this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256) >= 0){
-				$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
-			}
+			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
 			if($netCompressionThreshold < 0){
 				$netCompressionThreshold = null;
 			}
@@ -1228,7 +1217,7 @@ class Server{
 				$this->networkCompressor = ZlibCompressor::getInstance();
 			}
 
-			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, true);
+			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, false);
 			$this->networkCompressionAsyncThreshold = max(
 				$this->configGroup->getPropertyInt(Yml::NETWORK_ASYNC_COMPRESSION_THRESHOLD, self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD),
 				$netCompressionThreshold ?? self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD
@@ -1310,7 +1299,7 @@ class Server{
 				is_array($redstoneWorlds) ? $redstoneWorlds : []
 			);
 			TntConfig::configure(
-				$this->configGroup->getPropertyBool(Yml::TNT_LIMITS_ENABLED, true),
+				$this->configGroup->getPropertyBool(Yml::TNT_LIMITS_ENABLED, false),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_PER_CHUNK, 64),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_NEARBY, 192),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK, 24),
@@ -1375,7 +1364,7 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataPool = new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->playerDataPool = new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper, $this->gcThreshold, $this->phpAutomaticGc);
 			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->playerDataPool);
 
 			register_shutdown_function($this->crashDump(...));

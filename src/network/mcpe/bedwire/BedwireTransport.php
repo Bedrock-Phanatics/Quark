@@ -26,6 +26,7 @@ namespace quark\network\mcpe\bedwire;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
+use quark\CoreConfig;
 use quark\network\mcpe\compression\NativeCompressor;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
@@ -37,10 +38,8 @@ use quark\ServerProperties;
 use quark\utils\Utils;
 use quark\YmlServerProperties as Yml;
 use Symfony\Component\Filesystem\Path;
-use function count;
 use function get_debug_type;
 use function is_array;
-use function is_int;
 use function is_string;
 use function min;
 
@@ -109,13 +108,9 @@ final class BedwireTransport implements Transport{
 		}
 		$portRange = $config->getProperty(Yml::TRANSPORT_NETHERNET_PORT_RANGE);
 		if($portRange !== null){
-			if(!is_array($portRange) || count($portRange) !== 2 || !is_int($portRange[0] ?? null) || !is_int($portRange[1] ?? null) || $portRange[0] < 1 || $portRange[0] > $portRange[1] || $portRange[1] > 65535){
-				throw new \InvalidArgumentException("port-range must be [min, max] with 1 <= min <= max <= 65535");
-			}
-			$options["port_range_begin"] = $portRange[0];
-			$options["port_range_end"] = $portRange[1];
+			[$options["port_range_begin"], $options["port_range_end"]] = CoreConfig::validateNetherNetPortRange($portRange);
 			//the query interface binds the server port, so the mux would have nowhere to listen
-			if($options["udp_mux"] && $portRange[0] === $this->server->getPort() && $portRange[1] === $portRange[0] && $config->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
+			if($options["udp_mux"] && $options["port_range_begin"] === $this->server->getPort() && $options["port_range_end"] === $options["port_range_begin"] && $config->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
 				throw new \InvalidArgumentException(Yml::TRANSPORT_NETHERNET_PORT_RANGE . " cannot be only the server port while " . ServerProperties::ENABLE_QUERY . " and " . Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX . " are enabled, the query interface already uses it");
 			}
 		}

@@ -640,14 +640,9 @@ class World implements ChunkManager{
 		$this->weatherCycle = $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
-		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 4)));
-		if($cfg->getPropertyInt("chunk-ticking.per-tick", 40) <= 0){
-			//TODO: this needs l10n
-			$this->logger->warning("\"chunk-ticking.per-tick\" setting is deprecated, but you've used it to disable chunk ticking. Set \"chunk-ticking.tick-radius\" to 0 in \"config/server.toml\" instead.");
-			$this->chunkTickRadius = 0;
-		}
+		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 3)));
 		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
-		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 2);
+		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 32);
 		$activationRange = max(0, min(self::MAX_ACTIVATION_RANGE, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0)));
 		$this->activationChunkRadius = intdiv($activationRange + Chunk::EDGE_LENGTH - 1, Chunk::EDGE_LENGTH);
 		$this->inactiveTickInterval = max(1, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_INACTIVE_TICK_INTERVAL, 20));

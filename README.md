@@ -72,16 +72,11 @@ On first launch, review `config/server.toml` and `config/plugins.toml` before ex
 
 ## Configuration
 
-Core settings are in `config/server.toml`; plugin loading rules are in `config/plugins.toml`. Notable server sections include:
+Edit `config/server.toml` for server settings and `config/plugins.toml` for plugin loading rules. Resource pack settings live in `resource-packs/resource_packs.toml`. Restart Quark after editing these files. [Server template](resources/server.toml) · [Plugin template](resources/plugins.toml) · [Resource pack template](resources/resource_packs.toml)
 
-- `network` — compression, batching, latency, encryption, and MTU behavior
-- `memory` — limits, garbage collection, and memory dumps
-- `redstone` — world policy and component-processing limits
-- `tnt-limits` — active entity and ignition limits
-- `crash-dumps` — crash details in the console and local `.txt` reports
-- `auto-updater` and `timings` — external services
+Quark upgrades older `server.toml` files at startup. It adds missing defaults during the upgrade and preserves custom values and comments where the TOML can be edited in place. Startup reports invalid known values or unsupported config versions. Run `--migration-dry-run` to preview upgrades. The legacy filesystem migration has a separate opt-in. [Migration guide](docs/MIGRATING-FROM-POCKETMINE-5.md#configuration-migration)
 
-The templates are [server.toml](resources/server.toml) and [plugins.toml](resources/plugins.toml).
+`memory.garbage-collection.php-automatic` defaults to `true` and controls PHP's automatic cycle collector on the main thread and Quark's async workers. Reference counting remains active with either value. Quark's adaptive collection (`threshold`) and periodic main-thread collection (`period`) each use `0` to disable their own trigger. Explicit collection, including `/gc` and low-memory cleanup, remains available. Disabling automatic cycle collection can increase memory use. Test the change under a realistic workload.
 
 ## Plugin development
 

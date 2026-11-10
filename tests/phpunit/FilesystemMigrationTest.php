@@ -683,6 +683,65 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("modern", $this->migration->prepare());
 	}
 
+	public function testStartupUpgradesTomlWithoutReplacingCustomizedValues() : void{
+		$this->migration->prepare();
+		$path = $this->paths->serverToml();
+		file_put_contents($path, <<<'TOML'
+			# Keep this header
+			[server]
+			motd = 'Custom' # Keep this comment
+			memory-limit = '768M'
+			[settings]
+			language = 'fra'
+			[chunk-ticking]
+			per-tick = 0
+			[auto-updater]
+			suggest-channels = false
+			[custom]
+			list = [1, 'two']
+			TOML);
+		file_put_contents($this->paths->pluginsToml(), "mode = 'whitelist'\nplugins = []\n");
+		$original = Filesystem::fileGetContents($path);
+		self::assertStringContainsString("UPGRADE", $this->migration->prepare(false, true));
+		self::assertSame($original, Filesystem::fileGetContents($path));
+
+		self::assertSame("modern", $this->migration->prepare());
+		$updated = Filesystem::fileGetContents($path);
+		$config = CoreConfig::load($path);
+		self::assertSame(CoreConfig::SERVER_VERSION, $config["config-version"]);
+		self::assertSame("Custom", self::table($config, "server")["motd"]);
+		self::assertSame("fra", self::table($config, "server")["language"]);
+		self::assertSame(768, self::table($config, "memory")["main-hard-limit"]);
+		self::assertSame(0, self::table($config, "chunk-ticking")["tick-radius"]);
+		self::assertSame([1, "two"], self::table($config, "custom")["list"]);
+		self::assertArrayNotHasKey("suggest-channels", self::table($config, "auto-updater"));
+		self::assertStringContainsString("motd = 'Custom' # Keep this comment", $updated);
+		self::assertSame("mode = 'whitelist'\nplugins = []\n", Filesystem::fileGetContents($this->paths->pluginsToml()));
+		self::assertSame("modern", $this->migration->prepare());
+		self::assertSame($updated, Filesystem::fileGetContents($path));
+	}
+
+	public function testInvalidOlderTomlRemainsUntouched() : void{
+		$this->migration->prepare();
+		$path = $this->paths->serverToml();
+		$original = "[server]\nxbox-auth = 'off'\n";
+		file_put_contents($path, $original);
+		$this->expectExceptionMessage("server.xbox-auth");
+		try{
+			$this->migration->prepare();
+		}finally{
+			self::assertSame($original, Filesystem::fileGetContents($path));
+		}
+	}
+
+	public function testLegacyPropertiesKeepStringValues() : void{
+		file_put_contents($this->root . "/server.properties", "motd=yes\nlevel-seed=001\n");
+		$this->migration->prepare(true);
+		$properties = self::table(CoreConfig::load($this->paths->serverToml()), "server");
+		self::assertSame("yes", $properties["motd"]);
+		self::assertSame("001", $properties["level-seed"]);
+	}
+
 	public function testConflictingLegacySettingIsRejected() : void{
 		file_put_contents($this->root . "/pocketmine.yml", "settings:\n  shutdown-message: One\n");
 		file_put_contents($this->root . "/quark.yml", "settings:\n  shutdown-message: Two\n");

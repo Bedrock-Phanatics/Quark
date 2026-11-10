@@ -27,6 +27,7 @@ use PHPUnit\Framework\TestCase;
 use pmmp\thread\ThreadSafeArray;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\snooze\SleeperHandler;
+use quark\GarbageCollectorManager;
 use quark\network\mcpe\compression\CompressBatchTask;
 use quark\network\mcpe\compression\ZlibCompressor;
 use quark\thread\ThreadSafeClassLoader;
@@ -35,6 +36,9 @@ use Vow\Deferred;
 use function chr;
 use function define;
 use function dirname;
+use function gc_disable;
+use function gc_enable;
+use function gc_enabled;
 use function microtime;
 use function str_repeat;
 use function substr;
@@ -57,6 +61,47 @@ class AsyncPoolTest extends TestCase{
 
 	public function tearDown() : void{
 		$this->pool->shutdown();
+	}
+
+	public function testAutomaticGarbageCollectionIsConfiguredInEachThread() : void{
+		$previous = gc_enabled();
+		try{
+			foreach([false, true] as $enabled){
+				new GarbageCollectorManager($this->mainLogger, 0, !$enabled);
+				self::assertSame(!$enabled, gc_enabled());
+
+				$pool = new AsyncPool(1, 256, new ThreadSafeClassLoader(), $this->mainLogger, new SleeperHandler(), 0, $enabled);
+				try{
+					$task = new class extends GarbageCollectionTask{
+						public function onRun() : void{
+							$before = gc_enabled();
+							$cycle = new \stdClass();
+							$cycle->self = $cycle;
+							$reference = \WeakReference::create($cycle);
+							unset($cycle);
+
+							parent::onRun();
+							$this->setResult([$before, gc_enabled(), $reference->get() === null]);
+						}
+					};
+					$pool->submitTask($task);
+					$deadline = microtime(true) + 5;
+					while($pool->collectTasks() && microtime(true) < $deadline){
+						usleep(10 * 1000);
+					}
+					self::assertSame([$enabled, $enabled, true], $task->getResult());
+					self::assertSame(!$enabled, gc_enabled());
+				}finally{
+					$pool->shutdown();
+				}
+			}
+		}finally{
+			if($previous){
+				gc_enable();
+			}else{
+				gc_disable();
+			}
+		}
 	}
 
 	public function testTaskLeak() : void{

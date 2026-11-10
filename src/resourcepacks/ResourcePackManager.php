@@ -23,22 +23,16 @@ declare(strict_types=1);
 
 namespace quark\resourcepacks;
 
-use quark\utils\Config;
+use quark\CoreConfig;
 use quark\utils\Filesystem;
-use quark\utils\Utils;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Filesystem\Path;
 use function array_keys;
 use function copy;
 use function count;
 use function file_exists;
-use function gettype;
-use function is_array;
 use function is_dir;
-use function is_float;
-use function is_int;
 use function is_link;
-use function is_string;
 use function mkdir;
 use function rtrim;
 use function strlen;
@@ -99,23 +93,13 @@ class ResourcePackManager{
 			throw new \InvalidArgumentException("Resource pack configuration must not be a symbolic link: $resourcePacksToml");
 		}
 
-		$resourcePacksConfig = new Config($resourcePacksToml, Config::TOML, []);
-
-		$this->serverForceResources = (bool) $resourcePacksConfig->get("force_resources", false);
+		$resourcePacksConfig = CoreConfig::load($resourcePacksToml);
+		CoreConfig::validateResourcePacks($resourcePacksConfig);
+		$this->serverForceResources = $resourcePacksConfig["force_resources"] ?? false;
 
 		$logger->info("Loading resource packs...");
 
-		$resourceStack = $resourcePacksConfig->get("resource_stack", []);
-		if(!is_array($resourceStack)){
-			throw new \InvalidArgumentException("\"resource_stack\" key should contain a list of pack names");
-		}
-
-		foreach(Utils::promoteKeys($resourceStack) as $pos => $pack){
-			if(!is_string($pack) && !is_int($pack) && !is_float($pack)){
-				$logger->critical("Found invalid entry in resource pack list at offset $pos of type " . gettype($pack));
-				continue;
-			}
-			$pack = (string) $pack;
+		foreach($resourcePacksConfig["resource_stack"] ?? [] as $pack){
 			try{
 				if($pack === "" || $pack === "." || $pack === ".." || strpbrk($pack, "/\\\0") !== false){
 					throw new ResourcePackException("Pack entry must be a filename inside the resource-packs directory");

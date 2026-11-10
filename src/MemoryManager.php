@@ -33,16 +33,13 @@ use quark\YmlServerProperties as Yml;
 use function gc_collect_cycles;
 use function gc_mem_caches;
 use function ini_set;
-use function intdiv;
-use function mb_strtoupper;
 use function min;
-use function preg_match;
 use function round;
 use function sprintf;
 
 class MemoryManager{
 	private const DEFAULT_CHECK_RATE = Server::TARGET_TICKS_PER_SECOND;
-	private const DEFAULT_CONTINUOUS_TRIGGER_RATE = Server::TARGET_TICKS_PER_SECOND * 2;
+	private const DEFAULT_CONTINUOUS_TRIGGER_RATE = 30;
 	private const DEFAULT_TICKS_PER_GC = 30 * 60 * Server::TARGET_TICKS_PER_SECOND;
 
 	private GarbageCollectorManager $cycleGcManager;
@@ -71,32 +68,20 @@ class MemoryManager{
 		private Server $server
 	){
 		$this->logger = new log\SourceLogger($server->getLogger(), "Memory Manager");
-		$gcThreshold = $server->getConfigGroup()->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD);
-		$this->cycleGcManager = new GarbageCollectorManager($this->logger, $gcThreshold);
+		$config = $server->getConfigGroup();
+		$this->cycleGcManager = new GarbageCollectorManager(
+			$this->logger,
+			$config->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD),
+			$config->getPropertyBool(Yml::MEMORY_GARBAGE_COLLECTION_PHP_AUTOMATIC, true)
+		);
 
-		$this->init($server->getConfigGroup());
+		$this->init($config);
 	}
 
 	private function init(ServerConfigGroup $config) : void{
 		$this->memoryLimit = $config->getPropertyInt(Yml::MEMORY_MAIN_LIMIT, 0) * 1024 * 1024;
 
-		$defaultMemory = 1024;
-
-		if(preg_match("/([0-9]+)([KMGkmg])/", $config->getConfigString("memory-limit", ""), $matches) > 0){
-			$m = (int) $matches[1];
-			if($m <= 0){
-				$defaultMemory = 0;
-			}else{
-				$defaultMemory = match(mb_strtoupper($matches[2])){
-					"K" => intdiv($m, 1024),
-					"M" => $m,
-					"G" => $m * 1024,
-					default => $m,
-				};
-			}
-		}
-
-		$hardLimit = $config->getPropertyInt(Yml::MEMORY_MAIN_HARD_LIMIT, $defaultMemory);
+		$hardLimit = $config->getPropertyInt(Yml::MEMORY_MAIN_HARD_LIMIT, 1024);
 
 		if($hardLimit <= 0){
 			ini_set("memory_limit", '-1');

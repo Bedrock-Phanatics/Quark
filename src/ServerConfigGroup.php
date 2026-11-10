@@ -24,17 +24,29 @@ declare(strict_types=1);
 namespace quark;
 
 use quark\utils\Config;
+use quark\utils\Utils;
 use function array_key_exists;
 use function array_pad;
+use function array_replace_recursive;
+use function count;
 use function explode;
+use function file_exists;
+use function filter_var;
 use function is_array;
 use function is_bool;
+use function is_float;
 use function is_int;
+use function is_numeric;
 use function is_scalar;
 use function is_string;
+use function str_contains;
 use function str_starts_with;
 use function strtolower;
 use function substr;
+use function trim;
+use const FILTER_NULL_ON_FAILURE;
+use const FILTER_VALIDATE_BOOLEAN;
+use const FILTER_VALIDATE_INT;
 
 final class ServerConfigGroup{
 	/**
@@ -43,8 +55,17 @@ final class ServerConfigGroup{
 	 */
 	private array $propertyCache = [];
 
-	/** @var array<string, string|bool> */
+	/** @var array<string, string|int|float|bool> */
 	private array $overrides = [];
+
+	public static function load(string $path) : self{
+		if(!file_exists($path)){
+			ConfigurationMigration::createServer($path);
+		}
+		$config = new Config($path, Config::TOML);
+		CoreConfig::validateServer($config->getAll());
+		return new self($config, $config, true);
+	}
 
 	public function __construct(
 		private Config $quarkYml,
@@ -58,9 +79,66 @@ final class ServerConfigGroup{
 		foreach($arguments as $argument){
 			if(is_string($argument) && str_starts_with($argument, "--")){
 				[$key, $value] = array_pad(explode("=", substr($argument, 2), 2), 2, false);
-				$this->overrides[(string) $key] = $value;
+				$key = (string) $key;
+				if($this->toml && str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
+					$key = substr($key, 7);
+				}
+				$this->overrides[$key] = $value;
 			}
 		}
+		if($this->toml && $this->overrides !== []){
+			$this->validateOverrides();
+		}
+	}
+
+	private function validateOverrides() : void{
+		$defaults = CoreConfig::defaults();
+		$serverDefaults = $defaults["server"] ?? [];
+		$effective = $this->serverProperties->getAll();
+		$changes = [];
+		foreach(Utils::stringifyKeys($this->overrides) as $name => $raw){
+			$path = is_array($serverDefaults) && isset($serverDefaults[$name]) ? ["server", $name] : explode(".", $name, 4);
+			$expected = $defaults;
+			foreach($path as $segment){
+				$expected = is_array($expected) ? ($expected[$segment] ?? null) : null;
+			}
+			if($expected === null || $name === "config-version" || $name === BootstrapOptions::PLUGINS){
+				continue;
+			}
+			if(!is_string($raw) || is_array($expected)){
+				throw new \InvalidArgumentException("Invalid --$name: pass a scalar value with --$name=value or edit config/server.toml");
+			}
+			$value = match(true){
+				is_bool($expected) => trim($raw) !== "" ? filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null,
+				is_int($expected), $name === "settings.async-workers" && $raw !== "auto" => filter_var($raw, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE),
+				is_float($expected) => is_numeric($raw) ? (float) $raw : null,
+				default => $raw,
+			};
+			if($value === null){
+				throw new \InvalidArgumentException("Invalid value for --$name");
+			}
+			$this->overrides[$name] = $value;
+			$patch = $value;
+			for($index = count($path) - 1; $index > 0; --$index){
+				$patch = [$path[$index] => $patch];
+			}
+			$changes = array_replace_recursive($changes, [$path[0] => $patch]);
+		}
+		if($changes !== []){
+			CoreConfig::validateServer(array_replace_recursive($effective, $changes));
+		}
+	}
+
+	/** @return array<string, mixed> */
+	public function getLoggingSettings() : array{
+		/** @var array<string, mixed> $logging */
+		$logging = $this->getProperty("logging", []);
+		foreach(Utils::stringifyKeys($this->overrides) as $name => $value){
+			if(str_starts_with($name, "logging.")){
+				$logging[substr($name, 8)] = $value;
+			}
+		}
+		return $logging;
 	}
 
 	public function getProperty(string $variable, mixed $defaultValue = null) : mixed{
@@ -143,10 +221,10 @@ final class ServerConfigGroup{
 	}
 
 	public function save() : void{
-		if($this->toml){
-			CoreConfig::validateServer($this->serverProperties->getAll());
-		}
 		if($this->serverProperties->hasChanged()){
+			if($this->toml){
+				CoreConfig::validateServer($this->serverProperties->getAll());
+			}
 			$this->serverProperties->save();
 		}
 		if($this->quarkYml !== $this->serverProperties && $this->quarkYml->hasChanged()){

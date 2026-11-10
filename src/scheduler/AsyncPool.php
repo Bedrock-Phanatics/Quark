@@ -67,7 +67,8 @@ class AsyncPool{
 		private ThreadSafeClassLoader $classLoader,
 		private ThreadSafeLogger $logger,
 		private SleeperHandler $eventLoop,
-		private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD
+		private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD,
+		private bool $phpAutomaticGc = false,
 	){}
 
 	/**
@@ -129,9 +130,10 @@ class AsyncPool{
 			$sleeperEntry = $this->eventLoop->addNotifier(function() use ($workerId) : void{
 				$this->collectTasksFromWorker($workerId);
 			});
-			$this->workers[$workerId] = new AsyncPoolWorkerEntry(new AsyncWorker($this->logger, $workerId, $this->workerMemoryLimit, $sleeperEntry, $this->gcThreshold), $sleeperEntry->getNotifierId());
-			$this->workers[$workerId]->worker->setClassLoaders([$this->classLoader]);
-			$this->workers[$workerId]->worker->start(self::WORKER_START_OPTIONS);
+			$worker = new AsyncWorker($this->logger, $workerId, $this->workerMemoryLimit, $sleeperEntry, $this->gcThreshold, $this->phpAutomaticGc);
+			$this->workers[$workerId] = new AsyncPoolWorkerEntry($worker, $sleeperEntry->getNotifierId());
+			$worker->setClassLoaders([$this->classLoader]);
+			$worker->start(self::WORKER_START_OPTIONS);
 
 			foreach($this->workerStartHooks as $hook){
 				$hook($workerId);

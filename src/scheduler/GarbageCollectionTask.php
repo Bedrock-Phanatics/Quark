@@ -24,23 +24,12 @@ declare(strict_types=1);
 namespace quark\scheduler;
 
 use function gc_collect_cycles;
-use function gc_disable;
-use function gc_enable;
-use function gc_enabled;
 use function gc_mem_caches;
 
 class GarbageCollectionTask extends AsyncTask{
 
 	public function onRun() : void{
-		$wasEnabled = gc_enabled();
-		gc_enable();
-		try{
-			gc_collect_cycles();
-			gc_mem_caches();
-		}finally{
-			if(!$wasEnabled){
-				gc_disable();
-			}
-		}
+		gc_collect_cycles();
+		gc_mem_caches();
 	}
 }

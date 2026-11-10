@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace quark;
 
+use quark\entity\object\ExperienceOrb;
+use quark\entity\object\ItemEntity;
+use quark\network\mcpe\bedwire\BedwireTransport;
+use quark\player\GameMode;
 use quark\plugin\PluginGraylist;
 use quark\utils\Utils;
+use quark\world\World;
 use function array_is_list;
 use function array_key_exists;
 use function array_keys;
@@ -13,8 +18,10 @@ use function array_map;
 use function array_push;
 use function array_slice;
 use function count;
+use function explode;
 use function get_debug_type;
 use function implode;
+use function in_array;
 use function is_array;
 use function is_bool;
 use function is_float;
@@ -38,21 +45,32 @@ use function strlen;
 use function strpos;
 use function strrev;
 use function strspn;
+use function strtolower;
 use function substr;
+use function substr_count;
 use function substr_replace;
 use function toml_encode;
 use function toml_parse;
 use function toml_parse_file;
+use function trim;
 use function usort;
 use function var_export;
 use const JSON_THROW_ON_ERROR;
+use const PHP_INT_MAX;
 use const SORT_STRING;
 
 final class CoreConfig{
+	public const SERVER_VERSION = 1;
+
 	/** @var array<string, array<string, mixed>> */
 	private static array $loaded = [];
 	/** @var array<string, mixed>|null */
 	private static ?array $defaults = null;
+
+	/** @return array<string, mixed> */
+	public static function defaults() : array{
+		return self::$defaults ??= require __DIR__ . "/../generated/CoreConfigSchema.php";
+	}
 
 	/** @return array<string, mixed> */
 	public static function load(string $path) : array{
@@ -535,6 +553,14 @@ final class CoreConfig{
 	}
 
 	/**
+	 * @param array<string, mixed> $left
+	 * @param array<string, mixed> $right
+	 */
+	public static function equivalent(array $left, array $right) : bool{
+		return self::canonical($left) === self::canonical($right);
+	}
+
+	/**
 	 * Integer keys are written as strings, which PHP turns back into integer keys when the file is read.
 	 */
 	private static function encodeKey(int|string $key) : string{
@@ -614,104 +640,192 @@ final class CoreConfig{
 
 	/** @param array<string, mixed> $data */
 	public static function validateServer(array $data) : void{
-		$properties = $data["server"] ?? [];
-		if(!is_array($properties) || $properties !== [] && array_is_list($properties)){
-			throw new \InvalidArgumentException("server must be a table in config/server.toml");
-		}
-		foreach(Utils::promoteKeys($properties) as $key => $value){
-			if(!is_string($key) || !(is_string($value) || is_int($value) || is_bool($value))){
-				throw new \InvalidArgumentException("Invalid server.$key: expected string, integer, or boolean");
+		if(array_key_exists("config-version", $data)){
+			$version = $data["config-version"];
+			if(!is_int($version) || $version < 0 || $version > self::SERVER_VERSION){
+				throw new \InvalidArgumentException("Unsupported config-version in config/server.toml: expected an integer from 0 to " . self::SERVER_VERSION);
 			}
 		}
-		$defaults = self::$defaults ??= require __DIR__ . "/../generated/CoreConfigSchema.php";
-		foreach($defaults["server"] as $key => $expected){
-			if(array_key_exists($key, $properties) && get_debug_type($properties[$key]) !== get_debug_type($expected)){
-				throw new \InvalidArgumentException("Invalid server.$key: expected " . get_debug_type($expected));
-			}
-		}
-		foreach(["server-ip", "server-ipv6"] as $key){
-			if(isset($properties[$key]) && !is_string($properties[$key])){
-				throw new \InvalidArgumentException("Invalid server.$key: expected string");
-			}
-		}
-		foreach(["server-port", "server-portv6"] as $key){
-			if(isset($properties[$key]) && (!is_int($properties[$key]) || $properties[$key] < 1 || $properties[$key] > 65535)){
-				throw new \InvalidArgumentException("Invalid server.$key: expected port 1..65535");
-			}
-		}
-		foreach(["max-players", "view-distance"] as $key){
-			if(isset($properties[$key]) && (!is_int($properties[$key]) || $properties[$key] < 1)){
-				throw new \InvalidArgumentException("Invalid server.$key: expected positive integer");
-			}
-		}
-		if(isset($properties["difficulty"]) && (!is_int($properties["difficulty"]) || $properties["difficulty"] < 0 || $properties["difficulty"] > 3)){
-			throw new \InvalidArgumentException("Invalid server.difficulty: expected 0..3");
-		}
-		foreach(["enable-ipv6", "white-list", "force-gamemode", "hardcore", "pvp", "enable-query", "auto-save", "xbox-auth"] as $key){
-			if(isset($properties[$key]) && !is_bool($properties[$key])){
-				throw new \InvalidArgumentException("Invalid server.$key: expected boolean");
-			}
-		}
-		$migration = $data["migration"] ?? [];
-		if(!is_array($migration) || !is_bool($migration["auto_on_startup"] ?? false)){
-			throw new \InvalidArgumentException("Invalid migration.auto_on_startup: expected boolean");
-		}
-		$logging = array_key_exists("logging", $data) ? $data["logging"] : [];
-		if(!is_array($logging)){ throw new \InvalidArgumentException("Invalid logging: expected table"); }
-		new log\LoggingConfig($logging);
-		$diagnostics = $data["diagnostics"] ?? [];
-		if(!is_array($diagnostics)){
-			throw new \InvalidArgumentException("Invalid diagnostics: expected table");
-		}
-		foreach(["logging.max-archives" => $logging["max-archives"] ?? null, "diagnostics.max-crash-reports" => $diagnostics["max-crash-reports"] ?? null, "diagnostics.max-profiles" => $diagnostics["max-profiles"] ?? null] as $key => $limit){
-			if($limit !== null && (!is_int($limit) || $limit < 0 || $limit > 100000)){
-				throw new \InvalidArgumentException("Invalid $key: expected integer from 0 to 100000");
-			}
-		}
+		$defaults = self::defaults();
 		foreach(Utils::stringifyKeys($data) as $key => $value){
-			if($key !== "server" && $key !== "migration" && array_key_exists($key, $defaults)){
+			if($key !== "config-version" && array_key_exists($key, $defaults)){
 				self::validateShape($value, $defaults[$key], $key);
 			}
 		}
+		$portRange = ["transport", "nethernet", "port-range"];
+		if(self::exists($data, $portRange)){
+			[$min, $max] = self::validateNetherNetPortRange(self::lookup($data, $portRange));
+			$transports = self::lookup($data, ["transport", "name"]);
+			if(
+				$min === $max &&
+				$min === (self::lookup($data, ["server", "server-port"]) ?? Server::DEFAULT_PORT_IPV4) &&
+				(self::lookup($data, ["server", "enable-query"]) ?? true) === true &&
+				self::lookup($data, ["transport", "nethernet", "ice-udp-mux"]) === true &&
+				(!is_string($transports) || in_array(BedwireTransport::NAME, array_map(trim(...), explode(",", strtolower($transports), Server::MAX_ACTIVE_TRANSPORTS + 1)), true))
+			){
+				throw new \InvalidArgumentException("Invalid transport.nethernet.port-range: the server port is already used by Query");
+			}
+		}
+
+		$logging = $data["logging"] ?? [];
+		if(is_array($logging)){
+			new log\LoggingConfig($logging);
+		}
+
 		$memory = $data["memory"] ?? [];
-		if(is_array($memory) && is_int($memory["main-limit"] ?? null) && is_int($memory["main-hard-limit"] ?? null) && $memory["main-hard-limit"] > 0 && $memory["main-limit"] > $memory["main-hard-limit"]){
-			throw new \InvalidArgumentException("Invalid memory.main-limit: exceeds memory.main-hard-limit");
+		$memoryDefaults = $defaults["memory"] ?? [];
+		if(is_array($memory) && is_array($memoryDefaults)){
+			$hardLimit = $memory["main-hard-limit"] ?? $memoryDefaults["main-hard-limit"] ?? 0;
+			$softLimit = $memory["main-limit"] ?? 0;
+			if(is_int($hardLimit) && is_int($softLimit) && $hardLimit > 0 && $softLimit > $hardLimit){
+				throw new \InvalidArgumentException("Invalid memory.main-limit: exceeds memory.main-hard-limit");
+			}
+		}
+
+		foreach(["aliases", "worlds"] as $section){
+			if(!array_key_exists($section, $data)){
+				continue;
+			}
+			$entries = $data[$section];
+			if(!is_array($entries) || $entries !== [] && array_is_list($entries)){
+				throw new \InvalidArgumentException("Invalid $section: expected table");
+			}
+			foreach(Utils::promoteKeys($entries) as $key => $value){
+				if($section === "aliases"){
+					if(!is_string($value)){
+						self::validateStringList($value, "$section.$key");
+					}
+					continue;
+				}
+				$path = "worlds.$key";
+				if(!is_array($value) || $value !== [] && array_is_list($value)){
+					throw new \InvalidArgumentException("Invalid $path: expected table");
+				}
+				foreach(["generator", "preset", "difficulty"] as $field){
+					if(array_key_exists($field, $value) && !is_string($value[$field])){
+						throw new \InvalidArgumentException("Invalid $path.$field: expected string");
+					}
+				}
+				if(array_key_exists("seed", $value) && !is_int($value["seed"]) && !is_string($value["seed"])){
+					throw new \InvalidArgumentException("Invalid $path.seed: expected string or integer");
+				}
+				if(isset($value["difficulty"]) && is_string($value["difficulty"]) && World::getDifficultyFromString($value["difficulty"]) < 0){
+					throw new \InvalidArgumentException("Invalid $path.difficulty: expected peaceful, easy, normal, or hard");
+				}
+			}
 		}
 	}
 
+	/** @return array{int, int} */
+	public static function validateNetherNetPortRange(mixed $range) : array{
+		if(!is_array($range) || !array_is_list($range) || count($range) !== 2 || !is_int($range[0]) || !is_int($range[1]) || $range[0] < 1 || $range[0] > $range[1] || $range[1] > 65535){
+			throw new \InvalidArgumentException("Invalid transport.nethernet.port-range: expected [min, max] with 1 <= min <= max <= 65535");
+		}
+		return [$range[0], $range[1]];
+	}
+
 	private static function validateShape(mixed $value, mixed $expected, string $path) : void{
-		if($expected === null || $value === null){
-			return;
-		}
-		if($path === "settings.async-workers" && (is_int($value) && $value > 0 || $value === "auto")){
-			return;
-		}
-		if(is_array($expected)){
-			if(!is_array($value)){
-				throw new \InvalidArgumentException("Invalid $path: expected array");
+		if($path === "settings.async-workers"){
+			if(!(is_int($value) && $value > 0 || $value === "auto")){
+				throw new \InvalidArgumentException("Invalid $path: expected a positive integer or 'auto'");
 			}
-			if(array_is_list($expected) && !array_is_list($value)){
-				throw new \InvalidArgumentException("Invalid $path: expected list");
+		}elseif(is_array($expected)){
+			if($expected === []){
+				self::validateStringList($value, $path, $path === "chunk-ticking.disable-block-ticking");
+				return;
+			}
+			if(!is_array($value) || $value !== [] && array_is_list($value)){
+				throw new \InvalidArgumentException("Invalid $path: expected table");
 			}
 			foreach(Utils::promoteKeys($expected) as $key => $child){
 				if(array_key_exists($key, $value)){
 					self::validateShape($value[$key], $child, "$path.$key");
 				}
 			}
+		}elseif(is_float($expected)){
+			$max = $path === "entities.item-merge-radius" ? ItemEntity::MAX_MERGE_RADIUS : ExperienceOrb::MAX_MERGE_RADIUS;
+			if((!is_float($value) && !is_int($value)) || is_nan((float) $value) || $value < 0 || $value > $max){
+				throw new \InvalidArgumentException("Invalid $path: expected a number from 0 to $max");
+			}
 		}elseif(is_int($expected)){
-			if(!is_int($value) || $value < 0 && $path !== "network.batch-threshold"){
-				throw new \InvalidArgumentException("Invalid $path: expected nonnegative integer");
+			if(!is_int($value)){
+				throw new \InvalidArgumentException("Invalid $path: expected integer");
+			}
+			[$min, $max] = match($path){
+				"server.server-port", "server.server-portv6" => [1, 65535],
+				"server.difficulty" => [0, 3],
+				"network.batch-threshold" => [-1, PHP_INT_MAX],
+				"network.compression-level" => [1, 9],
+				"network.max-mtu-size" => [\raklib\generic\Session::MIN_MTU_SIZE, 65535],
+				"diagnostics.max-crash-reports", "diagnostics.max-profiles" => [0, 100000],
+				"entities.activation-range" => [0, World::MAX_ACTIVATION_RANGE],
+				"memory.global-limit", "memory.main-limit", "memory.main-hard-limit", "memory.async-worker-hard-limit" => [0, PHP_INT_MAX >> 20],
+				"server.max-players", "server.view-distance", "ticks-per.autosave",
+				"memory.check-rate", "memory.continuous-trigger-rate", "entities.inactive-tick-interval",
+				"chunk-sending.per-tick", "chunk-generation.population-queue-size",
+				"redstone.max-wire-network-size", "redstone.max-scheduled-updates", "redstone.max-updates-per-tick",
+				"redstone.max-piston-actions-per-tick", "redstone.max-dispenser-actions-per-tick" => [1, PHP_INT_MAX],
+				default => [0, PHP_INT_MAX]
+			};
+			if($value < $min || $value > $max){
+				throw new \InvalidArgumentException("Invalid $path: expected integer from $min to $max");
+			}
+		}elseif(is_string($expected)){
+			if(!is_string($value)){
+				throw new \InvalidArgumentException("Invalid $path: expected string");
+			}
+			$choices = match($path){
+				"network.compression-algorithm" => ["zlib", "snappy"],
+				"auto-updater.preferred-channel" => ["stable", "beta", "development", "dev"],
+				"redstone.world-policy" => ["all", "allowlist", "blocklist"],
+				"level-settings.format-migration" => ["off", "manual", "automatic"],
+				default => []
+			};
+			$normalized = match($path){
+				"level-settings.format-migration" => $value,
+				"redstone.world-policy" => strtolower(trim($value)),
+				default => strtolower($value)
+			};
+			if($choices !== [] && !in_array($normalized, $choices, true)){
+				throw new \InvalidArgumentException("Invalid $path: expected " . implode(", ", $choices));
+			}
+			if($path === "server.gamemode" && GameMode::fromString($value) === null){
+				throw new \InvalidArgumentException("Invalid $path: expected survival, creative, adventure, or spectator");
+			}
+			if($path === "transport.name" && (trim($value) === "" || substr_count($value, ",") >= Server::MAX_ACTIVE_TRANSPORTS)){
+				throw new \InvalidArgumentException("Invalid $path: expected 1 to " . Server::MAX_ACTIVE_TRANSPORTS . " comma-separated transports");
 			}
 		}elseif(get_debug_type($value) !== get_debug_type($expected)){
 			throw new \InvalidArgumentException("Invalid $path: expected " . get_debug_type($expected));
 		}
 	}
 
+	private static function validateStringList(mixed $value, string $path, bool $allowLegacyIds = false) : void{
+		if(!is_array($value) || !array_is_list($value)){
+			throw new \InvalidArgumentException("Invalid $path: expected list");
+		}
+		foreach($value as $index => $entry){
+			if((!is_string($entry) || trim($entry) === "") && !($allowLegacyIds && is_int($entry))){
+				throw new \InvalidArgumentException("Invalid $path entry $index: expected a nonempty string");
+			}
+		}
+	}
+
 	/** @param array<string, mixed> $data */
 	public static function validatePlugins(array $data) : void{
-		if(isset($data["plugins"]) && (!is_array($data["plugins"]) || !array_is_list($data["plugins"]))){
-			throw new \InvalidArgumentException("Invalid plugins: expected list in config/plugins.toml");
-		}
 		PluginGraylist::fromArray($data);
+	}
+
+	/**
+	 * @param array<string, mixed> $data
+	 * @phpstan-assert array{force_resources?: bool, resource_stack?: list<string>} $data
+	 */
+	public static function validateResourcePacks(array $data) : void{
+		if(array_key_exists("force_resources", $data) && !is_bool($data["force_resources"])){
+			throw new \InvalidArgumentException("Invalid force_resources in resource_packs.toml: expected boolean");
+		}
+		if(array_key_exists("resource_stack", $data)){
+			self::validateStringList($data["resource_stack"], "resource_stack");
+		}
 	}
 }
