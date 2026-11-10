@@ -162,19 +162,20 @@ class MemoryManager{
 				$trigger = 1;
 			}
 
-			if($trigger !== false){
-				if($this->lowMemory && $this->continuousTrigger){
-					if(++$this->continuousTriggerTicker >= $this->continuousTriggerRate){
-						$this->continuousTriggerTicker = 0;
-						$this->trigger($memory[$trigger], $this->memoryLimit, $trigger > 0, ++$this->continuousTriggerCount);
-					}
-				}else{
+			if($trigger === false){
+				$this->lowMemory = false;
+			}else{
+				$global = $trigger === 1;
+				$limit = $global ? $this->globalMemoryLimit : $this->memoryLimit;
+				if(!$this->lowMemory){
 					$this->lowMemory = true;
 					$this->continuousTriggerCount = 0;
-					$this->trigger($memory[$trigger], $this->memoryLimit, $trigger > 0);
+					$this->continuousTriggerTicker = 0;
+					$this->trigger($memory[$trigger], $limit, $global);
+				}elseif($this->continuousTrigger && ++$this->continuousTriggerTicker >= $this->continuousTriggerRate){
+					$this->continuousTriggerTicker = 0;
+					$this->trigger($memory[$trigger], $limit, $global, ++$this->continuousTriggerCount);
 				}
-			}else{
-				$this->lowMemory = false;
 			}
 		}
 
