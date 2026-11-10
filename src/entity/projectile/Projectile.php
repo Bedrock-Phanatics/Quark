@@ -202,15 +202,19 @@ abstract class Projectile extends Entity{
 			}
 		}
 		if(!$traced){
-			foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
-				$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
+			try{
+				foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
+					$block = $world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
 
-				$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
-				if($blockHitResult !== null){
-					$end = $blockHitResult->hitVector;
-					$hitResult = [$block, $blockHitResult];
-					break;
+					$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
+					if($blockHitResult !== null){
+						$end = $blockHitResult->hitVector;
+						$hitResult = [$block, $blockHitResult];
+						break;
+					}
 				}
+			}catch(\ValueError){
+				//only absurd motion goes past the voxel trace limit, so it flies through instead of crashing the tick
 			}
 		}
 
