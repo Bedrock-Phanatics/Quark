@@ -92,6 +92,28 @@ final class CameraTimelineTest extends TestCase{
 		self::assertFalse($playback->signal("outro"));
 	}
 
+	public function testWaitAfterOwnerReenableUsesTheCurrentServerTick() : void{
+		$scheduler = new TaskScheduler();
+		$scheduler->mainThreadHeartbeat(100);
+		$scheduler->shutdown();
+		$scheduler->setEnabled(true, 10000);
+		$owner = $this->owner($scheduler);
+		$camera = $this->camera();
+		$state = new stdClass();
+		$state->calls = 0;
+		$timeline = (new CameraTimeline())->wait(1)->callback(static function(CameraPlayback $playback) use ($state) : void{ ++$state->calls; });
+		$playback = new CameraPlayback($camera, $timeline, $owner);
+		$playback->start();
+		$scheduler->mainThreadHeartbeat(10001);
+		self::assertTrue($playback->isRunning());
+		self::assertSame(0, $state->calls);
+		$scheduler->mainThreadHeartbeat(10019);
+		self::assertSame(0, $state->calls);
+		$scheduler->mainThreadHeartbeat(10020);
+		self::assertSame(1, $state->calls);
+		self::assertFalse($playback->isRunning());
+	}
+
 	public function testCancelPreventsScheduledCallbacksAndReleasesCapturedReferences() : void{
 		$scheduler = new TaskScheduler();
 		$owner = $this->owner($scheduler);

@@ -65,10 +65,6 @@ final class CameraPlayback{
 		return $this->running;
 	}
 
-	public function getOwner() : ?Plugin{
-		return $this->owner->get();
-	}
-
 	public function cancel(bool $reset = true) : void{
 		if(!$this->running){
 			return;
@@ -179,7 +175,15 @@ final class CameraPlayback{
 		$task = $this->task;
 		$this->task = null;
 		try{
-			$task?->getHandler()?->cancel();
+			$handler = $task?->getHandler();
+			if($handler !== null){
+				$owner = $this->owner->get();
+				if($owner !== null){
+					$owner->getScheduler()->cancelTask($handler);
+				}else{
+					$handler->cancel();
+				}
+			}
 		}finally{
 			$this->camera->get()?->finishPlayback($this, $reset);
 		}

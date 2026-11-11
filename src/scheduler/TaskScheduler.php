@@ -29,6 +29,7 @@ namespace quark\scheduler;
 
 use quark\utils\ObjectSet;
 use quark\utils\ReversePriorityQueue;
+use function count;
 
 class TaskScheduler{
 	private bool $enabled = true;
@@ -101,6 +102,32 @@ class TaskScheduler{
 		}
 	}
 
+	/** @phpstan-param TaskHandler<covariant Task> $task */
+	public function cancelTask(TaskHandler $task) : void{
+		if(!$this->tasks->contains($task)){
+			return;
+		}
+		try{
+			$task->cancel();
+		}finally{
+			$this->tasks->remove($task);
+			if($this->queue->count() >= 64 && $this->queue->count() > count($this->tasks->toArray()) * 2){
+				/** @phpstan-var ReversePriorityQueue<int, TaskHandler<covariant Task>> $queue */
+				$queue = new ReversePriorityQueue();
+				while(!$this->queue->isEmpty()){
+					/** @phpstan-var TaskHandler<covariant Task> $queued */
+					$queued = $this->queue->extract();
+					if($queued->isCancelled()){
+						$this->tasks->remove($queued);
+					}else{
+						$queue->insert($queued, $queued->getNextRun());
+					}
+				}
+				$this->queue = $queue;
+			}
+		}
+	}
+
 	/**
 	 * @phpstan-param TaskHandler<covariant Task> $task
 	 */
@@ -156,8 +183,11 @@ class TaskScheduler{
 		$this->cancelAllTasks();
 	}
 
-	public function setEnabled(bool $enabled) : void{
+	public function setEnabled(bool $enabled, ?int $currentTick = null) : void{
 		$this->enabled = $enabled;
+		if($currentTick !== null){
+			$this->currentTick = $currentTick;
+		}
 	}
 
 	public function mainThreadHeartbeat(int $currentTick) : void{

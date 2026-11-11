@@ -33,7 +33,7 @@ $server->getCameraPresets()->register(new CameraPreset(
 $camera->set("example:overview");
 ```
 
-Definitions are immutable, including snapshots of mutable vector inputs. Constructor names mirror the active protocol: optional coordinates/rotation, rotation speed, snap/continue targeting, horizontal/vertical rotation limits, block listening radius, view/entity offsets, radius, yaw limits, audio listener, player effects, aim assist, control scheme, starting rotation and inherited starting rotation. `null` omits an optional field; explicit `false` and zero retain their meanings.
+Definitions are immutable, including snapshots of mutable vector inputs. Constructor names mirror the active protocol: optional coordinates/rotation, rotation speed, snap/continue targeting, horizontal/vertical rotation limits, block listening radius, view/entity offsets, radius, yaw limits, audio listener, player effects, aim assist, control scheme, starting rotation and inherited starting rotation. `null` omits an optional field; explicit `false` and zero retain their meanings. Inherited yaw limits must remain ordered, and entity-offset components are bounded to -100..100 in both presets and set instructions.
 
 Built-ins have constants for `first_person`, `third_person`, `third_person_front`, `free`, `follow_orbit`, `fixed_boom`, and `control_scheme_camera`. Custom identifiers must use their own namespace. Parents may be registered in any order; missing parents and cycles fail before synchronization. The complete list is sorted by identifier and frozen at the first synchronization. IDs cannot shift between players. Runtime registration/replacement and plugin hot reload of definitions are intentionally rejected; restart to change definitions.
 
@@ -66,7 +66,7 @@ Fades expire naturally. Bedrock combines overlapping fades and has no reliable c
 
 ## Aim assist
 
-Use `$server->getCameraAimAssist()->registerCategory()` and `registerPreset()` with the existing protocol `CameraAimAssistCategory`, `CameraAimAssistCategoryPriorities`, `CameraAimAssistCategoryPriority`, `CameraAimAssistPreset`, `CameraAimAssistPresetExclusionDefinition`, and `CameraAimAssistPresetItemSettings` value objects. Register categories before presets. Definitions are validated, bounded, sorted and frozen with camera definitions; no duplicate registry layer or packet serializer is needed.
+Use `$server->getCameraAimAssist()->registerCategory()` and `registerPreset()` with the existing protocol `CameraAimAssistCategory`, `CameraAimAssistCategoryPriorities`, `CameraAimAssistCategoryPriority`, `CameraAimAssistPreset`, `CameraAimAssistPresetExclusionDefinition`, and `CameraAimAssistPresetItemSettings` value objects. Register categories before presets. Definitions are validated, bounded, sorted and frozen with camera definitions; no duplicate registry layer or packet serializer is needed. Entity families and block tags may use unnamespaced keys such as `mob`; entity and block identifiers require namespaces.
 
 ```php
 use pocketmine\network\mcpe\protocol\types\camera\CameraAimAssistTargetMode;
@@ -106,7 +106,7 @@ $playback->cancel();
 
 Timeline methods return new definitions, reusable across players. `loop(3)` runs three total iterations; loops are bounded to 10,000 and definitions to 4,096 steps. Completion resets by default; `resetAfter(false)` keeps the last requested state. Signals are not buffered: only the current matching wait resumes. Delays round up to server ticks. At most 64 immediate steps execute in one turn before yielding to the next tick.
 
-One-shot tasks use the owning plugin's existing scheduler. Signal waits schedule nothing. Scheduled tasks hold weak playback references. Cancellation drops callbacks and invalidates old tasks before resetting. Send from callbacks through the supplied playback handle: it rejects calls after replacement/cancellation. Avoid capturing players/controllers in reusable definitions; normal PHP closure captures retain those objects as long as the definition is retained. Do not create independent delayed callbacks that bypass the playback handle.
+One-shot tasks use the owning plugin's existing scheduler. Signal waits schedule nothing. Scheduled tasks hold weak playback references. Cancellation drops callbacks and invalidates old tasks before resetting; cancelled heap entries are compacted as they accumulate instead of remaining until long waits expire. Plugin enable/re-enable synchronizes the scheduler clock before callbacks run. Send from callbacks through the supplied playback handle: it rejects calls after replacement/cancellation, including cancellation inside packet-send hooks. Avoid capturing players/controllers in reusable definitions; normal PHP closure captures retain those objects as long as the definition is retained. Do not create independent delayed callbacks that bypass the playback handle.
 
 ## Lifecycle and ownership
 

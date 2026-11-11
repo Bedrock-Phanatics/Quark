@@ -487,7 +487,7 @@ class PluginManager{
 		if(!$plugin->isEnabled()){
 			$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_enable($plugin->getDescription()->getFullName())));
 
-			$plugin->getScheduler()->setEnabled(true);
+			$plugin->getScheduler()->setEnabled(true, $this->server->getTick());
 			try{
 				$plugin->onEnableStateChange(true);
 			}catch(DisablePluginException){
