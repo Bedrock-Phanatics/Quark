@@ -160,12 +160,12 @@ class CameraController{
 		return $player !== null && !$entity->isClosed() && $entity->isAlive() && $entity->getId() > 0 && $entity->getWorld() === $player->getWorld() && ($entity === $player || isset($entity->getViewers()[spl_object_id($player)]));
 	}
 
-	private function apply(CameraInstruction $instruction, ClientboundPacket $packet) : void{
+	private function apply(CameraInstruction $instruction, ClientboundPacket $packet, ?CameraPlayback $playback = null) : void{
 		$this->pendingEntity = $packet instanceof CameraInstructionPacket ? ($packet->getTarget()?->getActorUniqueId() ?? $packet->getAttachToEntity()) : null;
 		try{
-			$this->transmit($packet, function() use ($instruction) : bool{
+			$this->transmit($packet, function() use ($instruction, $playback) : bool{
 				$entity = $instruction->getEntity();
-				return $this->isReady() && !$this->resetPending && (!$instruction->requiresEntity || ($entity !== null && $this->canSeeEntity($entity)));
+				return $this->isReady() && !$this->resetPending && ($playback === null || $this->playback === $playback) && (!$instruction->requiresEntity || ($entity !== null && $this->canSeeEntity($entity)));
 			});
 			if($this->closed){
 				return;
@@ -261,7 +261,7 @@ class CameraController{
 		if($this->playback !== $playback){
 			throw new \LogicException("Camera timeline has been replaced or cancelled");
 		}
-		$this->apply($instruction, $this->prepare($instruction));
+		$this->apply($instruction, $this->prepare($instruction), $playback);
 	}
 
 	/** @internal */
@@ -269,7 +269,11 @@ class CameraController{
 		if($this->playback === $playback){
 			$this->playback = null;
 			if($reset){
-				$this->clear();
+				if($this->sending){
+					$this->resetPending = true;
+				}else{
+					$this->clear();
+				}
 			}
 		}
 	}

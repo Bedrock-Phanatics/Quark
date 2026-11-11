@@ -1604,10 +1604,13 @@ abstract class Entity{
 		$id = spl_object_id($player);
 		if(isset($this->hasSpawned[$id])){
 			$this->flushMovement();
+			if(!isset($this->hasSpawned[$id])){
+				return;
+			}
+			unset($this->hasSpawned[$id]);
 			if($send){
 				$player->getNetworkSession()->getEntityEventBroadcaster()->onEntityRemoved([$player->getNetworkSession()], $this);
 			}
-			unset($this->hasSpawned[$id]);
 		}
 	}
 
@@ -1617,11 +1620,12 @@ abstract class Entity{
 	 */
 	public function despawnFromAll() : void{
 		$this->flushMovement();
+		$viewers = $this->hasSpawned;
+		$this->hasSpawned = [];
 		NetworkBroadcastUtils::broadcastEntityEvent(
-			$this->hasSpawned,
+			$viewers,
 			fn(EntityEventBroadcaster $broadcaster, array $recipients) => $broadcaster->onEntityRemoved($recipients, $this)
 		);
-		$this->hasSpawned = [];
 	}
 
 	/**
