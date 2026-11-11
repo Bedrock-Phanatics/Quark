@@ -35,6 +35,7 @@ use function hrtime;
 use function json_decode;
 use function mb_strwidth;
 use function mkdir;
+use function pack;
 use function proc_close;
 use function proc_get_status;
 use function proc_open;
@@ -56,17 +57,25 @@ use function trim;
 use function usleep;
 use const JSON_THROW_ON_ERROR;
 use const PHP_BINARY;
+use const PHP_OS_FAMILY;
 
 final class ShortLogStream{
 	public mixed $context;
 	public static string $data = "";
 	public static bool $fail = false;
+	public static string $acknowledgements = "";
 	public function stream_open(string $path, string $mode, int $options, ?string &$openedPath) : bool{ return true; }
 	public function stream_write(string $data) : int{
 		if(self::$fail){ return 0; }
 		$part = substr($data, 0, 3);
 		self::$data .= $part;
+		self::$acknowledgements .= pack("N", strlen($part));
 		return strlen($part);
+	}
+	public function stream_read(int $count) : string{
+		$data = substr(self::$acknowledgements, 0, $count);
+		self::$acknowledgements = substr(self::$acknowledgements, $count);
+		return $data;
 	}
 	public function stream_eof() : bool{ return false; }
 }
@@ -164,6 +173,27 @@ final class LoggingPipelineTest extends TestCase{
 			self::assertSame("Log flush timed out", $e->getMessage());
 			self::assertLessThan(1000000000, hrtime(true) - $start);
 		}
+	}
+
+	public function testCommandResponsesUseReservedQueueCapacity() : void{
+		$file = $this->root . "/reserved-commands.log";
+		$logger = new MainLogger($file, false, "Test", new \DateTimeZone("UTC"), configuration: ["buffer-bytes" => 262144, "console-level" => "emergency"]);
+		$queue = $logger->getDispatcher()->getQueue();
+		try{
+			$queue->synchronized(function() use ($logger, $queue) : void{
+				for($i = 0; $i < 32; ++$i){ $logger->info(str_repeat("x", 10000)); }
+				for($i = 0; $i < 32; ++$i){ $logger->info(str_repeat("x", 256)); }
+				$before = $queue->stats();
+				self::assertGreaterThan(0, $before["dropped"]);
+				$logger->event("info", "reserved command", category: "command");
+				$logger->output("reserved command response " . str_repeat("y", 512));
+				self::assertSame($before["accepted"] + 2, $queue->stats()["accepted"]);
+				self::assertSame(0, $queue->stats()["fallback"]);
+			});
+		}finally{ $logger->shutdownLogWriterThread(); }
+		$content = Filesystem::fileGetContents($file);
+		self::assertStringContainsString("reserved command", $content);
+		self::assertStringContainsString("reserved command response", $content);
 	}
 
 	public function testIndependentThresholdsJsonAndExceptionChains() : void{
@@ -320,7 +350,7 @@ PHP;
 				self::assertSame(0, $stats["dropped"]);
 				if($fileEnabled){
 					self::assertStringContainsString("Console dropped", Filesystem::fileGetContents($file));
-					self::assertFileDoesNotExist($file . ".emergency");
+					self::assertStringContainsString("Console abandoned", Filesystem::fileGetContents($file . ".emergency"));
 				}
 			}finally{
 				if(proc_get_status($process)["running"]){ proc_terminate($process); }
@@ -403,6 +433,7 @@ PHP;
 		stream_wrapper_register("blockedlog", ShortLogStream::class);
 		ShortLogStream::$fail = true;
 		ShortLogStream::$data = "";
+		ShortLogStream::$acknowledgements = "";
 		$sink = (new \ReflectionClass(ConsoleSink::class))->newInstanceWithoutConstructor();
 		(new \ReflectionProperty(ConsoleSink::class, "formatter"))->setValue($sink, new TextFormatter("UTC", true));
 		(new \ReflectionProperty(ConsoleSink::class, "socket"))->setValue($sink, fopen("blockedlog://output", "wb"));
@@ -520,6 +551,9 @@ PHP;
 			foreach(["routine event survives", "command response survives", "error event survives"] as $message){
 				self::assertStringContainsString($message, $content);
 			}
+			$fallback = $fileEnabled ? Filesystem::fileGetContents($file . ".emergency") : $errors;
+			self::assertStringContainsString("command response survives", $fallback);
+			self::assertStringContainsString("error event survives", $fallback);
 			self::assertStringContainsString("console sink failed", $fileEnabled ? Filesystem::fileGetContents($file . ".emergency") : $errors);
 		}
 	}
@@ -527,11 +561,12 @@ PHP;
 	public function testConsoleTransportDeliversOrderedOutputAndClosesHelper() : void{
 		$code = <<<'PHP'
 require $argv[1] . "/vendor/autoload.php";
+stream_set_blocking(STDOUT, false);
 $sink = new \quark\log\ConsoleSink(new \quark\log\TextFormatter("UTC", true));
 $socket = new ReflectionProperty($sink, "socket");
 $process = new ReflectionProperty($sink, "process");
 if(stream_get_meta_data($socket->getValue($sink))["blocked"]){ exit(2); }
-for($i = 0; $i < 300; ++$i){
+for($i = 0; $i < 1000; ++$i){
  $event = \quark\log\Event::create("info", "event $i " . str_repeat("x", 1024), "Transport");
  $event["time"] = 1704067200.0;
  $sink->write($event);
@@ -541,12 +576,13 @@ $sink->close();
 if($process->getValue($sink) !== null || $socket->getValue($sink) !== null){ exit(3); }
 $sink->close();
 PHP;
-		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
+		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)], [0 => ["pipe", "r"], 1 => PHP_OS_FAMILY === "Windows" ? ["socket"] : ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
 		self::assertIsResource($process);
 		fclose($pipes[0]);
 		stream_set_blocking($pipes[1], false);
 		$output = "";
 		try{
+			usleep(250000);
 			$deadline = hrtime(true) + 10000000000;
 			$status = proc_get_status($process);
 			while($status["running"] && hrtime(true) < $deadline){
@@ -559,7 +595,7 @@ PHP;
 			self::assertSame(0, $status["exitcode"], stream_get_contents($pipes[2]));
 			$expected = "";
 			$formatter = new TextFormatter("UTC", true);
-			for($i = 0; $i < 300; ++$i){
+			for($i = 0; $i < 1000; ++$i){
 				$event = Event::create("info", "event $i " . str_repeat("x", 1024), "Transport");
 				$event["time"] = 1704067200.0;
 				$expected .= $formatter->format($event);
@@ -569,6 +605,154 @@ PHP;
 			if(proc_get_status($process)["running"]){ proc_terminate($process); }
 			fclose($pipes[1]); fclose($pipes[2]); proc_close($process);
 		}
+	}
+
+	public function testConsoleRecoveryRetainsCommandsAndUnacknowledgedOutput() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$sink = new \quark\log\ConsoleSink(new \quark\log\TextFormatter("UTC", true));
+$process = new ReflectionProperty($sink, "process");
+$pending = new ReflectionProperty($sink, "pending");
+$sink->write(\quark\log\Event::create("info", "command before failure", category: "command"));
+$deadline = hrtime(true) + 1000000000;
+do{ $sink->flush(); usleep(1000); }while($pending->getValue($sink) !== "" && hrtime(true) < $deadline);
+if($pending->getValue($sink) !== ""){ exit(2); }
+$helper = $process->getValue($sink);
+if(PHP_OS_FAMILY !== "Windows"){
+ proc_terminate($helper, 19);
+ usleep(10000);
+ $sink->write(\quark\log\Event::create("info", "unacknowledged output survives", category: "output"));
+ $sink->flush();
+}
+proc_terminate($helper, 9);
+$deadline = hrtime(true) + 1000000000;
+while(proc_get_status($helper)["running"] && hrtime(true) < $deadline){ usleep(1000); }
+if(proc_get_status($helper)["running"]){ exit(3); }
+$sink->write(\quark\log\Event::create("info", "command during failure", category: "command"));
+$sink->flush();
+$sink->write(\quark\log\Event::create("info", "Pulse output after recovery", category: "output"));
+$deadline = hrtime(true) + 1000000000;
+do{ $sink->flush(); usleep(1000); }while($pending->getValue($sink) !== "" && hrtime(true) < $deadline);
+if($pending->getValue($sink) !== ""){ exit(4); }
+$helper = $process->getValue($sink);
+proc_terminate($helper, 9);
+$deadline = hrtime(true) + 1000000000;
+while(proc_get_status($helper)["running"] && hrtime(true) < $deadline){ usleep(1000); }
+if(proc_get_status($helper)["running"]){ exit(5); }
+$sink->write(\quark\log\Event::create("info", "command during stderr fallback", category: "command"));
+$sink->flush();
+$sink->write(\quark\log\Event::create("info", "Pulse output after stderr fallback", category: "output"));
+$sink->close();
+if($process->getValue($sink) !== null){ exit(6); }
+PHP;
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)]);
+		self::assertSame(0, $exit, $output . $errors);
+		foreach(["command before failure", "command during failure", "Pulse output after recovery"] as $message){
+			self::assertSame(1, substr_count($output, $message));
+		}
+		if(PHP_OS_FAMILY !== "Windows"){ self::assertSame(1, substr_count($output, "unacknowledged output survives")); }
+		self::assertSame(1, substr_count($errors, "command during stderr fallback"));
+		self::assertSame(1, substr_count($errors, "Pulse output after stderr fallback"));
+	}
+
+	public function testConsoleRecoveryStopsAfterStderrFallback() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$sink = new \quark\log\ConsoleSink(new \quark\log\TextFormatter("UTC", true), $argv[2]);
+$process = new ReflectionProperty($sink, "process");
+try{
+ for($i = 0; $i < 3; ++$i){
+  $helper = $process->getValue($sink);
+  proc_terminate($helper, 9);
+  $deadline = hrtime(true) + 1000000000;
+  while(proc_get_status($helper)["running"] && hrtime(true) < $deadline){ usleep(1000); }
+  if(proc_get_status($helper)["running"]){ exit(2); }
+  $sink->write(\quark\log\Event::create("info", "recovery $i", category: "command"));
+  $sink->flush();
+ }
+ exit(3);
+}catch(RuntimeException $e){
+ if($e->getMessage() !== "Console output process disconnected"){ throw $e; }
+}finally{ unset($sink); }
+PHP;
+		$file = $this->root . "/exhausted-console.emergency";
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file]);
+		self::assertSame(0, $exit, $output . $errors);
+		self::assertStringContainsString("recovery 2", Filesystem::fileGetContents($file));
+	}
+
+	public function testHealthyConsoleOnlyErrorsAreNotDuplicated() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$logger = new \quark\utils\MainLogger(null, false, "Test", new DateTimeZone("UTC"));
+$logger->error("healthy console error");
+$logger->shutdownLogWriterThread();
+PHP;
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)]);
+		self::assertSame(0, $exit, $output . $errors);
+		self::assertSame(1, substr_count($output . $errors, "healthy console error"));
+		self::assertSame("", $errors);
+	}
+
+	public function testStderrTransportClosesWithoutLeakingDescriptors() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$before = PHP_OS_FAMILY === "Linux" ? count(glob("/proc/self/fd/*")) : null;
+for($i = 0; $i < 10; ++$i){
+ $sink = new \quark\log\ConsoleSink(new \quark\log\TextFormatter("UTC", true), stderr: true);
+ $sink->write(\quark\log\Event::create("info", "stderr fallback $i"));
+ $sink->close();
+ unset($sink);
+}
+if($before !== null && count(glob("/proc/self/fd/*")) !== $before){ exit(2); }
+PHP;
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)]);
+		self::assertSame(0, $exit, $output . $errors);
+		self::assertSame("", $output);
+		self::assertSame(10, substr_count($errors, "stderr fallback"));
+	}
+
+	public function testBrokenStdoutFallsBackToStderrWithFileLoggingDisabled() : void{
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$logger = new \quark\utils\MainLogger(null, false, "Test", new DateTimeZone("UTC"));
+$logger->output("detect broken stdout");
+$logger->syncFlushBuffer();
+usleep(100000);
+$logger->output("command response after broken stdout");
+$logger->output("Pulse output after broken stdout");
+$logger->error("critical error after broken stdout");
+$logger->shutdownLogWriterThread();
+PHP;
+		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
+		self::assertIsResource($process);
+		fclose($pipes[0]);
+		fclose($pipes[1]);
+		try{
+			$deadline = hrtime(true) + 3000000000;
+			while(proc_get_status($process)["running"] && hrtime(true) < $deadline){ usleep(1000); }
+			self::assertFalse(proc_get_status($process)["running"], "Broken stdout prevented shutdown");
+			$errors = stream_get_contents($pipes[2]);
+			foreach(["command response after broken stdout", "Pulse output after broken stdout", "critical error after broken stdout"] as $message){
+				self::assertStringContainsString($message, $errors);
+			}
+		}finally{
+			if(proc_get_status($process)["running"]){ proc_terminate($process, 9); }
+			fclose($pipes[2]); proc_close($process);
+		}
+	}
+
+	public function testIdleQueueWaitsAfterFlushAcknowledgement() : void{
+		$queue = new EventQueue();
+		$waiter = new LoggingFlushWaiter($queue);
+		$waiter->start(Thread::INHERIT_NONE);
+		$deadline = hrtime(true) + 1000000000;
+		while($queue->flushRequest()[0] === 0 && hrtime(true) < $deadline){ usleep(1000); }
+		try{ $queue->acknowledge(1); }finally{ $waiter->join(); }
+		self::assertTrue($waiter->done, $waiter->failure);
+		$start = hrtime(true);
+		self::assertSame([], $queue->take(50000));
+		self::assertGreaterThanOrEqual(40000000, hrtime(true) - $start);
 	}
 
 	public function testJsonRotationKeepsCompleteRecords() : void{

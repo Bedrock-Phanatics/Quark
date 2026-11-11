@@ -104,7 +104,7 @@ class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 		}
 		$event = Event::create($level, $message, $source, self::$threadName, $category, $context, $exceptions);
 		if($force){ $event["force"] = true; }
-		$important = $priority <= 3 || $category === "diagnostic";
+		$important = $priority <= 3 || $category === "diagnostic" || $category === "command" || $category === "output";
 		if(self::$bufferingLogger === $this){
 			$record = serialize($event);
 			self::$buffered[] = [$record, $important];

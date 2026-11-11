@@ -69,12 +69,18 @@ final class LogDispatcher extends Thread{
 		$emergency = $this->file === null ? null : $this->file . ".emergency";
 		$failure = null;
 		$fileFailed = false;
-		$reportFailure = function(string $name, \Throwable $error) use (&$sinks, &$fileFailed, $emergency) : bool{
+		$consoleFailed = false;
+		$reportFailure = function(string $name, \Throwable $error) use (&$sinks, &$fileFailed, &$consoleFailed, $emergency) : bool{
 			if($name !== "console"){
 				$fileFailed = true;
 				$this->queue->reportSinkFailure($error->getMessage());
-			}
+			}else{ $consoleFailed = true; }
+			$failedSink = $sinks[$name] ?? null;
 			unset($sinks[$name]);
+			if($failedSink instanceof ConsoleSink){
+				try{ $failedSink->close(); }catch(\Throwable){}
+				$this->queue->setConsoleDropped($failedSink->getDroppedCount());
+			}
 			EmergencyWriter::write($emergency, Event::create("error", "$name sink failed: " . $error->getMessage(), "Logger"), "Output sink failure");
 			return $sinks === [];
 		};
@@ -90,11 +96,11 @@ final class LogDispatcher extends Thread{
 			}
 			if($this->console){
 				try{
-					$sinks["console"] = new ConsoleSink(new TextFormatter($this->timezone, true, $this->ansi, $config->consoleStyle === "compact"));
+					$sinks["console"] = new ConsoleSink(new TextFormatter($this->timezone, true, $this->ansi, $config->consoleStyle === "compact"), $emergency);
 					$thresholds["console"] = $config->consoleLevel;
 				}catch(\Throwable $error){ $reportFailure("console", $error); }
 			}
-			$dispatch = function(string $record) use (&$sinks, &$fileFailed, $thresholds, $reportFailure, $emergency) : void{
+			$dispatch = function(string $record) use (&$sinks, &$fileFailed, &$consoleFailed, $thresholds, $reportFailure, $emergency) : void{
 				/** @var LogEvent $event */
 				$event = unserialize($record, ["allowed_classes" => false]);
 				$event = Event::cleanEvent($event);
@@ -103,9 +109,12 @@ final class LogDispatcher extends Thread{
 					return;
 				}
 				$priority = Level::priority($event["level"]);
-				$important = $priority <= 3 || $event["category"] === "diagnostic";
+				$important = $priority <= 3 || $event["category"] === "diagnostic" || $event["category"] === "command" || $event["category"] === "output";
 				$handled = $fileFailed && $important;
-				if($handled){ EmergencyWriter::write($emergency, $event, "Persistent sink unavailable"); }
+				if($consoleFailed && ($priority <= 3 || $event["category"] === "output" || $event["category"] === "command")){
+					EmergencyWriter::write($emergency, $event, "Console sink unavailable");
+					$handled = true;
+				}elseif($handled){ EmergencyWriter::write($emergency, $event, "Persistent sink unavailable"); }
 				foreach(\quark\utils\Utils::promoteKeys($sinks) as $name => $sink){
 					$name = (string) $name;
 					if($event["category"] === "diagnostic" && $name === "console"){ continue; }
@@ -178,6 +187,7 @@ final class LogDispatcher extends Thread{
 			foreach(\quark\utils\Utils::promoteKeys($sinks) as $name => $sink){
 				$name = (string) $name;
 				try{ $sink->close(); }catch(\Throwable $error){ $reportFailure($name, $error); }
+				if($sink instanceof ConsoleSink){ $this->queue->setConsoleDropped($sink->getDroppedCount()); }
 			}
 			$this->queue->finish($failure);
 		}
