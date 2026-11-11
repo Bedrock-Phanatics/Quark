@@ -31,6 +31,7 @@ use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\BlockPickRequestPacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
+use pocketmine\network\mcpe\protocol\ClientCameraAimAssistPacket;
 use pocketmine\network\mcpe\protocol\CommandRequestPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\EmotePacket;
@@ -1040,6 +1041,11 @@ class InGamePacketHandler extends PacketHandler{
 		}else{
 			throw new PacketHandlingException("Expected either formData or cancelReason to be set in ModalFormResponsePacket");
 		}
+	}
+
+	public function handleClientCameraAimAssist(ClientCameraAimAssistPacket $packet) : bool{
+		$this->player->getCameraIfCreated()?->onClientAimAssist($packet->getAllowAimAssist());
+		return true;
 	}
 
 	public function handleLecternUpdate(LecternUpdatePacket $packet) : bool{

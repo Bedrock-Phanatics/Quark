@@ -42,6 +42,7 @@ use quark\block\BlockTypeTags;
 use quark\block\RespawnAnchor;
 use quark\block\UnknownBlock;
 use quark\block\VanillaBlocks;
+use quark\camera\CameraController;
 use quark\command\CommandSender;
 use quark\crafting\CraftingGrid;
 use quark\data\java\GameModeIdMap;
@@ -179,6 +180,8 @@ use const PHP_INT_MAX;
  */
 class Player extends Human implements CommandSender, ChunkListener, IPlayer, NeverSavedWithChunkEntity{
 	use PermissibleDelegateTrait;
+
+	private ?CameraController $camera = null;
 
 	private const MOVES_PER_TICK = 2;
 	private const MOVE_BACKLOG_SIZE = 100 * self::MOVES_PER_TICK; //100 ticks backlog (5 seconds)
@@ -684,6 +687,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		return $this->networkSession;
 	}
 
+	public function getCamera() : CameraController{
+		return $this->camera ??= new CameraController($this, $this->server->getCameraPresets(), $this->server->getCameraAimAssist());
+	}
+
+	/** @internal */
+	public function getCameraIfCreated() : ?CameraController{
+		return $this->camera;
+	}
+
 	/**
 	 * Gets the username
 	 */
@@ -818,6 +830,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		if(parent::setPosition($pos)){
 			$newWorld = $this->getWorld();
 			if($oldWorld !== $newWorld){
+				$this->camera?->resetForContext();
 				if($oldWorld !== null){
 					foreach($this->usedChunks as $index => $status){
 						World::getXZ($index, $X, $Z);
@@ -989,6 +1002,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return;
 		}
 		$this->spawned = true;
+		try{
+			$this->getCamera()->synchronize();
+		}catch(\Throwable $e){
+			$this->spawned = false;
+			throw $e;
+		}
 		$this->recheckBroadcastPermissions();
 		$this->getPermissionRecalculationCallbacks()->add(function(array $changedPermissionsOldValues) : void{
 			if(isset($changedPermissionsOldValues[Server::BROADCAST_CHANNEL_ADMINISTRATIVE]) || isset($changedPermissionsOldValues[Server::BROADCAST_CHANNEL_USERS])){
@@ -1372,6 +1391,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 
+		$this->camera?->resetForContext();
 		$this->internalSetGameMode($gm);
 
 		if($this->isSpectator()){
@@ -2538,6 +2558,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @param Translatable|string|null $disconnectScreenMessage Shown on the player's disconnection screen (null will use the reason)
 	 */
 	public function disconnect(Translatable|string $reason, Translatable|string|null $quitMessage = null, Translatable|string|null $disconnectScreenMessage = null) : void{
+		$this->camera?->resetForContext(disconnect: true);
 		if(!$this->isConnected()){
 			return;
 		}
@@ -2554,6 +2575,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @param Translatable|string|null $quitMessage Message to broadcast to online players (null will use default)
 	 */
 	public function onPostDisconnect(Translatable|string $reason, Translatable|string|null $quitMessage) : void{
+		$this->camera?->resetForContext(disconnect: true);
 		if($this->isConnected()){
 			throw new \LogicException("Player is still connected");
 		}
@@ -2613,6 +2635,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function destroyCycles() : void{
+		$this->camera?->resetForContext(disconnect: true);
+		$this->camera = null;
 		unset($this->itemHeldListener);
 		$this->forms = [];
 		$this->networkSession = null;
@@ -2685,6 +2709,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function onDeath() : void{
+		$this->camera?->resetForContext();
 		//Crafting grid must always be evacuated even if keep-inventory is true. This dumps the contents into the
 		//main inventory and drops the rest on the ground.
 		$this->removeCurrentWindow();
@@ -2737,6 +2762,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function actuallyRespawn() : void{
+		$this->camera?->resetForContext();
 		if($this->respawnLocked){
 			return;
 		}

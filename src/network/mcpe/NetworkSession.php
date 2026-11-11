@@ -166,6 +166,7 @@ class NetworkSession{
 	 * expand into a lot of memory. Sign edits are a few strings in two compounds, the others stay far below their caps.
 	 */
 	private const array MAX_PACKET_BYTES = [
+		ProtocolInfo::CLIENT_CAMERA_AIM_ASSIST_PACKET => 512,
 		ProtocolInfo::BLOCK_ACTOR_DATA_PACKET => 16 * 1024,
 		ProtocolInfo::PLAYER_AUTH_INPUT_PACKET => 128 * 1024,
 		ProtocolInfo::ITEM_STACK_REQUEST_PACKET => 256 * 1024,
@@ -829,8 +830,9 @@ class NetworkSession{
 
 	/**
 	 * @phpstan-param Deferred<null>|null $ackReceipt
+	 * @param \Closure(): bool|null $condition
 	 */
-	private function sendDataPacketInternal(ClientboundPacket|EncodedPacket $packet, bool $immediate, ?Deferred $ackReceipt) : bool{
+	private function sendDataPacketInternal(ClientboundPacket|EncodedPacket $packet, bool $immediate, ?Deferred $ackReceipt, ?\Closure $condition = null) : bool{
 		if(!$this->connected){
 			return false;
 		}
@@ -846,9 +848,15 @@ class NetworkSession{
 				if($ev->isCancelled()){
 					return false;
 				}
+				if(!$this->connected || ($condition !== null && !$condition())){
+					return false;
+				}
 				//a plugin may have swapped the packets, so check them again
 				$this->addToSendBuffer($ev->getPackets());
 			}else{
+				if($condition !== null && !$condition()){
+					return false;
+				}
 				$this->sendBuffer[] = $packet instanceof EncodedPacket ? $packet->getBytes() : self::encodePacket($packet);
 			}
 			if($ackReceipt !== null){
@@ -869,6 +877,15 @@ class NetworkSession{
 	 */
 	public function sendDataPacket(ClientboundPacket|EncodedPacket $packet, bool $immediate = false) : bool{
 		return $this->sendDataPacketInternal($packet, $immediate, null);
+	}
+
+	/**
+	 * Rechecks session-dependent packet state after send hooks, immediately before queueing.
+	 * @internal
+	 * @param \Closure(): bool $condition
+	 */
+	public function sendDataPacketIf(ClientboundPacket $packet, \Closure $condition) : bool{
+		return $this->sendDataPacketInternal($packet, false, null, $condition);
 	}
 
 	/**

@@ -33,6 +33,8 @@ use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\snooze\SleeperHandler;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\tile\dispenser\DispensableItemManager;
+use quark\camera\CameraAimAssistRegistry;
+use quark\camera\CameraPresetRegistry;
 use quark\command\Command;
 use quark\command\CommandSender;
 use quark\command\SimpleCommandMap;
@@ -211,6 +213,9 @@ use const PHP_INT_MAX;
 class Server{
 	use NotCloneable;
 	use NotSerializable;
+
+	private ?CameraPresetRegistry $cameraPresets = null;
+	private ?CameraAimAssistRegistry $cameraAimAssist = null;
 
 	public const BROADCAST_CHANNEL_ADMINISTRATIVE = "quark.broadcast.admin";
 	public const BROADCAST_CHANNEL_USERS = "quark.broadcast.user";
@@ -539,6 +544,14 @@ class Server{
 
 	public function getPluginManager() : PluginManager{
 		return $this->pluginManager;
+	}
+
+	public function getCameraPresets() : CameraPresetRegistry{
+		return $this->cameraPresets ??= new CameraPresetRegistry();
+	}
+
+	public function getCameraAimAssist() : CameraAimAssistRegistry{
+		return $this->cameraAimAssist ??= new CameraAimAssistRegistry();
 	}
 
 	public function getCraftingManager() : CraftingManager{

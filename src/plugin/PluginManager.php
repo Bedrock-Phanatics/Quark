@@ -564,6 +564,15 @@ class PluginManager{
 			foreach([
 				fn() => $plugin->onEnableStateChange(false),
 				fn() => $plugin->getScheduler()->shutdown(),
+				function() use ($plugin) : void{
+					foreach($this->server->getOnlinePlayers() as $player){
+						try{
+							$player->getCameraIfCreated()?->cancelForOwner($plugin);
+						}catch(\Throwable $e){
+							$this->server->getLogger()->logException($e);
+						}
+					}
+				},
 				fn() => HandlerListManager::global()->unregisterAll($plugin),
 				fn() => $commandMap->unregisterPluginSyntaxCommands($plugin),
 			] as $step){
