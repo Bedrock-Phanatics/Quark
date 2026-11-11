@@ -105,7 +105,7 @@ final class LoggingFlushWaiter extends Thread{
 final class LoggingPipelineTest extends TestCase{
 	private string $root;
 	protected function setUp() : void{
-		$this->root = sys_get_temp_dir() . "/quark-pipeline-" . bin2hex(random_bytes(8));
+		$this->root = sys_get_temp_dir() . "/quark-pipeline-~" . bin2hex(random_bytes(8));
 		mkdir($this->root);
 	}
 	protected function tearDown() : void{ Filesystem::recursiveUnlink($this->root); }
@@ -347,7 +347,7 @@ $logger->syncFlushBuffer();
 $logger->shutdownLogWriterThread();
 file_put_contents($argv[3], json_encode($logger->getDispatcher()->getQueue()->stats(), JSON_THROW_ON_ERROR));
 PHP;
-			$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-dsys_temp_dir=" . $this->root, "-r", $code, dirname(__DIR__, 2), $file, $done, $fileEnabled ? "1" : "0"], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
+			$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", '-dsys_temp_dir="' . $this->root . '"', "-r", $code, dirname(__DIR__, 2), $file, $done, $fileEnabled ? "1" : "0"], [0 => ["pipe", "r"], 1 => ["socket"], 2 => ["pipe", "w"]], $pipes);
 			self::assertIsResource($process);
 			fclose($pipes[0]);
 			try{
@@ -410,7 +410,7 @@ $logger->error("error with both console streams blocked");
 $logger->shutdownLogWriterThread();
 file_put_contents($argv[2], json_encode($logger->getDispatcher()->getQueue()->stats(), JSON_THROW_ON_ERROR));
 PHP;
-		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", "-dsys_temp_dir=" . $this->root, "-r", $code, dirname(__DIR__, 2), $done], [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
+		$process = proc_open([PHP_BINARY, "-dopcache.enable_cli=0", '-dsys_temp_dir="' . $this->root . '"', "-r", $code, dirname(__DIR__, 2), $done], [0 => ["pipe", "r"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
 		self::assertIsResource($process);
 		fclose($pipes[0]);
 		try{
