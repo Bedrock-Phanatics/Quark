@@ -83,7 +83,7 @@ final class CameraInstructionTest extends TestCase{
 		self::assertNotNull($set);
 		$vector = $set->getCameraPosition();
 		self::assertNotNull($vector);
-		self::assertSame(1.0, $vector->x);
+		self::assertSame(1.0, (float) $vector->x);
 		$vector->x = 100;
 		$next = $instruction->createPacket($registry);
 		self::assertInstanceOf(CameraInstructionPacket::class, $next);
