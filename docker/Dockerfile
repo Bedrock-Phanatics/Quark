@@ -9,6 +9,7 @@ RUN mkdir /opt/quark
 COPY --chmod=700 ./build/php/compile.sh /opt/quark
 COPY ./build/php/versions.env ./build/php/sources.sha256 /opt/quark/
 COPY ./build/php/native.py /opt/quark/
+COPY ./build/php/patches /opt/quark/patches/
 COPY ./build/php/tests /opt/quark/tests/
 WORKDIR /opt/quark
 ARG ZIG_VERSION=0.17.0
