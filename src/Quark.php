@@ -455,8 +455,6 @@ JIT_WARNING
 			$exitCode = 1;
 		}
 
-		echo Terminal::$FORMAT_RESET . PHP_EOL;
-
 		Filesystem::releaseLockFile($lockFilePath);
 
 		exit($exitCode);

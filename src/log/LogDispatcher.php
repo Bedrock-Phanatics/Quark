@@ -122,7 +122,6 @@ final class LogDispatcher extends Thread{
 					if(!$consoleOutput && $event["category"] !== "diagnostic" && $priority > $thresholds[$name] && !($priority === 7 && ($event["force"] ?? false))){ continue; }
 					try{
 						if($sink->write($event)){
-							if($important){ $sink->flush(); }
 							$handled = true;
 						}
 					}catch(\Throwable $error){
@@ -130,6 +129,12 @@ final class LogDispatcher extends Thread{
 						if($important || $noSinks){
 							EmergencyWriter::write($emergency, $event, "Sink write failed");
 							$handled = true;
+						}
+					}
+					if($important && isset($sinks[$name])){
+						try{ $sink->flush(); }catch(\Throwable $error){
+							$reportFailure($name, $error);
+							if(!$sink instanceof ConsoleSink){ EmergencyWriter::write($emergency, $event, "Sink flush failed"); }
 						}
 					}
 				}

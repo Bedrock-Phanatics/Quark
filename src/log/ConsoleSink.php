@@ -39,6 +39,7 @@ final class ConsoleSink implements Sink{
 	private int $sent = 0;
 	private string $acknowledgements = "";
 	private bool $recovered = false;
+	private bool $closed = false;
 	private int $queuedBytes = 0;
 	private int $confirmedBytes = 0;
 	/** @var array<int, LogEvent|null> */
@@ -72,6 +73,7 @@ final class ConsoleSink implements Sink{
 	}
 
 	public function write(array $event) : bool{
+		if($this->closed){ return false; }
 		$important = Level::priority($event["level"]) <= 3 || $event["category"] === "diagnostic";
 		if($important){
 			$this->pump();
@@ -97,10 +99,6 @@ final class ConsoleSink implements Sink{
 		$this->pending .= $line;
 		$this->queuedBytes += strlen($line);
 		$this->events[$this->queuedBytes] = $important || $event["category"] === "output" || $event["category"] === "command" ? $event : null;
-		if($important){
-			$this->pump();
-			return $this->sent === strlen($this->pending);
-		}
 		return true;
 	}
 
@@ -164,9 +162,11 @@ final class ConsoleSink implements Sink{
 		$this->acknowledge();
 	}
 
-	public function flush() : void{ $this->pump(); }
+	public function flush() : void{ if(!$this->closed){ $this->pump(); } }
 
 	public function close() : void{
+		if($this->closed){ return; }
+		$this->closed = true;
 		$deadline = hrtime(true) + 500000000;
 		try{
 			while($this->pending !== "" && $this->socket !== null && hrtime(true) < $deadline){
