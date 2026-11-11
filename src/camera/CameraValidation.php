@@ -27,10 +27,10 @@ final class CameraValidation{
 		self::number($value->y, -30_000_000, 30_000_000, "Vector y");
 	}
 
-	public static function vector3(Vector3 $value) : void{
-		self::number($value->x, -30_000_000, 30_000_000, "Vector x");
-		self::number($value->y, -30_000_000, 30_000_000, "Vector y");
-		self::number($value->z, -30_000_000, 30_000_000, "Vector z");
+	public static function vector3(Vector3 $value, float $limit = 30_000_000) : void{
+		self::number($value->x, -$limit, $limit, "Vector x");
+		self::number($value->y, -$limit, $limit, "Vector y");
+		self::number($value->z, -$limit, $limit, "Vector z");
 	}
 
 	public static function duration(float $seconds) : void{

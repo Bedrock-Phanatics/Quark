@@ -49,18 +49,18 @@ final class CameraAimAssistRegistry{
 		$priorities = $category->getPriorities();
 		$entryCount = 0;
 		foreach([
-			$priorities->getEntities(),
-			$priorities->getBlocks(),
-			$priorities->getBlockTags(),
-			$priorities->getEntityTypeFamilies()
-		] as $entries){
+			[$priorities->getEntities(), false],
+			[$priorities->getBlocks(), false],
+			[$priorities->getBlockTags(), true],
+			[$priorities->getEntityTypeFamilies(), true]
+		] as [$entries, $allowUnnamespaced]){
 			self::assertCount($entries);
 			$entryCount += count($entries);
 			foreach($entries as $entry){
 				if(!$entry instanceof CameraAimAssistCategoryPriority){
 					throw new \InvalidArgumentException("Aim-assist priorities must contain CameraAimAssistCategoryPriority values");
 				}
-				self::assertIdentifier($entry->getIdentifier());
+				self::assertIdentifier($entry->getIdentifier(), $allowUnnamespaced);
 				self::assertPriority($entry->getPriority());
 			}
 		}
@@ -84,19 +84,19 @@ final class CameraAimAssistRegistry{
 		$exclusions = $preset->getExclusionSettings();
 		$entryCount = 0;
 		foreach([
-			$exclusions->getBlocks(),
-			$exclusions->getEntities(),
-			$exclusions->getBlockTags(),
-			$exclusions->getEntityTypeFamilies(),
-			$preset->getLiquidTargetingList()
-		] as $identifiers){
+			[$exclusions->getBlocks(), false],
+			[$exclusions->getEntities(), false],
+			[$exclusions->getBlockTags(), true],
+			[$exclusions->getEntityTypeFamilies(), true],
+			[$preset->getLiquidTargetingList(), false]
+		] as [$identifiers, $allowUnnamespaced]){
 			self::assertCount($identifiers);
 			$entryCount += count($identifiers);
 			foreach($identifiers as $value){
 				if(!is_string($value)){
 					throw new \InvalidArgumentException("Aim-assist exclusions and liquid targets must be strings");
 				}
-				self::assertIdentifier($value);
+				self::assertIdentifier($value, $allowUnnamespaced);
 			}
 		}
 

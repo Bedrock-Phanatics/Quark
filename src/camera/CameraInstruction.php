@@ -75,10 +75,13 @@ final class CameraInstruction{
 			CameraValidation::number($pitch, -90, 90, "pitch");
 			CameraValidation::number($yaw, -180, 180, "yaw");
 		}
-		foreach([$position, $facing, $entityOffset] as $vector){
+		foreach([$position, $facing] as $vector){
 			if($vector !== null){
 				CameraValidation::vector3($vector);
 			}
+		}
+		if($entityOffset !== null){
+			CameraValidation::vector3($entityOffset, 100);
 		}
 		if($viewOffset !== null){
 			CameraValidation::vector2($viewOffset);

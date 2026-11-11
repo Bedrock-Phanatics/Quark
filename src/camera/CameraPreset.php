@@ -126,9 +126,7 @@ final class CameraPreset{
 			CameraValidation::vector2($viewOffset);
 		}
 		if($entityOffset !== null){
-			CameraValidation::number($entityOffset->x, -100, 100, "Entity offset x");
-			CameraValidation::number($entityOffset->y, -100, 100, "Entity offset y");
-			CameraValidation::number($entityOffset->z, -100, 100, "Entity offset z");
+			CameraValidation::vector3($entityOffset, 100);
 		}
 		if($startingRotation !== null){
 			CameraValidation::number($startingRotation->x, -90, 90, "Starting pitch");

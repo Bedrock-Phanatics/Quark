@@ -150,6 +150,26 @@ final class CameraPresetTest extends TestCase{
 		);
 	}
 
+	public function testContradictoryInheritedYawLimitsAreRejectedBeforeFreeze() : void{
+		$registry = new CameraPresetRegistry();
+		$registry->register(new CameraPreset("test:parent", yawLimitMin: 100));
+		$registry->register(new CameraPreset("test:child", parent: "test:parent", yawLimitMax: -100));
+		try{
+			$registry->freeze();
+			self::fail("Contradictory inherited yaw limits were accepted");
+		}catch(\InvalidArgumentException){
+			self::assertFalse($registry->isFrozen());
+		}
+	}
+
+	public function testChildCanOverrideBothInheritedYawLimits() : void{
+		$registry = new CameraPresetRegistry();
+		$registry->register(new CameraPreset("test:child", parent: "test:parent", yawLimitMin: -120, yawLimitMax: -100));
+		$registry->register(new CameraPreset("test:parent", yawLimitMin: 100, yawLimitMax: 120));
+		$registry->freeze();
+		self::assertTrue($registry->isFrozen());
+	}
+
 	/** @return \Generator<string, array{\Closure() : mixed}, void, void> */
 	public static function invalidPresets() : \Generator{
 		yield "unqualified identifier" => [static fn() => new CameraPreset("camera")];

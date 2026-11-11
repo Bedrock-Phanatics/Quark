@@ -111,6 +111,18 @@ final class CameraAimAssistRegistryTest extends TestCase{
 		);
 	}
 
+	public function testUnnamespacedFamiliesAndTagsArePreserved() : void{
+		$registry = new CameraAimAssistRegistry();
+		$registry->registerCategory(new CameraAimAssistCategory("test:families", new CameraAimAssistCategoryPriorities(
+			[], [], [new CameraAimAssistCategoryPriority("stone", 2)], [new CameraAimAssistCategoryPriority("mob", 3)], null, null
+		)));
+		$registry->registerPreset(new CameraAimAssistPreset("test:combat", new CameraAimAssistPresetExclusionDefinition([], [], ["stone"], ["monster"]), [], [], "test:families", null));
+		$packet = $registry->createPacket();
+		self::assertSame("mob", $packet->getCategories()[0]->getPriorities()->getEntityTypeFamilies()[0]->getIdentifier());
+		self::assertSame("stone", $packet->getCategories()[0]->getPriorities()->getBlockTags()[0]->getIdentifier());
+		self::assertSame(["monster"], $packet->getPresets()[0]->getExclusionSettings()->getEntityTypeFamilies());
+	}
+
 	private static function preset(string $identifier, string $category) : CameraAimAssistPreset{
 		return new CameraAimAssistPreset(
 			$identifier,

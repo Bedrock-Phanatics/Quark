@@ -12,6 +12,7 @@ namespace quark\camera;
 
 use pocketmine\network\mcpe\protocol\CameraPresetsPacket;
 use function array_keys;
+use function array_reverse;
 use function count;
 use function ksort;
 use function str_starts_with;
@@ -78,8 +79,15 @@ final class CameraPresetRegistry{
 				$path[$name] = $name;
 				$name = $this->get($name)->parent;
 			}
-			foreach($path as $ancestor){
-				$completed[$ancestor] = true;
+			[$minYaw, $maxYaw] = $name === "" ? [null, null] : $completed[$name];
+			foreach(array_reverse($path) as $ancestor){
+				$definition = $this->get($ancestor);
+				$minYaw = $definition->yawLimitMin ?? $minYaw;
+				$maxYaw = $definition->yawLimitMax ?? $maxYaw;
+				if($minYaw !== null && $maxYaw !== null && $minYaw > $maxYaw){
+					throw new \InvalidArgumentException("Inherited minimum yaw exceeds maximum yaw in $ancestor");
+				}
+				$completed[$ancestor] = [$minYaw, $maxYaw];
 			}
 		}
 		$sorted = $this->presets;

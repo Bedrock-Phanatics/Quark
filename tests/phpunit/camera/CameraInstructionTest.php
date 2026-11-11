@@ -90,6 +90,15 @@ final class CameraInstructionTest extends TestCase{
 		self::assertEquals(new Vector3(1, 2, 3), $next->getSet()?->getCameraPosition());
 	}
 
+	public function testEntityOffsetUsesTheSameBoundsAsPresetOffsets() : void{
+		if(!class_exists(Vector3::class)){
+			self::markTestSkipped("Requires ext-qmath");
+		}
+		CameraInstruction::set(CameraPreset::FOLLOW_ORBIT, entityOffset: new Vector3(-100, 0, 100));
+		$this->expectException(\InvalidArgumentException::class);
+		CameraInstruction::set(CameraPreset::FOLLOW_ORBIT, entityOffset: new Vector3(101, 0, 0));
+	}
+
 	public function testInstructionSerializationRoundTrip() : void{
 		if(!class_exists(ByteBufferWriter::class)){
 			self::markTestSkipped("Requires ext-encoding");
