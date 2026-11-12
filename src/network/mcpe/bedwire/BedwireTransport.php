@@ -106,6 +106,11 @@ final class BedwireTransport implements Transport{
 		if($bindAddress !== "0.0.0.0"){
 			$options["bind_address"] = $bindAddress;
 		}
+		$advertised = CoreConfig::validateNetherNetAdvertiseAddresses($config->getProperty(Yml::TRANSPORT_NETHERNET_ADVERTISE_ADDRESSES) ?? []);
+		if($advertised !== []){
+			//only sent when set, so an older ext-bedwire still starts without it
+			$options["advertise_addresses"] = $advertised;
+		}
 		$portRange = $config->getProperty(Yml::TRANSPORT_NETHERNET_PORT_RANGE);
 		if($portRange !== null){
 			[$options["port_range_begin"], $options["port_range_end"]] = CoreConfig::validateNetherNetPortRange($portRange);

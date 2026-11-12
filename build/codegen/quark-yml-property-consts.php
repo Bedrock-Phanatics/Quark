@@ -44,6 +44,7 @@ $defaultConfig = CoreConfig::defaults();
 unset($defaultConfig["server"]);
 $constants = [
 	"ALIASES" => "aliases",
+	"TRANSPORT_NETHERNET_ADVERTISE_ADDRESSES" => "transport.nethernet.advertise-addresses",
 	"TRANSPORT_NETHERNET_PORT_RANGE" => "transport.nethernet.port-range",
 	"WORLDS" => "worlds",
 ];

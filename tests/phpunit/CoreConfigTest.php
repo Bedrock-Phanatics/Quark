@@ -263,6 +263,32 @@ final class CoreConfigTest extends TestCase{
 		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]]);
 	}
 
+	public function testNetherNetAdvertiseAddressesAcceptPublicAndPrivateLiterals() : void{
+		$addresses = ["203.0.113.7", "192.168.1.20", "2001:db8::7"];
+		CoreConfig::validateServer(["transport" => ["nethernet" => ["advertise-addresses" => $addresses]]]);
+		self::assertSame($addresses, CoreConfig::validateNetherNetAdvertiseAddresses($addresses));
+		self::assertSame([], CoreConfig::validateNetherNetAdvertiseAddresses([]));
+	}
+
+	/** @return iterable<string, array{mixed}> */
+	public static function invalidAdvertiseAddresses() : iterable{
+		foreach(["203.0.113.7:19132", "example.com", "[2001:db8::7]", "0.0.0.0", "224.0.0.1", "255.255.255.255", "169.254.1.1", "::", "ff02::1", "fe80::1", "::ffff:203.0.113.7", ""] as $address){
+			yield "'$address'" => [[$address]];
+		}
+		yield "int" => [[7]];
+		yield "duplicate" => [["2001:db8::7", "2001:DB8:0::7"]];
+		yield "string" => ["203.0.113.7"];
+		yield "map" => [["public" => "203.0.113.7"]];
+		yield "too many" => [array_map(static fn(int $i) : string => "203.0.113.$i", range(1, 9))];
+	}
+
+	#[DataProvider("invalidAdvertiseAddresses")]
+	public function testInvalidNetherNetAdvertiseAddresses(mixed $addresses) : void{
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage("transport.nethernet.advertise-addresses");
+		CoreConfig::validateServer(["transport" => ["nethernet" => ["advertise-addresses" => $addresses]]]);
+	}
+
 	public function testServerValidationAllowsUnknownAndOmittedSettings() : void{
 		CoreConfig::validateServer(["server" => ["custom" => ["value" => 1]], "custom" => ["null" => null]]);
 		$this->addToAssertionCount(1);

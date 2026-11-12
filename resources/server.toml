@@ -49,6 +49,9 @@ lan-discovery = true
 ice-udp-mux = false
 # Uncomment to restrict the ICE UDP port range.
 # port-range = [30000, 30100]
+# Public IPs to advertise when the server is behind NAT or in a container, such as Docker or Pterodactyl.
+# They are offered on the UDP ports of port-range, so forward those ports unchanged.
+# advertise-addresses = ['203.0.113.7']
 # Optional STUN and TURN URLs, such as 'stun:stun.example.com:3478'.
 ice-servers = []
 # Deliver unreliable messages to a registered PHP handler. Otherwise the native transport drops them.

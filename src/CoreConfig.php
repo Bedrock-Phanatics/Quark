@@ -664,6 +664,10 @@ final class CoreConfig{
 		if(self::exists($data, $portRange)){
 			self::validateNetherNetPortRange(self::lookup($data, $portRange));
 		}
+		$advertised = ["transport", "nethernet", "advertise-addresses"];
+		if(self::exists($data, $advertised)){
+			self::validateNetherNetAdvertiseAddresses(self::lookup($data, $advertised));
+		}
 
 		$logging = $data["logging"] ?? [];
 		if(is_array($logging) && $logging !== []){
@@ -732,6 +736,28 @@ final class CoreConfig{
 			throw new \InvalidArgumentException("Invalid transport.nethernet.port-range: expected [min, max] with 1 <= min <= max <= 65535");
 		}
 		return [$range[0], $range[1]];
+	}
+
+	/**
+	 * These are addresses the server tells clients to reach it on, not an allowlist of clients.
+	 *
+	 * @return list<string>
+	 */
+	public static function validateNetherNetAdvertiseAddresses(mixed $addresses) : array{
+		$error = "Invalid transport.nethernet.advertise-addresses: expected up to 8 distinct IP addresses without ports or brackets";
+		if(!is_array($addresses) || !array_is_list($addresses) || count($addresses) > 8){
+			throw new \InvalidArgumentException($error);
+		}
+		$seen = [];
+		foreach($addresses as $address){
+			$packed = is_string($address) && filter_var($address, FILTER_VALIDATE_IP) !== false ? inet_pton($address) : false;
+			//the unspecified, multicast, link-local and IPv4-mapped ranges can't name a server
+			if($packed === false || isset($seen[$packed]) || preg_match('/^(0\.|22[4-9]\.|2[3-5]\d\.|169\.254\.|::$|ff|fe[89ab]|::ffff:)/i', $address) === 1){
+				throw new \InvalidArgumentException($error . ", got " . (is_string($address) ? "'$address'" : get_debug_type($address)));
+			}
+			$seen[$packed] = true;
+		}
+		return $addresses;
 	}
 
 	private static function validateShape(mixed $value, mixed $expected, string $path) : void{

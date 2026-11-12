@@ -14,6 +14,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 ## Networking and performance
 
 - Served the `nethernet` transport natively through `ext-bedwire` and nethernet-zig, replacing the PHP WebRTC transport, `ext-webrtc` and `axolotl-pm/nethernet`. Its settings live under `transport.nethernet`.
+- Added `transport.nethernet.advertise-addresses` so a server behind NAT or in a container can offer its public IPs to NetherNet clients.
 - Added `zlib` and `snappy` packet-batch compression modes.
 - Added safe fallback to zlib when Snappy is selected but `ext-snappy` is unavailable.
 - Added configurable compression thresholds, levels, asynchronous compression, and asynchronous size thresholds.

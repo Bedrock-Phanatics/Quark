@@ -144,6 +144,7 @@ final class YmlServerProperties{
 	public const TRANSPORT = 'transport';
 	public const TRANSPORT_NAME = 'transport.name';
 	public const TRANSPORT_NETHERNET = 'transport.nethernet';
+	public const TRANSPORT_NETHERNET_ADVERTISE_ADDRESSES = 'transport.nethernet.advertise-addresses';
 	public const TRANSPORT_NETHERNET_ICE_SERVERS = 'transport.nethernet.ice-servers';
 	public const TRANSPORT_NETHERNET_ICE_UDP_MUX = 'transport.nethernet.ice-udp-mux';
 	public const TRANSPORT_NETHERNET_KEY_FILE = 'transport.nethernet.key-file';
