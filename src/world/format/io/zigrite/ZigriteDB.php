@@ -49,6 +49,7 @@ final class ZigriteDB extends BedrockWorldProvider{
 	/** Where ZigriteDB keeps level.dat and the other Bedrock world files, as `zigrite import` lays them out. */
 	private const BEDROCK_DIR = "bedrock";
 	private const OVERWORLD = 0;
+	private const MIN_EXTENSION_VERSION = "0.3.2";
 	/** ZigriteDB status codes, see zigritedb.h. */
 	private const STATUS_CORRUPTION = 6;
 	private const STATUS_BUSY = 9;
@@ -64,8 +65,8 @@ final class ZigriteDB extends BedrockWorldProvider{
 		return [
 			//a save rewrites every record of the chunk, and most of them haven't changed
 			"skip_unchanged" => true,
-			//chunks bigger than this are still saved, just without being atomic
-			"batch_buffer_size" => 16 * 1024 * 1024,
+			//the most one atomic write can hold; a bigger chunk is still saved, but in several writes a crash can split
+			"batch_buffer_size" => 64 * 1024 * 1024,
 			//an evicted region is synced and reopened later, which made random loads 15x slower at the default 64
 			"max_open_regions" => 256,
 		];
@@ -75,10 +76,10 @@ final class ZigriteDB extends BedrockWorldProvider{
 		if(!extension_loaded("zigritedb")){
 			throw new UnsupportedWorldFormatException("The zigritedb PHP extension is required to use this world format");
 		}
-		//older builds link ZigriteDB versions whose skip_unchanged can abort the process
+		//older builds leave a region unusable after a crash cuts a write short, and size their buffers by batch_buffer_size
 		$version = phpversion("zigritedb");
-		if($version === false || version_compare($version, "0.2.0", "<")){
-			throw new UnsupportedWorldFormatException("ZigriteDB worlds need ext-zigritedb 0.2.0 or newer, found " . ($version === false ? "none" : $version));
+		if($version === false || version_compare($version, self::MIN_EXTENSION_VERSION, "<")){
+			throw new UnsupportedWorldFormatException("ZigriteDB worlds need ext-zigritedb " . self::MIN_EXTENSION_VERSION . " or newer, found " . ($version === false ? "none" : $version));
 		}
 		if(!ZigriteWorld::isSupported()){
 			throw new UnsupportedWorldFormatException("ZigriteDB can't store worlds on this platform");

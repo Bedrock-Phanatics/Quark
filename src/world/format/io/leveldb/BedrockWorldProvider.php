@@ -385,7 +385,8 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Writabl
 	abstract protected function readChunkRecords(int $chunkX, int $chunkZ) : array;
 
 	/**
-	 * Puts every string and deletes every null in $records, keyed like {@see readChunkRecords()}, atomically.
+	 * Puts every string and deletes every null in $records, keyed like {@see readChunkRecords()}, atomically. ZigriteDB
+	 * can only keep that for a chunk of up to 64 MiB, and writes a bigger one in parts.
 	 *
 	 * @param string[]|null[] $records
 	 * @phpstan-param array<array-key, string|null> $records
