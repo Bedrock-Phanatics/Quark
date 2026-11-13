@@ -69,35 +69,28 @@ final class Scoreboard{
 		return !$this->closed && $this->sentTitle !== null && ($this->player->get()?->isConnected() ?? false);
 	}
 
-	/** @param list<string> $lines Top to bottom; hidden scoreboards stay hidden. */
-	public function update(string $title, array $lines) : void{
+	/** @param list<string>|null $lines Top to bottom; null keeps the current lines. Hidden scoreboards stay hidden. */
+	public function update(?string $title = null, ?array $lines = null) : void{
 		$player = $this->getPlayerForUpdate();
-		if($title !== $this->title){
+		if($title !== null && $title !== $this->title){
 			self::validateText($title, self::MAX_TITLE_BYTES);
 		}
-		if($lines !== $this->lines || !array_is_list($lines)){
+		if($lines !== null && ($lines !== $this->lines || !array_is_list($lines))){
 			$this->lines = self::validateLines($lines);
 		}
-		$this->title = $title;
+		if($title !== null){
+			$this->title = $title;
+		}
 		$this->synchronize($player);
 	}
 
 	public function setTitle(string $title) : void{
-		$player = $this->getPlayerForUpdate();
-		if($title !== $this->title){
-			self::validateText($title, self::MAX_TITLE_BYTES);
-		}
-		$this->title = $title;
-		$this->synchronize($player);
+		$this->update(title: $title);
 	}
 
 	/** @param list<string> $lines Top to bottom. */
 	public function setLines(array $lines) : void{
-		$player = $this->getPlayerForUpdate();
-		if($lines !== $this->lines || !array_is_list($lines)){
-			$this->lines = self::validateLines($lines);
-		}
-		$this->synchronize($player);
+		$this->update(lines: $lines);
 	}
 
 	public function setLine(int $line, string $text) : void{

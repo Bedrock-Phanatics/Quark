@@ -124,7 +124,7 @@ $original = array_map(static fn(int $line) : string => "Row $line: 100", range(0
 $results = [];
 foreach(["unchanged", "one_row", "all_rows"] as $workload){
 	foreach(["full_resend", "diff"] as $strategy){
-		$board->update("Benchmark", $original);
+		$board->update(title: "Benchmark", lines: $original);
 		$counter = 0;
 		$results[$workload][$strategy] = measure($session, static function() use ($board, $session, $original, $workload, $strategy, &$counter) : void{
 			$lines = $original;
@@ -139,7 +139,7 @@ foreach(["unchanged", "one_row", "all_rows"] as $workload){
 			if($strategy === "full_resend"){
 				fullResend($session, $lines);
 			}else{
-				$board->update("Benchmark", $lines);
+				$board->update(lines: $lines);
 			}
 		});
 	}

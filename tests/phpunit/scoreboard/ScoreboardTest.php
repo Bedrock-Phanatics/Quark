@@ -129,6 +129,50 @@ final class ScoreboardTest extends TestCase{
 		self::assertSame([], $board->getLines());
 	}
 
+	public function testPartialUpdatesKeepOmittedContentAndSkipUnchangedRows() : void{
+		$player = $this->player();
+		$board = $player->getScoreboard();
+		$board->update(title: "Arena", lines: ["Kills: 0", "Coins: 100"]);
+		$this->packets = [];
+		$board->update(lines: ["Kills: 1", "Coins: 100"]);
+		self::assertSame("Arena", $board->getTitle());
+		$packets = $this->getPackets();
+		self::assertCount(1, $packets);
+		self::assertInstanceOf(SetScorePacket::class, $packets[0]);
+		self::assertCount(2, $packets[0]->getEntries());
+		self::assertSame([-2, -2], array_column($packets[0]->getEntries(), "scoreboardId"));
+		$board->update();
+		$board->update(lines: ["Kills: 1", "Coins: 100"]);
+		self::assertCount(1, $this->getPackets());
+		$board->update(title: "Final round");
+		self::assertSame(["Kills: 1", "Coins: 100"], $board->getLines());
+		$board->update(title: "", lines: []);
+		self::assertSame("", $board->getTitle());
+		self::assertSame([], $board->getLines());
+	}
+
+	public function testPartialUpdatesStayHiddenAndRetryRejectedRows() : void{
+		$player = $this->player();
+		$board = $player->getScoreboard();
+		$board->update("Arena", ["A"]);
+		$board->hide();
+		$this->packets = [];
+		$board->update(lines: ["B"]);
+		$board->update(title: "Next match");
+		$board->update();
+		self::assertSame([], $this->packets);
+		self::assertFalse($board->isVisible());
+		$board->show();
+		$this->packets = [];
+		$this->sendHook = static fn(ClientboundPacket $packet) : bool => false;
+		$this->rejected(fn() => $board->update(lines: ["C"]));
+		$this->sendHook = null;
+		$board->update();
+		self::assertCount(1, $this->getPackets());
+		self::assertSame("Next match", $board->getTitle());
+		self::assertSame(["C"], $board->getLines());
+	}
+
 	public function testHideShowAndTitleRecreation() : void{
 		$player = $this->player();
 		$board = $player->getScoreboard();
