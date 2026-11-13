@@ -145,4 +145,14 @@ foreach(["unchanged", "one_row", "all_rows"] as $workload){
 	}
 }
 
+$layout = [];
+foreach($original as $line => $text){
+	$layout["row$line"] = $text;
+}
+$board->setLines($layout);
+$counter = 0;
+$results["named_one_row"]["diff"] = measure($session, static function() use ($board, &$counter) : void{
+	$board->update(["row7" => "Row 7: " . ++$counter]);
+});
+
 echo json_encode($results, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR), PHP_EOL;

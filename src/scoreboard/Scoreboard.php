@@ -21,6 +21,7 @@ use quark\utils\TextFormat;
 use function array_is_list;
 use function count;
 use function dechex;
+use function is_array;
 use function is_string;
 use function ksort;
 use function mb_check_encoding;
@@ -31,6 +32,7 @@ final class Scoreboard{
 	public const int MAX_LINES = 15;
 	public const int MAX_TITLE_BYTES = 256;
 	public const int MAX_LINE_BYTES = 1024;
+	public const int MAX_ROW_NAME_BYTES = 64;
 
 	private const string OBJECTIVE_NAME = "quark:sidebar";
 
@@ -39,6 +41,8 @@ final class Scoreboard{
 	private string $title = "Scoreboard";
 	/** @var array<int, string> */
 	private array $lines = [];
+	/** @var array<string, int> */
+	private array $lineNames = [];
 	private bool $visible = true;
 	private ?string $sentTitle = null;
 	/** @var array<int, string> */
@@ -60,8 +64,8 @@ final class Scoreboard{
 		return $this->lines;
 	}
 
-	public function getLine(int $line) : ?string{
-		self::validateLine($line);
+	public function getLine(int|string $line) : ?string{
+		$line = $this->resolveLine($line);
 		return $this->lines[$line] ?? null;
 	}
 
@@ -69,14 +73,39 @@ final class Scoreboard{
 		return !$this->closed && $this->sentTitle !== null && ($this->player->get()?->isConnected() ?? false);
 	}
 
-	/** @param list<string>|null $lines Top to bottom; null keeps the current lines. Hidden scoreboards stay hidden. */
-	public function update(?string $title = null, ?array $lines = null) : void{
+	/**
+	 * @param string|array<int|string, string>|null $title Title, or named rows to patch.
+	 * @param array<int|string, string>|null        $lines Full layout in top-to-bottom order; null keeps the layout.
+	 */
+	public function update(string|array|null $title = null, ?array $lines = null) : void{
 		$player = $this->getPlayerForUpdate();
+		if(is_array($title)){
+			if($lines !== null || count($title) > self::MAX_LINES){
+				throw new \InvalidArgumentException("Named updates accept at most 15 rows and cannot replace the layout");
+			}
+			$updated = $this->lines;
+			foreach($title as $name => $text){
+				if(!is_string($name) || !is_string($text)){
+					throw new \InvalidArgumentException("Named updates must map row names to strings");
+				}
+				$line = $this->resolveLine($name);
+				if(($updated[$line] ?? null) !== $text){
+					self::validateText($text, self::MAX_LINE_BYTES);
+					$updated[$line] = $text;
+				}
+			}
+			if($updated !== $this->lines){
+				ksort($updated);
+				$this->lines = $updated;
+			}
+			$this->synchronize($player);
+			return;
+		}
 		if($title !== null && $title !== $this->title){
 			self::validateText($title, self::MAX_TITLE_BYTES);
 		}
-		if($lines !== null && ($lines !== $this->lines || !array_is_list($lines))){
-			$this->lines = self::validateLines($lines);
+		if($lines !== null && ($lines !== $this->lines || !array_is_list($lines) || $this->lineNames !== [])){
+			[$this->lines, $this->lineNames] = self::validateLines($lines);
 		}
 		if($title !== null){
 			$this->title = $title;
@@ -88,14 +117,14 @@ final class Scoreboard{
 		$this->update(title: $title);
 	}
 
-	/** @param list<string> $lines Top to bottom. */
+	/** @param array<int|string, string> $lines Top to bottom; string keys name rows for later updates. */
 	public function setLines(array $lines) : void{
 		$this->update(lines: $lines);
 	}
 
-	public function setLine(int $line, string $text) : void{
+	public function setLine(int|string $line, string $text) : void{
 		$player = $this->getPlayerForUpdate();
-		self::validateLine($line);
+		$line = $this->resolveLine($line);
 		if(($this->lines[$line] ?? null) !== $text){
 			self::validateText($text, self::MAX_LINE_BYTES);
 			$this->lines[$line] = $text;
@@ -104,9 +133,9 @@ final class Scoreboard{
 		$this->synchronize($player);
 	}
 
-	public function removeLine(int $line) : void{
+	public function removeLine(int|string $line) : void{
 		$player = $this->getPlayerForUpdate();
-		self::validateLine($line);
+		$line = $this->resolveLine($line);
 		unset($this->lines[$line]);
 		$this->synchronize($player);
 	}
@@ -132,6 +161,7 @@ final class Scoreboard{
 		$this->closed = true;
 		$this->title = "";
 		$this->lines = [];
+		$this->lineNames = [];
 		$this->sentTitle = null;
 		$this->sentLines = [];
 	}
@@ -207,29 +237,45 @@ final class Scoreboard{
 		return $entry;
 	}
 
-	private static function validateLine(int $line) : void{
+	private function resolveLine(int|string $line) : int{
+		if(is_string($line)){
+			self::validateText($line, self::MAX_ROW_NAME_BYTES);
+			return $this->lineNames[$line] ?? throw new \InvalidArgumentException("Unknown scoreboard row: $line");
+		}
 		if($line < 0 || $line >= self::MAX_LINES){
 			throw new \InvalidArgumentException("Scoreboard row index must be between 0 and 14");
 		}
+		return $line;
 	}
 
 	/**
-	 * @param list<string> $lines
-	 * @return list<string>
+	 * @param array<int|string, string> $lines
+	 * @return array{list<string>, array<string, int>}
 	 */
 	private static function validateLines(array $lines) : array{
-		if(!array_is_list($lines) || count($lines) > self::MAX_LINES){
-			throw new \InvalidArgumentException("Scoreboard lines must be a list of at most 15 strings");
+		if(count($lines) > self::MAX_LINES){
+			throw new \InvalidArgumentException("Scoreboards support at most 15 rows");
 		}
 		$result = [];
-		foreach($lines as $text){
+		$names = [];
+		foreach($lines as $name => $text){
 			if(!is_string($text)){
 				throw new \InvalidArgumentException("Scoreboard lines must be strings");
 			}
 			self::validateText($text, self::MAX_LINE_BYTES);
+			if(is_string($name)){
+				if($name === ""){
+					throw new \InvalidArgumentException("Scoreboard row names cannot be empty");
+				}
+				self::validateText($name, self::MAX_ROW_NAME_BYTES);
+				$names[$name] = count($result);
+			}
 			$result[] = $text;
 		}
-		return $result;
+		if($names === [] && !array_is_list($lines)){
+			throw new \InvalidArgumentException("Unnamed scoreboard rows must be a list");
+		}
+		return [$result, $names];
 	}
 
 	private static function validateText(string $text, int $maxBytes) : void{

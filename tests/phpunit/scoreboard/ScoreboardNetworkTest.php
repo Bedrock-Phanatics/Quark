@@ -18,6 +18,7 @@ use quark\player\Player;
 use quark\plugin\Plugin;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
+use function array_column;
 
 final class ScoreboardNetworkTest extends TestCase{
 	protected function setUp() : void{
@@ -96,6 +97,23 @@ final class ScoreboardNetworkTest extends TestCase{
 		self::assertSame([], $board->getLines());
 		$this->expectException(\LogicException::class);
 		$board->show();
+	}
+
+	public function testNamedPatchQueuesOnlyChangedRowsInLayoutOrder() : void{
+		$player = $this->player();
+		$board = $player->getScoreboard();
+		$board->update(title: "Arena", lines: ["kills" => "Kills: 0", "", "coins" => "Coins: 100"]);
+		$board->update(["coins" => "Coins: 101", "kills" => "Kills: 1"]);
+		$buffer = $this->buffer($player->session);
+		self::assertCount(3, $buffer);
+		$packet = EncodedPacket::fromBytes($buffer[2])->getPacket();
+		self::assertInstanceOf(SetScorePacket::class, $packet);
+		self::assertCount(4, $packet->getEntries());
+		self::assertSame([-2, -4, -2, -4], array_column($packet->getEntries(), "scoreboardId"));
+		self::assertSame([
+			ScorePacketEntryAction::REMOVE, ScorePacketEntryAction::REMOVE,
+			ScorePacketEntryAction::CHANGE_FAKE_PLAYER, ScorePacketEntryAction::CHANGE_FAKE_PLAYER
+		], array_column($packet->getEntries(), "action"));
 	}
 
 	public function testSendHookCannotReenterAndCorruptQueuedContent() : void{
