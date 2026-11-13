@@ -28,4 +28,10 @@ interface WritableWorldProvider extends WorldProvider{
 	 * Saves a chunk (usually to disk).
 	 */
 	public function saveChunk(int $chunkX, int $chunkZ, ChunkData $chunkData, int $dirtyFlags) : void;
+
+	/**
+	 * Called once after a save pass, so a format that buffers its writes can make the whole pass survive a power loss
+	 * with one barrier instead of one per chunk.
+	 */
+	public function flush() : void;
 }

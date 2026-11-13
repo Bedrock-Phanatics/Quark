@@ -132,16 +132,39 @@ final class ZigriteDB extends BedrockWorldProvider{
 			if($e->getCode() === self::STATUS_CORRUPTION){
 				throw new CorruptedChunkException($e->getMessage(), 0, $e);
 			}
-			throw $e;
+			throw $this->explain($chunkX, $chunkZ, $e);
 		}
 	}
 
 	protected function writeChunkRecords(int $chunkX, int $chunkZ, array $records) : void{
-		$this->world->writeChunk(self::OVERWORLD, $chunkX, $chunkZ, $records);
+		try{
+			$this->world->writeChunk(self::OVERWORLD, $chunkX, $chunkZ, $records);
+		}catch(ZigriteException $e){
+			throw $this->explain($chunkX, $chunkZ, $e);
+		}
+	}
+
+	/**
+	 * A region that lost data it had already synced refuses every read and write until it is recovered by hand. That
+	 * isn't a corrupted chunk: treating it as one would regenerate the whole region over data that can still be saved.
+	 */
+	private function explain(int $chunkX, int $chunkZ, ZigriteException $e) : \Throwable{
+		if($e->getCode() !== self::STATUS_NEEDS_RECOVERY){
+			return $e;
+		}
+		$region = Path::join($this->getPath(), sprintf("%08x-%08x-%08x.region", self::OVERWORLD, ($chunkX >> 5) & 0xffffffff, ($chunkZ >> 5) & 0xffffffff));
+		return new \RuntimeException("Region $region is damaged. Stop the server, run \"zigrite recover\" on it with an empty folder as the destination, and put the result in its place. " . $e->getMessage(), 0, $e);
 	}
 
 	public function doGarbageCollection() : void{
 
+	}
+
+	/**
+	 * Chunk writes are buffered: they survive a crash of the server, but only a flush makes them survive a power loss.
+	 */
+	public function flush() : void{
+		$this->world->flush();
 	}
 
 	public function close() : void{

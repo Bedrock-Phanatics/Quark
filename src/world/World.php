@@ -1717,10 +1717,14 @@ class World implements ChunkManager{
 		$worldData->setLightningLevel($this->weather === Weather::THUNDER ? 1.0 : 0.0);
 		$worldData->setRainTime($this->weatherDuration);
 		$worldData->setLightningTime($this->weatherDuration);
-		$this->saveChunks();
-		$this->provider->getWorldData()->save();
-
-		$pulse->stop($scope);
+		try{
+			$this->saveChunks();
+		}finally{
+			//whatever did get written is still worth keeping
+			$this->provider->getWorldData()->save();
+			$this->provider->flush();
+			$pulse->stop($scope);
+		}
 
 		return true;
 	}
