@@ -79,7 +79,7 @@ final class ScoreboardTest extends TestCase{
 		$decoded = new SetScorePacket();
 		$decoded->decode(new ByteBufferReader($writer->getData()));
 		$entries = $decoded->getEntries();
-		self::assertSame([-1, -2, -3], array_column($entries, "scoreboardId"));
+		self::assertSame([-2, -3, -4], array_column($entries, "scoreboardId"));
 		self::assertSame([15, 14, 13], array_column($entries, "score"));
 		self::assertSame(["First", "", ""], array_map(static function(ScorePacketEntry $entry) : string{
 			self::assertNotNull($entry->customName);
@@ -107,7 +107,7 @@ final class ScoreboardTest extends TestCase{
 		$packet = $this->packets[0];
 		self::assertInstanceOf(SetScorePacket::class, $packet);
 		self::assertSame([ScorePacketEntryAction::REMOVE, ScorePacketEntryAction::CHANGE_FAKE_PLAYER], array_column($packet->getEntries(), "action"));
-		self::assertSame([-2, -2], array_column($packet->getEntries(), "scoreboardId"));
+		self::assertSame([-3, -3], array_column($packet->getEntries(), "scoreboardId"));
 		$writer = new ByteBufferWriter();
 		$packet->encode($writer);
 		$decoded = new SetScorePacket();
@@ -242,7 +242,10 @@ final class ScoreboardTest extends TestCase{
 		self::assertCount(15, $board->getLines());
 		self::assertInstanceOf(SetScorePacket::class, $this->packets[1]);
 		$entries = $this->packets[1]->getEntries();
-		self::assertSame(-15, $entries[14]->scoreboardId);
+		self::assertSame(-16, $entries[14]->scoreboardId);
+		foreach($entries as $entry){
+			self::assertNotSame(-1, $entry->scoreboardId);
+		}
 		self::assertSame(1, $entries[14]->score);
 		self::assertCount(15, array_unique(array_column($entries, "customName")));
 		$this->packets = [];

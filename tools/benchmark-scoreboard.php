@@ -71,12 +71,12 @@ function fullResend(BenchmarkSession $session, array $lines) : void{
 	foreach($lines as $line => $text){
 		$entry = new ScorePacketEntry();
 		$entry->action = ScorePacketEntryAction::REMOVE;
-		$entry->scoreboardId = -($line + 1);
+		$entry->scoreboardId = -($line + 2);
 		$entry->objectiveName = "quark:sidebar";
 		$removed[] = $entry;
 		$entry = new ScorePacketEntry();
 		$entry->action = ScorePacketEntryAction::CHANGE_FAKE_PLAYER;
-		$entry->scoreboardId = -($line + 1);
+		$entry->scoreboardId = -($line + 2);
 		$entry->objectiveName = "quark:sidebar";
 		$entry->score = 15 - $line;
 		$entry->customName = TextFormat::ESCAPE . dechex($line) . TextFormat::RESET . $text;

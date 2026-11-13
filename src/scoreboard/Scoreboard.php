@@ -206,7 +206,8 @@ final class Scoreboard{
 		$entry = new ScorePacketEntry();
 		$entry->action = $action;
 		$entry->objectiveName = self::OBJECTIVE_NAME;
-		$entry->scoreboardId = -($line + 1);
+		// Bedrock reserves -1 for invalid scoreboard IDs.
+		$entry->scoreboardId = -($line + 2);
 		$entry->score = self::MAX_LINES - $line;
 		// Distinct invisible prefixes keep duplicate text and blank rows separate.
 		$entry->customName = $text === null ? null : TextFormat::ESCAPE . dechex($line) . TextFormat::RESET . $text;

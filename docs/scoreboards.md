@@ -41,7 +41,7 @@ Titles are limited to 256 UTF-8 bytes; each line is limited to 1024 UTF-8 bytes.
 
 Calls queue packets immediately through the existing session. A disconnected or unspawned player, closed controller, or mutation from inside a scoreboard send hook throws `LogicException`. A rejected packet throws `RuntimeException`. Requested content remains available through the getters, and accepted packets are tracked individually: repeat the update or call `show()` to retry. Queued state is not an acknowledgement of what the client renders. Plugin send hooks that replace scoreboard packets take responsibility for the resulting client state.
 
-Disconnect cleanup closes the controller and releases its content. Holding a controller does not keep its player alive. All mutations belong on the server thread. The API owns objective `quark:sidebar` and scoreboard IDs `-1` through `-15`; raw packets and other sidebar libraries must not overwrite them or compete for the sidebar slot.
+Disconnect cleanup closes the controller and releases its content. Holding a controller does not keep its player alive. All mutations belong on the server thread. The API owns objective `quark:sidebar` and scoreboard IDs `-2` through `-16`, avoiding Bedrock's invalid ID `-1` ([identity definition](https://github.com/EndstoneMC/endstone/blob/main/src/bedrock/world/scores/scoreboard_id.h)). Raw packets and other sidebar libraries must not overwrite them or compete for the sidebar slot.
 
 Client rendering should be checked on the Bedrock versions and resource packs your server supports. The protocol tests cover packet contents and ordering, not the client's visual behavior.
 
