@@ -26,11 +26,13 @@ namespace quark\pulse;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseNetwork;
+use quark\pulse\internal\PulseResources;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use quark\VersionInfo;
 use Symfony\Component\Filesystem\Path;
 use function array_is_list;
+use function array_key_exists;
 use function bin2hex;
 use function count;
 use function date;
@@ -76,7 +78,7 @@ final class PulseReport{
 	// UTF-8 JSON, gzip-wrapped on disk; times are nanoseconds.
 	// Node: id, zone, parent, calls, total, self, max. active_ticks follows node order.
 	// Tick: id, session offset, duration. Spike node: id, calls, total, self.
-	public const FORMAT_VERSION = 2;
+	public const FORMAT_VERSION = 3;
 	public const MAX_BYTES = 8388608;
 	public const MAX_ROWS = 131072;
 
@@ -228,7 +230,7 @@ final class PulseReport{
 
 	/** @phpstan-assert ReportData $data */
 	private static function validate(mixed $data) : void{
-		if(!is_array($data) || count($data) !== 5 || ($data["format"] ?? null) !== "quark.pulse" || !in_array($data["version"] ?? null, [1, self::FORMAT_VERSION], true) || ($data["time_unit"] ?? null) !== "ns"){
+		if(!is_array($data) || count($data) !== 5 || ($data["format"] ?? null) !== "quark.pulse" || !in_array($data["version"] ?? null, [1, 2, self::FORMAT_VERSION], true) || ($data["time_unit"] ?? null) !== "ns"){
 			throw new \InvalidArgumentException("Unsupported Pulse report format or version");
 		}
 		$bytes = intdiv(self::MAX_BYTES, 2);
@@ -264,7 +266,7 @@ final class PulseReport{
 
 	/** @phpstan-assert Capture $thread */
 	private static function validateThread(mixed $thread, int &$budget, int &$bytes, int $version) : void{
-		if(!is_array($thread) || count($thread) !== ($version === 1 ? 20 : 21) || ($version === 1 && isset($thread["network"]))){
+		if(!is_array($thread) || count($thread) !== ($version === 1 ? 20 : ($version === 2 ? 21 : 23)) || ($version === 1 && isset($thread["network"]))){
 			throw new \InvalidArgumentException("Invalid Pulse thread data");
 		}
 		self::text($thread["thread"] ?? null, 256, $bytes);
@@ -316,10 +318,15 @@ final class PulseReport{
 		}
 		self::charge($budget, count($ticks));
 		$length = $thread["ended_ns"] - $thread["started_ns"];
-		if($version === 2){
+		if($version >= 2){
 			self::validateNetwork($thread["network"] ?? null, $length, $tickCount, $thread["recording"], $budget);
 		}
-		$previousEnd = $sum = 0;
+		if($version >= 3){
+			self::number($thread["slow_tick_count"] ?? null, 0, $tickCount);
+			if(!array_key_exists("resources", $thread)){ throw new \InvalidArgumentException("Missing Pulse resource data"); }
+			if($thread["resources"] !== null){ self::validateResources($thread["resources"], $length, $budget); }
+		}
+		$previousEnd = $sum = $slowTicks = 0;
 		foreach($ticks as $index => $tick){
 			self::tick($tick, $tickCount, $length, $tickMax);
 			if($tick[0] !== $tickCount - count($ticks) + $index + 1 || $tick[1] < $previousEnd || $tick[2] > $tickTotal - $sum){
@@ -327,7 +334,9 @@ final class PulseReport{
 			}
 			$previousEnd = $tick[1] + $tick[2];
 			$sum += $tick[2];
+			if($tick[2] > PulseContext::TICK_BUDGET_NS){ ++$slowTicks; }
 		}
+		if($version >= 3){ self::number($thread["slow_tick_count"], $slowTicks, $tickCount - count($ticks) + $slowTicks); }
 		$previousId = $spikeRows = 0;
 		$spikes = self::list($thread["spikes"] ?? null, $thread["max_spikes"]);
 		self::charge($budget, count($spikes));
@@ -360,6 +369,31 @@ final class PulseReport{
 				}
 				$seen[$detail[0]] = true;
 			}
+		}
+	}
+
+	private static function validateResources(mixed $resources, int $length, int &$budget) : void{
+		if(!is_array($resources) || count($resources) !== 2){ throw new \InvalidArgumentException("Invalid Pulse resource data"); }
+		$dropped = self::number($resources["samples_dropped"] ?? null);
+		$samples = self::list($resources["samples"] ?? null, PulseResources::MAX_SAMPLES);
+		if(count($samples) === 0 || ($dropped > 0 && count($samples) !== PulseResources::MAX_SAMPLES)){
+			throw new \InvalidArgumentException("Invalid Pulse resource history length");
+		}
+		self::charge($budget, count($samples));
+		$previous = 0;
+		foreach($samples as $index => $sample){
+			$row = self::networkRow($sample, 6);
+			$offset = self::number($row[0], $previous, $length);
+			$interval = self::number($row[1], 0, $offset);
+			if(($index > 0 && ($interval === 0 || $offset - $previous !== $interval)) || ($index === 0 && ($dropped === 0 ? $offset !== 0 || $interval !== 0 : $interval === 0))){
+				throw new \InvalidArgumentException("Invalid Pulse resource sample ordering");
+			}
+			if(($row[2] === null) !== ($row[3] === null)){ throw new \InvalidArgumentException("Incomplete Pulse CPU sample"); }
+			if($row[2] !== null){ self::number($row[2]); self::number($row[3]); }
+			if($interval === 0 && (($row[2] ?? 0) !== 0 || ($row[3] ?? 0) !== 0)){ throw new \InvalidArgumentException("CPU time requires a sample interval"); }
+			$allocated = self::number($row[5]);
+			self::number($row[4], 0, $allocated);
+			$previous = $offset;
 		}
 	}
 

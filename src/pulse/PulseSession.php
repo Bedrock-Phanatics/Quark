@@ -28,12 +28,14 @@ use function array_slice;
 use function arsort;
 use function hrtime;
 use function max;
+use function usort;
 use const SORT_NUMERIC;
 
 /**
  * @phpstan-import-type Capture from PulseContext
  * @phpstan-import-type Stats from PulseContext
  * @phpstan-type TopZone array{name: string, calls: int, self_ns: int, max_ns: int}
+ * @phpstan-type SpikeSummary array{tick_id: int, offset_ns: int, duration_ns: int, zone: string|null, self_ns: int}
  */
 final class PulseSession{
 	/** @var Capture|null */
@@ -90,6 +92,27 @@ final class PulseSession{
 			$top[] = ["name" => $capture["zones"][$id], "calls" => $calls[$id], "self_ns" => $time, "max_ns" => $max[$id]];
 		}
 		return $top;
+	}
+
+	/** @return list<SpikeSummary> */
+	public function getSpikes(int $limit = 5) : array{
+		if($limit < 1 || $limit > 50){ throw new \InvalidArgumentException("Pulse spike limit must be 1-50"); }
+		$capture = $this->getCapture();
+		$spikes = $capture["spikes"];
+		usort($spikes, static fn(array $a, array $b) : int => $b["tick"][2] === $a["tick"][2] ? $b["tick"][0] <=> $a["tick"][0] : $b["tick"][2] <=> $a["tick"][2]);
+		$result = [];
+		foreach(array_slice($spikes, 0, $limit) as $spike){
+			$name = null;
+			$self = 0;
+			foreach($spike["nodes"] as $node){
+				if($node[3] > $self){
+					$self = $node[3];
+					$name = $capture["zones"][$capture["nodes"][$node[0] - 1][1]];
+				}
+			}
+			$result[] = ["tick_id" => $spike["tick"][0], "offset_ns" => $spike["tick"][1], "duration_ns" => $spike["tick"][2], "zone" => $name, "self_ns" => $self];
+		}
+		return $result;
 	}
 
 	/** @param array<string, mixed> $metadata */

@@ -49,6 +49,7 @@ final class PulseCommand extends VanillaCommand{
 		$this->syntax("stop")->handler($this->stop(...));
 		$this->syntax("reset")->handler($this->reset(...));
 		$this->syntax("top")->registerArgument(new IntegerArgument("count", 1, 10, optional: true))->handler($this->top(...));
+		$this->syntax("spikes")->registerArgument(new IntegerArgument("count", 1, 10, optional: true))->handler($this->spikes(...));
 		$this->syntax("report")->handler($this->report(...));
 		$this->syntax("help")->handler($this->help(...));
 	}
@@ -141,10 +142,26 @@ final class PulseCommand extends VanillaCommand{
 		self::saveReport($sender);
 	}
 
+	private function spikes(CommandSender $sender, ?int $count = null) : void{
+		$session = $sender->getServer()->getPulse()->getSession();
+		if($session === null){ self::sendStatus($sender); return; }
+		$spikes = $session->getSpikes($count ?? 5);
+		if(count($spikes) === 0){
+			$sender->sendMessage(self::msg("No retained spikes yet"));
+			return;
+		}
+		$sender->sendMessage(self::msg("Slowest retained main-thread spikes"));
+		foreach($spikes as $spike){
+			$name = $spike["zone"] === null ? "no measured zone" : (preg_replace('/[\x00-\x1f\x7f]/', " ", TextFormat::clean($spike["zone"])) ?? "zone");
+			$sender->sendMessage(self::msg("Tick " . self::value((string) $spike["tick_id"]) . " at " . self::seconds($spike["offset_ns"]) . ": " .
+				self::ms($spike["duration_ns"]) . ", largest self cost " . TextFormat::WHITE . $name . TextFormat::GRAY . " " . self::ms($spike["self_ns"])));
+		}
+	}
+
 	private function help(CommandSender $sender) : void{
 		$sender->sendMessage(self::msg(self::cmd("/pulse start [time]") . " record, e.g. 60s, 5m, 1h"));
 		$sender->sendMessage(self::msg(self::cmd("/pulse stop") . " stop and save the report"));
-		$sender->sendMessage(self::msg(self::cmd("/pulse status") . " session info, " . self::cmd("/pulse top [1-10]") . " main-thread costs"));
+		$sender->sendMessage(self::msg(self::cmd("/pulse status") . " CPU, memory, ticks; " . self::cmd("/pulse top [1-10]") . " costs; " . self::cmd("/pulse spikes [1-10]") . " slow ticks"));
 		$sender->sendMessage(self::msg(self::cmd("/pulse report") . " save without stopping, " . self::cmd("/pulse reset") . " clear or restart"));
 	}
 
@@ -168,7 +185,19 @@ final class PulseCommand extends VanillaCommand{
 		$sender->sendMessage(self::msg(($stats["recording"] ? TextFormat::GREEN . "Recording" : TextFormat::YELLOW . "Stopped") . TextFormat::GRAY . " for " .
 			self::seconds($stats["elapsed_ns"]) . ", " . self::value((string) $stats["tick_count"]) . " ticks"));
 		$sender->sendMessage(self::msg("Tick avg " . self::ms($stats["tick_count"] === 0 ? 0 : $stats["tick_total_ns"] / $stats["tick_count"]) .
-			", worst " . self::ms($stats["tick_max_ns"]) . ", spikes " . self::value((string) $stats["retained_spikes"])));
+			", worst " . self::ms($stats["tick_max_ns"]) . ", over 50 ms " . self::value((string) $stats["slow_tick_count"])));
+		$sender->sendMessage(self::msg("Recent ticks (" . self::value((string) $stats["tick_sample_count"]) . "): p50 " . self::ms($stats["tick_p50_ns"]) .
+			", p95 " . self::ms($stats["tick_p95_ns"]) . ", p99 " . self::ms($stats["tick_p99_ns"])));
+		$sender->sendMessage(self::msg("Spikes " . self::value((string) ($stats["retained_spikes"] + $stats["spikes_dropped"])) .
+			" total, " . self::value((string) $stats["retained_spikes"]) . " retained; " . self::cmd("/pulse spikes") . " for details"));
+		$resources = $stats["resources"];
+		if($resources !== null){
+			$cpu = $resources["cpu_percent"] === null ? "waiting for a CPU sample or unavailable" : sprintf("%.1f%%, avg %.1f%%, peak %.1f%% (100%% = one core)",
+				$resources["cpu_percent"], $resources["cpu_avg_percent"], $resources["cpu_peak_percent"]);
+			$sender->sendMessage(self::msg("Recent process CPU " . self::value($cpu)));
+			$sender->sendMessage(self::msg("PHP memory " . self::value(sprintf("%.1f MiB used, %.1f MiB allocated, %.1f MiB sampled peak",
+				$resources["memory_bytes"] / 1048576, $resources["memory_allocated_bytes"] / 1048576, $resources["memory_peak_bytes"] / 1048576))));
+		}
 		if($stats["recording"] && $stats["duration_ns"] > 0){
 			$sender->sendMessage(self::msg("Auto-stop in " . self::seconds(max(0, $stats["duration_ns"] - $stats["elapsed_ns"]))));
 		}

@@ -1035,7 +1035,7 @@ final class PulseNetworkTest extends TestCase{
 		$context->stop(100 + $data["coverage"]["to_ns"]);
 		$capture = $context->capture();
 		$capture["network"] = $data;
-		self::assertSame(9216, (new PulseCapture($capture))->getRowCount());
+		self::assertSame(9216 + count($capture["resources"]["samples"] ?? []), (new PulseCapture($capture))->getRowCount());
 		$report = PulseReport::create([$capture]);
 		self::assertSame($report->getData(), PulseReport::decode($report->encode(true))->getData());
 		$network->recording = false;
@@ -1053,7 +1053,7 @@ final class PulseNetworkTest extends TestCase{
 		$report = PulseReport::create([$context->capture()])->getData();
 		$legacy = $report;
 		$legacy["version"] = 1;
-		unset($legacy["threads"][0]["network"]);
+		unset($legacy["threads"][0]["network"], $legacy["threads"][0]["resources"], $legacy["threads"][0]["slow_tick_count"]);
 		self::assertSame($legacy, PulseReport::decode(Utils::assumeNotFalse(gzencode(json_encode($legacy, JSON_THROW_ON_ERROR))))->getData());
 		foreach([
 			["sessions", [[1, 0, null, "login", "IP address", null]]],

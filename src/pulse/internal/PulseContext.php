@@ -25,11 +25,15 @@ namespace quark\pulse\internal;
 
 use quark\pulse\PulseZone;
 use function array_shift;
+use function array_slice;
 use function count;
 use function hrtime;
+use function intdiv;
 use function min;
 use function preg_match;
+use function sort;
 use function strlen;
+use const SORT_NUMERIC;
 
 /**
  * @internal Thread-local; never share between workers.
@@ -38,11 +42,14 @@ use function strlen;
  * @phpstan-type SpikeRow array{int, int, int, int}
  * @phpstan-type Spike array{tick: TickRow, nodes: list<SpikeRow>}
  * @phpstan-import-type NetworkCapture from PulseNetwork
- * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int, network?: NetworkCapture}
- * @phpstan-type Stats array{recording: bool, elapsed_ns: int, duration_ns: int, spike_threshold_ns: int, tick_count: int, tick_total_ns: int, tick_max_ns: int, retained_spikes: int, spikes_dropped: int, dropped_scopes: int, unbalanced_scopes: int, unbalanced_ticks: int}
+ * @phpstan-import-type ResourceCapture from PulseResources
+ * @phpstan-import-type ResourceStats from PulseResources
+ * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int, network?: NetworkCapture, resources?: ResourceCapture|null, slow_tick_count?: int}
+ * @phpstan-type Stats array{recording: bool, elapsed_ns: int, duration_ns: int, spike_threshold_ns: int, tick_count: int, tick_total_ns: int, tick_max_ns: int, tick_p50_ns: int, tick_p95_ns: int, tick_p99_ns: int, tick_sample_count: int, slow_tick_count: int, resources: ResourceStats|null, retained_spikes: int, spikes_dropped: int, dropped_scopes: int, unbalanced_scopes: int, unbalanced_ticks: int}
  */
 final class PulseContext{
 	public const MAX_SPIKE_ROWS = 65536;
+	public const TICK_BUDGET_NS = 50000000;
 	private(set) bool $recording = false;
 	/** @var array<string, PulseZone> */
 	private array $zones = [];
@@ -66,6 +73,7 @@ final class PulseContext{
 	private int $tickCount = 0;
 	private int $tickTotal = 0;
 	private int $tickMax = 0;
+	private int $slowTicks = 0;
 	private int $tickCursor = 0;
 	private int $unbalancedTicks = 0;
 	/** @var array<int, int> */
@@ -82,6 +90,7 @@ final class PulseContext{
 	private int $spikeRows = 0;
 	private int $spikesDropped = 0;
 	private ?PulseNetwork $network = null;
+	private ?PulseResources $resources = null;
 
 	public function network() : PulseNetwork{
 		return $this->network ??= new PulseNetwork($this->started);
@@ -143,9 +152,11 @@ final class PulseContext{
 		$this->maxSpikes = $maxSpikes;
 		$this->tickStarted = -1;
 		$this->tickCount = $this->tickTotal = $this->tickMax = $this->tickCursor = $this->unbalancedTicks = 0;
+		$this->slowTicks = 0;
 		$this->touchedCount = $this->spikeRows = $this->spikesDropped = 0;
 		$this->spikes = [];
 		$this->network = null;
+		$this->resources = $threadName === "main" ? new PulseResources($now) : null;
 		$this->recording = true;
 	}
 
@@ -248,6 +259,7 @@ final class PulseContext{
 			$this->closeUnbalanced($now);
 		}
 		$this->ended = $now;
+		$this->resources?->sample($now, true);
 		$this->recording = false;
 		$this->network?->stop();
 	}
@@ -307,6 +319,7 @@ final class PulseContext{
 		$this->tickDurations[$this->tickCursor] = $duration;
 		$this->tickCursor = ($this->tickCursor + 1) % $this->maxTicks;
 		$this->tickTotal += $duration;
+		if($duration > self::TICK_BUDGET_NS){ ++$this->slowTicks; }
 		if($duration > $this->tickMax){
 			$this->tickMax = $duration;
 		}
@@ -328,10 +341,14 @@ final class PulseContext{
 			$this->spikes[] = ["tick" => [$id, $offset, $duration], "nodes" => $rows];
 			$this->spikeRows += count($rows);
 		}
+		$this->resources?->sample($now);
 	}
 
 	/** @return Stats */
 	public function stats() : array{
+		$durations = array_slice($this->tickDurations, 0, min($this->tickCount, $this->maxTicks));
+		sort($durations, SORT_NUMERIC);
+		$count = count($durations);
 		return [
 			"recording" => $this->recording,
 			"elapsed_ns" => ($this->recording ? (int) hrtime(true) : $this->ended) - $this->started,
@@ -340,6 +357,12 @@ final class PulseContext{
 			"tick_count" => $this->tickCount,
 			"tick_total_ns" => $this->tickTotal,
 			"tick_max_ns" => $this->tickMax,
+			"tick_p50_ns" => $count === 0 ? 0 : $durations[intdiv($count * 50 + 99, 100) - 1],
+			"tick_p95_ns" => $count === 0 ? 0 : $durations[intdiv($count * 95 + 99, 100) - 1],
+			"tick_p99_ns" => $count === 0 ? 0 : $durations[intdiv($count * 99 + 99, 100) - 1],
+			"tick_sample_count" => $count,
+			"slow_tick_count" => $this->slowTicks,
+			"resources" => $this->resources?->stats(),
 			"retained_spikes" => count($this->spikes),
 			"spikes_dropped" => $this->spikesDropped,
 			"dropped_scopes" => $this->dropped,
@@ -387,6 +410,8 @@ final class PulseContext{
 			"max_spikes" => $this->maxSpikes,
 			"tick_capacity" => $this->maxTicks,
 			"duration_ns" => $this->duration,
+			"slow_tick_count" => $this->slowTicks,
+			"resources" => $this->resources?->capture(),
 			"network" => $this->network?->capture($ended - $this->started) ?? PulseNetwork::emptyCapture($ended - $this->started)
 		];
 	}
