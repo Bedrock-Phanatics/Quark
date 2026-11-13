@@ -56,6 +56,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 
 ## API
 
+- Added a [per-player sidebar scoreboard API](docs/scoreboards.md) with batched row changes, unchanged-update suppression, and hide/show support.
 - Changed the root PHP namespace from `pocketmine` to `quark`.
 - Moved math and colour types to `quark\math` and `quark\color`, removing legacy getters such as `Vector3::getX()` and `RayTraceResult::getHitVector()`. See [Math](docs/MIGRATING-FROM-POCKETMINE-5.md#math).
 - Added `World::getCollisionRegion()` for native collision queries.

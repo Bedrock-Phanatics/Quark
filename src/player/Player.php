@@ -128,6 +128,7 @@ use quark\permission\PermissibleBase;
 use quark\permission\PermissibleDelegateTrait;
 use quark\player\chat\StandardChatFormatter;
 use quark\pulse\internal\PulseZones;
+use quark\scoreboard\Scoreboard;
 use quark\Server;
 use quark\ServerProperties;
 use quark\utils\AssumptionFailedError;
@@ -335,6 +336,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	protected int $formIdCounter = 0;
 	/** @var Form[] */
 	protected array $forms = [];
+	private ?Scoreboard $scoreboard = null;
 
 	protected \Logger $logger;
 
@@ -689,6 +691,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	public function getCamera() : CameraController{
 		return $this->camera ??= new CameraController($this, $this->server->getCameraPresets(), $this->server->getCameraAimAssist());
+	}
+
+	public function getScoreboard() : Scoreboard{
+		return $this->scoreboard ??= new Scoreboard($this);
 	}
 
 	/** @internal */
@@ -2579,6 +2585,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		if($this->isConnected()){
 			throw new \LogicException("Player is still connected");
 		}
+		$this->scoreboard?->close();
 
 		//prevent the player receiving their own disconnect message
 		$this->server->unsubscribeFromAllBroadcastChannels($this);
@@ -2635,6 +2642,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function destroyCycles() : void{
+		$this->scoreboard?->close();
+		$this->scoreboard = null;
 		$this->camera?->resetForContext(disconnect: true);
 		$this->camera = null;
 		unset($this->itemHeldListener);

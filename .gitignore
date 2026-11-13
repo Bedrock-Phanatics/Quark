@@ -37,6 +37,7 @@ tests/phpunit/network/mcpe/*
 !tests/phpunit/network/mcpe/command/
 !tests/phpunit/pulse/
 !tests/phpunit/form/
+!tests/phpunit/scoreboard/
 !tests/phpunit/item/
 tests/phpunit/item/*
 !tests/phpunit/item/CustomItemTest.php
