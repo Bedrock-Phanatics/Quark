@@ -81,6 +81,41 @@ final class WorldUnchangedSaveTest extends TestCase{
 		self::assertSame([], $states->getValue($world), "a failed write is not remembered, so the next save retries it");
 	}
 
+	public function testAFailedChunkDoesNotStopTheOthersFromSaving() : void{
+		/** @var \ArrayObject<int, int> $saved */
+		$saved = new \ArrayObject();
+		$provider = $this->createMock(WritableWorldProvider::class);
+		$provider->method("saveChunk")->willReturnCallback(function(int $x, int $z, ChunkData $data, int $flags) use ($saved) : void{
+			if($x === 0){
+				throw new \RuntimeException("disk full");
+			}
+			$saved[] = $x;
+		});
+		$world = (new \ReflectionClass(World::class))->newInstanceWithoutConstructor();
+		(new \ReflectionProperty(World::class, "provider"))->setValue($world, $provider);
+		(new \ReflectionProperty(World::class, "folderName"))->setValue($world, "test");
+		(new \ReflectionProperty(World::class, "logger"))->setValue($world, new \PrefixedLogger(\GlobalLogger::get(), "test"));
+		$world->pulse = new WorldPulse($world);
+
+		$chunks = [];
+		for($x = 0; $x < 3; ++$x){
+			$chunk = new Chunk([], true);
+			$chunk->setTerrainDirtyFlag(Chunk::DIRTY_FLAG_BLOCKS, true);
+			$chunks[World::chunkHash($x, 0)] = $chunk;
+		}
+		(new \ReflectionProperty(World::class, "chunks"))->setValue($world, $chunks);
+
+		try{
+			$world->saveChunks();
+			self::fail("the failure should still surface");
+		}catch(\RuntimeException $e){
+			self::assertSame("disk full", $e->getMessage());
+		}
+		self::assertSame([1, 2], $saved->getArrayCopy(), "the chunks after the failed one are saved");
+		self::assertTrue($chunks[World::chunkHash(0, 0)]->isTerrainDirty(), "the failed chunk stays dirty for the next save");
+		self::assertFalse($chunks[World::chunkHash(1, 0)]->isTerrainDirty());
+	}
+
 	public function testStateTracksEntityAndTileData() : void{
 		$state = new \ReflectionMethod(World::class, "chunkSaveState");
 		$sign = CompoundTag::create()->setString("id", "Sign")->setString("Text", "a");

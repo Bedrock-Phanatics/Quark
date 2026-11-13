@@ -1895,7 +1895,13 @@ class Server{
 			if(isset($this->worldManager)){
 				$this->logger->debug("Unloading all worlds");
 				foreach($this->worldManager->getWorlds() as $world){
-					$this->worldManager->unloadWorld($world, true);
+					try{
+						$this->worldManager->unloadWorld($world, true);
+					}catch(\Throwable $e){
+						//one world failing to save must not keep the others from being saved and closed
+						$this->logger->critical("World \"" . $world->getFolderName() . "\" was not saved completely: " . $e->getMessage());
+						$this->logger->logException($e);
+					}
 				}
 			}
 

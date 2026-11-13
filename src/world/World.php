@@ -726,9 +726,18 @@ class World implements ChunkManager{
 		}
 		$this->unloadCallbacks = [];
 
+		//a chunk that fails to save must not cost the rest of the world its save, or leave the provider open
+		$failure = null;
 		foreach($this->chunks as $chunkHash => $chunk){
 			self::getXZ($chunkHash, $chunkX, $chunkZ);
-			$this->unloadChunk($chunkX, $chunkZ, false);
+			try{
+				$this->unloadChunk($chunkX, $chunkZ, false);
+			}catch(\Throwable $e){
+				if($failure === null){
+					$this->logger->critical("Failed to save chunk x=$chunkX z=$chunkZ while unloading: " . $e->getMessage());
+				}
+				$failure ??= $e;
+			}
 		}
 		$this->knownUngeneratedChunks = [];
 		foreach($this->entitiesByChunk as $chunkHash => $entities){
@@ -746,16 +755,28 @@ class World implements ChunkManager{
 			}
 		}
 
-		$this->save();
+		try{
+			$this->save();
+		}catch(\Throwable $e){
+			$failure ??= $e;
+		}
 
 		$this->generatorExecutor->shutdown();
 
-		$this->provider->close();
+		try{
+			$this->provider->close();
+		}catch(\Throwable $e){
+			$this->logger->critical("Failed to close the world's storage: " . $e->getMessage());
+			$failure ??= $e;
+		}
 		$this->blockCache = [];
 		$this->blockCacheSize = 0;
 		$this->collisionRegion->invalidateAll();
 
 		$this->unloaded = true;
+		if($failure !== null){
+			throw $failure;
+		}
 	}
 
 	/** @phpstan-param \Closure() : void $callback */
@@ -1783,10 +1804,25 @@ class World implements ChunkManager{
 	public function saveChunks() : void{
 		$syncChunkSaveScope = $this->pulse->syncChunkSave->start();
 		try{
+			//every chunk gets its attempt before a failure is reported, and a failed one stays dirty for the next save
+			$failure = null;
+			$failed = 0;
 			foreach($this->chunks as $chunkHash => $chunk){
 				self::getXZ($chunkHash, $chunkX, $chunkZ);
-				$this->saveChunk($chunkX, $chunkZ, $chunkHash, $chunk);
-				$chunk->clearTerrainDirtyFlags();
+				try{
+					$this->saveChunk($chunkX, $chunkZ, $chunkHash, $chunk);
+					$chunk->clearTerrainDirtyFlags();
+				}catch(\Throwable $e){
+					if($failure === null){
+						$this->logger->critical("Failed to save chunk x=$chunkX z=$chunkZ: " . $e->getMessage());
+					}
+					$failure ??= $e;
+					++$failed;
+				}
+			}
+			if($failure !== null){
+				$this->logger->critical("Chunks that could not be saved: $failed");
+				throw $failure;
 			}
 		}finally{
 			$this->pulse->syncChunkSave->stop($syncChunkSaveScope);
