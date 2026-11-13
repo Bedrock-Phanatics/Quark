@@ -737,6 +737,8 @@ class World implements ChunkManager{
 					$this->logger->critical("Failed to save chunk x=$chunkX z=$chunkZ while unloading: " . $e->getMessage());
 				}
 				$failure ??= $e;
+				//the save is what failed, so the rest of the unload can still run
+				$this->unloadChunk($chunkX, $chunkZ, false, false);
 			}
 		}
 		$this->knownUngeneratedChunks = [];
@@ -1742,9 +1744,12 @@ class World implements ChunkManager{
 			$this->saveChunks();
 		}finally{
 			//whatever did get written is still worth keeping
-			$this->provider->getWorldData()->save();
-			$this->provider->flush();
-			$pulse->stop($scope);
+			try{
+				$this->provider->getWorldData()->save();
+			}finally{
+				$this->provider->flush();
+				$pulse->stop($scope);
+			}
 		}
 
 		return true;
