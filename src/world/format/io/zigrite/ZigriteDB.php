@@ -39,6 +39,7 @@ use function extension_loaded;
 use function file_exists;
 use function mkdir;
 use function phpversion;
+use function sprintf;
 use function version_compare;
 
 /**
@@ -52,6 +53,7 @@ final class ZigriteDB extends BedrockWorldProvider{
 	private const MIN_EXTENSION_VERSION = "0.3.2";
 	/** ZigriteDB status codes, see zigritedb.h. */
 	private const STATUS_CORRUPTION = 6;
+	private const STATUS_NEEDS_RECOVERY = 8;
 	private const STATUS_BUSY = 9;
 	private const STATUS_NEEDS_MIGRATION = 16;
 

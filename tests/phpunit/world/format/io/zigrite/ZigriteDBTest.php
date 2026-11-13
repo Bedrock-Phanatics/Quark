@@ -32,6 +32,7 @@ use quark\block\VanillaBlocks;
 use quark\utils\Filesystem;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
+use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\FastChunkSerializer;
 use quark\world\format\io\leveldb\LevelDB;
@@ -42,10 +43,14 @@ use function array_map;
 use function bin2hex;
 use function count;
 use function extension_loaded;
+use function file_get_contents;
+use function file_put_contents;
 use function implode;
 use function iterator_to_array;
 use function random_bytes;
+use function substr;
 use function sys_get_temp_dir;
+use function unlink;
 
 final class ZigriteDBTest extends TestCase{
 	private string $path;
@@ -137,6 +142,52 @@ final class ZigriteDBTest extends TestCase{
 			FastChunkSerializer::serializeTerrain(new Chunk($after->getData()->getSubChunks(), true))
 		);
 		$provider->close();
+	}
+
+	public function testFlushedSaveSurvivesALaterWriteCutShort() : void{
+		$provider = $this->open();
+		$provider->saveChunk(0, 0, self::chunk(1), Chunk::DIRTY_FLAGS_ALL);
+		$provider->flush();
+		$flushed = self::fingerprint($provider->loadChunk(0, 0));
+		$provider->saveChunk(0, 0, self::chunk(2), Chunk::DIRTY_FLAGS_ALL);
+		$provider->close();
+
+		//what a crash during the second save leaves: no checkpoint from a clean close, and a write cut short
+		$region = Path::join($this->path, "00000000-00000000-00000000.region");
+		unlink(Path::join($region, "INDEX"));
+		$segment = Path::join($region, "0000000000000001-0000000000000001.segment");
+		$bytes = file_get_contents($segment);
+		self::assertNotFalse($bytes);
+		file_put_contents($segment, substr($bytes, 0, -3));
+
+		$provider = $this->open();
+		self::assertSame($flushed, self::fingerprint($provider->loadChunk(0, 0)));
+		$provider->close();
+	}
+
+	public function testLostSyncedDataIsReportedAndNeverTreatedAsACorruptChunk() : void{
+		$provider = $this->open();
+		$provider->saveChunk(0, 0, self::chunk(1), Chunk::DIRTY_FLAGS_ALL);
+		$provider->close();
+
+		//the checkpoint of the clean close stays, so the missing bytes are known to have been saved
+		$segment = Path::join($this->path, "00000000-00000000-00000000.region", "0000000000000001-0000000000000001.segment");
+		$bytes = file_get_contents($segment);
+		self::assertNotFalse($bytes);
+		file_put_contents($segment, substr($bytes, 0, -3));
+
+		$provider = $this->open();
+		try{
+			$provider->loadChunk(0, 0);
+			self::fail("a damaged region must not load");
+		}catch(CorruptedChunkException){
+			self::fail("the world would regenerate the chunk over data that can still be recovered");
+		}catch(\RuntimeException $e){
+			self::assertStringContainsString("zigrite recover", $e->getMessage());
+		}finally{
+			$provider->close();
+		}
+		self::assertSame(substr($bytes, 0, -3), file_get_contents($segment), "the damaged region is left as it was");
 	}
 
 	public function testLoadsMatchLevelDB() : void{
