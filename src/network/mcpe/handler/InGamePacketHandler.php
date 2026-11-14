@@ -221,7 +221,19 @@ class InGamePacketHandler extends PacketHandler{
 	public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{
 		self::validateAuthInput($packet);
 		if($this->session->isChangingDimension()){
-			//sent from the loading screen, and any actions in it would land in the new world
+			//sent before the client left or from its loading screen, so its actions would land in the wrong world.
+			//They are rejected the way failed ones are, so the client drops its predictions.
+			$useItemTransaction = $packet->getItemInteractionData();
+			if($useItemTransaction !== null){
+				$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction->getRequestId());
+				$this->inventoryManager->addRawPredictedSlotChanges($useItemTransaction->getTransactionData()->getActions());
+				$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+				$this->inventoryManager->setCurrentItemStackRequestId(null);
+			}
+			$itemStackRequest = $packet->getItemStackRequest();
+			if($itemStackRequest !== null){
+				$this->session->sendDataPacket(ItemStackResponsePacket::create([new ItemStackResponse(ItemStackResponse::RESULT_ERROR, $itemStackRequest->getRequestId(), null)]));
+			}
 			return true;
 		}
 		$rawPos = $packet->getPosition();

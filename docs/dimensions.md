@@ -79,8 +79,9 @@ unregistered.
 
 When a player moves to a world whose client dimension differs, Quark sends the change, resends the destination chunks
 and keeps the client on its loading screen until the spawn area has arrived, as on join. Input sent from the loading
-screen is ignored. The client can't take a second change while it is still loading one, so a change requested
-meanwhile is sent once the loading screen closes. Moving between worlds of the same client dimension works as before,
+screen, or sent just before the client left, is rejected so its predicted item use rolls back. If a client never
+reports the loading screen closing, it gets its input back 30 seconds after it was told to spawn. The client can't take
+a second change while it is still loading one, so a change requested meanwhile is sent once the loading screen closes. Moving between worlds of the same client dimension works as before,
 without a loading screen.
 
 Inventory, effects, gamemode, abilities and other player state live on the server and are untouched by the change.

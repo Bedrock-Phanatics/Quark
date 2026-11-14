@@ -27,22 +27,35 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use pocketmine\network\mcpe\protocol\ChangeDimensionPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\ItemStackResponsePacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
 use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\hud\LoadingScreenType;
 use pocketmine\network\mcpe\protocol\types\InputMode;
 use pocketmine\network\mcpe\protocol\types\InteractionMode;
+use pocketmine\network\mcpe\protocol\types\inventory\HandSlot;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
+use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
+use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
+use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
+use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\network\mcpe\protocol\types\PlayMode;
 use quark\entity\Entity;
 use quark\math\Vector2;
 use quark\math\Vector3;
+use quark\network\mcpe\handler\DeathPacketHandler;
 use quark\network\mcpe\handler\InGamePacketHandler;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\player\Player;
+use quark\Server;
 use quark\world\Dimension;
 use quark\world\DimensionRegistry;
 use quark\world\Position;
@@ -54,6 +67,7 @@ final class NetworkSessionDimensionTest extends TestCase{
 	private array $sent = [];
 	private World $world;
 	private int $dimensionChanges = 0;
+	private int $tick = 0;
 	private Player&MockObject $player;
 	private NetworkSession $session;
 
@@ -84,7 +98,19 @@ final class NetworkSessionDimensionTest extends TestCase{
 		$set = static fn(string $property, mixed $value) => (new \ReflectionProperty(NetworkSession::class, $property))->setValue($session, $value);
 		$set("logger", new \PrefixedLogger($this->createMock(\Logger::class), "test"));
 		$set("player", $this->player);
+		$server = $this->createMock(Server::class);
+		$server->method("getTick")->willReturnCallback(fn() => $this->tick);
+		$set("server", $server);
 		$this->session = $session;
+	}
+
+	/**
+	 * @return list<ClientboundPacket|EncodedPacket>
+	 */
+	private function takeSent() : array{
+		$sent = $this->sent;
+		$this->sent = [];
+		return $sent;
 	}
 
 	private function enter(string $dimension) : void{
@@ -187,6 +213,62 @@ final class NetworkSessionDimensionTest extends TestCase{
 		self::assertSame(PlayStatusPacket::PLAYER_SPAWN, $this->sent[0]->status);
 	}
 
+	public function testGivesUpOnAClientThatNeverFinishes() : void{
+		$expire = new \ReflectionMethod(NetworkSession::class, "expireDimensionChange");
+		$this->enter(Dimension::NETHER);
+		$this->tick = 1_000_000;
+		$expire->invoke($this->session);
+		self::assertTrue($this->session->isChangingDimension(), "The terrain is still on its way");
+
+		$this->session->notifyTerrainReady();
+		$this->tick += 599;
+		$expire->invoke($this->session);
+		self::assertTrue($this->session->isChangingDimension());
+		$this->tick++;
+		$expire->invoke($this->session);
+		self::assertFalse($this->session->isChangingDimension());
+
+		$this->enter(Dimension::OVERWORLD);
+		$this->changes();
+		$this->tick += 10_000;
+		$expire->invoke($this->session);
+		self::assertTrue($this->session->isChangingDimension(), "A new change gets a fresh deadline");
+	}
+
+	public function testDisconnectedSessionSendsNothing() : void{
+		(new \ReflectionProperty(NetworkSession::class, "connected"))->setValue($this->session, false);
+		$this->enter(Dimension::NETHER);
+		self::assertSame([], $this->changes());
+		self::assertSame(0, $this->dimensionChanges);
+	}
+
+	public function testDeathScreenFinishesTheChange() : void{
+		$this->enter(Dimension::NETHER);
+		$handler = (new \ReflectionClass(DeathPacketHandler::class))->newInstanceWithoutConstructor();
+		(new \ReflectionProperty(DeathPacketHandler::class, "session"))->setValue($handler, $this->session);
+		self::assertTrue($handler->handleServerboundLoadingScreen(ServerboundLoadingScreenPacket::create(LoadingScreenType::STOP_LOADING_SCREEN, 1)));
+		self::assertFalse($this->session->isChangingDimension());
+	}
+
+	public function testInFlightItemUseIsRolledBack() : void{
+		$this->enter(Dimension::NETHER);
+		$inventory = $this->createMock(InventoryManager::class);
+		$inventory->expects(self::once())->method("addRawPredictedSlotChanges")->with([]);
+		$inventory->expects(self::once())->method("syncMismatchedPredictedSlotChanges");
+		$handler = (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
+		$set = static fn(string $property, mixed $value) => (new \ReflectionProperty(InGamePacketHandler::class, $property))->setValue($handler, $value);
+		$set("session", $this->session);
+		$set("player", $this->player);
+		$set("inventoryManager", $inventory);
+		$this->player->expects(self::never())->method("useHeldItem");
+
+		$zero2 = new Vector2(0.0, 0.0);
+		$zero3 = new Vector3(0.0, 0.0, 0.0);
+		$transaction = UseItemTransactionData::new([], UseItemTransactionData::ACTION_CLICK_AIR, TriggerType::PLAYER_INPUT, new BlockPosition(0, 0, 0), 0, 0, HandSlot::MAINHAND, ItemStackWrapper::legacy(ItemStack::null()), $zero3, $zero3, 0, PredictedResult::SUCCESS, 0);
+		$input = PlayerAuthInputPacket::create($zero3, 0.0, 0.0, 0.0, 0.0, 0.0, new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS), InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, $zero2, 0, $zero3, new ItemInteractionData(0, null, $transaction), null, null, null, 0.0, 0.0, $zero3, $zero2);
+		self::assertTrue($handler->handlePlayerAuthInput($input));
+	}
+
 	public function testLoadingScreenPacketFinishesTheChange() : void{
 		$this->enter(Dimension::NETHER);
 		$handler = (new \ReflectionClass(InGamePacketHandler::class))->newInstanceWithoutConstructor();
@@ -202,8 +284,13 @@ final class NetworkSessionDimensionTest extends TestCase{
 		$flags->set(PlayerAuthInputFlags::START_JUMPING, true);
 		$zero2 = new Vector2(0.0, 0.0);
 		$zero3 = new Vector3(0.0, 0.0, 0.0);
-		$input = PlayerAuthInputPacket::create(new Vector3(50.0, 80.0, 50.0), 30.0, 0.0, 30.0, 0.0, 0.0, $flags, InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, $zero2, 0, $zero3, null, null, null, null, 0.0, 0.0, $zero3, $zero2);
+		$input = PlayerAuthInputPacket::create(new Vector3(50.0, 80.0, 50.0), 30.0, 0.0, 30.0, 0.0, 0.0, $flags, InputMode::MOUSE_KEYBOARD, PlayMode::NORMAL, InteractionMode::TOUCH, $zero2, 0, $zero3, null, new ItemStackRequest(42, [], [], 0), null, null, 0.0, 0.0, $zero3, $zero2);
+		$this->takeSent();
 		self::assertTrue($handler->handlePlayerAuthInput($input), "Loading screen input is dropped");
+		$response = $this->takeSent()[0] ?? null;
+		self::assertInstanceOf(ItemStackResponsePacket::class, $response, "The client still gets an answer to its request");
+		self::assertSame(ItemStackResponse::RESULT_ERROR, $response->getResponses()[0]->getResult());
+		self::assertSame(42, $response->getResponses()[0]->getRequestId());
 
 		self::assertTrue($handler->handleServerboundLoadingScreen(ServerboundLoadingScreenPacket::create(LoadingScreenType::STOP_LOADING_SCREEN, 1)));
 		self::assertFalse($this->session->isChangingDimension());

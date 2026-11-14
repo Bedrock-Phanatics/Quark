@@ -151,6 +151,7 @@ use function strlen;
 use function substr;
 use function time;
 use const JSON_THROW_ON_ERROR;
+use const PHP_INT_MAX;
 
 class NetworkSession{
 	private const int INCOMING_PACKET_BATCH_PER_TICK = 2; //usually max 1 per tick, but transactions arrive separately
@@ -160,6 +161,8 @@ class NetworkSession{
 	private const int INCOMING_GAME_PACKETS_BUFFER_TICKS = 100;
 
 	private const int INCOMING_PACKET_BATCH_HARD_LIMIT = 300;
+	//how long a client may stay on a dimension loading screen after it was told to spawn
+	private const int DIMENSION_CHANGE_TIMEOUT_TICKS = 600;
 
 	private const int PLAYER_LIST_ENTRIES_PER_PACKET = 100;
 	/**
@@ -221,6 +224,7 @@ class NetworkSession{
 	/** Loading screen of a dimension change the client hasn't finished */
 	private ?int $dimensionChangeId = null;
 	private int $lastLoadingScreenId = 0;
+	private int $dimensionChangeDeadline = PHP_INT_MAX;
 
 	private int $nextAckReceiptId = 0;
 	/** @phpstan-var array<int, list<Deferred<null>>> */
@@ -1486,6 +1490,7 @@ class NetworkSession{
 			if($this->dimensionChangeId !== null){
 				$this->logger->debug("Destination terrain sent, letting the client leave the dimension loading screen");
 				$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
+				$this->dimensionChangeDeadline = $this->server->getTick() + self::DIMENSION_CHANGE_TIMEOUT_TICKS;
 			}
 			return;
 		}
@@ -1776,7 +1781,7 @@ class NetworkSession{
 	 */
 	private function syncDimension() : void{
 		$player = $this->player;
-		if($player === null || !$player->spawned || $this->dimensionChangeId !== null){
+		if($player === null || !$this->connected || !$player->spawned || $this->dimensionChangeId !== null){
 			return;
 		}
 		$dimension = $player->getWorld()->getDimension()->networkId;
@@ -1786,6 +1791,7 @@ class NetworkSession{
 		$this->clientDimension = $dimension;
 		$this->lastLoadingScreenId = ($this->lastLoadingScreenId + 1) & 0xffffffff;
 		$this->dimensionChangeId = $this->lastLoadingScreenId;
+		$this->dimensionChangeDeadline = PHP_INT_MAX;
 		$this->logger->debug("Changing client dimension to $dimension");
 		$this->sendDataPacket(ChangeDimensionPacket::create($dimension, $player->getOffsetPosition($player->getPosition()), false, $this->dimensionChangeId));
 		//the client drops its chunks and entities, and leaves the loading screen once the new terrain has arrived
@@ -1809,6 +1815,16 @@ class NetworkSession{
 		$this->logger->debug("Client finished changing dimension");
 		$this->dimensionChangeId = null;
 		$this->syncDimension();
+	}
+
+	/**
+	 * A client that never reports its loading screen closing would otherwise have its input ignored forever.
+	 */
+	private function expireDimensionChange() : void{
+		if($this->dimensionChangeId !== null && $this->server->getTick() >= $this->dimensionChangeDeadline){
+			$this->logger->debug("Client did not finish changing dimension in time");
+			$this->onLoadingScreenClosed(null);
+		}
 	}
 
 	public function syncWorldWeather(Weather $weather) : void{
@@ -1918,6 +1934,7 @@ class NetworkSession{
 
 		if($this->player !== null){
 			$this->player->doChunkRequests();
+			$this->expireDimensionChange();
 			$this->synchronizePlayerAttributes();
 			if($this->commandSyncPending){
 				$this->syncAvailableCommands();
