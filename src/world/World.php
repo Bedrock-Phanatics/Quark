@@ -204,6 +204,7 @@ class World implements ChunkManager{
 	public const DIFFICULTY_HARD = 3;
 
 	public const DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK = 3;
+	private const RANDOM_TICK_RESCAN_TICKS = 20;
 
 	//TODO: this could probably do with being a lot bigger
 	private const BLOCK_CACHE_SIZE_CAP = 2048;
@@ -441,6 +442,13 @@ class World implements ChunkManager{
 	 * @phpstan-var array<int, true>
 	 */
 	private array $randomTickBlocks = [];
+	/**
+	 * Subchunks of each ticking chunk that held random-ticked states when last scanned, and the tick to scan it
+	 * again at. The rescan only catches layers changed without going through the world.
+	 *
+	 * @phpstan-var array<ChunkPosHash, array{int, list<int>}>
+	 */
+	private array $randomTickSubChunks = [];
 
 	public WorldPulse $pulse;
 
@@ -1455,10 +1463,12 @@ class World implements ChunkManager{
 			throw new \InvalidArgumentException("Cannot do random-tick on unknown block");
 		}
 		$this->randomTickBlocks[$block->getStateId()] = true;
+		$this->randomTickSubChunks = [];
 	}
 
 	public function removeRandomTickedBlock(Block $block) : void{
 		unset($this->randomTickBlocks[$block->getStateId()]);
+		$this->randomTickSubChunks = [];
 	}
 
 	/**
@@ -1510,7 +1520,8 @@ class World implements ChunkManager{
 				unset(
 					$this->registeredTickingChunks[$chunkHash],
 					$this->recheckTickingChunks[$chunkHash],
-					$this->validTickingChunks[$chunkHash]
+					$this->validTickingChunks[$chunkHash],
+					$this->randomTickSubChunks[$chunkHash]
 				);
 			}else{
 				unset($this->registeredTickingChunks[$chunkHash][$tickerId]);
@@ -1540,13 +1551,14 @@ class World implements ChunkManager{
 		}
 
 		$lightningChance = $this->weather === Weather::THUNDER ? $this->lightningChance : 0;
+		$currentTick = $this->server->getTick();
 		foreach($this->validTickingChunks as $index => $_){
 			World::getXZ($index, $chunkX, $chunkZ);
 
 			if($lightningChance > 0 && mt_rand(1, $lightningChance) === 1){
 				$this->strikeNaturalLightning($chunkX, $chunkZ);
 			}
-			$this->tickChunk($chunkX, $chunkZ);
+			$this->tickChunk($chunkX, $chunkZ, $index, $currentTick);
 		}
 	}
 
@@ -1601,6 +1613,7 @@ class World implements ChunkManager{
 	 * - Arbitrary chunk replacement (i.e. setChunk() or similar)
 	 */
 	private function markTickingChunkForRecheck(int $chunkX, int $chunkZ) : void{
+		unset($this->randomTickSubChunks[World::chunkHash($chunkX, $chunkZ)]);
 		for($cx = -1; $cx <= 1; ++$cx){
 			for($cz = -1; $cz <= 1; ++$cz){
 				$chunkHash = World::chunkHash($chunkX + $cx, $chunkZ + $cz);
@@ -1649,8 +1662,8 @@ class World implements ChunkManager{
 		}
 	}
 
-	private function tickChunk(int $chunkX, int $chunkZ) : void{
-		$chunk = $this->getChunk($chunkX, $chunkZ);
+	private function tickChunk(int $chunkX, int $chunkZ, int $chunkHash, int $currentTick) : void{
+		$chunk = $this->chunks[$chunkHash] ?? null;
 		if($chunk === null){
 			//the chunk may have been unloaded during a previous chunk's update (e.g. during BlockGrowEvent)
 			return;
@@ -1659,21 +1672,15 @@ class World implements ChunkManager{
 			$entity->onRandomUpdate();
 		}
 
+		$scan = $this->randomTickSubChunks[$chunkHash] ?? null;
+		if($scan === null || $scan[0] <= $currentTick){
+			$scan = $this->randomTickSubChunks[$chunkHash] = [$currentTick + self::RANDOM_TICK_RESCAN_TICKS, $this->findRandomTickSubChunks($chunk)];
+		}
+
 		$blockFactory = $this->blockStateRegistry;
-		foreach($chunk->getSubChunks() as $Y => $subChunk){
-			$blocks = $subChunk->getBlockLayer0();
+		foreach($scan[1] as $Y){
+			$blocks = $chunk->getSubChunk($Y)->getBlockLayer0();
 			if($blocks === null){
-				continue;
-			}
-			//most subchunks hold nothing that ticks randomly, which their palette tells without sampling
-			$ticks = false;
-			foreach($blocks->getPalette() as $state){
-				if(isset($this->randomTickBlocks[$state])){
-					$ticks = true;
-					break;
-				}
-			}
-			if(!$ticks){
 				continue;
 			}
 			$k = 0;
@@ -1696,6 +1703,29 @@ class World implements ChunkManager{
 				}
 			}
 		}
+	}
+
+	/**
+	 * Most subchunks hold nothing that ticks randomly, which their palette tells without sampling.
+	 *
+	 * @return int[]
+	 * @phpstan-return list<int>
+	 */
+	private function findRandomTickSubChunks(Chunk $chunk) : array{
+		$found = [];
+		foreach($chunk->getSubChunks() as $Y => $subChunk){
+			$blocks = $subChunk->getBlockLayer0();
+			if($blocks === null){
+				continue;
+			}
+			foreach($blocks->getPalette() as $state){
+				if(isset($this->randomTickBlocks[$state])){
+					$found[] = $Y;
+					break;
+				}
+			}
+		}
+		return $found;
 	}
 
 	/**
@@ -2623,6 +2653,9 @@ class World implements ChunkManager{
 		$localZ = $z & Chunk::COORD_MASK;
 		$previousStateId = $chunk->getBlockStateId($localX, $y, $localZ);
 		$chunk->setBlockStateId($localX, $y, $localZ, $stateId);
+		if(isset($this->randomTickBlocks[$stateId])){
+			unset($this->randomTickSubChunks[$chunkHash]);
+		}
 		$block->writeStateToWorld();
 
 		$relativeBlockHash = World::chunkBlockHash($x, $y, $z);
