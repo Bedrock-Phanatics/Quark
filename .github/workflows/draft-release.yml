@@ -52,7 +52,7 @@ jobs:
             https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/qrk6-php-8.4-latest \
             > build_info.json
           php tools/generate-permission-doc.php rst
-          test -s Quark.phar
+          test -s Quark-v6.phar
           test -s build_info.json
           test -s core-permissions.rst
 
@@ -62,7 +62,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            Quark.phar
+            Quark-v6.phar
             start.sh
             start.cmd
             build_info.json

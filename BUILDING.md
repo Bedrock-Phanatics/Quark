@@ -34,10 +34,10 @@ Use `bin\php\run-php.cmd` for the bundled Windows runtime when invoking PHP or C
 ## Optimizing for release builds
 1. Add the flags `--no-dev --classmap-authoritative` to your `composer install` command. This will reduce build size and improve autoloading speed.
 
-## Building `Quark.phar`
-Run `composer make-server` using your preferred PHP binary. It'll drop a `Quark.phar` into the current working directory.
+## Building `Quark-v6.phar`
+Run `composer make-server` using your preferred PHP binary. It'll drop a `Quark-v6.phar` into the current working directory. The name follows the major version in `src/VersionInfo.php`, so the release workflow, Dockerfile and launchers need the new name when that changes.
 
-To select an output filename, first install production dependencies with `composer install --no-dev --classmap-authoritative`, then run `php -dphar.readonly=0 build/server-phar.php --out path/to/Quark.phar`.
+To select an output filename, first install production dependencies with `composer install --no-dev --classmap-authoritative`, then run `php -dphar.readonly=0 build/server-phar.php --out path/to/Quark-v6.phar`.
 
 `composer make-server` removes development dependencies. Run `composer install` again before running PHPUnit or PHPStan.
 
@@ -47,7 +47,7 @@ CI runs native NBT and lifecycle checks, PHPStan, PHPUnit, integration tests and
 
 Push builds cover `main` and `dev`; other branches are checked through pull requests or manual dispatch to avoid duplicate push/PR builds.
 
-To prepare a release, set `IS_DEVELOPMENT_BUILD` to `false`, verify the version/channel in `src/VersionInfo.php`, update `CHANGELOG.md`, and push a matching version tag (for example `6.0.0` or `v6.0.0`). After CI passes, the tag workflow builds `Quark.phar`, launcher scripts, `build_info.json` and core permission documentation, then creates a draft release. Publishing the draft starts the container pipeline for `ghcr.io/bedrock-phanatics/quark`; stable releases also receive major, minor and `latest` tags. Container smoke tests must pass before tags are pushed.
+To prepare a release, set `IS_DEVELOPMENT_BUILD` to `false`, verify the version/channel in `src/VersionInfo.php`, update `CHANGELOG.md`, and push a matching version tag (for example `6.0.0` or `v6.0.0`). After CI passes, the tag workflow builds `Quark-v6.phar`, launcher scripts, `build_info.json` and core permission documentation, then creates a draft release. Publishing the draft starts the container pipeline for `ghcr.io/bedrock-phanatics/quark`; stable releases also receive major, minor and `latest` tags. Container smoke tests must pass before tags are pushed.
 
 ## Running Quark from source code
 Run `src/Quark.php` using your preferred PHP binary.

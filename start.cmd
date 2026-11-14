@@ -24,10 +24,12 @@ if "%PHP_BINARY%"=="" (
 	exit 1
 )
 
-if exist Quark.phar (
+if exist Quark-v6.phar (
+	set QUARK_FILE=Quark-v6.phar
+) else if exist Quark.phar (
 	set QUARK_FILE=Quark.phar
 ) else (
-	echo Quark.phar not found
+	echo Quark-v6.phar not found
 	echo Downloads can be found at https://github.com/Bedrock-Phanatics/Quark/releases
 	pause
 	exit 1

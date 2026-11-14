@@ -43,7 +43,7 @@ RUN composer install --classmap-authoritative --no-dev --prefer-dist --no-intera
 RUN php vendor/axolotl-pm/bedrock-data/.minify_json.php
 RUN php -dphar.readonly=0 ./build/server-phar.php --git "${GIT_HASH}" --build "${BUILD_NUMBER}"
 # Just to make sure the build script didn't false-positive-exit
-RUN test -f /opt/quark/repo/Quark.phar
+RUN test -f /opt/quark/repo/Quark-v6.phar
 
 FROM ubuntu:22.04@sha256:5ec03bb3441e8b0bf3b4f9cd4629a1ae763010dc3035bb8da3ae6cf026486401
 LABEL org.opencontainers.image.source="https://github.com/Bedrock-Phanatics/Quark"
@@ -56,7 +56,7 @@ RUN useradd -r --no-create-home -u 1000 -g quark quark
 WORKDIR /opt/quark
 COPY --from=build-php /opt/quark/bin /opt/quark/bin
 RUN ln -s /opt/quark/bin/php7/bin/php /usr/bin/php
-COPY --from=build-quark /opt/quark/repo/Quark.phar Quark.phar
+COPY --from=build-quark /opt/quark/repo/Quark-v6.phar Quark-v6.phar
 COPY ./build/php/tests/generic/native.php /usr/local/share/quark-runtime-check.php
 COPY --chmod=755 ./docker/start.sh /usr/bin/start-quark
 

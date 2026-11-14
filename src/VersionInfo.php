@@ -28,6 +28,7 @@ use quark\utils\VersionString;
 use function is_array;
 use function is_int;
 use function str_repeat;
+use function strstr;
 
 final class VersionInfo{
 	public const string NAME = "Quark";
@@ -53,6 +54,13 @@ final class VersionInfo{
 
 	private function __construct(){
 		//NOOP
+	}
+
+	/**
+	 * File name of the server phar. It carries the major version, so builds of different majors can't be mixed up.
+	 */
+	public static function pharName() : string{
+		return self::NAME . "-v" . strstr(self::BASE_VERSION, ".", true) . ".phar";
 	}
 
 	private static ?string $gitHash = null;

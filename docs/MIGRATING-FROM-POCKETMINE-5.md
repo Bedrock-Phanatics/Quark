@@ -37,7 +37,7 @@ Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to name
 
 | PocketMine-MP 5 | Quark 6 |
 |---|---|
-| `PocketMine-MP.phar` | `Quark.phar` |
+| `PocketMine-MP.phar` | `Quark-v6.phar` |
 | `src/PocketMine.php` | `src/Quark.php` |
 | `pocketmine.yml` | `config/server.toml` |
 | `plugin.yml` | `plugin.toml` |

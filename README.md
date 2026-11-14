@@ -66,7 +66,7 @@ composer make-server
 Start Quark:
 
 ```bash
-php Quark.phar
+php Quark-v6.phar
 ```
 
 On first launch, review `config/server.toml` and `config/plugins.toml` before exposing the server publicly.

@@ -63,7 +63,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Added `World::getCollisionRegion()` for native collision queries.
 - Made `Block::calculateIntercept()` and `quark\world\generator\noise\Simplex` final.
 - Renamed the Composer root package to `quark/quark` while retaining the existing `axolotl-pm/*` and other `pocketmine/*` dependencies.
-- Renamed the bootstrap to `src/Quark.php`, the release artifact to `Quark.phar`, and the main configuration to `quark.yml`.
+- Renamed the bootstrap to `src/Quark.php`, the release artifact to `Quark-v6.phar`, and the main configuration to `quark.yml`.
 - Replaced the inherited example plugin with a Quark 6 example and updated the script example to API 6.0.0.
 - Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.
 - Retained the existing `pmmpthread` native extension contract.

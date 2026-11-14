@@ -23,10 +23,12 @@ if($php -ne ""){
 }
 
 if($file -eq ""){
-	if(Test-Path "Quark.phar"){
+	if(Test-Path "Quark-v6.phar"){
+	    $file = "Quark-v6.phar"
+	}elseif(Test-Path "Quark.phar"){
 	    $file = "Quark.phar"
 	}else{
-	    echo "Quark.phar not found"
+	    echo "Quark-v6.phar not found"
 	    echo "Downloads can be found at https://github.com/Bedrock-Phanatics/Quark/releases"
 	    pause
 	    exit 1
