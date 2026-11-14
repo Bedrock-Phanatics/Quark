@@ -393,7 +393,17 @@ abstract class Living extends Entity{
 	}
 
 	protected function calculateFallDamage(float $fallDistance) : float{
-		return ceil($fallDistance - 3 - (($jumpBoost = $this->effectManager->get(VanillaEffects::JUMP_BOOST())) !== null ? $jumpBoost->getEffectLevel() : 0));
+		//vanilla floors, so a jump off a 2 block ledge (~3.25 from the apex) is harmless. The distance is a sum of
+		//per-move deltas, so drop the summation error (movement is only 4 decimals precise) before flooring.
+		return floor(round($fallDistance, 4) - 3 - (($jumpBoost = $this->effectManager->get(VanillaEffects::JUMP_BOOST())) !== null ? $jumpBoost->getEffectLevel() : 0));
+	}
+
+	protected function updateFallState(float $distanceThisTick, bool $onGround) : ?float{
+		if($this->gliding && !$onGround && $distanceThisTick >= -0.5){
+			//only a steep dive counts towards landing damage while gliding
+			$this->fallDistance = 1.0;
+		}
+		return parent::updateFallState($distanceThisTick, $onGround);
 	}
 
 	protected function onHitGround() : ?float{
