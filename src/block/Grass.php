@@ -38,6 +38,7 @@ use quark\world\sound\ItemUseOnBlockSound;
 use function mt_rand;
 
 class Grass extends Opaque{
+	private static ?int $dirtStateId = null;
 
 	public function getDropsForCompatibleTool(Item $item) : array{
 		return [
@@ -61,7 +62,7 @@ class Grass extends Opaque{
 			BlockEventHelper::spread($this, VanillaBlocks::DIRT(), $this);
 		}elseif($lightAbove >= 9){
 			//try grass spread; candidates are rarely dirt, so check raw states before building any block
-			$dirt = VanillaBlocks::DIRT()->getStateId();
+			$dirt = self::$dirtStateId ??= VanillaBlocks::DIRT()->getStateId();
 			$lightFilter = RuntimeBlockStateRegistry::getInstance()->lightFilter;
 			for($i = 0; $i < 4; ++$i){
 				$x = mt_rand($this->position->x - 1, $this->position->x + 1);
