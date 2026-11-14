@@ -10,15 +10,19 @@ use PHPUnit\Framework\TestCase;
 use quark\network\mcpe\bedwire\BedwireTransport;
 use quark\utils\Config;
 use quark\utils\Filesystem;
+use raklib\server\ServerSocket;
+use raklib\utils\InternetAddress;
 use function array_fill;
 use function array_key_exists;
 use function bin2hex;
+use function fclose;
 use function file_put_contents;
 use function hash_file;
 use function mkdir;
 use function random_bytes;
 use function str_repeat;
 use function str_replace;
+use function stream_socket_client;
 use function sys_get_temp_dir;
 
 final class ConfigUpgradeTest extends TestCase{
@@ -161,14 +165,16 @@ final class ConfigUpgradeTest extends TestCase{
 		$original = Filesystem::fileGetContents($this->paths->serverToml());
 		$argv = $_SERVER["argv"] ?? [];
 		try{
-			$_SERVER["argv"] = ["quark", "--server-port=19140", "--network.port=19141", "--settings.async-workers=2", "--performance.async-workers=3", "--white-list=true", "--server.whitelist=false", "--level-name=legacy", "--world.name=modern", "--server.motd=Custom", "--network.compression.threshold=-1"];
+			$_SERVER["argv"] = ["quark", "--network.port=19140", "--server-port=19141", "--network.port=19142", "--network.xbox-auth=true", "--xbox-auth=false", "--network.xbox-auth=true", "--network.compression.level=invalid", "--network.compression-level=7", "--settings.async-workers=2", "--performance.async-workers=3", "--white-list=true", "--server.whitelist=false", "--level-name=legacy", "--world.name=modern", "--server.motd=Custom", "--network.compression.threshold=-1"];
 			$group = ServerConfigGroup::load($this->paths->serverToml());
-			self::assertSame(19141, $group->getConfigInt(ServerProperties::SERVER_PORT_IPV4));
+			self::assertSame(19142, $group->getConfigInt(ServerProperties::SERVER_PORT_IPV4));
+			self::assertTrue($group->getConfigBool(ServerProperties::XBOX_AUTH));
 			self::assertSame(3, $group->getPropertyInt(YmlServerProperties::PERFORMANCE_ASYNC_WORKERS, 0));
 			self::assertFalse($group->getConfigBool(ServerProperties::WHITELIST));
 			self::assertSame("modern", $group->getConfigString(ServerProperties::DEFAULT_WORLD_NAME));
 			self::assertSame("Custom", $group->getConfigString(ServerProperties::MOTD));
 			self::assertSame(-1, $group->getPropertyInt(YmlServerProperties::NETWORK_COMPRESSION_THRESHOLD, 0));
+			self::assertSame(7, $group->getPropertyInt(YmlServerProperties::NETWORK_COMPRESSION_LEVEL, 0));
 			$group->save();
 			self::assertSame($original, Filesystem::fileGetContents($this->paths->serverToml()));
 		}finally{
@@ -176,12 +182,67 @@ final class ConfigUpgradeTest extends TestCase{
 		}
 	}
 
+	public function testSettersRefreshCachedSectionsAndValues() : void{
+		ConfigurationMigration::createServer($this->paths->serverToml());
+		$group = ServerConfigGroup::load($this->paths->serverToml());
+		$initial = $group->getProperty("gameplay");
+		self::assertIsArray($initial);
+		self::assertSame(2, $group->getConfigInt(ServerProperties::DIFFICULTY));
+		$group->setConfigString(ServerProperties::GAME_MODE, "CREATIVE");
+		$group->setConfigInt(ServerProperties::DIFFICULTY, 3);
+		$group->setConfigBool(ServerProperties::PVP, false);
+		$updated = $group->getProperty("gameplay");
+		self::assertIsArray($updated);
+		self::assertSame("CREATIVE", $updated["gamemode"]);
+		self::assertSame(3, $updated["difficulty"]);
+		self::assertFalse($updated["pvp"]);
+		self::assertSame(3, $group->getConfigInt(ServerProperties::DIFFICULTY));
+		$group->save();
+		self::assertSame($updated, CoreConfig::load($this->paths->serverToml())["gameplay"]);
+	}
+
+	public function testDisabledLegacyTickingStaysDisabledUnlessCanonicalRadiusOverridesIt() : void{
+		foreach([0, 7] as $radius){
+			$content = "[chunk-ticking]\nper-tick = 0\ntick-radius = 3\n";
+			if($radius !== 0){
+				$content .= "[chunks]\ntick-radius = $radius\n";
+			}
+			file_put_contents($this->paths->serverToml(), $content);
+			CoreConfig::forget($this->paths->serverToml());
+			$this->migration->upgradeServer();
+			self::assertSame($radius, (new Config($this->paths->serverToml(), Config::TOML))->getNested("chunks.tick-radius"));
+		}
+	}
+
+	public function testCurrentConfigRejectsUnsupportedColocatedPluginData() : void{
+		file_put_contents($this->paths->serverToml(), "config-version = 2\n[plugins]\nlegacy-data-dir = true\n");
+		$this->expectExceptionMessage("plugins.legacy-data-dir");
+		ServerConfigGroup::load($this->paths->serverToml());
+	}
+
+	public function testRakNetBindHostnamesSurviveMigration() : void{
+		file_put_contents($this->paths->serverToml(), "config-version = 1\n[server]\nserver-ip = 'localhost'\nserver-ipv6 = 'localhost'\n[transport]\nname = 'raknet'\n");
+		$this->migration->upgradeServer();
+		$group = ServerConfigGroup::load($this->paths->serverToml());
+		self::assertSame("localhost", $group->getConfigString(ServerProperties::SERVER_IPV6));
+		$socket = new ServerSocket(new InternetAddress($group->getConfigString(ServerProperties::SERVER_IPV4), 0, 4));
+		try{
+			self::assertSame("localhost", $socket->getBindAddress()->getIp());
+		}finally{
+			$socket->close();
+		}
+	}
+
 	/** @return iterable<string, array{array<string, mixed>}> */
 	public static function invalidUpgradeSettings() : iterable{
 		yield "config-version" => [["config-version" => null]];
+		yield "memory" => [["config-version" => 0, "memory" => [123]]];
+		yield "tnt-limits" => [["config-version" => 0, "tnt-limits" => [123]]];
+		yield "chunk-generation" => [["config-version" => 0, "chunk-generation" => [123]]];
+		yield "network" => [["config-version" => 0, "network" => [123]]];
 		yield "gameplay.difficulty" => [["server" => ["difficulty" => 9]]];
 		yield "network.port" => [["server" => ["server-port" => -1]]];
-		yield "network.bind-address" => [["server" => ["server-ip" => "::1"]]];
+		yield "network.bind-address" => [["server" => ["server-ip" => 123]]];
 		yield "chunks" => [["chunks" => false, "chunk-ticking" => ["tick-radius" => 5]]];
 		yield "transport.nethernet.key-file" => [["transport" => ["nethernet" => ["key-file" => ""]]]];
 		yield "transport.nethernet.ice-servers" => [["transport" => ["nethernet" => ["ice-servers" => array_fill(0, 33, "stun:example.com")]]]];
@@ -235,6 +296,9 @@ final class ConfigUpgradeTest extends TestCase{
 			try{
 				self::assertTrue($native->isRunning());
 				self::assertGreaterThan(0, $native->getPort());
+				$connection = stream_socket_client("tcp://127.0.0.1:" . $native->getPort(), $errorCode, $errorMessage, 1);
+				self::assertIsResource($connection, $errorMessage ?? "");
+				fclose($connection);
 				$hash = hash_file("sha256", $this->root . "/nethernet-identity.der");
 				self::assertNotFalse($hash);
 				$identityHash ??= $hash;

@@ -273,7 +273,7 @@ final class CoreConfigTest extends TestCase{
 
 	/** @return iterable<string, array{mixed}> */
 	public static function invalidAdvertiseAddresses() : iterable{
-		foreach(["203.0.113.7:19132", "example.com", "[2001:db8::7]", "0.0.0.0", "224.0.0.1", "255.255.255.255", "169.254.1.1", "::", "ff02::1", "fe80::1", "::ffff:203.0.113.7", ""] as $address){
+		foreach(["203.0.113.7:19132", "example.com", "[2001:db8::7]", "0.0.0.0", "224.0.0.1", "255.255.255.255", "169.254.1.1", "::", "0:0:0:0:0:0:0:0", "ff02::1", "fe80::1", "::ffff:203.0.113.7", "0:0:0:0:0:ffff:cb00:7107", ""] as $address){
 			yield "'$address'" => [[$address]];
 		}
 		yield "int" => [[7]];

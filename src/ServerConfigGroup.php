@@ -28,6 +28,7 @@ use quark\utils\Utils;
 use function array_key_exists;
 use function array_pad;
 use function array_replace_recursive;
+use function array_reverse;
 use function count;
 use function explode;
 use function file_exists;
@@ -83,6 +84,7 @@ final class ServerConfigGroup{
 					if($this->toml && str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
 						$key = substr($key, 7);
 					}
+					unset($this->overrides[$key]);
 					$this->overrides[$key] = $value;
 				}
 			}
@@ -98,11 +100,16 @@ final class ServerConfigGroup{
 		$serverDefaults = $defaults["server"] ?? [];
 		$changes = [];
 		$overrides = [];
-		foreach(Utils::stringifyKeys($this->overrides) as $name => $raw){
+		// Process the last spelling first, so overridden values are neither applied nor validated.
+		foreach(Utils::stringifyKeys(array_reverse($this->overrides, true)) as $name => $raw){
 			$argument = $name;
 			$legacy = "server.$name";
 			$name = CoreConfig::RENAMED_SETTINGS[$legacy] ?? CoreConfig::RENAMED_SETTINGS[$name] ?? $name;
 			$path = is_array($serverDefaults) && isset($serverDefaults[$name]) ? ["server", $name] : explode(".", $name, 4);
+			$canonical = implode(".", $path);
+			if(isset($overrides[$canonical])){
+				continue;
+			}
 			$expected = $defaults;
 			foreach($path as $segment){
 				$expected = is_array($expected) ? ($expected[$segment] ?? null) : null;
@@ -122,7 +129,7 @@ final class ServerConfigGroup{
 			if($value === null){
 				throw new \InvalidArgumentException("Invalid value for --$argument");
 			}
-			$overrides[implode(".", $path)] = $value;
+			$overrides[$canonical] = $value;
 			$patch = $value;
 			for($index = count($path) - 1; $index > 0; --$index){
 				$patch = [$path[$index] => $patch];
@@ -226,10 +233,10 @@ final class ServerConfigGroup{
 		if($this->toml){
 			$path = CoreConfig::RENAMED_SETTINGS["server.$variable"] ?? "server.$variable";
 			$this->serverProperties->setNested($path, $value);
-			unset($this->propertyCache[$path]);
 		}else{
 			$this->serverProperties->set($variable, $value);
 		}
+		$this->propertyCache = [];
 	}
 
 	public function save() : void{

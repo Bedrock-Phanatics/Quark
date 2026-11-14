@@ -150,7 +150,7 @@ final class ConfigurationMigration{
 			if(!is_int($perTick)){
 				throw new \InvalidArgumentException("Invalid chunk-ticking.per-tick: expected integer");
 			}
-			if($perTick <= 0 && !array_key_exists("tick-radius", $chunkTicking)){
+			if($perTick <= 0){
 				$chunkTicking["tick-radius"] = 0;
 			}
 			unset($chunkTicking["per-tick"]);
@@ -213,6 +213,9 @@ final class ConfigurationMigration{
 			"network" => ["async-compression" => true],
 			"memory" => ["continuous-trigger-rate" => 40],
 		] : [];
+		foreach(Utils::stringifyKeys($previousDefaults) as $section => $default){
+			self::table($data, $section);
+		}
 		$data = array_replace_recursive($previousDefaults, $data);
 		foreach(CoreConfig::RENAMED_SETTINGS as $old => $new){
 			[$found, $value] = self::takeSetting($data, explode(".", $old, 4));
@@ -240,13 +243,10 @@ final class ConfigurationMigration{
 		unset($data["aliases"]);
 		self::takeSetting($data, ["transport", "nethernet", "mtu"]);
 		self::takeSetting($data, ["transport", "nethernet", "builtin-signaling"]);
-		$plugins = self::table($data, "plugins");
-		if(($plugins["legacy-data-dir"] ?? false) !== false){
-			throw new \InvalidArgumentException("Colocated plugin data needs a migration handler; migrate it to data/plugins and remove plugins.legacy-data-dir");
-		}
-		self::takeSetting($data, ["plugins", "legacy-data-dir"]);
+		self::table($data, "plugins");
 		$data["config-version"] = CoreConfig::SERVER_VERSION;
 		CoreConfig::validateServer($data);
+		self::takeSetting($data, ["plugins", "legacy-data-dir"]);
 		$data = array_replace_recursive(CoreConfig::defaults(), $data);
 		CoreConfig::validateServer($data);
 		return $data;

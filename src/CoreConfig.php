@@ -24,6 +24,7 @@ use function filter_var;
 use function get_debug_type;
 use function implode;
 use function in_array;
+use function inet_ntop;
 use function inet_pton;
 use function is_array;
 use function is_bool;
@@ -731,6 +732,10 @@ final class CoreConfig{
 		if(is_array($logging) && $logging !== []){
 			new log\LoggingConfig($logging);
 		}
+		$plugins = $data["plugins"] ?? [];
+		if(is_array($plugins) && array_key_exists("legacy-data-dir", $plugins) && $plugins["legacy-data-dir"] !== false){
+			throw new \InvalidArgumentException("Colocated plugin data needs a migration handler; migrate it to data/plugins and remove plugins.legacy-data-dir");
+		}
 
 		if(array_key_exists("worlds", $data)){
 			$entries = $data["worlds"];
@@ -816,8 +821,9 @@ final class CoreConfig{
 		$seen = [];
 		foreach($addresses as $address){
 			$packed = is_string($address) && filter_var($address, FILTER_VALIDATE_IP) !== false ? inet_pton($address) : false;
+			$canonical = $packed !== false ? inet_ntop($packed) : false;
 			//the unspecified, multicast, link-local and IPv4-mapped ranges can't name a server
-			if($packed === false || isset($seen[$packed]) || preg_match('/^(0\.|22[4-9]\.|2[3-5]\d\.|169\.254\.|::$|ff|fe[89ab]|::ffff:)/i', $address) === 1){
+			if($packed === false || $canonical === false || isset($seen[$packed]) || preg_match('/^(0\.|22[4-9]\.|2[3-5]\d\.|169\.254\.|::$|ff|fe[89ab]|::ffff:)/i', $canonical) === 1){
 				throw new \InvalidArgumentException($error . ", got " . (is_string($address) ? "'$address'" : get_debug_type($address)));
 			}
 			$seen[$packed] = true;
@@ -883,12 +889,6 @@ final class CoreConfig{
 			}
 			if(str_contains($value, "\0")){
 				throw new \InvalidArgumentException("Invalid $path: NUL characters are not allowed");
-			}
-			if(in_array($path, ["network.bind-address", "network.bind-address-v6"], true) && $value !== ""){
-				$packed = filter_var($value, FILTER_VALIDATE_IP) !== false ? inet_pton($value) : false;
-				if($packed === false || strlen($packed) !== ($path === "network.bind-address" ? 4 : 16)){
-					throw new \InvalidArgumentException("Invalid $path: expected an IP address for this address family, or an empty string");
-				}
 			}
 			if($path === "transport.nethernet.key-file" && trim($value) === ""){
 				throw new \InvalidArgumentException("Invalid $path: expected a nonempty identity file path");

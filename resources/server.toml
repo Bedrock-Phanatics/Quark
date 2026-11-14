@@ -28,8 +28,10 @@ verify-xuid = true
 
 [network]
 # Empty addresses listen on all interfaces for that address family.
+# NetherNet requires an IP literal; RakNet also accepts hostnames.
 bind-address = ''
 bind-address-v6 = ''
+# NetherNet signaling uses TCP; RakNet and Query use UDP.
 port = 19132
 port-v6 = 19133
 enable-ipv6 = true
@@ -40,7 +42,7 @@ xbox-auth = true
 enable-encryption = true
 # A proxy with one of these base64 DER public keys can log in as any player.
 trusted-proxy-keys = []
-# Ask the router to expose the IPv4 server port; this does not forward ICE ports.
+# Forward the IPv4 UDP port via UPnP; NetherNet signaling and ICE need separate forwarding.
 upnp-forwarding = false
 
 [network.compression]

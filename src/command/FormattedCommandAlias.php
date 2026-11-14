@@ -42,7 +42,6 @@ use function substr;
 /**
  * @internal
  * Registers a command that expands into one or more command lines.
- * See the comments in resources/server.toml for examples.
  */
 class FormattedCommandAlias extends Command{
 	/**
