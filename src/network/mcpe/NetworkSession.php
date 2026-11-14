@@ -29,6 +29,7 @@ use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\network\mcpe\protocol\ChangeDimensionPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
@@ -214,6 +215,12 @@ class NetworkSession{
 	private array $softEnumVersions = [];
 	private bool $forceAsyncCompression = true;
 	private bool $enableCompression = false; //disabled until handshake completed
+
+	/** @phpstan-var DimensionIds::* the dimension the client is in or loading into */
+	private int $clientDimension = DimensionIds::OVERWORLD;
+	/** Loading screen of a dimension change the client hasn't finished */
+	private ?int $dimensionChangeId = null;
+	private int $lastLoadingScreenId = 0;
 
 	private int $nextAckReceiptId = 0;
 	/** @phpstan-var array<int, list<Deferred<null>>> */
@@ -1466,6 +1473,8 @@ class NetworkSession{
 	}
 
 	private function beginSpawnSequence() : void{
+		//StartGame puts the client in this dimension
+		$this->clientDimension = ($this->player ?? throw new AssumptionFailedError("Player should exist"))->getWorld()->getDimension()->networkId;
 		$this->setHandler(new PreSpawnPacketHandler($this->server, $this->player, $this, $this->invManager));
 		$this->player->setNoClientPredictions(); //TODO: HACK: fix client-side falling pre-spawn
 
@@ -1473,6 +1482,13 @@ class NetworkSession{
 	}
 
 	public function notifyTerrainReady() : void{
+		if($this->player !== null && $this->player->spawned){
+			if($this->dimensionChangeId !== null){
+				$this->logger->debug("Destination terrain sent, letting the client leave the dimension loading screen");
+				$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
+			}
+			return;
+		}
 		$this->logger->debug("Sending spawn notification, waiting for spawn response");
 		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
 		$this->setHandler(new SpawnResponsePacketHandler($this->onClientSpawnResponse(...)));
@@ -1485,6 +1501,7 @@ class NetworkSession{
 		$this->forceAsyncCompression = false;
 		$this->setHandler(new InGamePacketHandler($this->player, $this, $this->invManager));
 		$this->manager->markJoined($this);
+		$this->syncDimension();
 	}
 
 	public function onServerDeath(Translatable|string $deathMessage) : void{
@@ -1537,11 +1554,11 @@ class NetworkSession{
 	public function syncPlayerSpawnPoint(Position $newSpawn) : void{
 		$newSpawnBlockPosition = BlockPosition::fromVector3($newSpawn);
 		//TODO: respawn causing block position (bed, respawn anchor)
-		$this->sendDataPacket(SetSpawnPositionPacket::playerSpawn($newSpawnBlockPosition, DimensionIds::OVERWORLD, $newSpawnBlockPosition));
+		$this->sendDataPacket(SetSpawnPositionPacket::playerSpawn($newSpawnBlockPosition, $newSpawn->getWorld()->getDimension()->networkId, $newSpawnBlockPosition));
 	}
 
 	public function syncWorldSpawnPoint(Position $newSpawn) : void{
-		$this->sendDataPacket(SetSpawnPositionPacket::worldSpawn(BlockPosition::fromVector3($newSpawn), DimensionIds::OVERWORLD));
+		$this->sendDataPacket(SetSpawnPositionPacket::worldSpawn(BlockPosition::fromVector3($newSpawn), $newSpawn->getWorld()->getDimension()->networkId));
 	}
 
 	public function syncGameMode(GameMode $mode, bool $isRollback = false) : void{
@@ -1742,13 +1759,56 @@ class NetworkSession{
 	}
 
 	public function onEnterWorld() : void{
-		if($this->player !== null){
-			$world = $this->player->getWorld();
+		$player = $this->player;
+		if($player !== null){
+			$this->syncDimension();
+			$world = $player->getWorld();
 			$this->syncWorldTime($world->getTime());
 			$this->syncWorldDifficulty($world->getDifficulty());
 			$this->syncWorldSpawnPoint($world->getSpawnLocation());
 			$this->syncWorldWeather($world->getWeather());
 		}
+	}
+
+	/**
+	 * Moves the client to the dimension of the player's world. The client gets stuck if it is sent another change
+	 * while it is still loading one, so a change made meanwhile is caught up once the loading screen closes.
+	 */
+	private function syncDimension() : void{
+		$player = $this->player;
+		if($player === null || !$player->spawned || $this->dimensionChangeId !== null){
+			return;
+		}
+		$dimension = $player->getWorld()->getDimension()->networkId;
+		if($dimension === $this->clientDimension){
+			return;
+		}
+		$this->clientDimension = $dimension;
+		$this->lastLoadingScreenId = ($this->lastLoadingScreenId + 1) & 0xffffffff;
+		$this->dimensionChangeId = $this->lastLoadingScreenId;
+		$this->logger->debug("Changing client dimension to $dimension");
+		$this->sendDataPacket(ChangeDimensionPacket::create($dimension, $player->getOffsetPosition($player->getPosition()), false, $this->dimensionChangeId));
+		//the client drops its chunks and entities, and leaves the loading screen once the new terrain has arrived
+		$player->onClientDimensionChange();
+	}
+
+	/**
+	 * Whether the client is on the loading screen of a dimension change. Its input is meaningless until it finishes.
+	 */
+	public function isChangingDimension() : bool{
+		return $this->dimensionChangeId !== null;
+	}
+
+	/**
+	 * @internal
+	 */
+	public function onLoadingScreenClosed(?int $loadingScreenId) : void{
+		if($this->dimensionChangeId === null || ($loadingScreenId !== null && $loadingScreenId !== $this->dimensionChangeId)){
+			return;
+		}
+		$this->logger->debug("Client finished changing dimension");
+		$this->dimensionChangeId = null;
+		$this->syncDimension();
 	}
 
 	public function syncWorldWeather(Weather $weather) : void{

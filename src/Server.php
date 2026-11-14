@@ -130,6 +130,7 @@ use quark\utils\SignalHandler;
 use quark\utils\Terminal;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
+use quark\world\DimensionRegistry;
 use quark\world\format\io\WorldMigration;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WritableWorldProviderManagerEntry;
@@ -1541,6 +1542,16 @@ class Server{
 					if($convertedSeed !== null){
 						$creationOptions->setSeed($convertedSeed);
 					}
+				}
+
+				if(isset($options["dimension"])){
+					$dimension = is_string($options["dimension"]) ? DimensionRegistry::getInstance()->get($options["dimension"]) : null;
+					if($dimension === null){
+						$this->logger->error("Unknown dimension for world \"$name\" in config/server.toml");
+						$anyWorldFailedToLoad = true;
+						continue;
+					}
+					$creationOptions->setDimension($dimension);
 				}
 
 				$spawnPosition = $generatorEntry->getSpawnPosition($creationOptions->getSeed());

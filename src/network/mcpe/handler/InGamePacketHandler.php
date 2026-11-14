@@ -53,11 +53,13 @@ use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
 use pocketmine\network\mcpe\protocol\ServerboundDiagnosticsPacket;
+use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
 use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
 use pocketmine\network\mcpe\protocol\SetPlayerGameTypePacket;
 use pocketmine\network\mcpe\protocol\SpawnExperienceOrbPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\hud\LoadingScreenType;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\MismatchTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
@@ -218,6 +220,10 @@ class InGamePacketHandler extends PacketHandler{
 
 	public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{
 		self::validateAuthInput($packet);
+		if($this->session->isChangingDimension()){
+			//sent from the loading screen, and any actions in it would land in the new world
+			return true;
+		}
 		$rawPos = $packet->getPosition();
 		$rawYaw = $packet->getYaw();
 		$rawPitch = $packet->getPitch();
@@ -713,6 +719,13 @@ class InGamePacketHandler extends PacketHandler{
 		return $this->player->pickEntity($packet->actorUniqueId);
 	}
 
+	public function handleServerboundLoadingScreen(ServerboundLoadingScreenPacket $packet) : bool{
+		if($packet->getLoadingScreenType() === LoadingScreenType::STOP_LOADING_SCREEN){
+			$this->session->onLoadingScreenClosed($packet->getLoadingScreenId());
+		}
+		return true;
+	}
+
 	public function handlePlayerAction(PlayerActionPacket $packet) : bool{
 		return $this->handlePlayerActionFromData($packet->action, $packet->blockPosition, $packet->face);
 	}
@@ -770,6 +783,9 @@ class InGamePacketHandler extends PacketHandler{
 			case PlayerAction::START_ITEM_USE_ON:
 			case PlayerAction::STOP_ITEM_USE_ON:
 				//TODO: this has no obvious use and seems only used for analytics in vanilla - ignore it
+				break;
+			case PlayerAction::DIMENSION_CHANGE_ACK:
+				//the closing loading screen is what ends a dimension change
 				break;
 			default:
 				$this->session->getLogger()->debug("Unhandled/unknown player action type " . $action);

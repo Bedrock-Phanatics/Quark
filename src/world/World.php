@@ -274,6 +274,10 @@ class World implements ChunkManager{
 
 	private int $minY;
 	private int $maxY;
+	private Dimension $dimension;
+	//cached for the light and weather paths, which also run on worlds built without the constructor in tests
+	private bool $hasSkyLight = true;
+	private bool $hasWeather = true;
 
 	/**
 	 * @var ChunkTicker[][] chunkHash => [spl_object_id => ChunkTicker]
@@ -583,8 +587,15 @@ class World implements ChunkManager{
 		$this->logger = new \quark\log\SourceLogger($server->getLogger(), "World: $this->displayName");
 
 		$this->blockStateRegistry = RuntimeBlockStateRegistry::getInstance();
-		$this->minY = $this->provider->getWorldMinY();
-		$this->maxY = $this->provider->getWorldMaxY();
+		$dimensionId = $this->provider->getWorldData()->getDimension();
+		$this->dimension = DimensionRegistry::getInstance()->get($dimensionId) ?? throw new WorldException("Unknown dimension \"$dimensionId\"");
+		if($this->dimension->minY < $this->provider->getWorldMinY() || $this->dimension->maxY > $this->provider->getWorldMaxY()){
+			throw new WorldException("Dimension \"$dimensionId\" does not fit in the world format's height range");
+		}
+		$this->minY = $this->dimension->minY;
+		$this->maxY = $this->dimension->maxY;
+		$this->hasSkyLight = $this->dimension->skyLight;
+		$this->hasWeather = $this->dimension->weather;
 		$this->collisionRegion = new CollisionRegion(self::COLLISION_SECTION_LIMIT);
 
 		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_preparing($this->displayName)));
@@ -632,7 +643,7 @@ class World implements ChunkManager{
 
 		$worldData = $this->provider->getWorldData();
 		$this->time = $worldData->getTime();
-		if($worldData->getRainLevel() > 0){
+		if($this->hasWeather && $worldData->getRainLevel() > 0){
 			$this->weather = $worldData->getLightningLevel() > 0 ? Weather::THUNDER : Weather::RAIN;
 		}
 		$this->weatherDuration = $this->weather === Weather::THUNDER ? $worldData->getLightningTime() : $worldData->getRainTime();
@@ -641,7 +652,7 @@ class World implements ChunkManager{
 		}
 
 		$cfg = $this->server->getConfigGroup();
-		$this->weatherCycle = $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
+		$this->weatherCycle = $this->hasWeather && $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
 		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 3)));
@@ -2298,8 +2309,11 @@ class World implements ChunkManager{
 	 * @return int 0-15
 	 */
 	public function getPotentialBlockSkyLightAt(int $x, int $y, int $z) : int{
+		if(!$this->hasSkyLight){
+			return 0;
+		}
 		if(!$this->isInWorld($x, $y, $z)){
-			return $y >= self::Y_MAX ? 15 : 0;
+			return $y >= $this->maxY ? 15 : 0;
 		}
 		if(($chunk = $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)) !== null && $chunk->isLightPopulated() === true){
 			return $chunk->getSubChunk($y >> Chunk::COORD_BIT_SIZE)->getBlockSkyLightArray()->get($x & SubChunk::COORD_MASK, $y & SubChunk::COORD_MASK, $z & SubChunk::COORD_MASK);
@@ -3917,6 +3931,10 @@ class World implements ChunkManager{
 		return $this->provider->getWorldData()->getSeed();
 	}
 
+	public function getDimension() : Dimension{
+		return $this->dimension;
+	}
+
 	public function getMinY() : int{
 		return $this->minY;
 	}
@@ -3954,11 +3972,14 @@ class World implements ChunkManager{
 
 	/**
 	 * Changes the weather for the given number of ticks, or a random vanilla-like duration if null.
-	 * Returns false if a plugin cancelled the change.
+	 * Returns false if a plugin cancelled the change, or if the world's dimension has no weather.
 	 */
 	public function setWeather(Weather $weather, ?int $duration = null) : bool{
 		if($duration !== null && ($duration < 1 || $duration > Limits::INT32_MAX)){
 			throw new \InvalidArgumentException("Weather duration must be between 1 and " . Limits::INT32_MAX . " ticks, got $duration");
+		}
+		if(!$this->hasWeather && $weather !== Weather::CLEAR){
+			return false;
 		}
 		$duration ??= $weather->randomDuration();
 		$ev = new WorldWeatherChangeEvent($this, $this->weather, $weather, $duration);

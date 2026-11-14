@@ -233,3 +233,4 @@ legacy-data-dir = false
 # [worlds.example]
 # seed = 404
 # generator = 'FLAT'
+# dimension = 'minecraft:overworld'

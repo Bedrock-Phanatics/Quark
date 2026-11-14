@@ -34,6 +34,8 @@ use quark\command\CommandSender;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\utils\TextFormat;
+use quark\world\Dimension;
+use quark\world\DimensionRegistry;
 use quark\world\format\io\WorldMigration;
 use quark\world\generator\Generator;
 use quark\world\generator\GeneratorManager;
@@ -41,6 +43,7 @@ use quark\world\generator\GeneratorManagerEntry;
 use quark\world\World;
 use quark\world\WorldCreationOptions;
 use quark\world\WorldException;
+use function array_keys;
 use function count;
 use function implode;
 
@@ -68,7 +71,12 @@ final class WorldCommand extends VanillaCommand{
 				return GeneratorManager::getInstance()->getGenerator($generator) ??
 					throw new ArgumentParseException(TextFormat::RED . "Unknown generator \"$generator\", use one of " . implode(", ", GeneratorManager::getInstance()->getGeneratorList()));
 			}, GeneratorManagerEntry::class, optional: true),
-			new StringArgument("seed", optional: true)
+			new StringArgument("seed", optional: true),
+			new MappedArgument("dimension", static function(string $dimension) : Dimension{
+				$registry = DimensionRegistry::getInstance();
+				return $registry->get($dimension) ?? $registry->get("minecraft:$dimension") ??
+					throw new ArgumentParseException(TextFormat::RED . "Unknown dimension \"$dimension\", use one of " . implode(", ", array_keys($registry->getAll())));
+			}, Dimension::class, optional: true)
 		])->handler($this->create(...));
 		$this->syntax("copy")->registerArguments([$name("source"), $name("target")])->handler($this->copy(...));
 		$this->syntax("delete")->registerArgument($name())->handler($this->delete(...));
@@ -121,7 +129,7 @@ final class WorldCommand extends VanillaCommand{
 		});
 	}
 
-	private function create(CommandSender $sender, string $name, ?GeneratorManagerEntry $generator = null, ?string $seed = null) : void{
+	private function create(CommandSender $sender, string $name, ?GeneratorManagerEntry $generator = null, ?string $seed = null, ?Dimension $dimension = null) : void{
 		$server = $sender->getServer();
 		$generator ??= GeneratorManager::getInstance()->getGenerator("default");
 		if($generator === null){
@@ -133,6 +141,9 @@ final class WorldCommand extends VanillaCommand{
 			->setDifficulty($server->getDifficulty());
 		if($seed !== null && ($converted = Generator::convertSeed($seed)) !== null){
 			$options->setSeed($converted);
+		}
+		if($dimension !== null){
+			$options->setDimension($dimension);
 		}
 		if(($spawn = $generator->getSpawnPosition($options->getSeed())) !== null){
 			$options->setSpawnPosition($spawn);

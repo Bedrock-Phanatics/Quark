@@ -77,7 +77,10 @@ final class RespawnAnchor extends Opaque{
 				return false;
 			}
 
-			$ev = new PlayerRespawnAnchorUseEvent($player, $this, PlayerRespawnAnchorUseEvent::ACTION_EXPLODE);
+			$ev = new PlayerRespawnAnchorUseEvent($player, $this, $this->position->getWorld()->getDimension()->respawnAnchorWorks ?
+				PlayerRespawnAnchorUseEvent::ACTION_SET_SPAWN :
+				PlayerRespawnAnchorUseEvent::ACTION_EXPLODE
+			);
 			$ev->call();
 			if($ev->isCancelled()){
 				return false;

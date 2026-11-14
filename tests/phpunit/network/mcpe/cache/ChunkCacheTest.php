@@ -34,6 +34,7 @@ use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\serializer\ChunkSerializerTest;
 use quark\Server;
+use quark\world\DimensionRegistry;
 use quark\world\format\Chunk;
 use quark\world\World;
 use quark\world\WorldPulse;
@@ -76,6 +77,7 @@ final class ChunkCacheTest extends TestCase{
 		});
 		$world = $this->createMock(World::class);
 		$world->method("getFolderName")->willReturn("chunk-cache-test");
+		$world->method("getDimension")->willReturn(DimensionRegistry::getInstance()->getDefault());
 		$world->method("getServer")->willReturn($server);
 		$world->method("getChunk")->willReturnCallback(fn() => $this->loaded ? $this->chunk : null);
 		$world->method("addOnUnloadCallback")->willReturnCallback(function(\Closure $callback) : void{

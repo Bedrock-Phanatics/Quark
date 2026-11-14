@@ -45,6 +45,11 @@ interface WorldData{
 
 	public function getSeed() : int;
 
+	/**
+	 * Returns the identifier of the world's dimension, see {@link \quark\world\DimensionRegistry}.
+	 */
+	public function getDimension() : string;
+
 	public function getTime() : int;
 
 	public function setTime(int $value) : void;
