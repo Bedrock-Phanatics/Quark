@@ -566,6 +566,7 @@ class WorldManager{
 				$name,
 				KnownTranslationFactory::quark_level_unknownGenerator($provider->getWorldData()->getGenerator())
 			)));
+			$provider->close();
 			return false;
 		}
 		try{
@@ -579,19 +580,21 @@ class WorldManager{
 					$e->getMessage()
 				)
 			)));
+			$provider->close();
 			return false;
 		}
 		$dimension = $provider->getWorldData()->getDimension();
 		if(DimensionRegistry::getInstance()->get($dimension) === null){
-			$provider->close();
 			$this->server->getLogger()->error($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_loadError(
 				$name,
 				"Unknown dimension \"$dimension\", it must be registered by a plugin before the world loads"
 			)));
+			$provider->close();
 			return false;
 		}
 		if(!($provider instanceof WritableWorldProvider)){
 			if(!$autoUpgrade){
+				$provider->close();
 				throw new UnsupportedWorldFormatException("World \"$name\" is in an unsupported format and needs to be upgraded");
 			}
 			$this->server->getLogger()->notice($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_conversion_start($name)));
