@@ -206,6 +206,8 @@ include-phpinfo = false
 # Zero keeps all crash reports and profiles.
 max-crash-reports = 0
 max-profiles = 0
+# Record Pulse for 60 seconds after a tick slower than this many milliseconds, at most once per 10 minutes. Zero disables.
+pulse-auto-capture-ms = 0
 
 [auto-updater]
 enabled = false

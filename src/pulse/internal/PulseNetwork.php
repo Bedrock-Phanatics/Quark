@@ -23,12 +23,14 @@ declare(strict_types=1);
 
 namespace quark\pulse\internal;
 
+use quark\utils\Utils;
 use function array_merge;
 use function array_slice;
 use function count;
 use function hrtime;
 use function intdiv;
 use function max;
+use function preg_match;
 use const PHP_INT_MAX;
 
 /**
@@ -36,7 +38,8 @@ use const PHP_INT_MAX;
  * @phpstan-type SessionRow array{int, int, int|null, string, string, int|null}
  * @phpstan-type EventRow array{int, int|null, int|null, int|null, string, int|null, int|null, string, string}
  * @phpstan-type WindowRow array{int, int|null, int, int, int, int, int, int, int, int, int}
- * @phpstan-type NetworkCapture array{coverage: array{from_ns: int, to_ns: int, window_ns: int, receive_layer: string, session_limit: int, event_limit: int, window_limit: int}, sessions: list<SessionRow>, events: list<EventRow>, windows: list<WindowRow>, sessions_dropped: int, events_dropped: int, windows_dropped: int, counter_overflows: int}
+ * @phpstan-type TransportCapture array{name: string, counters: list<array{string, int}>}
+ * @phpstan-type NetworkCapture array{coverage: array{from_ns: int, to_ns: int, window_ns: int, receive_layer: string, session_limit: int, event_limit: int, window_limit: int}, sessions: list<SessionRow>, events: list<EventRow>, windows: list<WindowRow>, sessions_dropped: int, events_dropped: int, windows_dropped: int, counter_overflows: int, transports?: list<TransportCapture>}
  */
 final class PulseNetwork{
 	public const MAX_SESSIONS = 1024;
@@ -55,6 +58,10 @@ final class PulseNetwork{
 	public const PHASES = ["session_start", "login", "awaiting_async", "handshake", "resource_packs", "pre_spawn", "spawn_response", "in_game", "death", "closed", "unknown"];
 	public const REASONS = ["rate.batch", "rate.packet", "batch.packet_limit", "batch.empty", "batch.malformed", "packet.unknown", "packet.direction", "packet.state", "packet.malformed", "packet.handler_validation", "compression.algorithm", "decompression.malformed", "decompression.limit", "encryption.invalid", "packet.bad_packet_disconnect", "transport.header", "packet.size"];
 	public const ACTIONS = ["drop_packet", "drop_batch", "reject_batch", "disconnect"];
+	public const TRANSPORTS = ["raklib", "bedwire"];
+	public const MAX_TRANSPORT_COUNTERS = 64;
+	/** Native queue sizes are levels, so sessions keep their peak instead of a delta. */
+	private const GAUGES = ["sessions" => "sessions_peak", "command_queue_bytes" => "command_queue_peak_bytes", "event_queue_bytes" => "event_queue_peak_bytes"];
 
 	private static int $nextGeneration = 0;
 	public readonly int $generation;
@@ -75,6 +82,12 @@ final class PulseNetwork{
 	private int $eventsDropped = 0;
 	private int $windowsDropped = 0;
 	private int $counterOverflows = 0;
+	/** @var array<string, array<string, int>> */
+	private array $transportBase = [];
+	/** @var array<string, array<string, int>> */
+	private array $transportLatest = [];
+	/** @var array<string, array<string, int>> */
+	private array $transportPeaks = [];
 
 	public function __construct(private readonly int $started){
 		$this->generation = ++self::$nextGeneration;
@@ -144,6 +157,52 @@ final class PulseNetwork{
 		}
 	}
 
+	/**
+	 * Records cumulative native counters; the first call in a session is the baseline.
+	 * @param array<string, int> $totals
+	 */
+	public function transportTotals(string $transport, array $totals) : void{
+		if(!$this->recording){ return; }
+		$peaks = $this->transportPeaks[$transport] ?? [];
+		foreach(self::GAUGES as $gauge => $peak){
+			if(isset($totals[$gauge])){
+				$peaks[$peak] = max($peaks[$peak] ?? 0, $totals[$gauge]);
+				unset($totals[$gauge]);
+			}
+		}
+		$this->transportPeaks[$transport] = $peaks;
+		$this->transportBase[$transport] ??= $totals;
+		$this->transportLatest[$transport] = $totals;
+	}
+
+	public function transportBytes(string $transport, int $sent, int $received) : void{
+		if(!$this->recording){ return; }
+		$latest = $this->transportLatest[$transport] ?? ["bytes_sent" => 0, "bytes_received" => 0];
+		$latest["bytes_sent"] = self::saturate($latest["bytes_sent"] ?? 0, max(0, $sent));
+		$latest["bytes_received"] = self::saturate($latest["bytes_received"] ?? 0, max(0, $received));
+		$this->transportLatest[$transport] = $latest;
+	}
+
+	private static function saturate(int $total, int $value) : int{
+		return $value > PHP_INT_MAX - $total ? PHP_INT_MAX : $total + $value;
+	}
+
+	/** @return list<TransportCapture> */
+	private function transports() : array{
+		$rows = [];
+		foreach(self::TRANSPORTS as $name){
+			if(!isset($this->transportLatest[$name]) && !isset($this->transportPeaks[$name])){ continue; }
+			$base = $this->transportBase[$name] ?? [];
+			$counters = [];
+			foreach(Utils::stringifyKeys(($this->transportLatest[$name] ?? []) + ($this->transportPeaks[$name] ?? [])) as $key => $value){
+				if(count($counters) === self::MAX_TRANSPORT_COUNTERS || preg_match('/^[a-z][a-z0-9_]{0,63}$/', $key) !== 1){ continue; }
+				$counters[] = [$key, isset(($this->transportPeaks[$name] ?? [])[$key]) ? max(0, $value) : max(0, $value - ($base[$key] ?? 0))];
+			}
+			$rows[] = ["name" => $name, "counters" => $counters];
+		}
+		return $rows;
+	}
+
 	public function event(int $id, ?int $packet, string $phase, string $reason, string $action, ?int $tick = null, ?int $observed = null, ?int $limit = null, ?int $now = null) : void{
 		if(!$this->recording){ return; }
 		if(count($this->events) === self::MAX_EVENTS){ ++$this->eventsDropped; }
@@ -162,6 +221,7 @@ final class PulseNetwork{
 		$data["events_dropped"] = $this->eventsDropped;
 		$data["windows_dropped"] = $this->windowsDropped;
 		$data["counter_overflows"] = $this->counterOverflows;
+		$data["transports"] = $this->transports();
 		return $data;
 	}
 
@@ -170,7 +230,8 @@ final class PulseNetwork{
 		return [
 			"coverage" => ["from_ns" => 0, "to_ns" => $elapsed, "window_ns" => self::WINDOW_NS, "receive_layer" => "mcpe_batch", "session_limit" => self::MAX_SESSIONS, "event_limit" => self::MAX_EVENTS, "window_limit" => self::MAX_WINDOWS],
 			"sessions" => [], "events" => [], "windows" => [],
-			"sessions_dropped" => 0, "events_dropped" => 0, "windows_dropped" => 0, "counter_overflows" => 0
+			"sessions_dropped" => 0, "events_dropped" => 0, "windows_dropped" => 0, "counter_overflows" => 0,
+			"transports" => []
 		];
 	}
 }

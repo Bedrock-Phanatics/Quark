@@ -43,6 +43,8 @@ use quark\math\Facing;
 use quark\math\Vector3;
 use quark\player\InventoryWindow;
 use quark\player\Player;
+use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\world\BlockTransaction;
 use quark\world\Position;
 
@@ -107,7 +109,11 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 	}
 
 	public function onScheduledUpdate() : void{
-		$this->getHopperTile()?->onBlockUpdate($this);
+		if(!Pulse::isRecording()){
+			$this->getHopperTile()?->onBlockUpdate($this);
+			return;
+		}
+		PulseZones::$hoppers->time(fn() => $this->getHopperTile()?->onBlockUpdate($this));
 	}
 
 	public function onNearbyBlockChange() : void{

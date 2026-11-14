@@ -38,6 +38,7 @@ use function array_map;
 use function assert;
 use function count;
 use function get_class;
+use function hrtime;
 use function spl_object_id;
 use function time;
 use const PHP_INT_MAX;
@@ -60,6 +61,7 @@ class AsyncPool{
 	 * @phpstan-var (\Closure(int $workerId) : void)[]
 	 */
 	private array $workerStartHooks = [];
+	private bool $pulseTelemetry = false;
 
 	public function __construct(
 		protected int $size,
@@ -158,7 +160,18 @@ class AsyncPool{
 
 		$task->setSubmitted();
 
-		$this->getWorker($worker)->submit($task);
+		$telemetry = $this->pulseTelemetry && !$task instanceof PulseControlTask ? Pulse::getWorkerTelemetry() : null;
+		if($telemetry !== null){
+			$task->setPulseQueued((int) hrtime(true));
+		}
+		$entry = $this->getWorker($worker);
+		$entry->submit($task);
+		$telemetry?->submitted($entry->tasks->count());
+	}
+
+	/** @internal Lets Pulse report queue and latency metrics for this pool. */
+	public function enablePulseTelemetry() : void{
+		$this->pulseTelemetry = true;
 	}
 
 	/**
@@ -271,6 +284,9 @@ class AsyncPool{
 					$this->checkCrashedWorker($worker, $task);
 					throw new AssumptionFailedError("checkCrashedWorker() should have thrown an exception, making this unreachable");
 				}else{
+					if($this->pulseTelemetry && ($times = $task->getPulseTimes()) !== null){
+						Pulse::getWorkerTelemetry()?->completed($worker, $times[0], $times[1], $times[2], $times[3], (int) hrtime(true));
+					}
 					if($task instanceof PulseControlTask || !Pulse::isRecording()){
 						$task->onCompletion();
 					}else{

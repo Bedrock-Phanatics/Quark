@@ -53,7 +53,7 @@ class TaskHandler{
 		}
 		$this->taskName = $task->getName();
 		$this->ownerName = $ownerName ?? "Unknown";
-		$this->pulse = PulseZones::getScheduledTaskZone($this);
+		$this->pulse = PulseZones::getScheduledTaskZone($this, $ownerName);
 		$this->task->setHandler($this);
 	}
 

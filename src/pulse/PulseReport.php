@@ -27,6 +27,7 @@ use pocketmine\errorhandler\ErrorToExceptionHandler;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseNetwork;
 use quark\pulse\internal\PulseResources;
+use quark\pulse\internal\PulseWorkers;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use quark\VersionInfo;
@@ -78,7 +79,7 @@ final class PulseReport{
 	// UTF-8 JSON, gzip-wrapped on disk; times are nanoseconds.
 	// Node: id, zone, parent, calls, total, self, max. active_ticks follows node order.
 	// Tick: id, session offset, duration. Spike node: id, calls, total, self.
-	public const FORMAT_VERSION = 3;
+	public const FORMAT_VERSION = 4;
 	public const MAX_BYTES = 8388608;
 	public const MAX_ROWS = 131072;
 
@@ -230,7 +231,7 @@ final class PulseReport{
 
 	/** @phpstan-assert ReportData $data */
 	private static function validate(mixed $data) : void{
-		if(!is_array($data) || count($data) !== 5 || ($data["format"] ?? null) !== "quark.pulse" || !in_array($data["version"] ?? null, [1, 2, self::FORMAT_VERSION], true) || ($data["time_unit"] ?? null) !== "ns"){
+		if(!is_array($data) || count($data) !== 5 || ($data["format"] ?? null) !== "quark.pulse" || !in_array($data["version"] ?? null, [1, 2, 3, self::FORMAT_VERSION], true) || ($data["time_unit"] ?? null) !== "ns"){
 			throw new \InvalidArgumentException("Unsupported Pulse report format or version");
 		}
 		$bytes = intdiv(self::MAX_BYTES, 2);
@@ -266,7 +267,7 @@ final class PulseReport{
 
 	/** @phpstan-assert Capture $thread */
 	private static function validateThread(mixed $thread, int &$budget, int &$bytes, int $version) : void{
-		if(!is_array($thread) || count($thread) !== ($version === 1 ? 20 : ($version === 2 ? 21 : 23)) || ($version === 1 && isset($thread["network"]))){
+		if(!is_array($thread) || count($thread) !== match($version){ 1 => 20, 2 => 21, 3 => 23, default => 25 } || ($version === 1 && isset($thread["network"]))){
 			throw new \InvalidArgumentException("Invalid Pulse thread data");
 		}
 		self::text($thread["thread"] ?? null, 256, $bytes);
@@ -294,6 +295,14 @@ final class PulseReport{
 			}
 			$zoneNames[$zone] = true;
 		}
+		if($version >= 4){
+			$previousZone = -1;
+			foreach(self::list($thread["zone_owners"] ?? null, count($zones)) as $owner){
+				$row = self::networkRow($owner, 2);
+				$previousZone = self::number($row[0], $previousZone + 1, count($zones) - 1);
+				self::text($row[1], 256, $bytes);
+			}
+		}
 		$nodes = self::list($thread["nodes"] ?? null, 16384);
 		$active = self::list($thread["active_ticks"] ?? null, 16384);
 		if(count($nodes) !== count($active)){
@@ -319,12 +328,16 @@ final class PulseReport{
 		self::charge($budget, count($ticks));
 		$length = $thread["ended_ns"] - $thread["started_ns"];
 		if($version >= 2){
-			self::validateNetwork($thread["network"] ?? null, $length, $tickCount, $thread["recording"], $budget);
+			self::validateNetwork($thread["network"] ?? null, $length, $tickCount, $thread["recording"], $budget, $version, $bytes);
 		}
 		if($version >= 3){
 			self::number($thread["slow_tick_count"] ?? null, 0, $tickCount);
 			if(!array_key_exists("resources", $thread)){ throw new \InvalidArgumentException("Missing Pulse resource data"); }
-			if($thread["resources"] !== null){ self::validateResources($thread["resources"], $length, $budget); }
+			if($thread["resources"] !== null){ self::validateResources($thread["resources"], $length, $budget, $version >= 4 ? 8 : 6); }
+		}
+		if($version >= 4){
+			if(!array_key_exists("async", $thread)){ throw new \InvalidArgumentException("Missing Pulse async worker data"); }
+			if($thread["async"] !== null){ self::validateWorkers($thread["async"], $budget); }
 		}
 		$previousEnd = $sum = $slowTicks = 0;
 		foreach($ticks as $index => $tick){
@@ -372,7 +385,32 @@ final class PulseReport{
 		}
 	}
 
-	private static function validateResources(mixed $resources, int $length, int &$budget) : void{
+	private static function validateWorkers(mixed $async, int &$budget) : void{
+		if(!is_array($async) || count($async) !== 10){ throw new \InvalidArgumentException("Invalid Pulse async worker data"); }
+		$submitted = self::number($async["submitted"] ?? null);
+		$completed = self::number($async["completed"] ?? null, 0, $submitted);
+		self::number($async["queue_peak"] ?? null);
+		$runTotal = 0;
+		foreach(["wait", "run", "delay"] as $metric){
+			$total = self::number($async[$metric . "_total_ns"] ?? null);
+			self::number($async[$metric . "_max_ns"] ?? null, 0, $total);
+			if($metric === "run"){ $runTotal = $total; }
+		}
+		$workers = self::list($async["workers"] ?? null, PulseWorkers::MAX_WORKERS);
+		self::charge($budget, count($workers));
+		$previous = -1;
+		$tasks = $run = 0;
+		foreach($workers as $worker){
+			$row = self::networkRow($worker, 5);
+			$previous = self::number($row[0], $previous + 1, PulseWorkers::MAX_WORKERS - 1);
+			$tasks += self::number($row[1], 1, $completed);
+			$run += self::number($row[2], 0, $runTotal);
+			self::number($row[3], 0, self::number($row[4]));
+			if($tasks > $completed || $run > $runTotal){ throw new \InvalidArgumentException("Invalid Pulse async worker totals"); }
+		}
+	}
+
+	private static function validateResources(mixed $resources, int $length, int &$budget, int $columns) : void{
 		if(!is_array($resources) || count($resources) !== 2){ throw new \InvalidArgumentException("Invalid Pulse resource data"); }
 		$dropped = self::number($resources["samples_dropped"] ?? null);
 		$samples = self::list($resources["samples"] ?? null, PulseResources::MAX_SAMPLES);
@@ -382,7 +420,7 @@ final class PulseReport{
 		self::charge($budget, count($samples));
 		$previous = 0;
 		foreach($samples as $index => $sample){
-			$row = self::networkRow($sample, 6);
+			$row = self::networkRow($sample, $columns);
 			$offset = self::number($row[0], $previous, $length);
 			$interval = self::number($row[1], 0, $offset);
 			if(($index > 0 && ($interval === 0 || $offset - $previous !== $interval)) || ($index === 0 && ($dropped === 0 ? $offset !== 0 || $interval !== 0 : $interval === 0))){
@@ -393,13 +431,39 @@ final class PulseReport{
 			if($interval === 0 && (($row[2] ?? 0) !== 0 || ($row[3] ?? 0) !== 0)){ throw new \InvalidArgumentException("CPU time requires a sample interval"); }
 			$allocated = self::number($row[5]);
 			self::number($row[4], 0, $allocated);
+			if($columns === 8){
+				if(($row[6] === null) !== ($row[7] === null)){ throw new \InvalidArgumentException("Incomplete Pulse RSS sample"); }
+				if($row[7] !== null){ self::number($row[6], 0, self::number($row[7])); }
+			}
 			$previous = $offset;
 		}
 	}
 
-	private static function validateNetwork(mixed $network, int $length, int $tickCount, bool $recording, int &$budget) : void{
-		if(!is_array($network) || count($network) !== 8){
+	private static function validateNetwork(mixed $network, int $length, int $tickCount, bool $recording, int &$budget, int $version, int &$bytes) : void{
+		if(!is_array($network) || count($network) !== ($version >= 4 ? 9 : 8)){
 			throw new \InvalidArgumentException("Invalid Pulse network data");
+		}
+		if($version >= 4){
+			$names = [];
+			foreach(self::list($network["transports"] ?? null, count(PulseNetwork::TRANSPORTS)) as $transport){
+				if(!is_array($transport) || count($transport) !== 2){ throw new \InvalidArgumentException("Invalid Pulse transport"); }
+				self::choice($transport["name"] ?? null, PulseNetwork::TRANSPORTS);
+				if(isset($names[$transport["name"]])){ throw new \InvalidArgumentException("Duplicate Pulse transport"); }
+				$names[$transport["name"]] = true;
+				$counters = self::list($transport["counters"] ?? null, PulseNetwork::MAX_TRANSPORT_COUNTERS);
+				self::charge($budget, count($counters));
+				$keys = [];
+				foreach($counters as $counter){
+					$row = self::networkRow($counter, 2);
+					if(!is_string($row[0]) || preg_match('/^[a-z][a-z0-9_]{0,63}$/', $row[0]) !== 1 || isset($keys[$row[0]])){
+						throw new \InvalidArgumentException("Invalid Pulse transport counter");
+					}
+					$keys[$row[0]] = true;
+					$bytes -= strlen($row[0]);
+					self::number($row[1]);
+				}
+			}
+			if($bytes < 0){ throw new \LengthException("Pulse report exceeds the text budget"); }
 		}
 		$coverage = $network["coverage"] ?? null;
 		$expected = PulseNetwork::emptyCapture($length)["coverage"];
@@ -480,7 +544,10 @@ final class PulseReport{
 		}
 	}
 
-	/** @param list<string> $values */
+	/**
+	 * @param list<string> $values
+	 * @phpstan-assert string $value
+	 */
 	private static function choice(mixed $value, array $values) : void{
 		if(!in_array($value, $values, true)){ throw new \InvalidArgumentException("Invalid Pulse network code"); }
 	}

@@ -34,6 +34,7 @@ use quark\command\utils\CommandException;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\permission\PermissionManager;
+use quark\plugin\PluginOwned;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\PulseZone;
 use quark\Server;
@@ -251,7 +252,9 @@ abstract class Command{
 
 	/** @internal */
 	public function getPulseZone() : PulseZone{
-		return $this->pulse ??= PulseZones::dynamic("command." . $this->name);
+		return $this->pulse ??= $this instanceof PluginOwned ?
+			PulseZones::getPluginCommandZone($this->name, $this->getOwningPlugin()->getDescription()->getFullName()) :
+			PulseZones::dynamic("command." . $this->name);
 	}
 
 	/**

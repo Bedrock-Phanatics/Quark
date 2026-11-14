@@ -29,8 +29,10 @@ use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\thread\NonThreadSafeValue;
 use function array_key_exists;
+use function hrtime;
 use function is_null;
 use function is_scalar;
+use function memory_get_usage;
 use function spl_object_id;
 
 /**
@@ -70,10 +72,19 @@ abstract class AsyncTask extends Runnable{
 
 	private bool $submitted = false;
 	private bool $finished = false;
+	// Pulse timestamps; zero unless the task was queued while recording.
+	private int $pulseQueued = 0;
+	private int $pulseStarted = 0;
+	private int $pulseFinished = 0;
+	private int $pulseHeap = 0;
 
 	public function run() : void{
 		$this->result = null;
 
+		$queued = $this->pulseQueued !== 0;
+		if($queued){
+			$this->pulseStarted = (int) hrtime(true);
+		}
 		Pulse::checkDuration();
 		$pulse = $this instanceof PulseControlTask || !Pulse::isRecording() ? null : PulseZones::getAsyncTaskRunZone($this);
 		$scope = $pulse?->start() ?? 0;
@@ -83,6 +94,10 @@ abstract class AsyncTask extends Runnable{
 		}finally{
 			$pulse?->stop($scope);
 			Pulse::checkDuration();
+		}
+		if($queued){
+			$this->pulseFinished = (int) hrtime(true);
+			$this->pulseHeap = memory_get_usage();
 		}
 
 		$this->finished = true;
@@ -143,6 +158,20 @@ abstract class AsyncTask extends Runnable{
 
 	public function isSubmitted() : bool{
 		return $this->submitted;
+	}
+
+	/** @internal */
+	public function setPulseQueued(int $now) : void{
+		$this->pulseQueued = $now;
+	}
+
+	/**
+	 * @internal
+	 * @return array{int, int, int, int}|null queued, started, finished, worker heap
+	 */
+	public function getPulseTimes() : ?array{
+		$queued = $this->pulseQueued;
+		return $queued === 0 ? null : [$queued, $this->pulseStarted, $this->pulseFinished, $this->pulseHeap];
 	}
 
 	/**

@@ -86,6 +86,7 @@ final class PulseZones{
 	public static PulseZone $syncPlayerDataLoad;
 	public static PulseZone $syncPlayerDataSave;
 	public static PulseZone $broadcastPackets;
+	public static PulseZone $hoppers;
 	/** @var array<string, PulseZone> */
 	private static array $dynamic = [];
 	/** @var array<string, array<int, PulseZone>> */
@@ -140,6 +141,7 @@ final class PulseZones{
 		self::$syncPlayerDataLoad = Pulse::zone("player.data_load");
 		self::$syncPlayerDataSave = Pulse::zone("player.data_save");
 		self::$broadcastPackets = Pulse::zone("network.broadcast");
+		self::$hoppers = Pulse::zone("block.hoppers");
 		self::$initialized = true;
 	}
 
@@ -152,14 +154,26 @@ final class PulseZones{
 		return self::dynamic("block_entity.tick." . $tile::class);
 	}
 
-	/** @param TaskHandler<*> $task */
-	public static function getScheduledTaskZone(TaskHandler $task) : PulseZone{
-		return self::dynamic("plugin.tasks." . $task->getOwnerName() . "." . $task->getTaskName());
+	/**
+	 * @param TaskHandler<*> $task
+	 * @param string|null $plugin full name of the owning plugin
+	 */
+	public static function getScheduledTaskZone(TaskHandler $task, ?string $plugin = null) : PulseZone{
+		return self::dynamic("plugin.tasks." . $task->getOwnerName() . "." . $task->getTaskName(), $plugin);
 	}
 
 	/** @param class-string<Event> $event */
 	public static function getEventHandlerZone(string $event, string $handlerName, string $plugin) : PulseZone{
-		return self::dynamic("plugin.events.$plugin.$event.$handlerName");
+		return self::dynamic("plugin.events.$plugin.$event.$handlerName", $plugin);
+	}
+
+	public static function getPluginCommandZone(string $command, string $plugin) : PulseZone{
+		return self::dynamic("plugin.commands.$plugin.$command", $plugin);
+	}
+
+	/** @param "enable"|"disable" $phase */
+	public static function getPluginLifecycleZone(string $plugin, string $phase) : PulseZone{
+		return self::dynamic("plugin.lifecycle.$plugin.$phase", $plugin);
 	}
 
 	public static function getEventZone(Event $event) : PulseZone{
@@ -191,13 +205,16 @@ final class PulseZones{
 		return self::$tasks[$phase][$task::class] = self::dynamic("worker.$phase." . $task::class);
 	}
 
-	public static function dynamic(string $name) : PulseZone{
+	public static function dynamic(string $name, ?string $owner = null) : PulseZone{
 		$overflow = self::$overflow ??= Pulse::zone("pulse.zone_limit");
 		if(strlen($name) > 256 || preg_match('//u', $name) !== 1){
 			$name = "dynamic." . hash("sha256", $name);
 		}
+		if($owner !== null && ($owner === "" || strlen($owner) > 256 || preg_match('//u', $owner) !== 1)){
+			$owner = null;
+		}
 		try{
-			return Pulse::zone($name);
+			return Pulse::zone($name, $owner);
 		}catch(\LengthException){
 			return $overflow;
 		}

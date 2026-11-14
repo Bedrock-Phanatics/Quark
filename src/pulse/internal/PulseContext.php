@@ -29,6 +29,7 @@ use function array_slice;
 use function count;
 use function hrtime;
 use function intdiv;
+use function ksort;
 use function min;
 use function preg_match;
 use function sort;
@@ -44,7 +45,8 @@ use const SORT_NUMERIC;
  * @phpstan-import-type NetworkCapture from PulseNetwork
  * @phpstan-import-type ResourceCapture from PulseResources
  * @phpstan-import-type ResourceStats from PulseResources
- * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int, network?: NetworkCapture, resources?: ResourceCapture|null, slow_tick_count?: int}
+ * @phpstan-import-type WorkerCapture from PulseWorkers
+ * @phpstan-type Capture array{thread: string, started_ns: int, ended_ns: int, recording: bool, zones: list<string>, nodes: list<NodeRow>, active_ticks: list<int>, unbalanced_scopes: int, dropped_scopes: int, ticks: list<TickRow>, tick_count: int, tick_total_ns: int, tick_max_ns: int, unbalanced_ticks: int, spikes: list<Spike>, spikes_dropped: int, spike_threshold_ns: int, max_spikes: int, tick_capacity: int, duration_ns: int, network?: NetworkCapture, resources?: ResourceCapture|null, slow_tick_count?: int, zone_owners?: list<array{int, string}>, async?: WorkerCapture|null}
  * @phpstan-type Stats array{recording: bool, elapsed_ns: int, duration_ns: int, spike_threshold_ns: int, tick_count: int, tick_total_ns: int, tick_max_ns: int, tick_p50_ns: int, tick_p95_ns: int, tick_p99_ns: int, tick_sample_count: int, slow_tick_count: int, resources: ResourceStats|null, retained_spikes: int, spikes_dropped: int, dropped_scopes: int, unbalanced_scopes: int, unbalanced_ticks: int}
  */
 final class PulseContext{
@@ -55,6 +57,8 @@ final class PulseContext{
 	private array $zones = [];
 	/** @var list<string> */
 	private array $names = [];
+	/** @var array<int, string> zone ID => plugin full name */
+	private array $owners = [];
 	/** @var list<PulseNode> */
 	private array $nodes;
 	private PulseNode $current;
@@ -91,9 +95,14 @@ final class PulseContext{
 	private int $spikesDropped = 0;
 	private ?PulseNetwork $network = null;
 	private ?PulseResources $resources = null;
+	private ?PulseWorkers $workers = null;
 
 	public function network() : PulseNetwork{
 		return $this->network ??= new PulseNetwork($this->started);
+	}
+
+	public function workers() : ?PulseWorkers{
+		return $this->recording ? $this->workers : null;
 	}
 
 	public function getNetworkTickId() : ?int{
@@ -114,19 +123,27 @@ final class PulseContext{
 		$this->current = $root;
 	}
 
-	public function zone(string $name) : PulseZone{
-		if(isset($this->zones[$name])){
-			return $this->zones[$name];
+	/** @param string|null $owner plugin full name; names are kept instead of plugin references */
+	public function zone(string $name, ?string $owner = null) : PulseZone{
+		$zone = $this->zones[$name] ?? null;
+		if($zone === null){
+			if($name === "" || strlen($name) > 256 || preg_match('//u', $name) !== 1){
+				throw new \InvalidArgumentException("Pulse zone names must be 1-256 bytes of UTF-8");
+			}
+			if(count($this->names) >= $this->maxZones){
+				throw new \LengthException("Pulse zone registration limit reached");
+			}
+			$id = count($this->names);
+			$this->names[] = $name;
+			$zone = $this->zones[$name] = new PulseZone($this, $id, $name);
 		}
-		if($name === "" || strlen($name) > 256 || preg_match('//u', $name) !== 1){
-			throw new \InvalidArgumentException("Pulse zone names must be 1-256 bytes of UTF-8");
+		if($owner !== null){
+			if($owner === "" || strlen($owner) > 256 || preg_match('//u', $owner) !== 1){
+				throw new \InvalidArgumentException("Pulse zone owners must be 1-256 bytes of UTF-8");
+			}
+			$this->owners[$zone->getId()] = $owner;
 		}
-		if(count($this->names) >= $this->maxZones){
-			throw new \LengthException("Pulse zone registration limit reached");
-		}
-		$id = count($this->names);
-		$this->names[] = $name;
-		return $this->zones[$name] = new PulseZone($this, $id, $name);
+		return $zone;
 	}
 
 	public function start(string $threadName, int $now, int $durationNs = 0, int $spikeThresholdNs = 0, int $maxSpikes = 32) : void{
@@ -157,6 +174,7 @@ final class PulseContext{
 		$this->spikes = [];
 		$this->network = null;
 		$this->resources = $threadName === "main" ? new PulseResources($now) : null;
+		$this->workers = $threadName === "main" ? new PulseWorkers($now) : null;
 		$this->recording = true;
 	}
 
@@ -412,7 +430,20 @@ final class PulseContext{
 			"duration_ns" => $this->duration,
 			"slow_tick_count" => $this->slowTicks,
 			"resources" => $this->resources?->capture(),
+			"zone_owners" => $this->zoneOwners(),
+			"async" => $this->workers?->capture(),
 			"network" => $this->network?->capture($ended - $this->started) ?? PulseNetwork::emptyCapture($ended - $this->started)
 		];
+	}
+
+	/** @return list<array{int, string}> */
+	private function zoneOwners() : array{
+		$owners = $this->owners;
+		ksort($owners, SORT_NUMERIC);
+		$rows = [];
+		foreach($owners as $zone => $owner){
+			$rows[] = [$zone, $owner];
+		}
+		return $rows;
 	}
 }

@@ -192,6 +192,7 @@ return array (
   array (
     'max-crash-reports' => 0,
     'max-profiles' => 0,
+    'pulse-auto-capture-ms' => 0,
   ),
   'auto-updater' =>
   array (

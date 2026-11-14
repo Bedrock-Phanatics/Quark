@@ -108,6 +108,7 @@ use quark\pulse\internal\PulseRecorder;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\pulse\PulseReport;
+use quark\pulse\PulseSession;
 use quark\pulse\PulseZone;
 use quark\resourcepacks\ResourcePackManager;
 use quark\scheduler\AsyncPool;
@@ -171,6 +172,7 @@ use function fopen;
 use function function_exists;
 use function get_class;
 use function get_debug_type;
+use function hrtime;
 use function implode;
 use function in_array;
 use function ini_set;
@@ -241,6 +243,8 @@ class Server{
 	 */
 	public const TARGET_SECONDS_PER_TICK = 1 / self::TARGET_TICKS_PER_SECOND;
 	public const TARGET_NANOSECONDS_PER_TICK = 1_000_000_000 / self::TARGET_TICKS_PER_SECOND;
+	private const PULSE_AUTO_CAPTURE_NS = 60_000_000_000;
+	private const PULSE_AUTO_CAPTURE_COOLDOWN_NS = 600_000_000_000;
 
 	/**
 	 * The TPS threshold below which the server will generate log warnings.
@@ -275,6 +279,10 @@ class Server{
 	/** @var Promise<string>|null */
 	private ?Promise $pulseReport = null;
 	private ?AsyncPool $pulseReportPool = null;
+	private int $pulseAutoCaptureNs = 0;
+	private int $pulseAutoCaptureReady = 0;
+	private ?PulseSession $pulseAutoSession = null;
+	private bool $pulseAutoSaved = true;
 
 	private UpdateChecker $updater;
 
@@ -697,6 +705,40 @@ class Server{
 		}catch(\LogicException $e){
 			$this->logger->debug($e->getMessage());
 		}
+	}
+
+	/**
+	 * Records the minute after a slow tick and saves it once the recording expires. Manual sessions always win, and the
+	 * cooldown keeps a sustained problem from producing a report every minute.
+	 */
+	private function checkPulseAutoCapture(int $tickNs) : void{
+		$session = $this->pulse->getSession();
+		$auto = $this->pulseAutoSession;
+		if(!$this->pulseAutoSaved && $auto !== null && $session === $auto && !$auto->isRecording()){
+			$this->pulseAutoSaved = true;
+			$stats = $auto->getStats();
+			// A manual /pulse stop saves its own report.
+			if($stats["elapsed_ns"] >= $stats["duration_ns"]){
+				$this->saveShutdownPulseReport($this->getPulseReportMetadata());
+			}
+		}
+		if($tickNs <= $this->pulseAutoCaptureNs || ($session !== null && ($session !== $auto || $session->isRecording()))){
+			return;
+		}
+		$now = (int) hrtime(true);
+		if($now < $this->pulseAutoCaptureReady || $this->pulseReport !== null || $this->pulse->getPendingOperations() > 0){
+			return;
+		}
+		try{
+			$this->pulse->start(self::PULSE_AUTO_CAPTURE_NS, $this->pulseAutoCaptureNs);
+		}catch(\LogicException|\LengthException $e){
+			$this->logger->debug("Automatic Pulse capture skipped: " . $e->getMessage());
+			return;
+		}
+		$this->pulseAutoSession = $this->pulse->getSession();
+		$this->pulseAutoSaved = false;
+		$this->pulseAutoCaptureReady = $now + self::PULSE_AUTO_CAPTURE_NS + self::PULSE_AUTO_CAPTURE_COOLDOWN_NS;
+		$this->logger->info(sprintf("Tick took %.1f ms; recording Pulse for 60 seconds", $tickNs / 1_000_000));
 	}
 
 	private function drainPulseReports() : void{
@@ -1208,6 +1250,7 @@ class Server{
 			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
 				$this->pulse->start();
 			}
+			$this->pulseAutoCaptureNs = $this->configGroup->getPropertyInt(Yml::DIAGNOSTICS_PULSE_AUTO_CAPTURE_MS, 0) * 1_000_000;
 
 			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
 			if($netCompressionThreshold < 0){
@@ -2322,6 +2365,9 @@ class Server{
 		$totalTickTimeSeconds = $now - $tickTime + ($this->tickSleeper->getNotificationProcessingTime() / 1_000_000_000);
 		$this->currentTPS = min(self::TARGET_TICKS_PER_SECOND, 1 / max(0.001, $totalTickTimeSeconds));
 		$this->currentUse = min(1, $totalTickTimeSeconds / self::TARGET_SECONDS_PER_TICK);
+		if($this->pulseAutoCaptureNs > 0){
+			$this->checkPulseAutoCapture((int) ($totalTickTimeSeconds * 1_000_000_000));
+		}
 
 		$idx = $this->tickCounter % self::TARGET_TICKS_PER_SECOND;
 		$this->tickAverage[$idx] = $this->currentTPS;

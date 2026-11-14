@@ -42,6 +42,7 @@ use quark\network\NetworkInterfaceStartException;
 use quark\network\PacketHandlingException;
 use quark\player\GameMode;
 use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\Server;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
@@ -190,6 +191,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 		$this->network->getBandwidthTracker()->add($stats["bytes_sent"] - $this->bytesSent, $stats["bytes_received"] - $this->bytesReceived);
 		$this->bytesSent = $stats["bytes_sent"];
 		$this->bytesReceived = $stats["bytes_received"];
+		Pulse::getNetworkTelemetry()?->transportTotals("bedwire", $stats);
 	}
 
 	private function flushPendingDisconnects(BedwireServer $bedwire) : void{

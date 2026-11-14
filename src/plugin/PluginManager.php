@@ -489,7 +489,7 @@ class PluginManager{
 
 			$plugin->getScheduler()->setEnabled(true, $this->server->getTick());
 			try{
-				$plugin->onEnableStateChange(true);
+				PulseZones::getPluginLifecycleZone($plugin->getDescription()->getFullName(), "enable")->time(fn() => $plugin->onEnableStateChange(true));
 			}catch(DisablePluginException){
 				$this->disablePlugin($plugin);
 			}
@@ -562,7 +562,7 @@ class PluginManager{
 			//every step runs even if onDisable() throws, the first failure is rethrown afterwards
 			$failure = null;
 			foreach([
-				fn() => $plugin->onEnableStateChange(false),
+				fn() => PulseZones::getPluginLifecycleZone($plugin->getDescription()->getFullName(), "disable")->time(fn() => $plugin->onEnableStateChange(false)),
 				fn() => $plugin->getScheduler()->shutdown(),
 				function() use ($plugin) : void{
 					foreach($this->server->getOnlinePlayers() as $player){
