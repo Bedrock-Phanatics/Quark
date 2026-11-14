@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\world\redstone;
 
 use quark\block\RuntimeBlockStateRegistry;
+use quark\block\utils\redstone\Powerable;
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\Transmittable;
 use quark\math\Vector3;
@@ -179,7 +180,8 @@ final class RedstoneManager{
 	private static function findComponentStateIds() : array{
 		$ids = [];
 		foreach(RuntimeBlockStateRegistry::getInstance()->getAllKnownStates() as $stateId => $block){
-			if($block instanceof PowerSource || $block instanceof Transmittable){
+			//consumers too, since one may have lost its source while circuits were off and has nothing left to notify it
+			if($block instanceof PowerSource || $block instanceof Transmittable || $block instanceof Powerable){
 				$ids[$stateId] = true;
 			}
 		}
