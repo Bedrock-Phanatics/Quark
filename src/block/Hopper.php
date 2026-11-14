@@ -112,7 +112,11 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 
 	public function onNearbyBlockChange() : void{
 		$this->powerableNearbyBlockChange();
-		$this->getHopperTile()?->wake();
+		$tile = $this->getHopperTile();
+		if($tile !== null){
+			$tile->setLocked($this->powered);
+			$tile->wake();
+		}
 	}
 
 	public function hasEntityCollision() : bool{
@@ -128,7 +132,7 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 		if($tile === null){
 			return false;
 		}
-		$tile->onItemNearby($this, $entity);
+		$tile->onItemNearby($entity);
 		return true;
 	}
 
@@ -137,9 +141,7 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 		$powered = $power > 0;
 		if($powered !== $this->powered){
 			$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setPowered($powered), false);
-			if(!$powered){
-				$this->getHopperTile()?->wake();
-			}
+			$this->getHopperTile()?->setLocked($powered);
 		}
 	}
 

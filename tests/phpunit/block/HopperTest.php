@@ -636,6 +636,62 @@ final class HopperTest extends TestCase{
 		self::assertSame([], $hopper->getInventory()->getContents());
 	}
 
+	/**
+	 * Ticks a resting item like the world would, so it keeps reporting through its cached copy of the hopper block.
+	 */
+	private function tickWithItem(ItemEntity $entity, int $ticks) : void{
+		for($i = 0; $i < $ticks; ++$i){
+			$entity->onUpdate($this->world->getServer()->getTick() + 1);
+			$this->h->tick();
+		}
+	}
+
+	public function testLockedHopperIgnoresItemsReportingAStaleBlock() : void{
+		$hopper = $this->hopper(0, 64, 0);
+		for($slot = 0; $slot < 5; ++$slot){
+			$hopper->getInventory()->setItem($slot, VanillaItems::STICK()->setCount(63));
+		}
+		$entity = $this->world->dropItem(new Vector3(0.5, 64.8, 0.5), VanillaItems::DIAMOND(), Vector3::zero());
+		self::assertNotNull($entity);
+		$this->tickWithItem($entity, 5);
+		self::assertFalse($entity->isFlaggedForDespawn(), "a diamond doesn't fit onto sticks");
+
+		//power applied through another copy of the block, as after a block cache eviction, leaves the item's copy unpowered
+		(new \ReflectionMethod(Hopper::class, "onReceivePower"))->invoke(clone $this->world->getBlockAt(0, 64, 0), 15);
+		$hopper->getInventory()->clear(4);
+		$this->h->tick(1500);
+		$this->tickWithItem($entity, 50);
+		$entity->onUpdate($this->world->getServer()->getTick() + 1);
+		self::assertSame(-1, (new \ReflectionProperty(TileHopper::class, "scheduledFor"))->getValue($hopper), "the locked hopper stays asleep");
+		self::assertFalse($entity->isFlaggedForDespawn());
+	}
+
+	public function testDisplayItemsDoNotKeepWakingTheHopper() : void{
+		$hopper = $this->hopper(0, 64, 0);
+		$entity = $this->world->dropItem(new Vector3(0.5, 64.8, 0.5), VanillaItems::DIAMOND(), Vector3::zero());
+		self::assertNotNull($entity);
+		$entity->setPickupDelay(ItemEntity::NEVER_DESPAWN);
+		$this->tickWithItem($entity, 2000);
+		$idle = new \ReflectionProperty(TileHopper::class, "idleUntil");
+		$before = $idle->getValue($hopper);
+		$this->tickWithItem($entity, 100);
+		self::assertSame($before, $idle->getValue($hopper), "no updates beyond the slow recheck");
+		self::assertSame([], $hopper->getInventory()->getContents());
+	}
+
+	public function testItemsOnTheContainerAboveDoNotWakeTheHopper() : void{
+		$this->chest(0, 65, 0);
+		$hopper = $this->hopper(0, 64, 0);
+		$entity = $this->world->dropItem(new Vector3(0.5, 66.1, 0.5), VanillaItems::DIAMOND(), Vector3::zero());
+		self::assertNotNull($entity);
+		$this->tickWithItem($entity, 2000);
+		$idle = new \ReflectionProperty(TileHopper::class, "idleUntil");
+		$before = $idle->getValue($hopper);
+		$this->tickWithItem($entity, 100);
+		self::assertSame($before, $idle->getValue($hopper));
+		self::assertFalse($entity->isFlaggedForDespawn(), "a hopper under a container doesn't collect");
+	}
+
 	public function testDisplayItemsThatCanNeverBePickedUpStay() : void{
 		$hopper = $this->hopper(0, 64, 0, Facing::DOWN);
 		$entity = $this->world->dropItem(new Vector3(0.5, 65.2, 0.5), VanillaItems::DIAMOND(), Vector3::zero());

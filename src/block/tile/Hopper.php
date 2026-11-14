@@ -99,6 +99,10 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 	private int $recheckDelay = self::MIN_RECHECK_DELAY;
 	/** Whether dropped items may be waiting in the pickup area. */
 	private bool $pickupPending = true;
+	/** A hopper with a container above pulls from it and collects nothing, so dropped items don't wake it. */
+	private bool $pullsFromAbove = false;
+	/** Mirrors the block's powered state, since dropped items report through block copies that may be stale. */
+	private bool $locked = false;
 	private bool $updating = false;
 
 	public function __construct(){
@@ -178,7 +182,7 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 	 * update that moved nothing, it waits as long as a cooldown too, so busy neighbours can't make it retry every tick.
 	 */
 	public function wake() : void{
-		if($this->updating || $this->closed || !$this->isAttached() || !HopperConfig::isEnabled()){
+		if($this->updating || $this->locked || $this->closed || !$this->isAttached() || !HopperConfig::isEnabled()){
 			return;
 		}
 		$position = $this->getPosition();
@@ -191,11 +195,25 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 	}
 
 	/**
+	 * @internal Called by the hopper block with its current powered state. Unlocking wakes the hopper.
+	 */
+	public function setLocked(bool $locked) : void{
+		$wasLocked = $this->locked;
+		$this->locked = $locked;
+		if($wasLocked && !$locked){
+			$this->wake();
+		}
+	}
+
+	/**
 	 * @internal Called by the hopper block when a dropped item is in or above it.
 	 */
-	public function onItemNearby(BlockHopper $block, ItemEntity $entity) : void{
+	public function onItemNearby(ItemEntity $entity) : void{
+		if($entity->getPickupDelay() === ItemEntity::NEVER_DESPAWN || $entity->isFlaggedForDespawn()){
+			return;
+		}
 		$this->pickupPending = true;
-		if($block->isPowered() || $this->closed || !$this->isAttached()){
+		if($this->locked || $this->pullsFromAbove || $this->closed || !$this->isAttached()){
 			return;
 		}
 		//dropped items report every tick, so the cheap checks go first
@@ -221,8 +239,9 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 			return;
 		}
 		$this->scheduledFor = -1;
+		$this->locked = $block->isPowered();
 		//a locked or disabled hopper sleeps until power or the server wakes it, keeping its cooldown
-		if(!HopperConfig::isEnabled() || $block->isPowered()){
+		if(!HopperConfig::isEnabled() || $this->locked){
 			$this->dueSince = -1;
 			return;
 		}
@@ -297,6 +316,7 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 			return $moved;
 		}
 		$source = self::containerAt($world, $x, $y + 1, $z, $sourceInventory, $sourceOwners);
+		$this->pullsFromAbove = $source !== null;
 		if($source !== null){
 			if($this->pull($block, $position, $source, $sourceInventory, $sourceOwners, $limit)){
 				$moved = true;
@@ -360,9 +380,6 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 	 * @phpstan-param list<Tile> $targetOwners
 	 */
 	private function push(BlockHopper $block, Position $position, Block $target, Inventory $targetInventory, array $targetOwners, int $side, int $limit, int $now) : bool{
-		if($targetInventory === $this->inventory){
-			return false;
-		}
 		//like vanilla, an item entering an empty hopper waits out a full cooldown there, so it can't cross a chain in one tick
 		$targetHopper = $targetOwners[0] instanceof self && $targetOwners[0]->isEmpty() ? $targetOwners[0] : null;
 		$previousCooldown = 0;
@@ -395,9 +412,6 @@ class Hopper extends Spawnable implements ContainerTile, Nameable{
 	 * @phpstan-param list<Tile> $sourceOwners
 	 */
 	private function pull(BlockHopper $block, Position $position, Block $source, Inventory $sourceInventory, array $sourceOwners, int $limit) : bool{
-		if($sourceInventory === $this->inventory){
-			return false;
-		}
 		$slots = self::extractSlots($source, $sourceInventory);
 		$count = $slots === null ? $sourceInventory->getSize() : count($slots);
 		$ownOwners = [$this];
