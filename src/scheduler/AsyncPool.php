@@ -269,7 +269,11 @@ class AsyncPool{
 		if(!isset($this->workers[$worker])){
 			throw new \InvalidArgumentException("No such worker $worker");
 		}
-		$queue = $this->workers[$worker]->tasks;
+		$entry = $this->workers[$worker];
+		if(!$entry->uncollected){
+			return false;
+		}
+		$queue = $entry->tasks;
 		$more = false;
 		while(!$queue->isEmpty()){
 			/** @var AsyncTask $task */
@@ -297,7 +301,8 @@ class AsyncPool{
 				break; //current task is still running, skip to next worker
 			}
 		}
-		$this->workers[$worker]->worker->collect();
+		//collect() counts the tasks it could not free yet, so a worker at zero has nothing left until its next task
+		$entry->uncollected = $entry->worker->collect() > 0;
 		return $more;
 	}
 

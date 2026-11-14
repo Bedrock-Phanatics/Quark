@@ -36,6 +36,8 @@ final class AsyncPoolWorkerEntry{
 	 * @phpstan-var \SplQueue<AsyncTask>
 	 */
 	public \SplQueue $tasks;
+	/** Whether the worker still holds tasks that a collect() would free. */
+	public bool $uncollected = false;
 
 	public function __construct(
 		public readonly AsyncWorker $worker,
@@ -48,6 +50,7 @@ final class AsyncPoolWorkerEntry{
 	public function submit(AsyncTask $task) : void{
 		$this->tasks->enqueue($task);
 		$this->lastUsed = time();
+		$this->uncollected = true;
 		$this->worker->stack($task);
 	}
 }
