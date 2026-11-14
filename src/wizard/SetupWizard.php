@@ -36,7 +36,6 @@ use quark\lang\Translatable;
 use quark\permission\AccessStorage;
 use quark\player\GameMode;
 use quark\Server;
-use quark\ServerProperties;
 use quark\utils\Config;
 use quark\utils\Internet;
 use quark\utils\InternetException;
@@ -100,7 +99,7 @@ class SetupWizard{
 			ConfigurationMigration::createServer($this->paths->serverToml());
 		}
 		$config = new Config($this->paths->serverToml(), Config::TOML);
-		$config->setNested("server." . ServerProperties::LANGUAGE, $lang);
+		$config->setNested("server.language", $lang);
 		$config->save();
 
 		if(strtolower($this->getInput($this->lang->translate(KnownTranslationFactory::skip_installer()), "n", "y/N")) === "y"){
@@ -163,12 +162,12 @@ LICENSE;
 	}
 
 	private function generateBaseConfig(Config $config) : void{
-		$config->setNested("server." . ServerProperties::MOTD, ($name = $this->getInput($this->lang->translate(KnownTranslationFactory::name_your_server()), Server::DEFAULT_SERVER_NAME)));
+		$config->setNested("server.motd", ($name = $this->getInput($this->lang->translate(KnownTranslationFactory::name_your_server()), Server::DEFAULT_SERVER_NAME)));
 
 		$this->message($this->lang->translate(KnownTranslationFactory::port_warning()));
 
-		$config->setNested("server." . ServerProperties::SERVER_PORT_IPV4, $this->askPort(KnownTranslationFactory::server_port_v4(), Server::DEFAULT_PORT_IPV4));
-		$config->setNested("server." . ServerProperties::SERVER_PORT_IPV6, $this->askPort(KnownTranslationFactory::server_port_v6(), Server::DEFAULT_PORT_IPV6));
+		$config->setNested("network.port", $this->askPort(KnownTranslationFactory::server_port_v4(), Server::DEFAULT_PORT_IPV4));
+		$config->setNested("network.port-v6", $this->askPort(KnownTranslationFactory::server_port_v6(), Server::DEFAULT_PORT_IPV6));
 
 		$this->message($this->lang->translate(KnownTranslationFactory::gamemode_info()));
 
@@ -181,11 +180,11 @@ LICENSE;
 			};
 		}while($gamemode === null);
 		//TODO: this probably shouldn't use the enum name directly
-		$config->setNested("server." . ServerProperties::GAME_MODE, $gamemode->name);
+		$config->setNested("gameplay.gamemode", $gamemode->name);
 
-		$config->setNested("server." . ServerProperties::MAX_PLAYERS, (int) $this->getInput($this->lang->translate(KnownTranslationFactory::max_players()), (string) Server::DEFAULT_MAX_PLAYERS));
+		$config->setNested("server.max-players", (int) $this->getInput($this->lang->translate(KnownTranslationFactory::max_players()), (string) Server::DEFAULT_MAX_PLAYERS));
 
-		$config->setNested("server." . ServerProperties::VIEW_DISTANCE, (int) $this->getInput($this->lang->translate(KnownTranslationFactory::view_distance()), (string) Server::DEFAULT_MAX_VIEW_DISTANCE));
+		$config->setNested("world.view-distance", (int) $this->getInput($this->lang->translate(KnownTranslationFactory::view_distance()), (string) Server::DEFAULT_MAX_VIEW_DISTANCE));
 	}
 
 	private function generateUserFiles(Config $config) : void{
@@ -207,9 +206,9 @@ LICENSE;
 
 		if(strtolower($this->getInput($this->lang->translate(KnownTranslationFactory::whitelist_enable()), "n", "y/N")) === "y"){
 			$this->error($this->lang->translate(KnownTranslationFactory::whitelist_warning()));
-			$config->setNested("server." . ServerProperties::WHITELIST, true);
+			$config->setNested("server.whitelist", true);
 		}else{
-			$config->setNested("server." . ServerProperties::WHITELIST, false);
+			$config->setNested("server.whitelist", false);
 		}
 	}
 
@@ -217,9 +216,9 @@ LICENSE;
 		$this->error($this->lang->translate(KnownTranslationFactory::query_warning1()));
 		$this->error($this->lang->translate(KnownTranslationFactory::query_warning2()));
 		if(strtolower($this->getInput($this->lang->translate(KnownTranslationFactory::query_disable()), "n", "y/N")) === "y"){
-			$config->setNested("server." . ServerProperties::ENABLE_QUERY, false);
+			$config->setNested("network.enable-query", false);
 		}else{
-			$config->setNested("server." . ServerProperties::ENABLE_QUERY, true);
+			$config->setNested("network.enable-query", true);
 		}
 	}
 

@@ -283,11 +283,11 @@ final class CommandMetadataAdapterTest extends TestCase{
 
 	public function testAliasesAreOnlyAdvertisedWhenATargetSyntaxIsPermitted() : void{
 		$server = self::createStub(Server::class);
-		$server->method("getCommandAliases")->willReturn(["grant" => ["eco admin give \$1 \$2"], "send" => ["eco pay \$1 \$2"]]);
+		$aliases = ["grant" => ["eco admin give \$1 \$2"], "send" => ["eco pay \$1 \$2"]];
 		$map = new SimpleCommandMap($server);
 		$server->method("getCommandMap")->willReturn($map);
 		$map->register("test", $this->eco());
-		$map->registerServerAliases();
+		$map->registerServerAliases($aliases);
 
 		$names = function(array $permissions) use ($map, $server) : array{
 			$player = $this->player($permissions);
@@ -310,7 +310,7 @@ final class CommandMetadataAdapterTest extends TestCase{
 
 	public function testServerAliasesReplaceTheCommandTheyShadow() : void{
 		$server = self::createStub(Server::class);
-		$server->method("getCommandAliases")->willReturn(["eco" => ["legacy \$1"]]);
+		$aliases = ["eco" => ["legacy \$1"]];
 		$map = new SimpleCommandMap($server);
 		$server->method("getCommandMap")->willReturn($map);
 		$map->register("test", $this->eco());
@@ -321,7 +321,7 @@ final class CommandMetadataAdapterTest extends TestCase{
 		};
 		$legacy->setPermission("test.admin");
 		$map->register("test", $legacy);
-		$map->registerServerAliases();
+		$map->registerServerAliases($aliases);
 
 		$player = $this->player(["test.root", "test.admin"]);
 		$player->method("getServer")->willReturn($server);

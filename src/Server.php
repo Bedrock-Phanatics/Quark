@@ -714,7 +714,7 @@ class Server{
 	}
 
 	public function shouldSavePlayerData() : bool{
-		return $this->configGroup->getPropertyBool(Yml::PLAYER_SAVE_PLAYER_DATA, true);
+		return $this->configGroup->getPropertyBool(Yml::PLAYER_SAVE_DATA, true);
 	}
 
 	/**
@@ -1068,31 +1068,6 @@ class Server{
 		return $this->operators;
 	}
 
-	/**
-	 * @return string[][]
-	 * @phpstan-return array<string, list<string>>
-	 */
-	public function getCommandAliases() : array{
-		$section = $this->configGroup->getProperty(Yml::ALIASES);
-		$result = [];
-		if(is_array($section)){
-			foreach(Utils::promoteKeys($section) as $key => $value){
-				//TODO: more validation needed here
-				//key might not be a string, value might not be list<string>
-				$commands = [];
-				if(is_array($value)){
-					$commands = $value;
-				}else{
-					$commands[] = (string) $value;
-				}
-
-				$result[(string) $key] = $commands;
-			}
-		}
-
-		return $result;
-	}
-
 	public static function getInstance() : Server{
 		if(self::$instance === null){
 			throw new \RuntimeException("Attempt to retrieve Server instance outside server thread");
@@ -1139,9 +1114,9 @@ class Server{
 			$this->logger->info("Loading server configuration");
 			$this->configGroup = $configGroup ?? ServerConfigGroup::load($this->paths->serverToml());
 
-			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
+			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::GAMEPLAY_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
-			$this->forceLanguage = $this->configGroup->getPropertyBool(Yml::SETTINGS_FORCE_LANGUAGE, false);
+			$this->forceLanguage = $this->configGroup->getPropertyBool(Yml::SERVER_FORCE_LANGUAGE, false);
 			$selectedLang = $this->configGroup->getConfigString(ServerProperties::LANGUAGE, Language::FALLBACK_LANGUAGE);
 			try{
 				$this->language = new Language($selectedLang);
@@ -1158,11 +1133,11 @@ class Server{
 			$this->logger->info($this->language->translate(KnownTranslationFactory::language_selected($this->language->getName(), $this->language->getLang())));
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
-				if(!$this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_DEV_BUILDS, false)){
+				if(!$this->configGroup->getPropertyBool(Yml::SERVER_ENABLE_DEV_BUILDS, false)){
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error1(VersionInfo::NAME)));
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error2()));
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error3()));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error4(Yml::SETTINGS_ENABLE_DEV_BUILDS)));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error4(Yml::SERVER_ENABLE_DEV_BUILDS)));
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error5(VersionInfo::GITHUB_URL . "/releases")));
 					$this->forceShutdownExit();
 
@@ -1182,7 +1157,7 @@ class Server{
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
 
-			if(($poolSize = $this->configGroup->getPropertyString(Yml::SETTINGS_ASYNC_WORKERS, "auto")) === "auto"){
+			if(($poolSize = $this->configGroup->getPropertyString(Yml::PERFORMANCE_ASYNC_WORKERS, "auto")) === "auto"){
 				$poolSize = 2;
 				$processors = Utils::getCoreCount() - 2;
 
@@ -1203,11 +1178,11 @@ class Server{
 				$this->phpAutomaticGc
 			);
 			$this->pulse = new PulseRecorder($this->asyncPool, $this->logger instanceof MainLogger ? $this->logger->getLogWriterThread() : null, $this->autoloader);
-			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
+			if($this->configGroup->getPropertyBool(Yml::DIAGNOSTICS_ENABLE_PROFILING, false)){
 				$this->pulse->start();
 			}
 
-			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
+			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_COMPRESSION_THRESHOLD, 256);
 			if($netCompressionThreshold < 0){
 				$netCompressionThreshold = null;
 			}
@@ -1230,9 +1205,9 @@ class Server{
 				$this->networkCompressor = ZlibCompressor::getInstance();
 			}
 
-			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, false);
+			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_COMPRESSION_ASYNC, false);
 			$this->networkCompressionAsyncThreshold = max(
-				$this->configGroup->getPropertyInt(Yml::NETWORK_ASYNC_COMPRESSION_THRESHOLD, self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD),
+				$this->configGroup->getPropertyInt(Yml::NETWORK_COMPRESSION_ASYNC_THRESHOLD, self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD),
 				$netCompressionThreshold ?? self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD
 			);
 
@@ -1344,16 +1319,13 @@ class Server{
 				$this->forceShutdownExit();
 				return;
 			}
-			if($this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, false)){
-				throw new \RuntimeException("Colocated plugin data is unsupported; migrate it to data/plugins and set plugins.legacy-data-dir to false");
-			}
 			$this->pluginManager = new PluginManager($this, $this->paths->pluginData(), $pluginGraylist);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
 			$providerManager = new WorldProviderManager();
 			if(
-				($format = $providerManager->getProviderByName($formatName = $this->configGroup->getPropertyString(Yml::LEVEL_SETTINGS_DEFAULT_FORMAT, ""))) !== null &&
+				($format = $providerManager->getProviderByName($formatName = $this->configGroup->getPropertyString(Yml::WORLD_DEFAULT_FORMAT, ""))) !== null &&
 				$format instanceof WritableWorldProviderManagerEntry
 			){
 				$providerManager->setDefault($format);
@@ -1362,16 +1334,16 @@ class Server{
 			}
 
 			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
-			$migrationMode = $this->configGroup->getPropertyString(Yml::LEVEL_SETTINGS_FORMAT_MIGRATION, WorldMigration::MODE_MANUAL);
+			$migrationMode = $this->configGroup->getPropertyString(Yml::WORLD_FORMAT_MIGRATION, WorldMigration::MODE_MANUAL);
 			if($migrationMode === WorldMigration::MODE_OFF || $migrationMode === WorldMigration::MODE_MANUAL || $migrationMode === WorldMigration::MODE_AUTOMATIC){
 				$this->worldManager->setMigrationMode($migrationMode);
 			}else{
-				$this->logger->warning("Unknown level-settings.format-migration \"$migrationMode\" in config/server.toml, using \"" . WorldMigration::MODE_MANUAL . "\"");
+				$this->logger->warning("Unknown world.format-migration \"$migrationMode\" in config/server.toml, using \"" . WorldMigration::MODE_MANUAL . "\"");
 			}
 			$this->worldManager->removeInterruptedWorldFiles();
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
-			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
+			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::WORLD_AUTOSAVE_INTERVAL, $this->worldManager->getAutoSaveInterval()));
 
 			$this->updater = new UpdateChecker($this, $this->configGroup->getPropertyString(Yml::AUTO_UPDATER_HOST, ""));
 
@@ -1548,7 +1520,7 @@ class Server{
 		if($this->worldManager->getDefaultWorld() === null){
 			$default = $this->configGroup->getConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
 			if(!$this->worldManager->isValidWorldName($default)){
-				$this->logger->warning("level-name \"$default\" is not a valid world name, using default");
+				$this->logger->warning("world.name \"$default\" is not a valid world name, using default");
 				$default = "world";
 				$this->configGroup->setConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
 			}
@@ -1815,10 +1787,6 @@ class Server{
 			}
 		}
 
-		if($type === PluginEnableOrder::POSTWORLD){
-			$this->commandMap->registerServerAliases();
-		}
-
 		return $allSuccess;
 	}
 
@@ -1888,7 +1856,7 @@ class Server{
 			}
 
 			if(isset($this->network)){
-				$this->network->getSessionManager()->close($this->configGroup->getPropertyString(Yml::SETTINGS_SHUTDOWN_MESSAGE, "Server closed"));
+				$this->network->getSessionManager()->close($this->configGroup->getPropertyString(Yml::SERVER_SHUTDOWN_MESSAGE, "Server closed"));
 			}
 			$this->drainPlayerData();
 

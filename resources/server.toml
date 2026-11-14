@@ -1,121 +1,122 @@
-# Quark server configuration. Restart after editing.
-config-version = 1
+# Quark server configuration. Restart after editing. Intervals use ticks (20 ticks = 1 second).
+config-version = 2
 
 [server]
 motd = 'Quark Server'
 max-players = 20
 language = 'eng'
+force-language = false
+whitelist = false
+shutdown-message = 'Server closed'
+enable-dev-builds = false
+
+[gameplay]
+# SURVIVAL, CREATIVE, ADVENTURE, or SPECTATOR. Force applies the default mode on login.
 gamemode = 'SURVIVAL'
 force-gamemode = false
+# 0 = peaceful, 1 = easy, 2 = normal, 3 = hard. Hardcore forces hard difficulty.
 difficulty = 2
 hardcore = false
 pvp = true
-# Empty bind addresses listen on all interfaces for that address family.
-server-ip = ''
-server-ipv6 = ''
-server-port = 19132
-server-portv6 = 19133
-enable-ipv6 = true
-enable-query = true
-white-list = false
-xbox-auth = true
-level-name = 'world'
-level-seed = ''
-level-type = 'DEFAULT'
-generator-settings = ''
-auto-save = true
-view-distance = 16
-
-[settings]
-force-language = false
-shutdown-message = 'Server closed'
-# Include the plugin list in Query replies.
-query-plugins = true
-enable-dev-builds = false
-enable-profiling = false
-# Use 'auto' to size the async pool from the CPU count, or set a worker count.
-async-workers = 'auto'
-
-[transport]
-# Use up to eight comma-separated names. Quark ships nethernet and raknet.
-name = 'nethernet'
-
-[transport.nethernet]
-# Keep this identity file across restarts. Relative paths start at the data directory.
-key-file = 'nethernet-identity.der'
-# Advertise the server on the local network via UDP 7551.
-lan-discovery = true
-# Share one UDP socket across connections. Vanilla compatibility is still unverified.
-ice-udp-mux = false
-# Uncomment to restrict the ICE UDP port range.
-# port-range = [30000, 30100]
-# Public IPs to advertise when the server is behind NAT or in a container, such as Docker or Pterodactyl.
-# They are offered on the UDP ports of port-range, so forward those ports unchanged.
-# advertise-addresses = ['203.0.113.7']
-# Optional STUN and TURN URLs, such as 'stun:stun.example.com:3478'.
-ice-servers = []
-# Deliver unreliable messages to a registered PHP handler. Otherwise the native transport drops them.
-unreliable-events = false
-
-[network]
-# RakNet MTU in bytes. UPnP can expose the server through the router.
-max-mtu-size = 1492
-upnp-forwarding = false
-enable-encryption = true
-# A proxy with one of these base64 DER public keys can log in as any player.
-trusted-proxy-keys = []
-# Use 'zlib' or 'snappy'. Snappy requires ext-snappy and falls back to zlib if unavailable.
-compression-algorithm = 'zlib'
-# Compression starts at this many bytes. Use -1 to disable compression or 0 to compress every batch.
-batch-threshold = 256
-# Zlib level from 1 to 9. Higher levels can reduce bandwidth at the cost of CPU time.
-compression-level = 6
-# Offloading large batches can free main-thread time and delay delivery.
-async-compression = false
-async-compression-threshold = 10000
 # Flush combat feedback early, at most once per player per tick.
 combat-low-latency-feedback = true
 
 [player]
-save-player-data = true
+save-data = true
 # Compare the player's Xbox ID with saved data before admitting them.
 verify-xuid = true
 
-[level-settings]
+[network]
+# Empty addresses listen on all interfaces for that address family.
+bind-address = ''
+bind-address-v6 = ''
+port = 19132
+port-v6 = 19133
+enable-ipv6 = true
+# Query uses the configured server ports, including when NetherNet is selected.
+enable-query = true
+query-plugins = true
+xbox-auth = true
+enable-encryption = true
+# A proxy with one of these base64 DER public keys can log in as any player.
+trusted-proxy-keys = []
+# Ask the router to expose the IPv4 server port; this does not forward ICE ports.
+upnp-forwarding = false
+
+[network.compression]
+# zlib or snappy. Snappy requires ext-snappy; otherwise zlib is used.
+algorithm = 'zlib'
+# Minimum batch size in bytes; -1 disables compression, 0 compresses every batch.
+threshold = 256
+# Zlib level from 1 to 9; higher levels trade CPU time for bandwidth.
+level = 6
+# Offloading large batches can free main-thread time and delay delivery.
+async = false
+async-threshold = 10000
+
+[transport]
+# Up to eight comma-separated names. Built-in transports: nethernet, raknet.
+name = 'nethernet'
+
+[transport.nethernet]
+# Persist this identity file across restarts. Relative paths start at the data directory.
+key-file = 'nethernet-identity.der'
+# Local-network discovery uses UDP 7551; broadcasts do not cross most container networks.
+lan-discovery = true
+# Share one ICE UDP socket. Vanilla client compatibility is still unverified.
+ice-udp-mux = false
+# Optional inclusive ICE UDP range (1..65535). Omission allows arbitrary UDP ports.
+# Docker/Pterodactyl: allocate and forward the entire range with unchanged UDP ports.
+# port-range = [30000, 30100]
+# Optional reachable public IPs (up to eight, without ports); set a forwarded range above.
+# advertise-addresses = ['203.0.113.7']
+# Optional STUN/TURN URLs, e.g. 'stun:stun.example.com:3478' (at most 32, 512 bytes each).
+# STUN discovers NAT mappings; TURN relays traffic. Empty configures neither.
+ice-servers = []
+# Deliver unreliable messages to a registered PHP handler; otherwise drop them natively.
+unreliable-events = false
+
+[transport.raknet]
+# RakNet MTU in bytes.
+max-mtu-size = 1492
+
+[world]
+name = 'world'
+# Empty seeds are random. Generator names are registered by Quark or plugins.
+seed = ''
+generator = 'DEFAULT'
+generator-settings = ''
+auto-save = true
+autosave-interval = 6000
+# View distance in chunks; the runtime minimum is two.
+view-distance = 16
 default-format = 'leveldb'
-# Use 'off', 'manual', or 'automatic'. Automatic converts LevelDB worlds to ZigriteDB at startup and keeps backups.
+# off, manual, or automatic. Automatic converts LevelDB to ZigriteDB at startup, keeping backups.
 format-migration = 'manual'
 
-[ticks-per]
-autosave = 6000
-
-[chunk-sending]
-per-tick = 4
+[chunks]
+send-per-tick = 4
 spawn-radius = 4
-
-[chunk-ticking]
-# Zero disables player-driven chunk ticking.
+# Radius in chunks. Zero disables player-driven chunk ticking.
 tick-radius = 3
-# With autosave on, unload view-only chunks outside the tick radius. Block updates and entity visibility pause there.
+# With autosave on, unload view-only chunks outside the tick radius; updates and entity visibility pause there.
 unload-view-only-chunks = true
-blocks-per-subchunk-per-tick = 3
-# Block names to exclude from random ticks.
-disable-block-ticking = []
-
-[chunk-generation]
+random-ticks-per-subchunk = 3
+# Block names excluded from random ticks.
+disabled-random-tick-blocks = []
 population-queue-size = 32
 
 [entities]
-# Merge radii are in blocks, from 0 to 8. Larger radii can merge entities through walls.
+# Merge radii in blocks (0..8). Larger radii can merge entities through walls.
 item-merge-radius = 0.5
 xp-orb-merge-radius = 0.5
-# Throttle eligible entities outside this distance in blocks, rounded up to whole chunks. Zero disables throttling.
+# Throttle eligible entities beyond this many blocks, rounded up to chunks. Zero disables throttling.
 activation-range = 0
 inactive-tick-interval = 20
 
 [redstone]
 enabled = true
-# Use 'all', 'allowlist', or 'blocklist' with world folder names.
+# all, allowlist, or blocklist, using world folder names.
 world-policy = 'all'
 worlds = []
 max-wire-network-size = 65536
@@ -136,50 +137,49 @@ max-dispenser-ignitions-per-second = 20
 
 [weather]
 cycle = true
-# Lightning has a 1-in-N chance per ticking chunk per tick during thunderstorms. Zero disables strikes.
+# 1-in-N chance per ticking chunk per tick during thunderstorms. Zero disables strikes.
 lightning-chance = 100000
 lightning-fire = true
 
+[performance]
+# auto sizes the async pool from the CPU count; otherwise use a positive worker count.
+async-workers = 'auto'
+
 [memory]
-# Limits are in MiB. Zero disables a limit. The async limit applies per worker.
+# MiB; zero disables a limit. The async hard limit applies per worker.
 global-limit = 0
 main-limit = 0
 main-hard-limit = 1024
 async-worker-hard-limit = 256
-# Check interval in ticks. Repeat low-memory events after this many checks.
 check-rate = 20
 continuous-trigger = true
+# Repeat low-memory events after this many checks.
 continuous-trigger-rate = 30
+dump-async-workers = true
+# Cap view distance during low memory. Zero disables the cap.
+low-memory-view-distance = 4
 
 [memory.garbage-collection]
-# PHP's automatic cycle collector on the main thread and Quark's async workers.
-# Disabling it can increase memory use. Test under realistic workloads.
+# Automatic cycle collection on the main thread and workers. Disabling can increase memory use.
 php-automatic = true
-# Quark's separate adaptive cycle collection threshold, measured in buffered roots. Zero disables it.
+# Quark's adaptive collection threshold in buffered roots. Zero disables it.
 threshold = 10001
-# Quark's periodic main-thread collection interval in ticks. Zero disables it.
+# Periodic main-thread collection interval in ticks. Zero disables it.
 period = 36000
 
-[memory.memory-dump]
-dump-async-worker = true
-
-[memory.max-chunks]
-# Cap view distance during low memory. Zero disables the cap.
-chunk-radius = 4
-
 [logging]
-# Levels are debug, info, notice, warning, error, critical, alert, and emergency.
+# debug, info, notice, warning, error, critical, alert, or emergency.
 console-level = 'info'
 file-level = 'info'
 json-level = 'info'
-# Use 'columns' or 'compact'.
+# columns or compact.
 console-style = 'columns'
-# Also write to logs/server.log.jsonl.
+# Also write logs/server.log.jsonl.
 json = false
 # Queue budget in bytes. Routine events can be dropped when it fills.
 buffer-bytes = 8388608
 flush-ms = 200
-# Rotation size in bytes. Zero archives means keep them all.
+# Rotation size in bytes. Zero archives keeps them all.
 max-file-size = 33554432
 max-archives = 0
 
@@ -187,39 +187,31 @@ max-archives = 0
 enable-input = true
 title-tick = true
 
+[diagnostics]
+enable-profiling = false
+# Zero keeps all crash reports and profiles.
+max-crash-reports = 0
+max-profiles = 0
+
 [crash-dumps]
 include-code = true
 include-settings = true
 include-phpinfo = false
-
-[diagnostics]
-# Zero keeps all crash reports and profiles.
-max-crash-reports = 0
-max-profiles = 0
 
 [auto-updater]
 enabled = false
 preferred-channel = 'stable'
 # Leave blank unless you run a compatible update service.
 host = ''
-
-[auto-updater.on-update]
 warn-console = true
 
 [migration]
-# Opt in to moving legacy worlds, player data, and other files. You can also run --migrate-legacy.
-auto_on_startup = false
+# Opt in to moving legacy data; --migrate-legacy also enables it.
+auto-on-startup = false
 
-[plugins]
-# Legacy colocated plugin data needs to be moved to data/plugins before startup.
-legacy-data-dir = false
-
-# Optional command aliases. An empty list removes an unqualified alias.
-# [aliases]
-# stop = []
-# abort = ['quark:stop']
-
-# Optional world generation overrides keyed by world folder name.
+# Optional world overrides keyed by folder name. Difficulty: peaceful, easy, normal, or hard.
 # [worlds.example]
 # seed = 404
 # generator = 'FLAT'
+# preset = ''
+# difficulty = 'normal'

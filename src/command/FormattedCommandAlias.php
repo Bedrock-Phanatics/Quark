@@ -41,7 +41,7 @@ use function substr;
 
 /**
  * @internal
- * Used to register commands defined in the `aliases` section of config/server.toml.
+ * Registers a command that expands into one or more command lines.
  * See the comments in resources/server.toml for examples.
  */
 class FormattedCommandAlias extends Command{

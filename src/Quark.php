@@ -379,10 +379,12 @@ JIT_WARNING
 				throw new \RuntimeException("Migration configuration cannot be a symbolic link: $migrationConfig");
 			}
 			$settings = is_file($paths->serverToml()) ? CoreConfig::load($paths->serverToml()) : (is_file($migrationConfig) ? parse_ini_file($migrationConfig, true, INI_SCANNER_TYPED) : []);
-			if($settings === false || !is_bool($settings["migration"]["auto_on_startup"] ?? false)){
-				throw new \RuntimeException("Invalid migration setting in $migrationConfig");
+			$migration = is_array($settings) ? ($settings["migration"] ?? []) : false;
+			$autoMigration = is_array($migration) ? (array_key_exists("auto-on-startup", $migration) ? $migration["auto-on-startup"] : ($migration["auto_on_startup"] ?? false)) : null;
+			if(!is_bool($autoMigration)){
+				throw new \RuntimeException("Invalid migration.auto-on-startup: expected boolean");
 			}
-			$result = (new FilesystemMigration($paths))->prepare(isset($migrationOptions[BootstrapOptions::MIGRATE_LEGACY]) || ($settings["migration"]["auto_on_startup"] ?? false), isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN]));
+			$result = (new FilesystemMigration($paths))->prepare(isset($migrationOptions[BootstrapOptions::MIGRATE_LEGACY]) || $autoMigration, isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN]));
 			if(isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN])){
 				echo $result . PHP_EOL;
 				Filesystem::releaseLockFile($lockFilePath);

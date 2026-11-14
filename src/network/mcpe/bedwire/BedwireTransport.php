@@ -35,12 +35,8 @@ use quark\network\NetworkInterfaceStartException;
 use quark\network\Transport;
 use quark\Server;
 use quark\ServerProperties;
-use quark\utils\Utils;
 use quark\YmlServerProperties as Yml;
 use Symfony\Component\Filesystem\Path;
-use function get_debug_type;
-use function is_array;
-use function is_string;
 use function min;
 
 /**
@@ -98,7 +94,7 @@ final class BedwireTransport implements Transport{
 			"identity_file" => Path::makeAbsolute($config->getPropertyString(Yml::TRANSPORT_NETHERNET_KEY_FILE, "nethernet-identity.der"), $this->server->getDataPath()),
 			"lan_port" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_LAN_DISCOVERY, true) ? self::LAN_PORT : 0,
 			"trusted_identity_keys" => $this->server->getTrustedProxyKeys(),
-			"ice_servers" => self::parseIceServers($config->getProperty(Yml::TRANSPORT_NETHERNET_ICE_SERVERS)),
+			"ice_servers" => CoreConfig::validateNetherNetIceServers($config->getProperty(Yml::TRANSPORT_NETHERNET_ICE_SERVERS, [])),
 			"udp_mux" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX, false),
 			"unreliable_events" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_UNRELIABLE_EVENTS, false),
 		];
@@ -137,24 +133,4 @@ final class BedwireTransport implements Transport{
 		return $ids;
 	}
 
-	/**
-	 * @phpstan-return list<string>
-	 * @throws \InvalidArgumentException
-	 */
-	private static function parseIceServers(mixed $servers) : array{
-		if($servers === null){
-			return [];
-		}
-		if(!is_array($servers)){
-			throw new \InvalidArgumentException("ice-servers must be a list of ICE server URLs, got " . get_debug_type($servers));
-		}
-		$parsed = [];
-		foreach(Utils::promoteKeys($servers) as $index => $server){
-			if(!is_string($server) || $server === ""){
-				throw new \InvalidArgumentException("ice-servers entry $index must be a URL such as stun:stun.example.com:3478, got " . get_debug_type($server));
-			}
-			$parsed[] = $server;
-		}
-		return $parsed;
-	}
 }

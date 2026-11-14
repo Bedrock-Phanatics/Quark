@@ -23,13 +23,23 @@ To run a specific version, just add it to the end of the command, like this:
 docker run -it -p 19132:19132/udp -v $PWD/data:/data -v $PWD/plugins:/plugins ghcr.io/bedrock-phanatics/quark:<release-tag>
 ```
 
-## Changing the server port
-Docker allows you to map ports, so you don't need to edit `config/server.toml`.
+## Network ports
 
-In the run command shown above, change `19132:19132/udp` to `<port number you want>:19132/udp`. **Note: Do not change the second number.**
+Quark defaults to NetherNet. UDP 19132 serves signaling and Query; gameplay also uses ICE UDP sockets. Publishing only 19132 does not expose those sockets.
 
-> [!WARNING]
-> Do not change the port in `config/server.toml`. This is unnecessary when using Docker and will make things more complicated.
+For Docker, Pterodactyl, or a server behind NAT, configure an allocated UDP range and the server's reachable public IP in `config/server.toml`:
+
+```toml
+[transport.nethernet]
+port-range = [30000, 30100]
+advertise-addresses = ['203.0.113.7'] # Replace with your public IP.
+```
+
+Publish `-p 30000-30100:30000-30100/udp` in addition to `-p 19132:19132/udp`, and forward the same ports on any upstream router or firewall. Pterodactyl must allocate the entire range. ICE ports must have identical internal and external numbers. Without a range, NetherNet may choose arbitrary UDP ports. Keep `nethernet-identity.der` in the persistent data volume so the server identity survives restarts.
+
+STUN discovers NAT mappings; TURN can relay connections when direct access fails. Configure supported server URLs with `transport.nethernet.ice-servers`. Neither service is configured by default. LAN discovery uses UDP 7551 and local broadcasts; ordinary bridged containers usually do not receive those broadcasts. Disable `lan-discovery` when it is unnecessary. UDP multiplexing remains off by default because vanilla compatibility is unverified.
+
+`[network] port` selects the IPv4 signaling/Query or RakNet port. Set `port-v6` for RakNet IPv6 and publish that UDP port too when enabled. For RakNet-only deployments (`[transport] name = 'raknet'`), Docker can translate the external game port with `<external>:19132/udp`; NetherNet ICE ranges must remain mapped unchanged.
 
 ## Editing the server data
 The server data (e.g. `config/server.toml`, `data/worlds/`, and `data/plugins/`) will be stored in the host `data` folder you created above.

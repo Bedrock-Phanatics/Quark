@@ -226,23 +226,25 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 ## Configuration Migration
 
-Quark upgrades older `config/server.toml` files automatically. The upgrade moves legacy language and memory-limit settings, translates disabled chunk ticking to a zero tick radius, and adds missing defaults. It preserves unrelated settings. Quark rejects unsupported config versions.
+Quark upgrades older `config/server.toml` files automatically. Version 2 separates gameplay, networking, world defaults, compression, and performance settings. It combines chunk sending, ticking, and generation under `[chunks]`, flattens the memory dump, low-memory view-distance, and updater warning settings, and renames `migration.auto_on_startup` to `migration.auto-on-startup`.
+
+The upgrade preserves explicit values and unrelated settings; an explicit new key wins over its old spelling. Missing defaults are filled once, with version 0's historical sparse-file defaults preserved. Comments and formatting survive where the TOML can be patched in place, and subsequent startups leave the file unchanged. Global `[aliases]` entries and the retired PHP NetherNet MTU/signaling settings are removed; plugin command aliases remain supported. Unsupported colocated plugin data still requires manual migration. Quark rejects invalid known values and unsupported config versions.
 
 Use `--migration-dry-run` to preview a legacy filesystem migration, then start with `--migrate-legacy` or set `[migration] auto_on_startup = true` in `config/migration.ini` before conversion. Quark snapshots the original YAML and properties files in `backups/`. Review the generated files. [Server template](../resources/server.toml) · [Plugin template](../resources/plugins.toml)
 
 ### New Configuration Options
 
-- `network.compression-algorithm`
-- `network.async-compression`
-- `network.async-compression-threshold`
-- `network.combat-low-latency-feedback`
+- `network.compression.algorithm`
+- `network.compression.async`
+- `network.compression.async-threshold`
+- `gameplay.combat-low-latency-feedback`
 - `memory.garbage-collection.php-automatic`
 - `memory.garbage-collection.threshold`
 - `memory.garbage-collection.period`
 - `redstone.*`
 - `tnt-limits.*`
 
-Migration stops on invalid or conflicting values. Resolve the reported configuration key and rerun `--migrate-legacy`.
+Legacy YAML files with conflicting values stop migration. Resolve the reported configuration key and rerun `--migrate-legacy`. For TOML upgrades, new keys take precedence over legacy keys; old command-line property names remain accepted.
 
 ## Migration Checklist
 

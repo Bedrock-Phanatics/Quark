@@ -199,10 +199,10 @@ final class CoreConfigTest extends TestCase{
 			$group->setConfigBool(ServerProperties::WHITELIST, true);
 			$group->save();
 			$saved = Filesystem::fileGetContents($path);
-			self::assertSame(str_replace("white-list = false", "white-list = true", $template), $saved);
+			self::assertSame(str_replace("whitelist = false", "whitelist = true", $template), $saved);
 			$server = CoreConfig::parse($saved)["server"];
 			self::assertIsArray($server);
-			self::assertTrue($server["white-list"]);
+			self::assertTrue($server["whitelist"]);
 		}finally{
 			@unlink($path);
 		}
@@ -234,19 +234,18 @@ final class CoreConfigTest extends TestCase{
 	/** @return iterable<string, array{array<string, mixed>}> */
 	public static function invalidServerSettings() : iterable{
 		yield "config-version" => [["config-version" => CoreConfig::SERVER_VERSION + 1]];
-		yield "server.xbox-auth" => [["server" => ["xbox-auth" => "false"]]];
+		yield "network.xbox-auth" => [["network" => ["xbox-auth" => "false"]]];
 		yield "server.max-players" => [["server" => ["max-players" => 0x100000000]]];
-		yield "server.gamemode" => [["server" => ["gamemode" => "SPECTATE"]]];
+		yield "gameplay.gamemode" => [["gameplay" => ["gamemode" => "SPECTATE"]]];
 		yield "network.enable-encryption" => [["network" => ["enable-encryption" => null]]];
 		yield "network.trusted-proxy-keys" => [["network" => ["trusted-proxy-keys" => [42]]]];
-		yield "network.batch-threshold" => [["network" => ["batch-threshold" => -2]]];
-		yield "network.max-mtu-size" => [["network" => ["max-mtu-size" => 399]]];
+		yield "network.compression.threshold" => [["network" => ["compression" => ["threshold" => -2]]]];
+		yield "transport.raknet.max-mtu-size" => [["transport" => ["raknet" => ["max-mtu-size" => 399]]]];
 		yield "transport.nethernet.port-range" => [["transport" => ["nethernet" => ["port-range" => [30000, 1]]]]];
 		yield "memory.main-limit" => [["memory" => ["main-limit" => 2048]]];
-		yield "ticks-per.autosave" => [["ticks-per" => ["autosave" => 0]]];
-		yield "chunk-sending.spawn-radius" => [["chunk-sending" => ["spawn-radius" => PHP_INT_MAX]]];
+		yield "world.autosave-interval" => [["world" => ["autosave-interval" => 0]]];
+		yield "chunks.spawn-radius" => [["chunks" => ["spawn-radius" => PHP_INT_MAX]]];
 		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
-		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
 	}
 
 	/** @param array<string, mixed> $data */
@@ -260,7 +259,7 @@ final class CoreConfigTest extends TestCase{
 	public function testNetherNetMuxCannotReserveTheQueryPort() : void{
 		$nethernet = ["port-range" => [19132, 19132], "ice-udp-mux" => true];
 		CoreConfig::validateServer(["transport" => ["name" => "raknet", "nethernet" => $nethernet]]);
-		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]], ["server" => ["enable-query" => false]]);
+		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]], ["network" => ["enable-query" => false]]);
 		$this->expectExceptionMessage("already used by Query");
 		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]]);
 	}

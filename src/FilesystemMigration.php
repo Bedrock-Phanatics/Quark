@@ -225,7 +225,7 @@ final class FilesystemMigration{
 				return $state;
 			}
 			if(!$allowMigration && $state !== "empty"){
-				throw new \RuntimeException("Filesystem layout is $state. Set [migration] auto_on_startup = true in config/server.toml or run --migrate-legacy; use --migration-dry-run to inspect first.");
+				throw new \RuntimeException("Filesystem layout is $state. Set [migration] auto-on-startup = true in config/server.toml or run --migrate-legacy; use --migration-dry-run to inspect first.");
 			}
 			if($state === "unversioned"){
 				throw new \RuntimeException("Modern paths exist without a layout marker. Inspect this partial installation before retrying.");
@@ -292,8 +292,9 @@ final class FilesystemMigration{
 			}
 		}
 		if($pluginDataMode === null && is_file($this->paths->serverToml())){
-			$modernPlugins = CoreConfig::load($this->paths->serverToml())["plugins"] ?? [];
-			$pluginDataMode = is_array($modernPlugins) ? ($modernPlugins["legacy-data-dir"] ?? null) : null;
+			$modernConfig = CoreConfig::load($this->paths->serverToml());
+			$modernPlugins = $modernConfig["plugins"] ?? [];
+			$pluginDataMode = is_array($modernPlugins) ? ($modernPlugins["legacy-data-dir"] ?? (($modernConfig["config-version"] ?? 0) >= 2 ? false : null)) : null;
 			if($pluginDataMode === true){
 				throw new \RuntimeException("Colocated plugin data needs a migration handler. Move plugin data to data/plugins first.");
 			}

@@ -297,10 +297,10 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("Alice", (new DatFilePlayerDataProvider($this->paths->players()))->loadData("alice")->value()?->getString("name"));
 		$server = self::table(CoreConfig::load($this->paths->serverToml()), "server");
 		self::assertSame("Integrated Legacy", $server["motd"]);
-		self::assertSame("Lobby", $server["level-name"]);
+		self::assertSame("Lobby", self::table(CoreConfig::load($this->paths->serverToml()), "world")["name"]);
 		self::assertSame(12, $server["max-players"]);
-		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "settings")["force-language"]);
-		self::assertSame(2, self::table(CoreConfig::load($this->paths->serverToml()), "settings")["async-workers"]);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "server")["force-language"]);
+		self::assertSame(2, self::table(CoreConfig::load($this->paths->serverToml()), "performance")["async-workers"]);
 		self::assertSame(["Example"], CoreConfig::load($this->paths->pluginsToml())["plugins"]);
 		$access = new AccessStorage($this->paths->accessDatabase());
 		try{
@@ -521,7 +521,7 @@ final class FilesystemMigrationTest extends TestCase{
 
 		self::assertSame("legacy", $this->migration->prepare(true));
 		self::assertSame("modern", $this->migration->prepare());
-		self::assertSame("Lobby", self::table(CoreConfig::load($this->paths->serverToml()), "server")["level-name"]);
+		self::assertSame("Lobby", self::table(CoreConfig::load($this->paths->serverToml()), "world")["name"]);
 		$worldPath = $this->paths->worlds() . "/Lobby";
 		self::assertSame($originalMetadata, hash_file("sha256", $worldPath . "/level.dat"));
 		$providers = (new WorldProviderManager())->getMatchingProviders($worldPath);
@@ -625,7 +625,7 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("mixed", $this->migration->diagnose()["state"]);
 		self::assertSame("mixed", $this->migration->prepare(true));
 		self::assertSame("old", self::table(CoreConfig::load($this->paths->serverToml()), "server")["motd"]);
-		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "migration")["auto_on_startup"]);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "migration")["auto-on-startup"]);
 	}
 
 	public function testColocatedPluginDataNeedsHandler() : void{
@@ -679,9 +679,9 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("legacy", $this->migration->prepare(true));
 		$server = CoreConfig::load($this->paths->serverToml());
 		self::assertSame("My server", self::table($server, "server")["motd"]);
-		self::assertSame(19140, self::table($server, "server")["server-port"]);
+		self::assertSame(19140, self::table($server, "network")["port"]);
 		self::assertSame("keep", self::table($server, "server")["custom-key"]);
-		self::assertSame("Custom", self::table($server, "settings")["shutdown-message"]);
+		self::assertSame("Custom", self::table($server, "server")["shutdown-message"]);
 		self::assertNull(self::table($server, "custom")["optional"]);
 		self::assertSame(42, self::table($server, "custom")["value"]);
 		self::assertSame(["mode" => "whitelist", "plugins" => ["Example"]], CoreConfig::load($this->paths->pluginsToml()));
@@ -723,10 +723,10 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("Custom", self::table($config, "server")["motd"]);
 		self::assertSame("fra", self::table($config, "server")["language"]);
 		self::assertSame(768, self::table($config, "memory")["main-hard-limit"]);
-		self::assertSame(0, self::table($config, "chunk-ticking")["tick-radius"]);
+		self::assertSame(0, self::table($config, "chunks")["tick-radius"]);
 		self::assertTrue(self::table($config, "tnt-limits")["enabled"]);
-		self::assertSame(2, self::table($config, "chunk-generation")["population-queue-size"]);
-		self::assertTrue(self::table($config, "network")["async-compression"]);
+		self::assertSame(2, self::table($config, "chunks")["population-queue-size"]);
+		self::assertTrue(self::table(self::table($config, "network"), "compression")["async"]);
 		self::assertSame(40, self::table($config, "memory")["continuous-trigger-rate"]);
 		self::assertSame([1, "two"], self::table($config, "custom")["list"]);
 		self::assertArrayNotHasKey("suggest-channels", self::table($config, "auto-updater"));
@@ -741,7 +741,7 @@ final class FilesystemMigrationTest extends TestCase{
 		$path = $this->paths->serverToml();
 		$original = "[server]\nxbox-auth = 'off'\n";
 		file_put_contents($path, $original);
-		$this->expectExceptionMessage("server.xbox-auth");
+		$this->expectExceptionMessage("network.xbox-auth");
 		try{
 			$this->migration->prepare();
 		}finally{
@@ -754,7 +754,7 @@ final class FilesystemMigrationTest extends TestCase{
 		$this->migration->prepare(true);
 		$properties = self::table(CoreConfig::load($this->paths->serverToml()), "server");
 		self::assertSame("yes", $properties["motd"]);
-		self::assertSame("001", $properties["level-seed"]);
+		self::assertSame("001", self::table(CoreConfig::load($this->paths->serverToml()), "world")["seed"]);
 	}
 
 	public function testMalformedLegacyConfigCanBeFixedBeforeMovingWorlds() : void{
@@ -773,7 +773,7 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertFileDoesNotExist($this->paths->serverToml());
 		file_put_contents($properties, "xbox-auth=on\n");
 		$this->migration->prepare(true);
-		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "server")["xbox-auth"]);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "network")["xbox-auth"]);
 		self::assertFileExists($this->paths->worlds() . "/keep");
 	}
 
@@ -790,7 +790,7 @@ final class FilesystemMigrationTest extends TestCase{
 		]));
 		file_put_contents($this->paths->serverProperties(), "xbox-auth=on\n");
 		$this->migration->prepare(true);
-		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "server")["xbox-auth"]);
+		self::assertTrue(self::table(CoreConfig::load($this->paths->serverToml()), "network")["xbox-auth"]);
 		self::assertSame($bad, file_get_contents($backup . "/server.properties"));
 		self::assertFileDoesNotExist($this->root . "/.quark-config-migration.json");
 	}
@@ -866,15 +866,15 @@ final class FilesystemMigrationTest extends TestCase{
 		self::assertSame("Server closed", $group->getPropertyString("settings.shutdown-message", ""));
 		$group->setConfigInt(ServerProperties::SERVER_PORT_IPV4, 19140);
 		$group->save();
-		self::assertSame(19140, (new utils\Config($this->paths->serverToml(), utils\Config::TOML))->getNested("server.server-port"));
+		self::assertSame(19140, (new utils\Config($this->paths->serverToml(), utils\Config::TOML))->getNested("network.port"));
 	}
 
 	public function testInvalidKnownValuesIdentifyKeys() : void{
 		$server = CoreConfig::parse(Filesystem::fileGetContents(RESOURCE_PATH . "server.toml"));
-		$properties = self::table($server, "server");
-		$properties["server-port"] = 70000;
-		$server["server"] = $properties;
-		$this->expectExceptionMessage("server.server-port");
+		$properties = self::table($server, "network");
+		$properties["port"] = 70000;
+		$server["network"] = $properties;
+		$this->expectExceptionMessage("network.port");
 		CoreConfig::validateServer($server);
 	}
 
@@ -926,9 +926,9 @@ final class FilesystemMigrationTest extends TestCase{
 	}
 
 	public function testMissingOptionalSettingsKeepGetterDefaults() : void{
-		CoreConfig::validateServer(["settings" => ["force-language" => true]]);
+		CoreConfig::validateServer(["server" => ["force-language" => true]]);
 		$this->migration->prepare();
-		file_put_contents($this->paths->serverToml(), "[settings]\nforce-language = true\n");
+		file_put_contents($this->paths->serverToml(), "[server]\nforce-language = true\n");
 		$config = new utils\Config($this->paths->serverToml(), utils\Config::TOML);
 		$group = new ServerConfigGroup($config, $config, true);
 		self::assertSame(19132, $group->getConfigInt(ServerProperties::SERVER_PORT_IPV4, 19132));

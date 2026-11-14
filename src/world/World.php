@@ -640,9 +640,9 @@ class World implements ChunkManager{
 		$this->weatherCycle = $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
-		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 3)));
-		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
-		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 32);
+		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNKS_TICK_RADIUS, 3)));
+		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNKS_RANDOM_TICKS_PER_SUBCHUNK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
+		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNKS_POPULATION_QUEUE_SIZE, 32);
 		$activationRange = max(0, min(self::MAX_ACTIVATION_RANGE, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0)));
 		$this->activationChunkRadius = intdiv($activationRange + Chunk::EDGE_LENGTH - 1, Chunk::EDGE_LENGTH);
 		$this->inactiveTickInterval = max(1, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_INACTIVE_TICK_INTERVAL, 20));
@@ -655,7 +655,7 @@ class World implements ChunkManager{
 	private function initRandomTickBlocksFromConfig(ServerConfigGroup $cfg) : void{
 		$dontTickBlocks = [];
 		$parser = StringToItemParser::getInstance();
-		foreach($cfg->getProperty(YmlServerProperties::CHUNK_TICKING_DISABLE_BLOCK_TICKING, []) as $name){
+		foreach($cfg->getProperty(YmlServerProperties::CHUNKS_DISABLED_RANDOM_TICK_BLOCKS, []) as $name){
 			$name = (string) $name;
 			$item = $parser->parse($name);
 			if($item !== null){

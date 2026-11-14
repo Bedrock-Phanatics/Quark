@@ -55,9 +55,6 @@ final class SimpleCommandMapTest extends TestCase{
 	 * @phpstan-var list<array{string, string, list<string>}>
 	 */
 	private array $calls = [];
-	/** @phpstan-var array<string, list<string>> */
-	private array $aliases = [];
-
 	protected function setUp() : void{
 		Pulse::reset();
 		PulseZones::init();
@@ -69,7 +66,6 @@ final class SimpleCommandMapTest extends TestCase{
 			}
 		}
 		$this->server = self::createStub(Server::class);
-		$this->server->method("getCommandAliases")->willReturnCallback(fn() : array => $this->aliases);
 		$this->server->method("getLogger")->willReturn(new class extends AttachableThreadSafeLogger{
 			public function emergency($message){}
 			public function alert($message){}
@@ -476,8 +472,7 @@ final class SimpleCommandMapTest extends TestCase{
 	 * @phpstan-param array<string, list<string>> $aliases
 	 */
 	private function installAliases(array $aliases) : void{
-		$this->aliases = $aliases;
-		$this->map->registerServerAliases();
+		$this->map->registerServerAliases($aliases);
 	}
 
 	public function testFormattedAliasesEnforceTargetPermissions() : void{

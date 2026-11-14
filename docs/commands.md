@@ -151,7 +151,9 @@ The sender needs one of the command's permissions, and a syntax's own permission
 
 ## Server aliases
 
-Aliases in the `[aliases]` section of `config/server.toml` run their targets with each target's own permission checks. An alias is hidden from senders who can't use anything it reaches, and shows one raw text parameter in autocomplete. Greedy arguments of an alias target get the expanded tokens joined by spaces.
+Global aliases are no longer configured in `config/server.toml`. Plugins can still declare command aliases or register `FormattedCommandAlias` commands programmatically. `SimpleCommandMap::registerServerAliases($aliases)` accepts an explicit map of names to command lines.
+
+Formatted aliases run each target with its own permission checks. An alias is hidden from senders who can't use anything it reaches, and shows one raw text parameter in autocomplete. Greedy arguments of an alias target get the expanded tokens joined by spaces.
 
 ## Registration and plugins
 

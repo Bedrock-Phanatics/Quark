@@ -440,9 +440,8 @@ class SimpleCommandMap implements CommandMap{
 		return $this->knownCommands;
 	}
 
-	public function registerServerAliases() : void{
-		$values = $this->server->getCommandAliases();
-
+	/** @param array<string, list<string>> $values */
+	public function registerServerAliases(array $values = []) : void{
 		foreach(Utils::stringifyKeys($values) as $alias => $commandStrings){
 			if(str_contains($alias, ":")){
 				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_illegal($alias)));
