@@ -173,8 +173,8 @@ final class ItemDeserializer{
 			$itemStack->setSavedCount($count);
 		}
 
-		$itemStack->setCount($data->getCount());
-		if(($tagTag = $data->getTypeData()->getTag()) !== null){
+		$itemStack->setCount($count);
+		if(($tagTag = $typeData->getTag()) !== null){
 			try{
 				$itemStack->setNamedTag(clone $tagTag);
 			}catch(NbtException $e){

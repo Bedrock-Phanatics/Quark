@@ -26,7 +26,7 @@ final class UnknownCustomItem extends Item{
 
 	public function getSavedMeta() : int{ return $this->savedMeta; }
 
-	/** Saved stacks can be split, but never merged beyond the size they were saved with. */
+	/** Saved stacks can be split, but never merged beyond the largest size they were saved with. */
 	public function getMaxStackSize() : int{ return $this->savedCount; }
 
 	/** @internal */

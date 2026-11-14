@@ -6,7 +6,11 @@ namespace quark\item;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use quark\block\BlockIdentifier;
+use quark\block\BlockTypeIds;
+use quark\block\custom\UnknownCustomBlock;
 use quark\block\tile\dispenser\ArmorDispensableItem;
+use quark\data\bedrock\block\BlockStateData;
 use quark\entity\animation\Animation;
 use quark\entity\AttributeMap;
 use quark\entity\effect\EffectManager;
@@ -235,6 +239,19 @@ final class CustomEquipmentTest extends TestCase{
 		self::assertTrue($this->attacker->attackEntity($this->victim));
 		self::assertTrue($this->attacker->getMainHandItem()->isNull());
 		self::assertSame(11.0, $this->victim->getHealth());
+	}
+
+	public function testPickingBlockWithoutItemKeepsHeldItemInFullInventory() : void{
+		$this->world->method("getBlock")->willReturn(new UnknownCustomBlock(new BlockIdentifier(BlockTypeIds::newId()), BlockStateData::current("removed:block", [])));
+		$this->attacker->makeCreative();
+		$sword = $this->sword();
+		$inventory = $this->attacker->getInventory();
+		for($i = 0; $i < $inventory->getSize(); ++$i){
+			$inventory->setItem($i, VanillaItems::STICK());
+		}
+		$this->attacker->setMainHandItem($sword);
+		self::assertTrue($this->attacker->pickBlock(new Vector3(0, 64, 2), false));
+		self::assertTrue($sword->equalsExact($this->attacker->getMainHandItem()));
 	}
 
 	public function testCreativeCannotForgeUnlistedItem() : void{

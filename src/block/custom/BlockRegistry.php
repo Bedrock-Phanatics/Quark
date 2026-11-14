@@ -132,7 +132,7 @@ final class BlockRegistry{
 		if(isset($this->namespaceOwners[$namespace]) && $this->namespaceOwners[$namespace] !== $ownerName){
 			throw new \InvalidArgumentException("Namespace '$namespace' belongs to plugin " . $this->namespaceOwners[$namespace]);
 		}
-		if(isset($this->blocks[$id]) || $this->deserializer->getDeserializerForId($id) !== null || $this->parser->hasAlias($id) || $this->blockItems->lookupBlockId($id) !== null || $this->blockItems->lookupItemId($id) !== null){
+		if(isset($this->blocks[$id]) || $this->isMapped($id)){
 			throw new \InvalidArgumentException("Block '$id' is already registered");
 		}
 		if(count($this->blocks) >= self::MAX_BLOCKS){ throw new \InvalidArgumentException("Custom block limit exceeded"); }
@@ -144,7 +144,7 @@ final class BlockRegistry{
 			if($block->getTypeId() !== $typeId || $block instanceof UnknownCustomBlock){
 				throw new \InvalidArgumentException("Factory must return a new block using the supplied identifier");
 			}
-			if($this->deserializer->getDeserializerForId($id) !== null || $this->parser->hasAlias($id) || $this->blockItems->lookupBlockId($id) !== null || $this->blockItems->lookupItemId($id) !== null){
+			if($this->isMapped($id)){
 				throw new \InvalidArgumentException("Factory changed existing registrations for '$id'");
 			}
 			if(($tile = $block->getIdInfo()->getTileClass()) !== null && !TileFactory::getInstance()->isRegistered($tile)){
@@ -207,6 +207,10 @@ final class BlockRegistry{
 		}finally{
 			$this->registering = false;
 		}
+	}
+
+	private function isMapped(string $id) : bool{
+		return $this->deserializer->getDeserializerForId($id) !== null || $this->parser->hasAlias($id) || $this->blockItems->lookupBlockId($id) !== null || $this->blockItems->lookupItemId($id) !== null;
 	}
 
 	/** Returns an independent block in its default state. */
