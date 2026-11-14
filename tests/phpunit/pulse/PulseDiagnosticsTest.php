@@ -36,6 +36,7 @@ use quark\scheduler\AsyncTask;
 use quark\Server;
 use quark\thread\ThreadSafeClassLoader;
 use quark\utils\MainLogger;
+use Vow\Deferred;
 use function extension_loaded;
 use function glob;
 use function hrtime;
@@ -72,14 +73,20 @@ final class PulseDiagnosticsTest extends TestCase{
 		$scope = $context->begin($task, $t + 100);
 		$context->end($task, $scope, $t + 110);
 		$context->endTick($t + 200);
-		$context->stop($t + 200);
+		// Network wakeups run handlers between ticks.
+		$scope = $context->begin($b, $t + 300);
+		$context->end($b, $scope, $t + 1300);
+		$context->stop($t + 1300);
 
+		$capture = $session->getCapture();
+		$elapsed = $capture["ended_ns"] - $capture["started_ns"];
 		$plugins = $session->getPlugins(10);
 		self::assertCount(2, $plugins);
-		self::assertSame(["name" => "A v1", "calls" => 2, "total_ns" => 110, "self_ns" => 70, "max_ns" => 100, "tick_share" => 0.55], $plugins[0]);
-		self::assertSame(["name" => "B v1", "calls" => 1, "total_ns" => 20, "self_ns" => 20, "max_ns" => 20, "tick_share" => 0.1], $plugins[1]);
+		self::assertSame(["name" => "B v1", "calls" => 2, "total_ns" => 1020, "self_ns" => 1020, "max_ns" => 1000, "share" => 1020 / $elapsed], $plugins[0]);
+		self::assertSame(["name" => "A v1", "calls" => 2, "total_ns" => 110, "self_ns" => 70, "max_ns" => 100, "share" => 110 / $elapsed], $plugins[1]);
+		self::assertLessThanOrEqual(1.0, $plugins[0]["share"]);
 		self::assertCount(1, $session->getPlugins(1));
-		self::assertSame(["plugins", 90], $session->getCategories()[0]);
+		self::assertSame(["plugins", 1090], $session->getCategories()[0]);
 	}
 
 	public function testPluginOwnersAreNamesAndSurviveRestarts() : void{
@@ -137,24 +144,27 @@ final class PulseDiagnosticsTest extends TestCase{
 		}
 	}
 
-	public function testWorkerTelemetryIgnoresStaleTasksAndBoundsWorkers() : void{
+	public function testWorkerTelemetryIgnoresStaleTasks() : void{
 		$workers = new PulseWorkers(100);
 		$workers->submitted(2);
 		$workers->submitted(5);
-		$workers->submitted(1);
-		$workers->completed(0, 50, 150, 250, 1000, 300);
-		$workers->completed(0, 100, 150, 250, 1000, 300);
-		$workers->completed(1, 120, 120, 100, 2000, 90);
-		$workers->completed(PulseWorkers::MAX_WORKERS, 100, 110, 120, 1, 130);
-		$workers->completed(0, 100, 150, 250, 500, 300);
+		$workers->collected(50, 250, 300);
+		$workers->collected(100, 250, 300);
+		$workers->collected(120, 400, 390);
+		$workers->collected(100, 250, 300);
+		$workers->ran(1, 150, 250, 1000);
+		$workers->ran(100, 150, 250, 3000);
+		$workers->ran(120, 110, 100, 2000);
 		$capture = $workers->capture();
-		self::assertSame(3, $capture["submitted"]);
-		self::assertSame(3, $capture["completed"]);
+		self::assertSame(2, $capture["submitted"]);
+		self::assertSame(2, $capture["completed"], "Completions cannot outnumber submissions");
 		self::assertSame(5, $capture["queue_peak"]);
-		self::assertSame([50 + 0 + 10, 50], [$capture["wait_total_ns"], $capture["wait_max_ns"]]);
-		self::assertSame([100 + 0 + 10, 100], [$capture["run_total_ns"], $capture["run_max_ns"]]);
-		self::assertSame([50 + 0 + 10, 50], [$capture["delay_total_ns"], $capture["delay_max_ns"]]);
-		self::assertSame([[0, 1, 100, 1000, 1000], [1, 1, 0, 2000, 2000]], $capture["workers"]);
+		self::assertSame([200 + 270, 270], [$capture["turnaround_total_ns"], $capture["turnaround_max_ns"]]);
+		self::assertSame([50, 50], [$capture["pickup_total_ns"], $capture["pickup_max_ns"]]);
+		self::assertSame(2, $capture["ran"], "Tasks queued before recording have no wait time");
+		self::assertSame([50, 50], [$capture["wait_total_ns"], $capture["wait_max_ns"]]);
+		self::assertSame([100, 100], [$capture["run_total_ns"], $capture["run_max_ns"]]);
+		self::assertSame([2000, 3000], [$capture["heap_bytes"], $capture["heap_peak_bytes"]]);
 	}
 
 	public function testAsyncPoolReportsQueueRunAndPickupTimes() : void{
@@ -178,11 +188,20 @@ final class PulseDiagnosticsTest extends TestCase{
 			self::assertSame(3, $async["submitted"]);
 			self::assertSame(3, $async["completed"]);
 			self::assertGreaterThanOrEqual(2, $async["queue_peak"]);
-			self::assertGreaterThanOrEqual(6000000, $async["run_total_ns"]);
-			self::assertGreaterThan(0, $async["wait_max_ns"]);
-			self::assertCount(1, $async["workers"]);
-			self::assertSame(3, $async["workers"][0][1]);
-			self::assertGreaterThan(0, $async["workers"][0][3]);
+			self::assertGreaterThanOrEqual(9000000, $async["turnaround_total_ns"]);
+			self::assertLessThanOrEqual($async["turnaround_total_ns"], $async["pickup_total_ns"]);
+			$captures = null;
+			$recorder->collectCaptures()->observe(function(array $value) use (&$captures) : void{ $captures = $value; }, fn() => self::fail("Collection rejected"));
+			$this->drain($pool);
+			self::assertIsArray($captures);
+			self::assertCount(2, $captures);
+			$worker = $captures[1]["async"] ?? null;
+			self::assertNotNull($worker);
+			self::assertSame("worker#0", $captures[1]["thread"]);
+			self::assertSame(3, $worker["ran"]);
+			self::assertGreaterThanOrEqual(9000000, $worker["run_total_ns"]);
+			self::assertGreaterThan(0, $worker["wait_max_ns"], "Later tasks queue behind earlier ones");
+			self::assertGreaterThan(0, $worker["heap_bytes"]);
 			$pool->submitTaskToWorker(new PulseDiagnosticsSleepTask(), 0);
 			$recorder->stop();
 			$this->drain($pool);
@@ -237,8 +256,9 @@ final class PulseDiagnosticsTest extends TestCase{
 			["zone_owners", [[0, ""]]],
 			["zone_owners", [[0, "A", 1]]],
 			["async", null, "submitted", 0, "completed", 1],
-			["async", null, "workers", [[0, 1, 0, 0, 0]]],
+			["async", null, "heap_bytes", 1],
 			["async", null, "run_max_ns", 1],
+			["async", null, "pickup_max_ns", 1],
 			["network", null, "transports", [["name" => "udp", "counters" => []]]],
 			["network", null, "transports", [["name" => "bedwire", "counters" => [["Bad", 1]]]]],
 			["network", null, "transports", [["name" => "bedwire", "counters" => [["a", 1], ["a", 2]]]]],
@@ -265,6 +285,25 @@ final class PulseDiagnosticsTest extends TestCase{
 		unset($missing["threads"][0]["async"]);
 		$missing["threads"][0]["extra"] = null;
 		try{ PulseReport::decode(json_encode($missing, JSON_THROW_ON_ERROR)); self::fail("Missing async data accepted"); }catch(\InvalidArgumentException){}
+	}
+
+	public function testFailedAutomaticCaptureWaitsForCooldown() : void{
+		$server = $this->getMockBuilder(Server::class)->disableOriginalConstructor()->onlyMethods([])->getMock();
+		$pool = self::createStub(AsyncPool::class);
+		$pool->method("getSize")->willReturn(200);
+		$pool->method("getRunningWorkers")->willReturn([]);
+		$recorder = new PulseRecorder($pool);
+		$logger = new MainLogger(null, false, "Pulse auto test", new \DateTimeZone("UTC"));
+		foreach(["pulse" => $recorder, "logger" => $logger, "pulseAutoCaptureNs" => 100_000_000] as $property => $value){
+			(new \ReflectionProperty(Server::class, $property))->setValue($server, $value);
+		}
+		try{
+			(new \ReflectionMethod(Server::class, "checkPulseAutoCapture"))->invoke($server, 150_000_000);
+			self::assertNull($recorder->getSession());
+			self::assertGreaterThan((int) hrtime(true), (new \ReflectionProperty(Server::class, "pulseAutoCaptureReady"))->getValue($server));
+		}finally{
+			$logger->shutdownLogWriterThread();
+		}
 	}
 
 	public function testAutomaticCaptureRecordsOnceAndSavesOnlyExpiredSessions() : void{
@@ -308,6 +347,13 @@ final class PulseDiagnosticsTest extends TestCase{
 			(new \ReflectionProperty(PulseContext::class, "duration"))->setValue($context, 1);
 			Pulse::checkDuration();
 			$recorder->checkDuration();
+			$busy = new \ReflectionProperty(Server::class, "pulseReport");
+			$busy->setValue($server, (new Deferred())->promise);
+			$check->invoke($server, 1);
+			self::assertSame([], self::files($directory . "/diagnostics/profiles/*.qpulse"));
+			$busy->setValue($server, null);
+			$check->invoke($server, 1);
+			self::assertCount(1, self::files($directory . "/diagnostics/profiles/*.qpulse"), "Busy save was not retried");
 			$check->invoke($server, 1);
 			self::assertCount(1, self::files($directory . "/diagnostics/profiles/*.qpulse"));
 
@@ -341,9 +387,9 @@ final class PulseDiagnosticsTest extends TestCase{
 		self::assertNull(Pulse::getWorkerTelemetry());
 		self::assertNull(Pulse::getNetworkTelemetry());
 		$context->start("worker#0", 0);
-		self::assertNull($context->workers());
-		self::assertNull($context->capture()["async"] ?? null);
+		self::assertNotNull($context->workers());
 		$context->stop(1);
+		self::assertNull($context->workers());
 		self::assertCount(0, $context->capture()["nodes"]);
 	}
 }

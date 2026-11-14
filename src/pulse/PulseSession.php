@@ -47,7 +47,7 @@ use const SORT_NUMERIC;
  * @phpstan-type CategoryCost array{string, int}
  * @phpstan-type SpikeSummary array{tick_id: int, offset_ns: int, duration_ns: int, zone: string|null, self_ns: int, categories: list<CategoryCost>, unattributed_ns: int}
  * @phpstan-type SpikeBreakdown array{spikes: int, duration_ns: int, categories: list<CategoryCost>, unattributed_ns: int}
- * @phpstan-type PluginSummary array{name: string, calls: int, total_ns: int, self_ns: int, max_ns: int, tick_share: float|null}
+ * @phpstan-type PluginSummary array{name: string, calls: int, total_ns: int, self_ns: int, max_ns: int, share: float|null}
  * @phpstan-type NetworkSummary array{batches: int, packets: int, received_bytes: int, decompressed_bytes: int, decoded: int, decode_failed: int, plugin_cancelled: int, state_dropped: int, repeated_dropped: int, enforcement_events: int, enforcement_events_dropped: int, windows_dropped: int, transports: list<TransportCapture>}
  */
 final class PulseSession{
@@ -201,11 +201,13 @@ final class PulseSession{
 		foreach($capture["zone_owners"] ?? [] as [$zone, $owner]){ $owners[$zone] = $owner; }
 		if($owners === []){ return []; }
 		$nodes = $capture["nodes"];
+		// Handlers also run between ticks, for example on network wakeups, so share uses the whole recording.
+		$elapsed = $capture["ended_ns"] - $capture["started_ns"];
 		$plugins = [];
 		foreach($nodes as $node){
 			$owner = $owners[$node[1]] ?? null;
 			if($owner === null || $node[3] === 0){ continue; }
-			$plugin = $plugins[$owner] ?? ["name" => $owner, "calls" => 0, "total_ns" => 0, "self_ns" => 0, "max_ns" => 0, "tick_share" => null];
+			$plugin = $plugins[$owner] ?? ["name" => $owner, "calls" => 0, "total_ns" => 0, "self_ns" => 0, "max_ns" => 0, "share" => null];
 			$plugin["self_ns"] += $node[5];
 			$parent = $node[2];
 			while($parent !== 0 && ($parentNode = $nodes[$parent - 1] ?? null) !== null && ($owners[$parentNode[1]] ?? null) !== $owner){
@@ -221,7 +223,7 @@ final class PulseSession{
 		uasort($plugins, static fn(array $a, array $b) : int => $b["total_ns"] === $a["total_ns"] ? strcmp($a["name"], $b["name"]) : $b["total_ns"] <=> $a["total_ns"]);
 		$result = [];
 		foreach(array_slice($plugins, 0, $limit) as $plugin){
-			$plugin["tick_share"] = $capture["tick_total_ns"] === 0 ? null : $plugin["total_ns"] / $capture["tick_total_ns"];
+			$plugin["share"] = $elapsed === 0 ? null : $plugin["total_ns"] / $elapsed;
 			$result[] = $plugin;
 		}
 		return $result;

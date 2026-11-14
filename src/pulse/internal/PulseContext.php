@@ -174,7 +174,7 @@ final class PulseContext{
 		$this->spikes = [];
 		$this->network = null;
 		$this->resources = $threadName === "main" ? new PulseResources($now) : null;
-		$this->workers = $threadName === "main" ? new PulseWorkers($now) : null;
+		$this->workers = new PulseWorkers($now);
 		$this->recording = true;
 	}
 

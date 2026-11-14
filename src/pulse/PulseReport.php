@@ -27,7 +27,6 @@ use pocketmine\errorhandler\ErrorToExceptionHandler;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseNetwork;
 use quark\pulse\internal\PulseResources;
-use quark\pulse\internal\PulseWorkers;
 use quark\utils\Filesystem;
 use quark\utils\Utils;
 use quark\VersionInfo;
@@ -337,7 +336,7 @@ final class PulseReport{
 		}
 		if($version >= 4){
 			if(!array_key_exists("async", $thread)){ throw new \InvalidArgumentException("Missing Pulse async worker data"); }
-			if($thread["async"] !== null){ self::validateWorkers($thread["async"], $budget); }
+			if($thread["async"] !== null){ self::validateWorkers($thread["async"]); }
 		}
 		$previousEnd = $sum = $slowTicks = 0;
 		foreach($ticks as $index => $tick){
@@ -385,29 +384,15 @@ final class PulseReport{
 		}
 	}
 
-	private static function validateWorkers(mixed $async, int &$budget) : void{
-		if(!is_array($async) || count($async) !== 10){ throw new \InvalidArgumentException("Invalid Pulse async worker data"); }
-		$submitted = self::number($async["submitted"] ?? null);
-		$completed = self::number($async["completed"] ?? null, 0, $submitted);
+	private static function validateWorkers(mixed $async) : void{
+		if(!is_array($async) || count($async) !== 14){ throw new \InvalidArgumentException("Invalid Pulse async worker data"); }
+		self::number($async["completed"] ?? null, 0, self::number($async["submitted"] ?? null));
 		self::number($async["queue_peak"] ?? null);
-		$runTotal = 0;
-		foreach(["wait", "run", "delay"] as $metric){
-			$total = self::number($async[$metric . "_total_ns"] ?? null);
-			self::number($async[$metric . "_max_ns"] ?? null, 0, $total);
-			if($metric === "run"){ $runTotal = $total; }
+		self::number($async["ran"] ?? null);
+		foreach(["turnaround", "pickup", "wait", "run"] as $metric){
+			self::number($async[$metric . "_max_ns"] ?? null, 0, self::number($async[$metric . "_total_ns"] ?? null));
 		}
-		$workers = self::list($async["workers"] ?? null, PulseWorkers::MAX_WORKERS);
-		self::charge($budget, count($workers));
-		$previous = -1;
-		$tasks = $run = 0;
-		foreach($workers as $worker){
-			$row = self::networkRow($worker, 5);
-			$previous = self::number($row[0], $previous + 1, PulseWorkers::MAX_WORKERS - 1);
-			$tasks += self::number($row[1], 1, $completed);
-			$run += self::number($row[2], 0, $runTotal);
-			self::number($row[3], 0, self::number($row[4]));
-			if($tasks > $completed || $run > $runTotal){ throw new \InvalidArgumentException("Invalid Pulse async worker totals"); }
-		}
+		self::number($async["heap_bytes"] ?? null, 0, self::number($async["heap_peak_bytes"] ?? null));
 	}
 
 	private static function validateResources(mixed $resources, int $length, int &$budget, int $columns) : void{

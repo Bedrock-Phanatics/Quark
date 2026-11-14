@@ -193,10 +193,15 @@ final class PulseNetwork{
 		foreach(self::TRANSPORTS as $name){
 			if(!isset($this->transportLatest[$name]) && !isset($this->transportPeaks[$name])){ continue; }
 			$base = $this->transportBase[$name] ?? [];
+			$values = [];
+			foreach(Utils::stringifyKeys($this->transportLatest[$name] ?? []) as $key => $value){
+				$values[$key] = max(0, $value - ($base[$key] ?? 0));
+			}
 			$counters = [];
-			foreach(Utils::stringifyKeys(($this->transportLatest[$name] ?? []) + ($this->transportPeaks[$name] ?? [])) as $key => $value){
-				if(count($counters) === self::MAX_TRANSPORT_COUNTERS || preg_match('/^[a-z][a-z0-9_]{0,63}$/', $key) !== 1){ continue; }
-				$counters[] = [$key, isset(($this->transportPeaks[$name] ?? [])[$key]) ? max(0, $value) : max(0, $value - ($base[$key] ?? 0))];
+			foreach(Utils::stringifyKeys($values + ($this->transportPeaks[$name] ?? [])) as $key => $value){
+				if(count($counters) < self::MAX_TRANSPORT_COUNTERS && preg_match('/^[a-z][a-z0-9_]{0,63}$/', $key) === 1){
+					$counters[] = [$key, max(0, $value)];
+				}
 			}
 			$rows[] = ["name" => $name, "counters" => $counters];
 		}

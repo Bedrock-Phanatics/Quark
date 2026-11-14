@@ -43,7 +43,7 @@ final class PulseCapture extends ThreadSafe{
 	/** @param Capture $capture */
 	public function __construct(array $capture){
 		$this->rows = count($capture["nodes"]) + count($capture["ticks"]) + count($capture["spikes"]);
-		$this->rows += count($capture["resources"]["samples"] ?? []) + count($capture["async"]["workers"] ?? []);
+		$this->rows += count($capture["resources"]["samples"] ?? []);
 		foreach($capture["network"]["transports"] ?? [] as $transport){ $this->rows += count($transport["counters"]); }
 		foreach($capture["spikes"] as $spike){ $this->rows += count($spike["nodes"]); }
 		if(isset($capture["network"])){

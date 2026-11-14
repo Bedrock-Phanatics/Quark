@@ -715,11 +715,20 @@ class Server{
 		$session = $this->pulse->getSession();
 		$auto = $this->pulseAutoSession;
 		if(!$this->pulseAutoSaved && $auto !== null && $session === $auto && !$auto->isRecording()){
-			$this->pulseAutoSaved = true;
 			$stats = $auto->getStats();
 			// A manual /pulse stop saves its own report.
-			if($stats["elapsed_ns"] >= $stats["duration_ns"]){
-				$this->saveShutdownPulseReport($this->getPulseReportMetadata());
+			if($stats["elapsed_ns"] < $stats["duration_ns"]){
+				$this->pulseAutoSaved = true;
+			}else{
+				try{
+					$this->exportPulseReport()->observe(
+						fn(string $file) => $this->logger->info("Pulse report saved to $file"),
+						fn(\Throwable $e) => $this->logger->error("Failed to create Pulse report: " . $e->getMessage())
+					);
+					$this->pulseAutoSaved = true;
+				}catch(\LogicException){
+					//another report or worker collection is in flight; retry next tick
+				}
 			}
 		}
 		if($tickNs <= $this->pulseAutoCaptureNs || ($session !== null && ($session !== $auto || $session->isRecording()))){
@@ -729,15 +738,16 @@ class Server{
 		if($now < $this->pulseAutoCaptureReady || $this->pulseReport !== null || $this->pulse->getPendingOperations() > 0){
 			return;
 		}
+		// Failed starts wait out the cooldown too, so a broken watchdog is not retried on every slow tick.
+		$this->pulseAutoCaptureReady = $now + self::PULSE_AUTO_CAPTURE_NS + self::PULSE_AUTO_CAPTURE_COOLDOWN_NS;
 		try{
 			$this->pulse->start(self::PULSE_AUTO_CAPTURE_NS, $this->pulseAutoCaptureNs);
-		}catch(\LogicException|\LengthException $e){
-			$this->logger->debug("Automatic Pulse capture skipped: " . $e->getMessage());
+		}catch(\Exception $e){
+			$this->logger->warning("Automatic Pulse capture failed to start: " . $e->getMessage());
 			return;
 		}
 		$this->pulseAutoSession = $this->pulse->getSession();
 		$this->pulseAutoSaved = false;
-		$this->pulseAutoCaptureReady = $now + self::PULSE_AUTO_CAPTURE_NS + self::PULSE_AUTO_CAPTURE_COOLDOWN_NS;
 		$this->logger->info(sprintf("Tick took %.1f ms; recording Pulse for 60 seconds", $tickNs / 1_000_000));
 	}
 

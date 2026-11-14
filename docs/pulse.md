@@ -21,22 +21,26 @@ Spike and category summaries group zones by name: plugins, entities, tiles, hopp
 
 - **Total** counts each plugin's outermost callbacks. Callbacks nested inside the same plugin are not counted twice. Total includes server work and other plugins' handlers that the callback triggers.
 - **Self** excludes every nested measured zone and never overlaps between plugins.
-- **Calls**, **avg**, and **max** describe outermost callbacks. The share is total divided by measured tick time.
+- **Calls**, **avg**, and **max** describe outermost callbacks. The share is total divided by the recording length, because handlers also run between ticks, for example on network wakeups.
 
 Ownership comes from the plugin that registered the handler, task, or command. Pulse keeps plugin names, never plugin objects. Async task completions are not attributed to plugins, because tasks carry no owner.
 
 ## Async workers
 
-`/pulse workers` shows running and busy workers and the tasks queued or running now, read from the pool's existing queues. While recording, tasks submitted to the main async pool are timestamped:
+`/pulse workers` shows running and busy workers and the tasks each worker still holds, read from the pool's existing queues. While recording, the main thread stamps tasks submitted to the main async pool and reports live:
 
-- **Queue wait**: submission to the start of `onRun()` on the worker.
-- **Run**: `onRun()` duration on the worker.
-- **Main-thread pickup**: end of `onRun()` to result collection on the main thread. High values mean the main thread is falling behind.
-- **Peak queue**: the longest queue on one worker right after a submission.
-- **Busy**: per-worker run time divided by the recording length.
+- **Submit to result**: submission to result collection on the main thread.
+- **Main-thread pickup**: end of `onRun()` to result collection. High values mean the main thread is falling behind.
+- **Peak queue**: the most tasks one worker held right after a submission, counting queued, running, and finished but uncollected tasks.
+
+The command then collects worker captures, as `/pulse report` does, and lists each worker:
+
+- **Wait**: submission to the start of `onRun()`.
+- **Run**: `onRun()` duration.
+- **Busy**: run time divided by the recording length.
 - **Heap**: worker PHP heap after its last recorded task, and the highest such value.
 
-Tasks queued before the session started are ignored, so restarts never mix sessions. Tasks still running when recording stops count as submitted but not completed. Quark async tasks cannot be cancelled, and a task that throws crashes its worker, so there are no cancelled or failed counters. Control and report-writing tasks are excluded.
+Stamps reuse the task's existing submitted and finished fields, so tasks carry no extra shared state. Every added ThreadSafe property would slow every task down, even when Pulse is idle. Results of tasks queued before the session started are ignored, and workers skip tasks queued before recording. Tasks still running when recording stops count as submitted but not completed. Quark async tasks cannot be cancelled, and a task that throws crashes its worker, so there are no cancelled or failed counters. Control and report-writing tasks are excluded.
 
 ## Memory
 
@@ -44,7 +48,7 @@ Tasks queued before the session started are ignored, so restarts never mix sessi
 
 - **PHP heap (main thread)**: `memory_get_usage()`, allocated capacity, sampled peak, and growth since the session started.
 - **Process RSS**: resident memory from `/proc/self/status` (`VmRSS`), growth since start, and the process peak since launch (`VmHWM`). RSS includes native allocations, thread stacks, and mapped libraries. It is not native heap usage, and Pulse does not estimate one. RSS is unavailable outside Linux.
-- **Worker heaps**: sampled after each recorded task, as described above.
+- **Worker heaps**: sampled after each recorded task and listed by `/pulse workers`.
 
 RSS is read only with the once-per-second resource sample.
 
@@ -57,7 +61,7 @@ RSS is read only with the once-per-second resource sample.
 
 ## Automatic capture
 
-Set `diagnostics.pulse-auto-capture-ms` in `server.toml` to record automatically after a tick slower than that many milliseconds. Pulse then records for 60 seconds, retains spikes above the same threshold, and saves a report when the recording expires. At most one capture starts per 10 minutes, and `diagnostics.max-profiles` still bounds stored reports. The slow tick that triggers a capture is not itself recorded. An automatic capture never replaces a manual session. A manual `/pulse stop` during an automatic capture saves the report as usual. Zero, the default, disables the feature. When disabled, it adds one integer comparison per tick.
+Set `diagnostics.pulse-auto-capture-ms` in `server.toml` to record automatically after a tick slower than that many milliseconds. Pulse then records for 60 seconds, retains spikes above the same threshold, and saves a report when the recording expires. At most one capture starts per 10 minutes, and `diagnostics.max-profiles` still bounds stored reports. The slow tick that triggers a capture is not itself recorded. An automatic capture never replaces a manual session. A manual `/pulse stop` during an automatic capture saves the report as usual. A capture that fails to start also waits out the cooldown. Zero, the default, disables the feature. When disabled, it adds one integer comparison per tick.
 
 ## Report format
 
@@ -69,7 +73,7 @@ Version 4 adds:
 
 - Two resource columns, `rss_bytes` and `rss_peak_bytes`, which are both `null` when unavailable.
 - `zone_owners` on every thread: `[zone_index, plugin_full_name]` rows in ascending zone order, at most one per zone.
-- `async` on every thread: `null` on workers. On the main thread it contains `submitted`, `completed`, `queue_peak`, `wait_total_ns`, `wait_max_ns`, `run_total_ns`, `run_max_ns`, `delay_total_ns`, `delay_max_ns`, and `workers`. `workers` holds `[worker_id, completed, run_ns, heap_bytes, heap_peak_bytes]` rows for up to 128 workers.
+- `async` on every thread, with `submitted`, `completed`, `queue_peak`, `turnaround_total_ns`, `turnaround_max_ns`, `pickup_total_ns`, and `pickup_max_ns` from the main thread, and `ran`, `wait_total_ns`, `wait_max_ns`, `run_total_ns`, `run_max_ns`, `heap_bytes`, and `heap_peak_bytes` from each worker. The other side's fields are zero.
 - `network.transports`: up to one entry per transport (`raklib`, `bedwire`), each `{name, counters}` with up to 64 `[name, value]` counters. Counter names match `[a-z][a-z0-9_]{0,63}`.
 
 Decoding checks types, ordering, totals (for example, completed tasks cannot exceed submissions), and list sizes. New rows count toward the existing row and text budgets.

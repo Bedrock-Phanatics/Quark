@@ -212,7 +212,7 @@ final class PulseCommand extends VanillaCommand{
 		$sender->sendMessage(self::msg("Plugin main-thread cost " . TextFormat::DARK_GRAY . "(total includes work they trigger; self excludes nested zones)"));
 		foreach($plugins as $index => $plugin){
 			$sender->sendMessage(TextFormat::DARK_GRAY . " " . ($index + 1) . ". " . TextFormat::WHITE . self::clean($plugin["name"]) . TextFormat::DARK_GRAY . " - " . TextFormat::GRAY .
-				self::ms($plugin["total_ns"]) . ($plugin["tick_share"] === null ? "" : sprintf(" (%.1f%% of tick time)", $plugin["tick_share"] * 100)) . ", " .
+				self::ms($plugin["total_ns"]) . ($plugin["share"] === null ? "" : sprintf(" (%.1f%% of main thread)", $plugin["share"] * 100)) . ", " .
 				self::ms($plugin["self_ns"]) . " self, " . self::value((string) $plugin["calls"]) . " calls, avg " .
 				self::ms($plugin["calls"] === 0 ? 0 : $plugin["total_ns"] / $plugin["calls"]) . ", max " . self::ms($plugin["max_ns"]));
 		}
@@ -224,7 +224,7 @@ final class PulseCommand extends VanillaCommand{
 		$busy = 0;
 		foreach($queues as $size){ $busy += $size > 0 ? 1 : 0; }
 		$sender->sendMessage(self::msg("Async workers " . self::value(count($queues) . "/" . $pulse->getPool()->getSize()) . " running, " . self::value((string) $busy) .
-			" busy, " . self::value((string) array_sum($queues)) . " tasks queued or running now"));
+			" busy, " . self::value((string) array_sum($queues)) . " tasks held now"));
 		$session = $pulse->getSession();
 		$async = $session?->getCapture()["async"] ?? null;
 		if($session === null || $async === null){
@@ -234,14 +234,30 @@ final class PulseCommand extends VanillaCommand{
 		$completed = max(1, $async["completed"]);
 		$sender->sendMessage(self::msg("Recorded " . self::value((string) $async["submitted"]) . " submitted, " . self::value((string) $async["completed"]) .
 			" completed, peak queue " . self::value((string) $async["queue_peak"]) . " on one worker"));
-		$sender->sendMessage(self::msg("Queue wait avg " . self::ms(intdiv($async["wait_total_ns"], $completed)) . " max " . self::ms($async["wait_max_ns"]) .
-			"; run avg " . self::ms(intdiv($async["run_total_ns"], $completed)) . " max " . self::ms($async["run_max_ns"]) .
-			"; main-thread pickup avg " . self::ms(intdiv($async["delay_total_ns"], $completed)) . " max " . self::ms($async["delay_max_ns"])));
-		$elapsed = max(1, $session->getStats()["elapsed_ns"]);
-		foreach(array_slice($async["workers"], 0, 8) as [$worker, $tasks, $run, $heap, $heapPeak]){
-			$sender->sendMessage(TextFormat::DARK_GRAY . " #$worker " . TextFormat::GRAY . self::value((string) $tasks) . " tasks, " .
-				self::value(sprintf("%.1f%%", $run / $elapsed * 100)) . " busy, heap " . self::mib($heap) . " (peak " . self::mib($heapPeak) . ")");
+		$sender->sendMessage(self::msg("Submit to result avg " . self::ms(intdiv($async["turnaround_total_ns"], $completed)) . " max " . self::ms($async["turnaround_max_ns"]) .
+			"; main-thread pickup avg " . self::ms(intdiv($async["pickup_total_ns"], $completed)) . " max " . self::ms($async["pickup_max_ns"])));
+		try{
+			$promise = $pulse->collectCaptures();
+		}catch(\LogicException $e){
+			$sender->sendMessage(self::msg("Worker details unavailable: " . $e->getMessage()));
+			return;
 		}
+		$elapsed = max(1, $session->getStats()["elapsed_ns"]);
+		$promise->observe(function(array $captures) use ($sender, $elapsed) : void{
+			$shown = 0;
+			foreach($captures as $capture){
+				$worker = $capture["async"] ?? null;
+				if($capture["thread"] === "main" || $worker === null || $worker["ran"] === 0 || ++$shown > 8){ continue; }
+				$ran = $worker["ran"];
+				$sender->sendMessage(TextFormat::DARK_GRAY . " " . self::clean($capture["thread"]) . " " . TextFormat::GRAY . self::value((string) $ran) . " tasks, wait avg " .
+					self::ms(intdiv($worker["wait_total_ns"], $ran)) . " max " . self::ms($worker["wait_max_ns"]) . ", run avg " . self::ms(intdiv($worker["run_total_ns"], $ran)) .
+					" max " . self::ms($worker["run_max_ns"]) . ", " . self::value(sprintf("%.1f%%", $worker["run_total_ns"] / $elapsed * 100)) . " busy, heap " .
+					self::mib($worker["heap_bytes"]) . " (peak " . self::mib($worker["heap_peak_bytes"]) . ")");
+			}
+			if($shown === 0){
+				$sender->sendMessage(self::msg("No recorded worker tasks yet"));
+			}
+		}, fn(\Throwable $e) => $sender->sendMessage(self::msg(TextFormat::RED . "Worker details failed: " . $e->getMessage())));
 	}
 
 	private function memory(CommandSender $sender) : void{
@@ -256,14 +272,7 @@ final class PulseCommand extends VanillaCommand{
 			" allocated, " . self::mib($resources["memory_peak_bytes"]) . " sampled peak, " . self::signedMib($resources["memory_growth_bytes"]) . " since start"));
 		$sender->sendMessage(self::msg($resources["rss_bytes"] === null || $resources["rss_peak_bytes"] === null ? "Process RSS unavailable on this platform" :
 			"Process RSS: " . self::mib($resources["rss_bytes"]) . ", " . self::signedMib($resources["rss_growth_bytes"] ?? 0) . " since start, process peak " . self::mib($resources["rss_peak_bytes"])));
-		$async = $session->getCapture()["async"] ?? null;
-		$heaps = [];
-		foreach($async["workers"] ?? [] as [$worker, , , $heap, $heapPeak]){
-			$heaps[] = "#$worker " . sprintf("%.1f/%.1f", $heap / 1048576, $heapPeak / 1048576);
-		}
-		if(count($heaps) > 0){
-			$sender->sendMessage(self::msg("Worker PHP heaps after recorded tasks, MiB last/peak: " . self::value(implode(", ", array_slice($heaps, 0, 8)))));
-		}
+		$sender->sendMessage(self::msg("Worker PHP heaps are listed by " . self::cmd("/pulse workers")));
 		$sender->sendMessage(self::msg(TextFormat::DARK_GRAY . "RSS includes native allocations, thread stacks and mapped libraries; native heap use is not measured separately."));
 	}
 
