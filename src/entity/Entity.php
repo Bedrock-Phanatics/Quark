@@ -42,6 +42,7 @@ use pocketmine\network\mcpe\protocol\types\entity\MetadataProperty;
 use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
 use pocketmine\utils\Limits;
 use quark\block\Block;
+use quark\block\RuntimeBlockStateRegistry;
 use quark\block\Water;
 use quark\entity\animation\Animation;
 use quark\event\entity\EntityDamageEvent;
@@ -1335,9 +1336,21 @@ abstract class Entity{
 			$this->blocksAround = [];
 
 			$inset = 0.001; //Offset against floating-point errors
-			foreach($this->getBlocksIntersected($inset) as $block){
-				if($block->hasEntityCollision()){
-					$this->blocksAround[] = $block;
+			$bb = $this->boundingBox;
+			$maxX = (int) floor($bb->maxX - $inset);
+			$maxY = (int) floor($bb->maxY - $inset);
+			$maxZ = (int) floor($bb->maxZ - $inset);
+			$world = $this->getWorld();
+			//most of the space around an entity is air, so only build blocks whose state has inside actions
+			$entityCollision = RuntimeBlockStateRegistry::getInstance()->entityCollision;
+			for($z = (int) floor($bb->minZ + $inset); $z <= $maxZ; ++$z){
+				for($x = (int) floor($bb->minX + $inset); $x <= $maxX; ++$x){
+					for($y = (int) floor($bb->minY + $inset); $y <= $maxY; ++$y){
+						$stateId = $world->getBlockStateIdAt($x, $y, $z);
+						if($stateId !== null && isset($entityCollision[$stateId]) && ($block = $world->getBlockAt($x, $y, $z))->hasEntityCollision()){
+							$this->blocksAround[] = $block;
+						}
+					}
 				}
 			}
 		}

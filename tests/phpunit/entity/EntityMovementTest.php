@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace quark\entity;
 
 use PHPUnit\Framework\TestCase;
+use quark\block\Block;
+use quark\block\RuntimeBlockStateRegistry;
 use quark\block\VanillaBlocks;
 use quark\math\AxisAlignedBB;
 use quark\math\Facing;
@@ -36,6 +38,7 @@ use quark\world\World;
 use function array_map;
 use function atan2;
 use function cos;
+use function count;
 use function deg2rad;
 use function fmod;
 use function mt_getrandmax;
@@ -126,6 +129,45 @@ final class EntityMovementTest extends TestCase{
 			self::assertSame($ex !== $dx || $ez !== $dz, $entity->isCollidedHorizontally);
 			$motion = $entity->getMotion();
 			self::assertSame([$ex !== $dx ? 0 : 1, $ez !== $dz ? 0 : 1], [$motion->x, $motion->z], "motion is cancelled once per blocked axis");
+		}
+	}
+
+	public function testBlocksAroundMatchTheIntersectedFilter() : void{
+		$inside = [VanillaBlocks::WATER(), VanillaBlocks::LADDER(), VanillaBlocks::COBWEB(), VanillaBlocks::FIRE(), VanillaBlocks::STONE_PRESSURE_PLATE(), VanillaBlocks::VINES(), VanillaBlocks::AIR(), VanillaBlocks::AIR(), VanillaBlocks::OAK_SLAB(), VanillaBlocks::GLASS()];
+		mt_srand(21);
+		for($x = -5; $x <= 5; ++$x){
+			for($z = -5; $z <= 5; ++$z){
+				for($y = 64; $y <= 67; ++$y){
+					$this->h->set($x, $y, $z, $inside[mt_rand(0, count($inside) - 1)]);
+				}
+			}
+		}
+		$around = new \ReflectionMethod(Entity::class, "getBlocksAroundWithEntityInsideActions");
+		$intersected = new \ReflectionMethod(Entity::class, "getBlocksIntersected");
+		$found = 0;
+		for($i = 0; $i < 500; ++$i){
+			$entity = $this->entity(self::rand(-4, 4), self::rand(63, 66), self::rand(-4, 4));
+			$expected = [];
+			/** @var \Generator<Block> $blocks */
+			$blocks = $intersected->invoke($entity, 0.001);
+			foreach($blocks as $block){
+				if($block->hasEntityCollision()){
+					$expected[] = $block->getStateId() . "@" . $block->getPosition();
+				}
+			}
+			/** @var list<Block> $aroundBlocks */
+			$aroundBlocks = $around->invoke($entity);
+			$actual = array_map(fn(Block $block) => $block->getStateId() . "@" . $block->getPosition(), $aroundBlocks);
+			self::assertSame($expected, $actual);
+			$found += count($actual);
+		}
+		self::assertGreaterThan(500, $found);
+	}
+
+	public function testEntityCollisionTableMatchesBlocks() : void{
+		$registry = RuntimeBlockStateRegistry::getInstance();
+		foreach($registry->getAllKnownStates() as $stateId => $block){
+			self::assertSame($block->hasEntityCollision(), isset($registry->entityCollision[$stateId]), $block->getName());
 		}
 	}
 

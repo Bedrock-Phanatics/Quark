@@ -32,11 +32,9 @@ use quark\math\Facing;
 use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\Random;
-use quark\world\format\Chunk;
 use quark\world\generator\object\TallGrass as TallGrassObject;
 use quark\world\light\LightUpdate;
 use quark\world\sound\ItemUseOnBlockSound;
-use quark\world\World;
 use function mt_rand;
 
 class Grass extends Opaque{
@@ -71,9 +69,9 @@ class Grass extends Opaque{
 				$z = mt_rand($this->position->z - 1, $this->position->z + 1);
 
 				if(
-					self::stateAt($world, $x, $y, $z) !== $dirt ||
+					$world->getBlockStateIdAt($x, $y, $z) !== $dirt ||
 					$world->getFullLightAt($x, $y + 1, $z) < 4 ||
-					(($above = self::stateAt($world, $x, $y + 1, $z)) !== null && ($lightFilter[$above] ?? 0) >= 2 + LightUpdate::BASE_LIGHT_FILTER)
+					(($above = $world->getBlockStateIdAt($x, $y + 1, $z)) !== null && ($lightFilter[$above] ?? 0) >= 2 + LightUpdate::BASE_LIGHT_FILTER)
 				){
 					continue;
 				}
@@ -81,13 +79,6 @@ class Grass extends Opaque{
 				BlockEventHelper::spread($world->getBlockAt($x, $y, $z), VanillaBlocks::GRASS(), $this);
 			}
 		}
-	}
-
-	private static function stateAt(World $world, int $x, int $y, int $z) : ?int{
-		if(!$world->isInWorld($x, $y, $z)){
-			return null;
-		}
-		return $world->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)?->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{

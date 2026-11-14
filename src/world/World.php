@@ -2045,21 +2045,19 @@ class World implements ChunkManager{
 	 * @phpstan-param array<int, int> $collisionInfo
 	 */
 	private function getBlockCollisionInfo(int $x, int $y, int $z, array $collisionInfo) : int{
+		$stateId = $this->getBlockStateIdAt($x, $y, $z);
+		return $stateId === null ? RuntimeBlockStateRegistry::COLLISION_NONE : $collisionInfo[$stateId];
+	}
+
+	/**
+	 * Returns the stored state ID at the given coordinates without building a block, so without dynamic state such
+	 * as connections. Null outside the world or in an unloaded chunk.
+	 */
+	public function getBlockStateIdAt(int $x, int $y, int $z) : ?int{
 		if(!$this->isInWorld($x, $y, $z)){
-			return RuntimeBlockStateRegistry::COLLISION_NONE;
+			return null;
 		}
-		$chunk = $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
-		if($chunk === null){
-			return RuntimeBlockStateRegistry::COLLISION_NONE;
-		}
-		$stateId = $chunk
-			->getSubChunk($y >> SubChunk::COORD_BIT_SIZE)
-			->getBlockStateId(
-				$x & SubChunk::COORD_MASK,
-				$y & SubChunk::COORD_MASK,
-				$z & SubChunk::COORD_MASK
-			);
-		return $collisionInfo[$stateId];
+		return $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)?->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
 	}
 
 	/**
