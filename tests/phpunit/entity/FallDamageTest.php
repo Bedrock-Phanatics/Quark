@@ -79,10 +79,10 @@ final class FallDamageTest extends TestCase{
 	/**
 	 * Feeds the per-tick deltas a Bedrock client reports until it lands.
 	 */
-	private function fall(FallTestEntity $entity, float $vy, ?float $terminalGlide = null) : void{
+	private function fall(FallTestEntity $entity, float $vy, ?float $constantDy = null) : void{
 		$move = new \ReflectionMethod(Entity::class, "move");
 		for($tick = 0; $tick < 600; ++$tick){
-			$move->invoke($entity, 0.0, $terminalGlide !== null ? $terminalGlide : $vy, 0.0);
+			$move->invoke($entity, 0.0, $constantDy ?? $vy, 0.0);
 			if($entity->onGround){
 				return;
 			}
@@ -132,9 +132,9 @@ final class FallDamageTest extends TestCase{
 	}
 
 	public function testHayBaleCutsTheFall() : void{
-		$entity = $this->entity(-2.5, self::FLOOR + 1 + 13, -2.5);
+		$entity = $this->entity(-2.5, self::FLOOR + 1 + 23, -2.5);
 		$this->fall($entity, 0.0);
-		self::assertSame(0.0, $entity->fallDamage); //13 * 0.2 - 3 < 0
+		self::assertSame(1.0, $entity->fallDamage); //23 * 0.2 - 3 = 1.6
 	}
 
 	public function testSlabLandingMeasuresFromTheSlabTop() : void{
@@ -143,16 +143,12 @@ final class FallDamageTest extends TestCase{
 		self::assertSame(0.0, $entity->fallDamage);
 	}
 
-	public function testGlidingOnlyCountsTheFinalDive() : void{
+	public function testGlidingFlagDoesNotSoftenASlowFall() : void{
+		//the flag comes straight from client input and there is no elytra to check it against
 		$entity = $this->entity(0.5, self::FLOOR + 40, 0.5);
 		$entity->setGliding(true);
 		$this->fall($entity, 0.0, -0.3);
-		self::assertSame(0.0, $entity->fallDamage);
-
-		$entity = $this->entity(0.5, self::FLOOR + 10, 0.5);
-		$entity->setGliding(true);
-		$this->fall($entity, 0.0, -0.9);
-		self::assertSame(7.0, $entity->fallDamage);
+		self::assertSame(37.0, $entity->fallDamage);
 	}
 }
 

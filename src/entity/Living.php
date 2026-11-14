@@ -398,14 +398,6 @@ abstract class Living extends Entity{
 		return floor(round($fallDistance, 4) - 3 - (($jumpBoost = $this->effectManager->get(VanillaEffects::JUMP_BOOST())) !== null ? $jumpBoost->getEffectLevel() : 0));
 	}
 
-	protected function updateFallState(float $distanceThisTick, bool $onGround) : ?float{
-		if($this->gliding && !$onGround && $distanceThisTick >= -0.5){
-			//only a steep dive counts towards landing damage while gliding
-			$this->fallDistance = 1.0;
-		}
-		return parent::updateFallState($distanceThisTick, $onGround);
-	}
-
 	protected function onHitGround() : ?float{
 		$fallBlockPos = $this->location->floor();
 		$fallBlock = $this->getWorld()->getBlock($fallBlockPos);
