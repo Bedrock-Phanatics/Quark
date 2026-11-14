@@ -148,6 +148,19 @@ final class CustomEquipmentTest extends TestCase{
 		self::assertEqualsWithDelta(15.52, $this->victim->getHealth(), 0.00001);
 	}
 
+	public function testArmorPointsAreCappedAtVanillaMaximum() : void{
+		$inventory = $this->victim->getArmorInventory();
+		foreach([ArmorInventory::SLOT_HEAD, ArmorInventory::SLOT_CHEST, ArmorInventory::SLOT_LEGS, ArmorInventory::SLOT_FEET] as $slot){
+			$tag = [ItemEnchantmentTags::HELMET, ItemEnchantmentTags::CHESTPLATE, ItemEnchantmentTags::LEGGINGS, ItemEnchantmentTags::BOOTS][$slot];
+			$inventory->setItem($slot, new Armor(new ItemIdentifier(ItemTypeIds::newId()), "Heavy", new ArmorTypeInfo(10, 100, $slot), [$tag]));
+		}
+		self::assertSame(40, $this->victim->getArmorPoints());
+		$event = new EntityDamageEvent($this->victim, EntityDamageEvent::CAUSE_ENTITY_ATTACK, 10);
+		$this->victim->attack($event);
+		self::assertEqualsWithDelta(-8.0, $event->getModifier(EntityDamageEvent::MODIFIER_ARMOR), 0.00001);
+		self::assertEqualsWithDelta(18.0, $this->victim->getHealth(), 0.00001);
+	}
+
 	public function testProtectionAndBreakageUseNativeArmorPathAndCallbacks() : void{
 		$helmet = $this->helmet()->addEnchantment(VanillaEnchantments::PROTECTION(), 4);
 		self::assertInstanceOf(Armor::class, $helmet);
@@ -188,13 +201,20 @@ final class CustomEquipmentTest extends TestCase{
 	}
 
 	public function testDispenserEquipsOneItemAndConsumesOne() : void{
-		$this->world->method("getNearbyEntities")->willReturn([$this->victim]);
+		$this->world->method("getNearbyEntities")->willReturn([$this->victim, $this->attacker]);
+		$this->world->expects(self::once())->method("dropItem");
 		$inventory = new SimpleInventory(9);
-		$inventory->setItem(0, $this->helmet());
-		self::assertTrue((new ArmorDispensableItem(ArmorInventory::SLOT_HEAD))->dispense(new Position(0, 64, 0, $this->world), $inventory, 0, new Vector3(0, 64, 1), 3));
+		$inventory->setItem(0, $this->helmet()->setCount(2));
+		$dispenser = new ArmorDispensableItem(ArmorInventory::SLOT_HEAD);
+		self::assertTrue($dispenser->dispense(new Position(0, 64, 0, $this->world), $inventory, 0, new Vector3(0, 64, 1), 3));
+		self::assertSame(1, $inventory->getItem(0)->getCount());
+		//mobs that would not save the armor are skipped
+		self::assertTrue($this->victim->getArmorInventory()->getHelmet()->isNull());
+		self::assertInstanceOf(Armor::class, $this->attacker->getArmorInventory()->getHelmet());
+		self::assertSame(1, $this->attacker->getArmorInventory()->getHelmet()->getCount());
+		//an occupied slot drops the item instead
+		self::assertTrue($dispenser->dispense(new Position(0, 64, 0, $this->world), $inventory, 0, new Vector3(0, 64, 1), 3));
 		self::assertTrue($inventory->getItem(0)->isNull());
-		self::assertInstanceOf(Armor::class, $this->victim->getArmorInventory()->getHelmet());
-		self::assertSame(1, $this->victim->getArmorInventory()->getHelmet()->getCount());
 	}
 
 	public function testArmorEquipsFromHandWithNativeSound() : void{
