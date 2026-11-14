@@ -183,15 +183,18 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			throw new \RuntimeException("Bedwire stopped unexpectedly");
 		}
 		$this->processEvents();
-		$this->publishStatus();
 		$this->flushDeferred();
 		$this->flushPendingDisconnects($bedwire);
 
-		$stats = $bedwire->getStatistics();
-		$this->network->getBandwidthTracker()->add($stats["bytes_sent"] - $this->bytesSent, $stats["bytes_received"] - $this->bytesReceived);
-		$this->bytesSent = $stats["bytes_sent"];
-		$this->bytesReceived = $stats["bytes_received"];
-		Pulse::getNetworkTelemetry()?->transportTotals("bedwire", $stats);
+		//bandwidth history rotates once a second, Pulse samples queue peaks every tick while it records
+		$telemetry = Pulse::getNetworkTelemetry();
+		if($telemetry !== null || $this->server->getTick() % Server::TARGET_TICKS_PER_SECOND === 0){
+			$stats = $bedwire->getStatistics();
+			$this->network->getBandwidthTracker()->add($stats["bytes_sent"] - $this->bytesSent, $stats["bytes_received"] - $this->bytesReceived);
+			$this->bytesSent = $stats["bytes_sent"];
+			$this->bytesReceived = $stats["bytes_received"];
+			$telemetry?->transportTotals("bedwire", $stats);
+		}
 	}
 
 	private function flushPendingDisconnects(BedwireServer $bedwire) : void{
