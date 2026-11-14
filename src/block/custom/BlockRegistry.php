@@ -80,6 +80,8 @@ final class BlockRegistry{
 
 	/** @var array<string, Block> */
 	private array $blocks = [];
+	/** @var array<int, string> */
+	private array $identifiers = [];
 	/** @var array<string, array{CompoundTag, list<array<string, Tag>>, ?CreativeCategory, ?CreativeGroup}> */
 	private array $pending = [];
 	/** @var array<string, string> */
@@ -94,6 +96,7 @@ final class BlockRegistry{
 	private array $itemEntries = [];
 	private bool $finalized = false;
 	private bool $registering = false;
+	private bool $preservedLimitLogged = false;
 	private int $clientStates = 0;
 	private int $componentBytes = 0;
 
@@ -140,6 +143,9 @@ final class BlockRegistry{
 			[$block, $properties] = $definition->createPrototype($typeId);
 			if($block->getTypeId() !== $typeId || $block instanceof UnknownCustomBlock){
 				throw new \InvalidArgumentException("Factory must return a new block using the supplied identifier");
+			}
+			if($this->deserializer->getDeserializerForId($id) !== null || $this->parser->hasAlias($id) || $this->blockItems->lookupBlockId($id) !== null || $this->blockItems->lookupItemId($id) !== null){
+				throw new \InvalidArgumentException("Factory changed existing registrations for '$id'");
 			}
 			if(($tile = $block->getIdInfo()->getTileClass()) !== null && !TileFactory::getInstance()->isRegistered($tile)){
 				throw new \InvalidArgumentException("Register tile $tile with TileFactory first, so saved tile data can load");
@@ -188,6 +194,7 @@ final class BlockRegistry{
 			$this->parser->registerBlock($id, static fn() => clone $block);
 			$this->blockItems->mapCustom($id);
 			$this->blocks[$id] = $block;
+			$this->identifiers[$typeId] = $id;
 			$this->pending[$id] = [$nbt, self::clientStates($clientProperties), $definition->getCreativeCategory(), $definition->getCreativeGroup()];
 			foreach(Utils::stringifyKeys($values) as $name => $tags){
 				$this->clientValues[$id][$name] = array_map(static fn() => true, $tags);
@@ -208,6 +215,9 @@ final class BlockRegistry{
 	}
 
 	public function isRegistered(string $identifier) : bool{ return isset($this->blocks[$identifier]); }
+
+	/** Returns the custom identifier of a block in any state, or null for other blocks. */
+	public function getIdentifier(Block $block) : ?string{ return $this->identifiers[$block->getTypeId()] ?? null; }
 
 	public function isFinalized() : bool{ return $this->finalized; }
 
@@ -479,6 +489,10 @@ final class BlockRegistry{
 			return $this->preserved[$key];
 		}
 		if(count($this->preserved) >= self::MAX_PRESERVED_STATES){
+			if(!$this->preservedLimitLogged){
+				$this->preservedLimitLogged = true;
+				\GlobalLogger::get()->warning("More than " . self::MAX_PRESERVED_STATES . " unknown custom block states were loaded. Further unknown states are replaced and lost when their chunks save");
+			}
 			return null;
 		}
 		$block = new UnknownCustomBlock(new BlockIdentifier(BlockTypeIds::newId()), $data);

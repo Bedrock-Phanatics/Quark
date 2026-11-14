@@ -48,6 +48,8 @@ final class ItemRegistry{
 	private static ?self $instance = null;
 	/** @var array<string, Item> */
 	private array $items = [];
+	/** @var array<int, string> */
+	private array $identifiers = [];
 	/** @var array<string, array{CompoundTag, ?CreativeCategory, ?CreativeGroup}> */
 	private array $pending = [];
 	/** @var array<string, string> */
@@ -118,6 +120,7 @@ final class ItemRegistry{
 			$this->parser->register($id, static fn() => clone $item);
 			if($item instanceof Armor){ DispensableItemManager::register($item, new ArmorDispensableItem($item->getArmorSlot())); }
 			$this->items[$id] = $item;
+			$this->identifiers[$typeId] = $id;
 			$this->pending[$id] = [$nbt, $definition->getCreativeCategory(), $definition->getCreativeGroup()];
 			$this->namespaceOwners[$namespace] = $ownerName;
 			$this->componentBytes += $bytes;
@@ -137,6 +140,9 @@ final class ItemRegistry{
 	}
 
 	public function isRegistered(string $identifier) : bool{ return isset($this->items[$identifier]); }
+
+	/** Returns the custom identifier of a stack, or null for other items. Cheaper than serializing the item. */
+	public function getIdentifier(Item $item) : ?string{ return $this->identifiers[$item->getTypeId()] ?? null; }
 
 	public function isFinalized() : bool{ return $this->finalized; }
 

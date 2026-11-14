@@ -27,6 +27,8 @@ $blocks->register(
 $block = $blocks->create("suko:ruby_block"); // independent instance, default state
 $world->setBlock($pos, $block);
 $item = $block->asItem();
+
+$blocks->getIdentifier($world->getBlock($pos)); // "suko:ruby_block" in any state, null for other blocks
 ```
 
 Definitions are immutable, so keep the result of each call. Identifiers use lowercase `namespace:path`; `minecraft` and `quark` are reserved and the first plugin to use a namespace owns it. A tier makes the tool required for drops. Leave out `creative()` to keep a block out of the creative inventory; it still works with `/give`, recipes and placement.
@@ -189,7 +191,7 @@ Block JSON definitions (`blocks.json` or behavior packs) aren't needed; the serv
 
 ## Missing plugins
 
-If a world contains custom blocks whose plugin isn't installed, or whose saved state the current definition no longer accepts (a removed value or renamed state), Quark loads them as inert, unbreakable `UnknownCustomBlock` placeholders that keep the original identifier and state. Saving writes them back unchanged, and restoring the plugin restores the blocks on the next load. Clients see them as `minecraft:info_update`. Placeholders let light through, so main-thread and worker lighting agree. Back up worlds before renaming identifiers or states.
+If a world contains custom blocks whose plugin isn't installed, or whose saved state the current definition no longer accepts (a removed value or renamed state), Quark loads them as inert, unbreakable `UnknownCustomBlock` placeholders that keep the original identifier and state. Saving writes them back unchanged, and restoring the plugin restores the blocks on the next load. Clients see them as `minecraft:info_update`. Placeholders let light through, so main-thread and worker lighting agree. Their items stay in inventories but can't be placed. Tile data is not kept while the tile class is missing, so a restored block comes back without it. Back up worlds before renaming identifiers or states.
 
 ## Limits
 

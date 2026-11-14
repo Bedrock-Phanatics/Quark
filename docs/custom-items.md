@@ -30,6 +30,10 @@ $registry->register(ItemDefinition::food("suko:apple", "Ruby Apple", nutrition: 
 
 $sword = $registry->create("suko:ruby_sword");
 $rubies = $registry->create("suko:ruby", 16);
+
+if($registry->getIdentifier($player->getInventory()->getItemInHand()) === "suko:ruby_sword"){
+    // matches any ruby sword stack, whatever its damage, name or enchantments
+}
 ```
 
 `damage` is total server melee damage, including the player's base damage of one. Sword tier defaults to `ToolTier::DIAMOND` and supplies mining and enchantability. `ItemDefinition::tool()` accepts `BlockToolType::AXE`, `PICKAXE`, `SHOVEL` or `HOE` and a `ToolTier`.

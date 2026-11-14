@@ -65,6 +65,13 @@ final class CustomItemTest extends TestCase{
 		return $item;
 	}
 
+	public function testIdentifierLookupUsesTypeOnly() : void{
+		$sword = $this->registerSword();
+		$sword->setDamage(5)->setCustomName("Named");
+		self::assertSame("test:ruby_sword", $this->registry->getIdentifier($sword));
+		self::assertNull($this->registry->getIdentifier(VanillaBlocks::STONE()->asItem()));
+	}
+
 	public function testFactoryRunsOnceAndStacksAreIndependent() : void{
 		$calls = 0;
 		$definition = ItemDefinition::fromFactory("test:sword", "Sword", static function(ItemIdentifier $id) use (&$calls) : Item{

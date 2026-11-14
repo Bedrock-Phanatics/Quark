@@ -134,6 +134,8 @@ final class CustomBlockTest extends TestCase{
 		self::assertSame([], $a->getDrops(VanillaItems::STONE_PICKAXE()));
 		self::assertCount(1, $a->getDrops(VanillaItems::IRON_PICKAXE()));
 		self::assertTrue($a->asItem()->equalsExact($this->parser->parse($this->id("ruby")) ?? VanillaItems::AIR()));
+		self::assertSame($this->id("ruby"), $this->registry->getIdentifier($a));
+		self::assertNull($this->registry->getIdentifier(VanillaBlocks::STONE()));
 	}
 
 	public function testInvalidAndConflictingRegistrationsAreRejected() : void{
@@ -173,6 +175,20 @@ final class CustomBlockTest extends TestCase{
 		self::assertNull(BlockItemIdMap::getInstance()->lookupBlockId($this->id("stairs")));
 		$this->registry->register(BlockDefinition::stairs($this->id("stairs"), "Stairs")->withComponents((new BlockComponents())->geometry("geometry.stairs")->texture("stairs")), $this->owner);
 		self::assertTrue($this->registry->isRegistered($this->id("stairs")));
+
+		$id = $this->id("sneaky");
+		$parser = $this->parser;
+		try{
+			$this->registry->register(BlockDefinition::cube($id, "Sneaky")->withFactory(static function(BlockIdentifier $bid, string $name, BlockTypeInfo $info, CustomBlockSettings $settings) use ($parser, $id) : CustomBlock{
+				$parser->register($id, static fn() => VanillaItems::STICK());
+				return new CustomBlock($bid, $name, $info, $settings);
+			}), $this->owner);
+			self::fail("Factory side effects were accepted");
+		}catch(\InvalidArgumentException $e){
+			self::assertStringContainsString("Factory changed existing registrations", $e->getMessage());
+		}
+		self::assertNull($this->deserializer->getDeserializerForId($id));
+		self::assertFalse($this->registry->isRegistered($id));
 	}
 
 	public function testStatesRoundTripAndItemStatesSurvivePicking() : void{
@@ -609,6 +625,7 @@ final class CustomBlockTest extends TestCase{
 		self::assertTrue($gone->equals($this->serializer->serialize($id)), "placeholders save their original data");
 		self::assertFalse($placeholder->getBreakInfo()->isBreakable());
 		self::assertTrue($placeholder->getPickedItem()->isNull());
+		self::assertFalse($placeholder->canBePlaced(), "placeholder items must not create unbreakable blocks");
 		$converter = $this->converter();
 		self::assertTrue($converter->getBlockTranslator()->getFallbackStateData()->equals($converter->getBlockTranslator()->internalIdToNetworkStateData($id)));
 
