@@ -120,6 +120,7 @@ use quark\item\Releasable;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\Translatable;
+use quark\math\collision\CollisionDataException;
 use quark\math\Vector3;
 use quark\network\mcpe\NetworkSession;
 use quark\permission\DefaultPermissionNames;
@@ -1491,7 +1492,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			//the old and new positions (running down stairs necessitates this)
 			$bb = $bb->addCoord(-$dx, -$dy, -$dz);
 
-			$this->onGround = $this->isCollided = count($this->getWorld()->getCollisionBlocks($bb, true)) > 0;
+			$world = $this->getWorld();
+			try{
+				$collided = $world->getCollisionRegion($bb)->collides($bb);
+			}catch(\ValueError | CollisionDataException){
+				//collision data can't cover this box, the block scan can
+				$collided = count($world->getCollisionBlocks($bb, true)) > 0;
+			}
+			$this->onGround = $this->isCollided = $collided;
 		}
 	}
 

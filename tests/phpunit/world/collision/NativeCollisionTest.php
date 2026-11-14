@@ -156,6 +156,20 @@ final class NativeCollisionTest extends TestCase{
 		$this->assertCollisionMatches(3000);
 	}
 
+	public function testCollidesMatchesCollisionBlocks() : void{
+		$this->fill(5);
+		$hits = 0;
+		for($i = 0; $i < 4000; ++$i){
+			//the thin, wide boxes players test the ground with
+			$bb = $this->randomBox(mt_rand(0, 1) === 0 ? 0.4 : 1.8);
+			$expected = count($this->world->getCollisionBlocks($bb, true)) > 0;
+			self::assertSame($expected, $this->world->getCollisionRegion($bb)->collides($bb), "collides for $bb");
+			$hits += $expected ? 1 : 0;
+		}
+		self::assertGreaterThan(400, $hits);
+		self::assertLessThan(3600, $hits);
+	}
+
 	public function testBlockChangesNeverLeaveStaleCollision() : void{
 		$this->fill(2);
 		$this->assertCollisionMatches(300);
