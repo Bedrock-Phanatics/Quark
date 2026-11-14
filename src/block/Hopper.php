@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\block;
 
 use quark\block\inventory\window\HopperInventoryWindow;
+use quark\block\tile\Hopper as TileHopper;
 use quark\block\utils\Container;
 use quark\block\utils\ContainerTrait;
 use quark\block\utils\PoweredByRedstone;
@@ -33,6 +34,8 @@ use quark\block\utils\redstone\PowerableTrait;
 use quark\block\utils\redstone\RedstoneBlockAccessTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\entity\Entity;
+use quark\entity\object\ItemEntity;
 use quark\inventory\Inventory;
 use quark\item\Item;
 use quark\math\AxisAlignedBB;
@@ -47,7 +50,9 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 	use ContainerTrait;
 	use PoweredByRedstoneTrait;
 	use RedstoneBlockAccessTrait;
-	use PowerableTrait;
+	use PowerableTrait {
+		onNearbyBlockChange as private powerableNearbyBlockChange;
+	}
 
 	private(set) int $activation_delay = 0;
 	private(set) int $deactivation_delay = 0;
@@ -96,8 +101,35 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);
 	}
 
+	private function getHopperTile() : ?TileHopper{
+		$tile = $this->position->getWorld()->getTileAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z);
+		return $tile instanceof TileHopper ? $tile : null;
+	}
+
 	public function onScheduledUpdate() : void{
-		//TODO
+		$this->getHopperTile()?->onBlockUpdate($this);
+	}
+
+	public function onNearbyBlockChange() : void{
+		$this->powerableNearbyBlockChange();
+		$this->getHopperTile()?->wake();
+	}
+
+	public function hasEntityCollision() : bool{
+		return true;
+	}
+
+	//item entities also report the hopper below them, since it collects from the block space above too
+	public function onEntityInside(Entity $entity) : bool{
+		if(!$entity instanceof ItemEntity){
+			return true;
+		}
+		$tile = $this->getHopperTile();
+		if($tile === null){
+			return false;
+		}
+		$tile->onItemNearby($this, $entity);
+		return true;
 	}
 
 	//a powered hopper is locked, which the client shows through the toggle bit
@@ -105,10 +137,11 @@ class Hopper extends Transparent implements Container, PoweredByRedstone, Powera
 		$powered = $power > 0;
 		if($powered !== $this->powered){
 			$this->position->getWorld()->setBlockAt((int) $this->position->x, (int) $this->position->y, (int) $this->position->z, $this->setPowered($powered), false);
+			if(!$powered){
+				$this->getHopperTile()?->wake();
+			}
 		}
 	}
-
-	//TODO: item transfer, which must skip locked hoppers
 
 	protected function newMenu(Player $player, Inventory $inventory, Position $position) : InventoryWindow{
 		return new HopperInventoryWindow($player, $inventory, $position);

@@ -53,6 +53,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Removed active Thorns and Frost Walker behavior and acquisition paths while retaining inert saved/network enchantment data.
 - Removed per-tick worn-item callbacks from armor processing.
 - Removed the Turtle Helmet Water Breathing effect.
+- Hoppers now move items: they push into the container they face, pull from the one above, and collect dropped items, with vanilla furnace, brewing stand and double chest slot rules. Powered hoppers stay locked. Idle hoppers sleep until a neighbouring inventory, block or dropped item gives them work, and a per-tick update budget defers the rest fairly.
 
 ## API
 
@@ -67,6 +68,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.
 - Retained the existing `pmmpthread` native extension contract.
 - Added the redstone manager and runtime world/chunk override API.
+- Added cancellable `HopperTransferEvent` and `HopperPickupItemEvent`.
 - Added built-in menu, modal and custom forms with validated responses, named custom-control values and separate cancellation callbacks. See [form migration notes](docs/MIGRATING-FROM-POCKETMINE-5.md#forms) for usage and server-settings limitations.
 - Added multiworld management: `WorldManager::getWorldNames()`, `copyWorld()` and `deleteWorld()` run file work off the main thread through hidden staging folders, which are cleaned up on startup if interrupted, and reserve the names involved, including nested and differently cased ones, until done, world names must be plain relative paths that cannot point outside the worlds directory or alias another name, name lookups are constant time, and the `/world` command lists, loads, unloads, creates, copies, deletes and teleports between worlds.
 - `Filesystem::recursiveUnlink()` removes links instead of deleting what they point to, and it and `recursiveCopy()` throw when a file cannot be removed or copied.
@@ -94,6 +96,7 @@ Added or expanded settings for:
 - Adaptive and periodic garbage collection.
 - Redstone enablement, world policy, world list, component limits, piston limits, and dispenser limits.
 - TNT enablement and activation/entity limits.
+- Hopper enablement, transfer cooldown, items per transfer, and updates per tick.
 - Weather cycle, thunderstorm lightning chance and lightning fire.
 - Local crash reports, anonymous statistics, updater, timings, console behavior, memory limits, and plugin data placement.
 

@@ -295,4 +295,18 @@ class CraftingManager{
 
 		return null;
 	}
+
+	/**
+	 * Returns whether the item is the ingredient of any brewing recipe.
+	 */
+	public function isBrewingIngredient(Item $item) : bool{
+		foreach([$this->potionContainerChangeRecipes, $this->potionTypeRecipes] as $recipes){
+			foreach($recipes as $recipe){
+				if($recipe->getIngredient()->accepts($item)){
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 }

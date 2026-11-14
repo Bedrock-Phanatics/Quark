@@ -33,6 +33,7 @@ use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\snooze\SleeperHandler;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\tile\dispenser\DispensableItemManager;
+use quark\block\utils\HopperConfig;
 use quark\camera\CameraAimAssistRegistry;
 use quark\camera\CameraPresetRegistry;
 use quark\command\Command;
@@ -1317,6 +1318,12 @@ class Server{
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_NEARBY, 192),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK, 24),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND, 20)
+			);
+			HopperConfig::configure(
+				$this->configGroup->getPropertyBool(Yml::HOPPERS_ENABLED, true),
+				$this->configGroup->getPropertyInt(Yml::HOPPERS_TRANSFER_COOLDOWN, 8),
+				$this->configGroup->getPropertyInt(Yml::HOPPERS_ITEMS_PER_TRANSFER, 1),
+				$this->configGroup->getPropertyInt(Yml::HOPPERS_MAX_UPDATES_PER_TICK, 512)
 			);
 			ItemEntity::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_ITEM_MERGE_RADIUS, ItemEntity::MAX_MERGE_RADIUS));
 			ExperienceOrb::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_XP_ORB_MERGE_RADIUS, ExperienceOrb::MAX_MERGE_RADIUS));

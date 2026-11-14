@@ -120,6 +120,13 @@ return array (
     'dispensers-enabled' => true,
     'max-dispenser-actions-per-tick' => 4096,
   ),
+  'hoppers' =>
+  array (
+    'enabled' => true,
+    'transfer-cooldown' => 8,
+    'items-per-transfer' => 1,
+    'max-updates-per-tick' => 512,
+  ),
   'tnt-limits' =>
   array (
     'enabled' => false,

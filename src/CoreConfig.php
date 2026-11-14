@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace quark;
 
+use quark\block\utils\HopperConfig;
 use quark\entity\object\ExperienceOrb;
 use quark\entity\object\ItemEntity;
 use quark\network\mcpe\bedwire\BedwireTransport;
@@ -806,6 +807,8 @@ final class CoreConfig{
 				"chunk-sending.per-tick", "chunk-generation.population-queue-size",
 				"redstone.max-wire-network-size", "redstone.max-scheduled-updates", "redstone.max-updates-per-tick",
 				"redstone.max-piston-actions-per-tick", "redstone.max-dispenser-actions-per-tick" => [1, PHP_INT_MAX],
+				"hoppers.transfer-cooldown" => [1, HopperConfig::MAX_TRANSFER_COOLDOWN],
+				"hoppers.items-per-transfer" => [1, HopperConfig::MAX_ITEMS_PER_TRANSFER],
 				default => [0, PHP_INT_MAX]
 			};
 			if($value < $min || $value > $max){

@@ -27,6 +27,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AddItemActorPacket;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use quark\block\Hopper;
 use quark\entity\animation\ItemEntityStackSizeChangeAnimation;
 use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
@@ -41,6 +42,7 @@ use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
+use function floor;
 use function intdiv;
 use function max;
 
@@ -227,6 +229,28 @@ class ItemEntity extends Entity{
 			max($consumer->despawnDelay, $this->despawnDelay);
 
 		return true;
+	}
+
+	protected function getBlocksAroundWithEntityInsideActions() : array{
+		if($this->blocksAround === null){
+			$blocks = parent::getBlocksAroundWithEntityInsideActions();
+			//hoppers collect from the whole block space above them, so they need to hear about items there too
+			$bb = $this->boundingBox;
+			$y = (int) floor($bb->minY + 0.001) - 1;
+			$maxX = (int) floor($bb->maxX - 0.001);
+			$maxZ = (int) floor($bb->maxZ - 0.001);
+			$world = $this->getWorld();
+			for($x = (int) floor($bb->minX + 0.001); $x <= $maxX; ++$x){
+				for($z = (int) floor($bb->minZ + 0.001); $z <= $maxZ; ++$z){
+					$block = $world->getBlockAt($x, $y, $z);
+					if($block instanceof Hopper){
+						$blocks[] = $block;
+					}
+				}
+			}
+			$this->blocksAround = $blocks;
+		}
+		return $this->blocksAround;
 	}
 
 	protected function tryChangeMovement() : void{

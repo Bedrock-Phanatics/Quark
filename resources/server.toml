@@ -126,6 +126,16 @@ max-piston-actions-per-tick = 1024
 dispensers-enabled = true
 max-dispenser-actions-per-tick = 4096
 
+[hoppers]
+# Disabling stops item movement but keeps hopper contents.
+enabled = true
+# Game ticks between transfers, from 1 to 1200. Vanilla is 8.
+transfer-cooldown = 8
+# Items moved per push or pull, from 1 to 64. Dropped items are collected whole, as in vanilla.
+items-per-transfer = 1
+# Hopper updates per tick across all worlds. Hoppers past the limit wait their turn. Zero is unlimited.
+max-updates-per-tick = 512
+
 [tnt-limits]
 # When enabled, zero leaves the corresponding limit unrestricted.
 enabled = false

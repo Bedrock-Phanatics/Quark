@@ -247,6 +247,16 @@ final class CoreConfigTest extends TestCase{
 		yield "chunk-sending.spawn-radius" => [["chunk-sending" => ["spawn-radius" => PHP_INT_MAX]]];
 		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
 		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
+		yield "hoppers.enabled" => [["hoppers" => ["enabled" => "yes"]]];
+		yield "hoppers.transfer-cooldown" => [["hoppers" => ["transfer-cooldown" => 0]]];
+		yield "hoppers.items-per-transfer" => [["hoppers" => ["items-per-transfer" => 65]]];
+		yield "hoppers.max-updates-per-tick" => [["hoppers" => ["max-updates-per-tick" => -1]]];
+	}
+
+	public function testHopperSettingsAcceptTheirLimits() : void{
+		CoreConfig::validateServer(["hoppers" => ["enabled" => false, "transfer-cooldown" => 1, "items-per-transfer" => 64, "max-updates-per-tick" => 0]]);
+		CoreConfig::validateServer(["hoppers" => ["transfer-cooldown" => 1200, "items-per-transfer" => 1, "max-updates-per-tick" => 1]]);
+		$this->addToAssertionCount(1);
 	}
 
 	/** @param array<string, mixed> $data */
