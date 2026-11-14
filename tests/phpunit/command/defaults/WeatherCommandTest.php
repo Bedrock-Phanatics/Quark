@@ -26,6 +26,8 @@ namespace quark\command\defaults;
 use PHPUnit\Framework\MockObject\Stub;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
+use quark\world\Dimension;
+use quark\world\DimensionRegistry;
 use quark\world\Weather;
 use quark\world\World;
 use quark\world\WorldManager;
@@ -38,20 +40,23 @@ final class WeatherCommandTest extends DefaultCommandTestCase{
 	private bool $accept = true;
 	private World $overworld;
 	private World $nether;
+	private World $end;
 
 	protected function setUp() : void{
 		parent::setUp();
 		$this->overworld = $this->world("overworld", false);
 		$this->nether = $this->world("nether", true);
+		$this->end = $this->world("end", false, DimensionRegistry::getInstance()->get(Dimension::THE_END) ?? self::fail());
 		$manager = self::createStub(WorldManager::class);
-		$manager->method("getWorlds")->willReturn([$this->overworld, $this->nether]);
+		$manager->method("getWorlds")->willReturn([$this->overworld, $this->nether, $this->end]);
 		$manager->method("getDefaultWorld")->willReturn($this->overworld);
 		$this->server->method("getWorldManager")->willReturn($manager);
 	}
 
-	private function world(string $name, bool $cycle) : World&Stub{
+	private function world(string $name, bool $cycle, ?Dimension $dimension = null) : World&Stub{
 		$this->weather[$name] = Weather::CLEAR;
 		$world = self::createStub(World::class);
+		$world->method("getDimension")->willReturn($dimension ?? DimensionRegistry::getInstance()->getDefault());
 		$world->method("getFolderName")->willReturn($name);
 		$world->method("getWeather")->willReturnCallback(fn() : Weather => $this->weather[$name]);
 		$world->method("getWeatherDuration")->willReturn(1234);
@@ -89,6 +94,13 @@ final class WeatherCommandTest extends DefaultCommandTestCase{
 		$this->dispatch("weather clear 1000000", $steve);
 		$this->dispatch("weather clear 1", $steve);
 		self::assertSame([["nether", Weather::THUNDER, 600], ["nether", Weather::CLEAR, 1000000], ["nether", Weather::CLEAR, 1]], $this->changes);
+	}
+
+	public function testDimensionWithoutWeather() : void{
+		$player = $this->player("Steve", true);
+		$player->method("getWorld")->willReturn($this->end);
+		self::assertSame(["There is no weather in this dimension"], $this->dispatch("weather rain", $player));
+		self::assertSame([], $this->changes);
 	}
 
 	public function testReportsCancelledChanges() : void{

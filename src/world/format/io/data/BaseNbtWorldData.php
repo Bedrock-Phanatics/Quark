@@ -26,6 +26,7 @@ namespace quark\world\format\io\data;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use quark\math\Vector3;
+use quark\world\Dimension;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
 use quark\world\format\io\WorldData;
@@ -40,6 +41,7 @@ abstract class BaseNbtWorldData implements WorldData{
 	protected const TAG_SPAWN_X = "SpawnX";
 	protected const TAG_SPAWN_Y = "SpawnY";
 	protected const TAG_SPAWN_Z = "SpawnZ";
+	protected const TAG_DIMENSION = "dimension";
 
 	protected CompoundTag $compoundTag;
 
@@ -130,6 +132,10 @@ abstract class BaseNbtWorldData implements WorldData{
 
 	public function getSeed() : int{
 		return $this->compoundTag->getLong(self::TAG_RANDOM_SEED);
+	}
+
+	public function getDimension() : string{
+		return $this->compoundTag->getString(self::TAG_DIMENSION, Dimension::OVERWORLD);
 	}
 
 	public function getTime() : int{

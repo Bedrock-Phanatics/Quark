@@ -63,6 +63,7 @@ final class YmlServerProperties{
 	public const DIAGNOSTICS = 'diagnostics';
 	public const DIAGNOSTICS_MAX_CRASH_REPORTS = 'diagnostics.max-crash-reports';
 	public const DIAGNOSTICS_MAX_PROFILES = 'diagnostics.max-profiles';
+	public const DIAGNOSTICS_PULSE_AUTO_CAPTURE_MS = 'diagnostics.pulse-auto-capture-ms';
 	public const ENTITIES = 'entities';
 	public const ENTITIES_ACTIVATION_RANGE = 'entities.activation-range';
 	public const ENTITIES_INACTIVE_TICK_INTERVAL = 'entities.inactive-tick-interval';

@@ -126,7 +126,8 @@ class BedrockWorldData extends BaseNbtWorldData{
 
 			//Additional Quark fields
 			->setString(self::TAG_GENERATOR_NAME, GeneratorManager::getInstance()->getGeneratorName($options->getGeneratorClass()))
-			->setString(self::TAG_GENERATOR_OPTIONS, $options->getGeneratorOptions());
+			->setString(self::TAG_GENERATOR_OPTIONS, $options->getGeneratorOptions())
+			->setString(self::TAG_DIMENSION, $options->getDimension()->identifier);
 
 		$buffer = Nbt::write(new TreeRoot($worldData), Nbt::BEDROCK);
 		file_put_contents(Path::join($path, "level.dat"), LE::packSignedInt(self::CURRENT_STORAGE_VERSION) . LE::packSignedInt(strlen($buffer)) . $buffer);

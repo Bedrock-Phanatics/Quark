@@ -29,8 +29,10 @@ use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\thread\NonThreadSafeValue;
 use function array_key_exists;
+use function hrtime;
 use function is_null;
 use function is_scalar;
+use function memory_get_usage;
 use function spl_object_id;
 
 /**
@@ -68,14 +70,17 @@ abstract class AsyncTask extends Runnable{
 
 	private ThreadSafe|string|int|bool|null|float $result = null;
 
-	private bool $submitted = false;
-	private bool $finished = false;
+	// Zero until set. Pulse stores hrtime() stamps here while recording, otherwise 1; every extra ThreadSafe property
+	// would slow every task down, recording or not.
+	private int $submitted = 0;
+	private int $finished = 0;
 
 	public function run() : void{
 		$this->result = null;
 
 		Pulse::checkDuration();
 		$pulse = $this instanceof PulseControlTask || !Pulse::isRecording() ? null : PulseZones::getAsyncTaskRunZone($this);
+		$started = $pulse === null ? 0 : (int) hrtime(true);
 		$scope = $pulse?->start() ?? 0;
 
 		try{
@@ -85,7 +90,12 @@ abstract class AsyncTask extends Runnable{
 			Pulse::checkDuration();
 		}
 
-		$this->finished = true;
+		$finished = 1;
+		if($pulse !== null){
+			$finished = (int) hrtime(true);
+			Pulse::getWorkerTelemetry()?->ran($this->submitted, $started, $finished, memory_get_usage());
+		}
+		$this->finished = $finished;
 		AsyncWorker::getNotifier()->wakeupSleeper();
 		AsyncWorker::maybeCollectCycles();
 	}
@@ -102,7 +112,7 @@ abstract class AsyncTask extends Runnable{
 	 * because it is not true prior to task execution.
 	 */
 	public function isFinished() : bool{
-		return $this->finished || $this->isTerminated();
+		return $this->finished !== 0 || $this->isTerminated();
 	}
 
 	public function hasResult() : bool{
@@ -137,12 +147,23 @@ abstract class AsyncTask extends Runnable{
 		return false;
 	}
 
-	public function setSubmitted() : void{
-		$this->submitted = true;
+	/** @param int $queuedAt hrtime() of the submission when Pulse is recording */
+	public function setSubmitted(int $queuedAt = 1) : void{
+		$this->submitted = $queuedAt;
 	}
 
 	public function isSubmitted() : bool{
-		return $this->submitted;
+		return $this->submitted !== 0;
+	}
+
+	/**
+	 * @internal
+	 * @return array{int, int}|null submission and finish stamps, when both were recorded
+	 */
+	public function getPulseTimes() : ?array{
+		$queued = $this->submitted;
+		$finished = $this->finished;
+		return $queued > 1 && $finished > 1 ? [$queued, $finished] : null;
 	}
 
 	/**

@@ -27,6 +27,7 @@ use PHPUnit\Framework\TestCase;
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseResources;
 use function array_column;
+use function array_slice;
 use function array_sum;
 use function function_exists;
 use function json_encode;
@@ -58,9 +59,9 @@ final class PulseResourcesTest extends TestCase{
 	public function testCpuPercentagesIncludeMultipleCoresAndWeightUnequalIntervals() : void{
 		$resources = new PulseResources(0);
 		(new \ReflectionProperty(PulseResources::class, "samples"))->setValue($resources, [
-			[0, 0, null, null, 10, 100],
-			[3000000000, 3000000000, 2000000000, 1000000000, 30, 100],
-			[4000000000, 1000000000, 1000000000, 1000000000, 20, 100]
+			[0, 0, null, null, 10, 100, null, null],
+			[3000000000, 3000000000, 2000000000, 1000000000, 30, 100, null, null],
+			[4000000000, 1000000000, 1000000000, 1000000000, 20, 100, null, null]
 		]);
 		(new \ReflectionProperty(PulseResources::class, "cursor"))->setValue($resources, 3);
 		$stats = $resources->stats();
@@ -158,6 +159,13 @@ final class PulseResourcesTest extends TestCase{
 		$context->start("main", 0);
 		$context->stop(0);
 		$data = PulseReport::create([$context->capture()])->getData();
+		unset($data["threads"][0]["zone_owners"], $data["threads"][0]["async"], $data["threads"][0]["network"]["transports"]);
+		foreach($data["threads"][0]["resources"]["samples"] ?? [] as $index => $row){
+			self::assertIsArray($row);
+			$data["threads"][0]["resources"]["samples"][$index] = array_slice($row, 0, 6);
+		}
+		$data["version"] = 3;
+		self::assertSame($data, PulseReport::decode(json_encode($data, JSON_THROW_ON_ERROR))->getData());
 		unset($data["threads"][0]["resources"], $data["threads"][0]["slow_tick_count"]);
 		foreach([2, 1] as $version){
 			$data["version"] = $version;

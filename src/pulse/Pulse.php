@@ -25,6 +25,7 @@ namespace quark\pulse;
 
 use quark\pulse\internal\PulseContext;
 use quark\pulse\internal\PulseNetwork;
+use quark\pulse\internal\PulseWorkers;
 use function hrtime;
 
 final class Pulse{
@@ -32,8 +33,9 @@ final class Pulse{
 	private static ?PulseContext $context = null;
 	private static ?PulseSession $session = null;
 
-	public static function zone(string $name) : PulseZone{
-		return (self::$context ??= new PulseContext())->zone($name);
+	/** @param string|null $owner full name of the plugin that owns the zone's work */
+	public static function zone(string $name, ?string $owner = null) : PulseZone{
+		return (self::$context ??= new PulseContext())->zone($name, $owner);
 	}
 
 	public static function start(string $threadName = "main", int $durationNs = 0, int $spikeThresholdNs = 0, int $maxSpikes = 32) : PulseSession{
@@ -66,6 +68,11 @@ final class Pulse{
 	public static function getNetworkTelemetry() : ?PulseNetwork{
 		$context = self::$context;
 		return $context !== null && $context->recording ? $context->network() : null;
+	}
+
+	/** @internal */
+	public static function getWorkerTelemetry() : ?PulseWorkers{
+		return self::$context?->workers();
 	}
 
 	/** @internal */

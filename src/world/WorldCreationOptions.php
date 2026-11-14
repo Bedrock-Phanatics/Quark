@@ -41,10 +41,12 @@ final class WorldCreationOptions{
 	private int $difficulty = World::DIFFICULTY_NORMAL;
 	private string $generatorOptions = "";
 	private Vector3 $spawnPosition;
+	private Dimension $dimension;
 
 	public function __construct(){
 		$this->seed = random_int(Limits::INT32_MIN, Limits::INT32_MAX);
 		$this->spawnPosition = new Vector3(256, 70, 256);
+		$this->dimension = DimensionRegistry::getInstance()->getDefault();
 	}
 
 	public static function create() : self{
@@ -93,6 +95,20 @@ final class WorldCreationOptions{
 	/** @return $this */
 	public function setSpawnPosition(Vector3 $spawnPosition) : self{
 		$this->spawnPosition = $spawnPosition;
+		return $this;
+	}
+
+	public function getDimension() : Dimension{ return $this->dimension; }
+
+	/**
+	 * @return $this
+	 * @throws \InvalidArgumentException if the dimension isn't registered
+	 */
+	public function setDimension(Dimension $dimension) : self{
+		if(DimensionRegistry::getInstance()->get($dimension->identifier) !== $dimension){
+			throw new \InvalidArgumentException("Dimension \"$dimension->identifier\" must be registered before creating worlds in it");
+		}
+		$this->dimension = $dimension;
 		return $this;
 	}
 }

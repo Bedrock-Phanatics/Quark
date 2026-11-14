@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace quark\block\tile\dispenser;
 
 use InvalidArgumentException;
-use quark\entity\Living;
+use quark\entity\Human;
 use quark\inventory\ArmorInventory;
 use quark\inventory\Inventory;
 use quark\math\AxisAlignedBB;
@@ -53,7 +53,8 @@ class ArmorDispensableItem extends DropDispensableItem{
 		$item = $inventory->getItem($slot);
 		$world = $pos->getWorld();
 		foreach($world->getNearbyEntities(AxisAlignedBB::one()->offset($side_pos->x, $side_pos->y, $side_pos->z)) as $entity){
-			if($entity instanceof Living){
+			//other mobs neither save nor drop armor, so equipping them would delete the item
+			if($entity instanceof Human){
 				$armor_inventory = $entity->getArmorInventory();
 				if($armor_inventory->isSlotEmpty($this->slot)){
 					$equipped = $item->pop();

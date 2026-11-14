@@ -33,6 +33,7 @@ use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
 use quark\entity\Living;
+use quark\event\block\BlockPreExplodeEvent;
 use quark\item\Item;
 use quark\lang\KnownTranslationFactory;
 use quark\math\AxisAlignedBB;
@@ -41,6 +42,8 @@ use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\TextFormat;
 use quark\world\BlockTransaction;
+use quark\world\Explosion;
+use quark\world\Position;
 use quark\world\World;
 
 class Bed extends Transparent implements Colored, HorizontalFacing{
@@ -132,6 +135,11 @@ class Bed extends Transparent implements Colored, HorizontalFacing{
 				return true;
 			}
 
+			if(!$this->position->getWorld()->getDimension()->bedWorks){
+				$this->explode($other, $player);
+				return true;
+			}
+
 			$time = $this->position->getWorld()->getTimeOfDay();
 
 			$isNight = ($time >= World::TIME_NIGHT && $time < World::TIME_SUNRISE);
@@ -155,6 +163,27 @@ class Bed extends Transparent implements Colored, HorizontalFacing{
 
 		return true;
 
+	}
+
+	private function explode(Bed $other, Player $player) : void{
+		$ev = new BlockPreExplodeEvent($this, 5, $player);
+		$ev->setIncendiary(true);
+		$ev->call();
+		if($ev->isCancelled()){
+			return;
+		}
+
+		$world = $this->position->getWorld();
+		$world->setBlock($other->position, VanillaBlocks::AIR());
+		$world->setBlock($this->position, VanillaBlocks::AIR());
+
+		$head = $this->head ? $this : $other;
+		$explosion = new Explosion(Position::fromObject($head->position->add(0.5, 0.5, 0.5), $world), $ev->getRadius(), $this);
+		$explosion->setFireChance($ev->getFireChance());
+		if($ev->isBlockBreaking()){
+			$explosion->explodeA();
+		}
+		$explosion->explodeB();
 	}
 
 	public function onNearbyBlockChange() : void{

@@ -799,6 +799,7 @@ final class CoreConfig{
 				"network.compression-level" => [1, 9],
 				"network.max-mtu-size" => [\raklib\generic\Session::MIN_MTU_SIZE, 65535],
 				"diagnostics.max-crash-reports", "diagnostics.max-profiles" => [0, 100000],
+				"diagnostics.pulse-auto-capture-ms" => [0, 60000],
 				"entities.activation-range" => [0, World::MAX_ACTIVATION_RANGE],
 				"chunk-sending.spawn-radius" => [0, Server::MAX_VIEW_DISTANCE],
 				"memory.global-limit", "memory.main-limit", "memory.main-hard-limit", "memory.async-worker-hard-limit" => [0, PHP_INT_MAX >> 20],

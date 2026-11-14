@@ -1053,7 +1053,7 @@ final class PulseNetworkTest extends TestCase{
 		$report = PulseReport::create([$context->capture()])->getData();
 		$legacy = $report;
 		$legacy["version"] = 1;
-		unset($legacy["threads"][0]["network"], $legacy["threads"][0]["resources"], $legacy["threads"][0]["slow_tick_count"]);
+		unset($legacy["threads"][0]["network"], $legacy["threads"][0]["resources"], $legacy["threads"][0]["slow_tick_count"], $legacy["threads"][0]["zone_owners"], $legacy["threads"][0]["async"]);
 		self::assertSame($legacy, PulseReport::decode(Utils::assumeNotFalse(gzencode(json_encode($legacy, JSON_THROW_ON_ERROR))))->getData());
 		foreach([
 			["sessions", [[1, 0, null, "login", "IP address", null]]],
