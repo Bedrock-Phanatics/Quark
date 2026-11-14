@@ -215,6 +215,8 @@ class World implements ChunkManager{
 	private const DEFERRED_SCHEDULED = 1;
 	private const DEFERRED_NEIGHBOUR = 2;
 	private const MAX_DEFERRED_BLOCK_UPDATES = 65536;
+	/** Waits beyond this many ticks no longer move an update further ahead of others due on the same tick */
+	private const MAX_SCHEDULED_UPDATE_WAIT = 65536;
 
 	public const CHUNK_UNLOAD_DELAY = 30.0;
 	private const UNLOAD_RETRY_DELAY = 5.0;
@@ -365,11 +367,13 @@ class World implements ChunkManager{
 	/** @phpstan-var array<ChunkPosHash, array<ChunkBlockPosHash, true>> */
 	private array $changedBlocks = [];
 
-	/** @phpstan-var ReversePriorityQueue<int, Vector3> */
+	/** @phpstan-var ReversePriorityQueue<int|float, Vector3> */
 	private ReversePriorityQueue $scheduledBlockUpdateQueue;
 	/**
-	 * @var int[] blockHash => tick delay
-	 * @phpstan-var array<BlockPosHash, int>
+	 * Due tick of the queue entry that is live for each block. Entries that don't match were superseded and are skipped.
+	 *
+	 * @var int[]|float[] blockHash => due tick
+	 * @phpstan-var array<BlockPosHash, int|float>
 	 */
 	private array $scheduledBlockUpdateQueueIndex = [];
 
@@ -1116,44 +1120,11 @@ class World implements ChunkManager{
 		}
 
 		$scheduledBlockUpdatesScope = $this->pulse->scheduledBlockUpdates->start();
-		//Delayed updates
-		while($this->scheduledBlockUpdateQueue->count() > 0 && $this->scheduledBlockUpdateQueue->current()["priority"] <= $currentTick){
-			/** @var Vector3 $vec */
-			$vec = $this->scheduledBlockUpdateQueue->extract()["data"];
-			unset($this->scheduledBlockUpdateQueueIndex[World::blockHash($vec->x, $vec->y, $vec->z)]);
-			if($this->deferIfUnloaded((int) $vec->x, (int) $vec->y, (int) $vec->z, 1, self::DEFERRED_SCHEDULED)){
-				continue;
-			}
-			$block = $this->getBlock($vec);
-			$block->onScheduledUpdate();
-		}
+		$this->runScheduledBlockUpdates($currentTick);
 		$this->pulse->scheduledBlockUpdates->stop($scheduledBlockUpdatesScope);
 
 		$neighbourBlockUpdatesScope = $this->pulse->neighbourBlockUpdates->start();
-		//Normal updates
-		while($this->neighbourBlockUpdateQueue->count() > 0){
-			$index = $this->neighbourBlockUpdateQueue->dequeue();
-			unset($this->neighbourBlockUpdateQueueIndex[$index]);
-			World::getBlockXYZ($index, $x, $y, $z);
-			if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
-				continue;
-			}
-
-			$block = $this->getBlockAt($x, $y, $z);
-
-			if(BlockUpdateEvent::hasHandlers()){
-				$ev = new BlockUpdateEvent($block);
-				$ev->call();
-				if($ev->isCancelled()){
-					continue;
-				}
-			}
-			foreach($this->getNearbyEntities(AxisAlignedBB::one()->offset($x, $y, $z)) as $entity){
-				$entity->onNearbyBlockChange();
-			}
-			$block->onNearbyBlockChange();
-		}
-
+		$this->runNeighbourBlockUpdates();
 		$this->pulse->neighbourBlockUpdates->stop($neighbourBlockUpdatesScope);
 
 		$entityTickScope = $this->pulse->entityTick->start();
@@ -1836,17 +1807,78 @@ class World implements ChunkManager{
 
 	/**
 	 * Schedules a block update to be executed after the specified number of ticks.
-	 * Blocks will be updated with the scheduled update type.
+	 * Blocks will be updated with the scheduled update type. A block has at most one pending update, at the earliest
+	 * tick requested.
+	 *
+	 * @param int $waited how many ticks this update has already been held back, which puts it ahead of others due on the same tick
 	 */
-	public function scheduleDelayedBlockUpdate(Vector3 $pos, int $delay) : void{
-		if(
-			!$this->isInWorld($pos->x, $pos->y, $pos->z) ||
-			(isset($this->scheduledBlockUpdateQueueIndex[$index = World::blockHash($pos->x, $pos->y, $pos->z)]) && $this->scheduledBlockUpdateQueueIndex[$index] <= $delay)
-		){
+	public function scheduleDelayedBlockUpdate(Vector3 $pos, int $delay, int $waited = 0) : void{
+		$x = (int) $pos->x;
+		$y = (int) $pos->y;
+		$z = (int) $pos->z;
+		if(!$this->isInWorld($x, $y, $z)){
 			return;
 		}
-		$this->scheduledBlockUpdateQueueIndex[$index] = $delay;
-		$this->scheduledBlockUpdateQueue->insert(new Vector3((int) $pos->x, (int) $pos->y, (int) $pos->z), $delay + $this->server->getTick());
+		$due = $this->server->getTick() + $delay;
+		if($waited > 0){
+			//updates due on the same tick run longest-waiting first, so one held back by a budget can't be starved
+			$due -= min($waited, self::MAX_SCHEDULED_UPDATE_WAIT) / (self::MAX_SCHEDULED_UPDATE_WAIT + 1);
+		}
+		$index = World::blockHash($x, $y, $z);
+		if(isset($this->scheduledBlockUpdateQueueIndex[$index]) && $this->scheduledBlockUpdateQueueIndex[$index] <= $due){
+			return;
+		}
+		$this->scheduledBlockUpdateQueueIndex[$index] = $due;
+		$this->scheduledBlockUpdateQueue->insert(new Vector3($x, $y, $z), $due);
+	}
+
+	private function runScheduledBlockUpdates(int $currentTick) : void{
+		while($this->scheduledBlockUpdateQueue->count() > 0){
+			/** @var array{priority: int|float, data: Vector3} $entry */
+			$entry = $this->scheduledBlockUpdateQueue->current();
+			if($entry["priority"] > $currentTick){
+				break;
+			}
+			$this->scheduledBlockUpdateQueue->extract();
+			$vec = $entry["data"];
+			$x = (int) $vec->x;
+			$y = (int) $vec->y;
+			$z = (int) $vec->z;
+			$index = World::blockHash($x, $y, $z);
+			if(($this->scheduledBlockUpdateQueueIndex[$index] ?? null) !== $entry["priority"]){
+				continue;
+			}
+			unset($this->scheduledBlockUpdateQueueIndex[$index]);
+			if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_SCHEDULED)){
+				continue;
+			}
+			$this->getBlockAt($x, $y, $z)->onScheduledUpdate();
+		}
+	}
+
+	private function runNeighbourBlockUpdates() : void{
+		while($this->neighbourBlockUpdateQueue->count() > 0){
+			$index = $this->neighbourBlockUpdateQueue->dequeue();
+			unset($this->neighbourBlockUpdateQueueIndex[$index]);
+			World::getBlockXYZ($index, $x, $y, $z);
+			if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
+				continue;
+			}
+
+			$block = $this->getBlockAt($x, $y, $z);
+
+			if(BlockUpdateEvent::hasHandlers()){
+				$ev = new BlockUpdateEvent($block);
+				$ev->call();
+				if($ev->isCancelled()){
+					continue;
+				}
+			}
+			foreach($this->getNearbyEntities(AxisAlignedBB::one()->offset($x, $y, $z)) as $entity){
+				$entity->onNearbyBlockChange();
+			}
+			$block->onNearbyBlockChange();
+		}
 	}
 
 	/**

@@ -29,7 +29,6 @@ use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
 use quark\math\collision\CollisionRegion;
-use quark\math\Vector3;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\utils\ReversePriorityQueue;
@@ -140,23 +139,8 @@ final class RedstoneHarness{
 	public function tick(int $ticks = 1) : void{
 		$advance = \Closure::bind(fn() : int => ++$this->tickCounter, $this->server, Server::class);
 		$update = \Closure::bind(function(int $tick) : void{
-			while($this->scheduledBlockUpdateQueue->count() > 0){
-				/** @var array{priority: int, data: Vector3} $next */
-				$next = $this->scheduledBlockUpdateQueue->current();
-				if($next["priority"] > $tick){
-					break;
-				}
-				$this->scheduledBlockUpdateQueue->extract();
-				$vec = $next["data"];
-				unset($this->scheduledBlockUpdateQueueIndex[World::blockHash((int) $vec->x, (int) $vec->y, (int) $vec->z)]);
-				$this->getBlock($vec)->onScheduledUpdate();
-			}
-			while($this->neighbourBlockUpdateQueue->count() > 0){
-				$hash = $this->neighbourBlockUpdateQueue->dequeue();
-				unset($this->neighbourBlockUpdateQueueIndex[$hash]);
-				World::getBlockXYZ($hash, $x, $y, $z);
-				$this->getBlockAt($x, $y, $z)->onNearbyBlockChange();
-			}
+			$this->runScheduledBlockUpdates($tick);
+			$this->runNeighbourBlockUpdates();
 		}, $this->world, World::class);
 		for($i = 0; $i < $ticks; ++$i){
 			$update($advance());
