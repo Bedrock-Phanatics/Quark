@@ -1983,6 +1983,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 
 		$item = $block->getPickedItem($addTileNBT);
+		if($item->isNull()){
+			//equipping nothing would overwrite the held item when the inventory is full
+			return true;
+		}
 
 		$ev = new PlayerBlockPickEvent($this, $block, $item);
 		$existingSlot = $this->inventory->first($item);

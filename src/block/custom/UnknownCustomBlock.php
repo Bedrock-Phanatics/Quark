@@ -26,6 +26,9 @@ final class UnknownCustomBlock extends Block{
 
 	public function getPickedItem(bool $addUserData = false) : Item{ return VanillaItems::AIR(); }
 
+	//its item survives in inventories but must not create unbreakable blocks
+	public function canBePlaced() : bool{ return false; }
+
 	//worker threads never learn placeholder states and treat them as clear, so the main thread must agree
 	public function getLightFilter() : int{ return 0; }
 
