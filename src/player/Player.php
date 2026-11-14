@@ -1653,6 +1653,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function revertMovement(Location $from) : void{
+		//the client falls from $from again, so the undone drop must not count twice
+		$this->fallDistance = max(0.0, $this->fallDistance - max(0.0, $from->y - $this->location->y));
 		$this->setPosition($from);
 		$this->sendPosition($from, $from->yaw, $from->pitch, MovePlayerPacket::MODE_RESET);
 	}
