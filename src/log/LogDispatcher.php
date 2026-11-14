@@ -153,7 +153,15 @@ final class LogDispatcher extends Thread{
 			$lastConsoleReport = hrtime(true);
 			$lastFlush = hrtime(true);
 			do{
-				$batch = $this->queue->take($config->flushMs * 1000);
+				//with no output left to deliver, only a new record, a flush request or close needs this thread
+				$idle = true;
+				foreach($sinks as $sink){
+					if($sink->hasPending()){
+						$idle = false;
+						break;
+					}
+				}
+				$batch = $this->queue->take($idle ? 0 : $config->flushMs * 1000);
 				foreach($batch as $sequence => $record){
 					$dispatch($record);
 					$processed = $sequence;

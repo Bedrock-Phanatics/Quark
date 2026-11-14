@@ -13,5 +13,7 @@ interface Sink{
 	 */
 	public function write(array $event) : bool;
 	public function flush() : void;
+	/** Whether written output still needs a later flush to be delivered. */
+	public function hasPending() : bool;
 	public function close() : void;
 }

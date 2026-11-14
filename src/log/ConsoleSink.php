@@ -164,6 +164,9 @@ final class ConsoleSink implements Sink{
 
 	public function flush() : void{ if(!$this->closed){ $this->pump(); } }
 
+	/** Output waiting to be written or acknowledged only moves along on another flush. */
+	public function hasPending() : bool{ return !$this->closed && $this->pending !== ""; }
+
 	public function close() : void{
 		if($this->closed){ return; }
 		$this->closed = true;

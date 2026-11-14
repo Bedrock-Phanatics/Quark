@@ -477,6 +477,7 @@ final class FlushFailingSink implements \quark\log\Sink{
  public function __construct(...$args){ $this->emergency = self::$console ? $args[1] : $args[0] . ".emergency"; }
  public function write(array $event) : bool{ $this->event = $event; return true; }
  public function flush() : void{ throw new RuntimeException("forced flush failure"); }
+ public function hasPending() : bool{ return $this->event !== null; }
  public function getDroppedCount() : int{ return 0; }
  public function close() : void{
   if(self::$console && $this->event !== null){
