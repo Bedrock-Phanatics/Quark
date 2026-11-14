@@ -60,10 +60,19 @@ final class WeatherCommand extends VanillaCommand{
 	private function change(CommandSender $sender, Weather $weather, ?int $duration = null) : void{
 		$worlds = $sender instanceof Player ? [$sender->getWorld()] : $sender->getServer()->getWorldManager()->getWorlds();
 		$changed = 0;
+		$withWeather = 0;
 		foreach($worlds as $world){
+			if(!$world->getDimension()->weather){
+				continue;
+			}
+			++$withWeather;
 			if($world->setWeather($weather, $duration)){
 				++$changed;
 			}
+		}
+		if($withWeather === 0){
+			$sender->sendMessage(TextFormat::RED . "There is no weather in this dimension");
+			return;
 		}
 		if($changed === 0){
 			$sender->sendMessage(TextFormat::RED . "The weather change was cancelled");
