@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\block;
 
 use quark\block\utils\BlockEventHelper;
-use quark\block\utils\DirtType;
 use quark\item\Fertilizer;
 use quark\item\Hoe;
 use quark\item\Item;
@@ -33,8 +32,10 @@ use quark\math\Facing;
 use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\Random;
+use quark\world\format\Chunk;
 use quark\world\generator\object\TallGrass as TallGrassObject;
 use quark\world\sound\ItemUseOnBlockSound;
+use quark\world\World;
 use function mt_rand;
 
 class Grass extends Opaque{
@@ -60,25 +61,32 @@ class Grass extends Opaque{
 			//grass dies
 			BlockEventHelper::spread($this, VanillaBlocks::DIRT(), $this);
 		}elseif($lightAbove >= 9){
-			//try grass spread
+			//try grass spread; candidates are rarely dirt, so check raw states before building any block
+			$dirt = VanillaBlocks::DIRT()->getStateId();
+			$lightFilter = RuntimeBlockStateRegistry::getInstance()->lightFilter;
 			for($i = 0; $i < 4; ++$i){
 				$x = mt_rand($this->position->x - 1, $this->position->x + 1);
 				$y = mt_rand($this->position->y - 3, $this->position->y + 1);
 				$z = mt_rand($this->position->z - 1, $this->position->z + 1);
 
-				$b = $world->getBlockAt($x, $y, $z);
 				if(
-					!($b instanceof Dirt) ||
-					$b->getDirtType() !== DirtType::NORMAL ||
+					self::stateAt($world, $x, $y, $z) !== $dirt ||
 					$world->getFullLightAt($x, $y + 1, $z) < 4 ||
-					$world->getBlockAt($x, $y + 1, $z)->getLightFilter() >= 2
+					(($above = self::stateAt($world, $x, $y + 1, $z)) !== null && ($lightFilter[$above] ?? 0) >= 2)
 				){
 					continue;
 				}
 
-				BlockEventHelper::spread($b, VanillaBlocks::GRASS(), $this);
+				BlockEventHelper::spread($world->getBlockAt($x, $y, $z), VanillaBlocks::GRASS(), $this);
 			}
 		}
+	}
+
+	private static function stateAt(World $world, int $x, int $y, int $z) : ?int{
+		if(!$world->isInWorld($x, $y, $z)){
+			return null;
+		}
+		return $world->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)?->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
