@@ -192,8 +192,8 @@ final class PulseCommand extends VanillaCommand{
 			" total, " . self::value((string) $stats["retained_spikes"]) . " retained; " . self::cmd("/pulse spikes") . " for details"));
 		$resources = $stats["resources"];
 		if($resources !== null){
-			$cpu = $resources["cpu_percent"] === null ? "waiting for a CPU sample or unavailable" : sprintf("%.1f%%, avg %.1f%%, peak %.1f%% (100%% = one core)",
-				$resources["cpu_percent"], $resources["cpu_avg_percent"], $resources["cpu_peak_percent"]);
+			$cpu = $resources["cpu_avg_percent"] === null ? "waiting for a full sampling interval or unavailable" : sprintf("%s, avg %.1f%%, peak %.1f%% (100%% = one core)",
+				$resources["cpu_percent"] === null ? "unavailable" : sprintf("%.1f%%", $resources["cpu_percent"]), $resources["cpu_avg_percent"], $resources["cpu_peak_percent"]);
 			$sender->sendMessage(self::msg("Recent process CPU " . self::value($cpu)));
 			$sender->sendMessage(self::msg("PHP memory " . self::value(sprintf("%.1f MiB used, %.1f MiB allocated, %.1f MiB sampled peak",
 				$resources["memory_bytes"] / 1048576, $resources["memory_allocated_bytes"] / 1048576, $resources["memory_peak_bytes"] / 1048576))));

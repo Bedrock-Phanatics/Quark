@@ -57,7 +57,8 @@ final class PulseResources{
 	public function sample(int $now, bool $force = false) : void{
 		$interval = $now - $this->previous;
 		if($interval < 0 || (!$force && $interval < self::INTERVAL_NS) || ($interval === 0 && count($this->samples) > 0)){ return; }
-		$usage = function_exists("getrusage") ? getrusage() : false;
+		// Coarse CPU counters can turn short stop intervals into false spikes.
+		$usage = ($interval === 0 || $interval >= self::INTERVAL_NS) && function_exists("getrusage") ? getrusage() : false;
 		$user = $usage === false ? null : $usage["ru_utime.tv_sec"] * 1000000000 + $usage["ru_utime.tv_usec"] * 1000;
 		$system = $usage === false ? null : $usage["ru_stime.tv_sec"] * 1000000000 + $usage["ru_stime.tv_usec"] * 1000;
 		$user = $user === null || $user >= PHP_INT_MAX ? null : (int) $user;

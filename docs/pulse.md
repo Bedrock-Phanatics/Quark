@@ -4,10 +4,10 @@ Use `/pulse start [time]` to record, `/pulse status` to inspect metrics, and `/p
 
 - Status includes session tick average, worst tick, and ticks exceeding the 50 ms budget. Recent p50, p95, and p99 use the latest 1,200 completed ticks, with the sample count displayed.
 - `/pulse top [1-10]` lists main-thread zones by self time. `/pulse spikes [1-10]` lists the slowest retained ticks above 50 ms and each tick's largest measured self cost. Spike details retain the latest 32 spikes; status counts discarded spikes in the session total. Measured costs describe instrumented work and may not explain the entire stall.
-- Process CPU includes worker and other server threads. **100% means one fully occupied core**, so values can exceed 100%. Current, average, and peak refer to retained resource samples. CPU is unavailable until an interval completes, or when PHP cannot read CPU counters.
+- Process CPU includes worker and other server threads. **100% means one fully occupied core**, so values can exceed 100%. Current, average, and peak refer to retained resource samples. CPU requires an interval of at least one second; shorter stop intervals still record memory but have unavailable CPU values. This avoids false spikes from coarse system counters. Known averages and peaks remain available when the final CPU sample is unavailable.
 - Memory shows main-thread PHP heap usage, allocated heap capacity, and the highest sampled usage in retained history. It excludes native allocations and worker heaps; it is not process RSS.
 
-Resources are sampled at tick completion, at most once per second, with a final sample when recording stops. A stalled tick delays sampling, so its CPU sample averages the whole interval. Up to 1,200 samples are kept in a ring; old samples are counted as discarded. There are no resource reads while Pulse is disabled, no CPU reads per zone, and no background sampler. Percentiles and resource summaries are computed when status is requested.
+Resources are sampled at tick completion, at most once per second, with a final sample when recording stops. A stalled tick delays sampling, so its CPU sample averages the whole interval. Up to 1,200 samples are kept in a ring; old samples are counted as discarded. Disabled tick and zone hooks do not read resources. There is no CPU read per zone or background sampler. Percentiles and resource summaries are computed when status is requested.
 
 ## Report format
 

@@ -35,6 +35,26 @@ use function memory_get_usage;
 use const JSON_THROW_ON_ERROR;
 
 final class PulseResourcesTest extends TestCase{
+	public function testShortStopSamplesKeepMemoryWithoutReportingCpuSpikes() : void{
+		$resources = new PulseResources(0);
+		$resources->sample(PulseResources::INTERVAL_NS);
+		$before = $resources->stats();
+		$resources->sample(PulseResources::INTERVAL_NS + 1, true);
+		$last = $resources->capture()["samples"][2];
+		self::assertSame(1, $last[1]);
+		self::assertNull($last[2]);
+		self::assertNull($last[3]);
+		$stats = $resources->stats();
+		self::assertNull($stats["cpu_percent"]);
+		self::assertSame($before["cpu_avg_percent"], $stats["cpu_avg_percent"]);
+		self::assertSame($before["cpu_peak_percent"], $stats["cpu_peak_percent"]);
+		self::assertSame($last[4], $stats["memory_bytes"]);
+		$short = new PulseResources(0);
+		$short->sample(PulseResources::INTERVAL_NS - 1, true);
+		self::assertNull($short->stats()["cpu_percent"]);
+		self::assertNull($short->stats()["cpu_peak_percent"]);
+	}
+
 	public function testCpuPercentagesIncludeMultipleCoresAndWeightUnequalIntervals() : void{
 		$resources = new PulseResources(0);
 		(new \ReflectionProperty(PulseResources::class, "samples"))->setValue($resources, [
@@ -79,12 +99,11 @@ final class PulseResourcesTest extends TestCase{
 		self::assertSame(max(array_column($resources["samples"], 4)), $stats["memory_peak_bytes"]);
 		if(function_exists("getrusage")){
 			$cpu = array_sum(array_column($resources["samples"], 2)) + array_sum(array_column($resources["samples"], 3));
-			self::assertEqualsWithDelta($cpu / 1500000000 * 100, $stats["cpu_avg_percent"], 0.000001);
-			self::assertGreaterThanOrEqual(0.0, $stats["cpu_percent"]);
+			self::assertEqualsWithDelta($cpu / 1000000000 * 100, $stats["cpu_avg_percent"], 0.000001);
 		}else{
-			self::assertNull($stats["cpu_percent"]);
 			self::assertNull($stats["cpu_avg_percent"]);
 		}
+		self::assertNull($stats["cpu_percent"]);
 		self::assertSame($capture, PulseReport::decode(PulseReport::create([$capture])->encode(true))->getData()["threads"][0]);
 		$context->start("worker#0", 2000000000);
 		self::assertNull($context->capture()["resources"] ?? null);
