@@ -27,6 +27,7 @@ use PHPUnit\Framework\TestCase;
 use pocketmine\world\format\LightArray;
 use quark\block\utils\BlockEventHelper;
 use quark\block\utils\DirtType;
+use quark\world\light\LightUpdate;
 use quark\world\redstone\RedstoneHarness;
 use quark\world\World;
 use function count;
@@ -134,6 +135,13 @@ final class GrassSpreadTest extends TestCase{
 		$after = self::states($expected->world);
 		self::assertNotSame(self::states(self::world(7)->world), $after, "grass should have spread and died during the run");
 		self::assertSame($after, self::states($actual->world));
+	}
+
+	public function testRegistryLightFilterMatchesTheBlockCheck() : void{
+		$registry = RuntimeBlockStateRegistry::getInstance();
+		foreach($registry->getAllKnownStates() as $stateId => $block){
+			self::assertSame($block->getLightFilter() >= 2, $registry->lightFilter[$stateId] >= 2 + LightUpdate::BASE_LIGHT_FILTER, $block->getName());
+		}
 	}
 
 	public function testSpreadsOnlyOntoLitNormalDirt() : void{

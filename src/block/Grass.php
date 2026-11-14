@@ -34,6 +34,7 @@ use quark\player\Player;
 use quark\utils\Random;
 use quark\world\format\Chunk;
 use quark\world\generator\object\TallGrass as TallGrassObject;
+use quark\world\light\LightUpdate;
 use quark\world\sound\ItemUseOnBlockSound;
 use quark\world\World;
 use function mt_rand;
@@ -72,7 +73,7 @@ class Grass extends Opaque{
 				if(
 					self::stateAt($world, $x, $y, $z) !== $dirt ||
 					$world->getFullLightAt($x, $y + 1, $z) < 4 ||
-					(($above = self::stateAt($world, $x, $y + 1, $z)) !== null && ($lightFilter[$above] ?? 0) >= 2)
+					(($above = self::stateAt($world, $x, $y + 1, $z)) !== null && ($lightFilter[$above] ?? 0) >= 2 + LightUpdate::BASE_LIGHT_FILTER)
 				){
 					continue;
 				}
