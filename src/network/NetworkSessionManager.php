@@ -117,8 +117,10 @@ class NetworkSessionManager{
 	 */
 	public function tick() : void{
 		foreach($this->sessions as $k => $session){
+			//a session that disconnects during its tick is kept for one more, which disposes it
+			$disconnected = !$session->isConnected();
 			$session->tick();
-			if(!$session->isConnected()){
+			if($disconnected){
 				unset($this->sessions[$k], $this->pendingLoginSessions[$k], $this->joiningSessions[$k]);
 			}
 		}

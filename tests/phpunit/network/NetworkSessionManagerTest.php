@@ -38,4 +38,19 @@ final class NetworkSessionManagerTest extends TestCase{
 		self::assertSame(0, $manager->getSessionCount());
 		self::assertSame(0, $manager->getValidSessionCount());
 	}
+
+	public function testSessionDisconnectedDuringItsTickIsTickedOnceMoreToDispose() : void{
+		$manager = new NetworkSessionManager();
+		$session = $this->createMock(NetworkSession::class);
+		$connected = true;
+		$session->method("isConnected")->willReturnCallback(function() use (&$connected) : bool{ return $connected; });
+		$session->expects(self::exactly(2))->method("tick")->willReturnCallback(function() use (&$connected) : void{ $connected = false; });
+		$manager->add($session);
+
+		$manager->tick();
+		self::assertSame(1, $manager->getSessionCount(), "disposal happens on the next tick");
+		$manager->tick();
+		self::assertSame(0, $manager->getSessionCount());
+		$manager->tick();
+	}
 }
