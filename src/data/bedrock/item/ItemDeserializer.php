@@ -90,7 +90,7 @@ final class ItemDeserializer{
 			}catch(NbtException $e){
 				throw new ItemTypeDeserializeException("Invalid custom item durability NBT", 0, $e);
 			}
-			if($damage < 0 || $damage >= $item->getMaxDurability()){
+			if($damage < 0 || $damage > $item->getMaxDurability()){
 				throw new ItemTypeDeserializeException("Invalid custom item durability $damage");
 			}
 		}
@@ -141,7 +141,7 @@ final class ItemDeserializer{
 				}catch(\InvalidArgumentException $e){
 					throw new UnsupportedItemTypeException("Invalid item identifier '$id'", 0, $e);
 				}
-				return new UnknownCustomItem($this->unknownCustomItemId ??= new ItemIdentifier(ItemTypeIds::newId()), $id, $data->getMeta());
+				return $this->placeholder($data);
 			}
 			throw new UnsupportedItemTypeException("No deserializer found for ID $id");
 		}
@@ -149,12 +149,29 @@ final class ItemDeserializer{
 		return ($this->deserializers[$id])($data);
 	}
 
+	private function placeholder(Data $data) : UnknownCustomItem{
+		return new UnknownCustomItem($this->unknownCustomItemId ??= new ItemIdentifier(ItemTypeIds::newId()), $data->getName(), $data->getMeta());
+	}
+
 	/**
 	 * @throws ItemTypeDeserializeException
 	 */
 	public function deserializeStack(SavedItemStackData $data) : Item{
-		$itemStack = $this->deserializeType($data->getTypeData());
-		$this->validateStack($itemStack, $data->getCount(), $data->getTypeData()->getTag());
+		$typeData = $data->getTypeData();
+		$count = $data->getCount();
+		try{
+			$itemStack = $this->deserializeType($typeData);
+			$this->validateStack($itemStack, $count, $typeData->getTag());
+		}catch(ItemTypeDeserializeException $e){
+			//saved under an older definition, e.g. before its stack size or durability was lowered; keep it rather than delete it
+			if($count < 1 || $typeData->getBlock() !== null || !isset($this->customNames[$typeData->getName()])){
+				throw $e;
+			}
+			$itemStack = $this->placeholder($typeData);
+		}
+		if($itemStack instanceof UnknownCustomItem){
+			$itemStack->setSavedCount($count);
+		}
 
 		$itemStack->setCount($data->getCount());
 		if(($tagTag = $data->getTypeData()->getTag()) !== null){

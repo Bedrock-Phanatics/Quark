@@ -347,17 +347,61 @@ final class CustomItemTest extends TestCase{
 		$this->converter->netItemStackToCore(new ItemStack($this->converter->getItemTypeDictionary()->fromStringId("test:ruby_sword"), 0, 1, 0, "\xff\xff\x02"));
 	}
 
-	/** @return iterable<string, array{int, int}> */
-	public static function invalidStacks() : iterable{
-		yield "negative count" => [-1, 0]; yield "zero count" => [0, 0]; yield "stacked weapon" => [2, 0];
-		yield "negative durability" => [1, -1]; yield "broken durability" => [1, 100]; yield "overflow durability" => [1, 2147483647];
+	public function testEmptySavedStackIsRejected() : void{
+		$this->registerSword();
+		foreach([-1, 0] as $count){
+			try{
+				$this->deserializer->deserializeStack(new SavedItemStackData(new SavedItemData("test:ruby_sword"), $count, null, null, [], []));
+				self::fail("Empty stack accepted");
+			}catch(ItemTypeDeserializeException){ }
+		}
 	}
 
-	#[DataProvider('invalidStacks')]
-	public function testInvalidStackData(int $count, int $damage) : void{
+	/** @return iterable<string, array{int, int}> */
+	public static function incompatibleStacks() : iterable{
+		yield "stacked weapon" => [2, 0]; yield "negative durability" => [1, -1];
+		yield "broken durability" => [1, 101]; yield "overflow durability" => [1, 2147483647];
+	}
+
+	#[DataProvider('incompatibleStacks')]
+	public function testIncompatibleSavedStackIsPreservedButRejectedFromNetwork(int $count, int $damage) : void{
 		$this->registerSword();
-		$this->expectException(ItemTypeDeserializeException::class);
-		$this->deserializer->deserializeStack(new SavedItemStackData(new SavedItemData("test:ruby_sword", 0, null, CompoundTag::create()->setInt("Damage", $damage)), $count, null, null, [], []));
+		$tag = CompoundTag::create()->setInt("Damage", $damage)->setString("custom", "keep");
+		$saved = new SavedItemStackData(new SavedItemData("test:ruby_sword", 0, null, $tag), $count, null, null, [], []);
+		$item = $this->deserializer->deserializeStack($saved);
+		self::assertInstanceOf(UnknownCustomItem::class, $item);
+		self::assertSame($count, $item->getCount());
+		self::assertEquals($saved->toNbt(), $this->serializer->serializeStack($item)->toNbt());
+
+		$this->registry->finalize($this->converter, CreativeInventory::getInstance());
+		$writer = new ByteBufferWriter();
+		(new ItemStackExtraData($tag, [], []))->write($writer);
+		$this->expectException(TypeConversionException::class);
+		$this->converter->netItemStackToCore(new ItemStack($this->converter->getItemTypeDictionary()->fromStringId("test:ruby_sword"), 0, $count, 0, $writer->getData()));
+	}
+
+	public function testFullyDamagedItemSurvivesReload() : void{
+		$sword = $this->registerSword();
+		$sword->setDamage($sword->getMaxDurability());
+		$restored = $this->deserializer->deserializeStack($this->serializer->serializeStack($sword));
+		self::assertInstanceOf(CustomSword::class, $restored);
+		self::assertSame($sword->getMaxDurability(), $restored->getDamage());
+	}
+
+	public function testLoweredStackSizeKeepsSavedStacksSplittable() : void{
+		$saved = new SavedItemStackData(new SavedItemData("test:gem"), 32, null, null, [], []);
+		$this->registry->register(ItemDefinition::item("test:gem", "Gem", 16), $this->owner);
+		$item = $this->deserializer->deserializeStack($saved);
+		self::assertInstanceOf(UnknownCustomItem::class, $item);
+		self::assertSame(32, $item->getMaxStackSize());
+		$part = $item->pop(12);
+		self::assertSame(32, $part->getMaxStackSize());
+		self::assertSame(20, $item->getCount());
+		$inventory = new SimpleInventory(1);
+		$inventory->setItem(0, $item);
+		self::assertSame([], $inventory->addItem($part));
+		self::assertSame(32, $inventory->getItem(0)->getCount());
+		self::assertEquals($saved->toNbt(), $this->serializer->serializeStack($inventory->getItem(0))->toNbt());
 	}
 
 	public function testInvalidNetworkIdAndMetadata() : void{

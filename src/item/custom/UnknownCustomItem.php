@@ -7,12 +7,15 @@ namespace quark\item\custom;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\item\Item;
 use quark\item\ItemIdentifier;
+use function max;
 
 /**
  * Inert disk-only placeholder. Restoring the defining plugin restores the original item on the next load.
  */
 final class UnknownCustomItem extends Item{
 	public const string IDENTITY_TAG = "___QuarkMissingItem___";
+
+	private int $savedCount = 1;
 
 	/** @internal */
 	public function __construct(ItemIdentifier $id, private readonly string $savedIdentifier, private readonly int $savedMeta){
@@ -23,7 +26,11 @@ final class UnknownCustomItem extends Item{
 
 	public function getSavedMeta() : int{ return $this->savedMeta; }
 
-	public function getMaxStackSize() : int{ return 1; }
+	/** Saved stacks can be split, but never merged beyond the size they were saved with. */
+	public function getMaxStackSize() : int{ return $this->savedCount; }
+
+	/** @internal */
+	public function setSavedCount(int $count) : void{ $this->savedCount = max(1, $count); }
 
 	protected function deserializeCompoundTag(CompoundTag $tag) : void{}
 

@@ -70,7 +70,7 @@ foreach([
 
 Armor uses Quark's normal protection, enchantments, durability, equipping and synchronization. Material supplies enchantability and equip sound. `fireProof` protects dropped items from fire. Use `Armor::setCustomColor()` for per-stack dye color, with a resource pack that supports it.
 
-Quark's armor reduction is linear and does not use toughness. Protection is 0–20 per piece; choose set totals carefully because the existing formula does not cap their sum.
+Quark's armor reduction is linear and does not use toughness. Protection is 0–20 per piece, and the worn total counts up to 20 points (80% reduction), like vanilla. Dispensers equip armor only on players and other humans, since other mobs do not save it.
 
 ## Custom behavior
 
@@ -149,4 +149,4 @@ $restored = Item::nbtDeserialize($tag);
 
 World and player saves preserve stable identifiers and stack NBT, including durability, enchantments, names, lore, color and plugin data. Never persist numeric type or runtime IDs.
 
-If the defining plugin is missing, items load as inert `UnknownCustomItem` placeholders that preserve their original data and saved counts. Placeholders cannot merge into larger stacks. Restore the plugin and reload the saved data to recover them. Treat placeholders as opaque; ordinary Item setters do not edit the preserved data. Back up saves before renaming identifiers or reducing durability limits.
+If the defining plugin is missing, items load as inert `UnknownCustomItem` placeholders that preserve their original data and saved counts. Saved stacks the current definition no longer accepts, such as a count above a lowered stack size or damage above a lowered durability, load the same way instead of being deleted. Placeholders can be split and moved, but never merge beyond the size they were saved with. Restore the plugin or the old limits and reload the saved data to recover them. Treat placeholders as opaque; ordinary Item setters do not edit the preserved data. Back up saves before renaming identifiers.
