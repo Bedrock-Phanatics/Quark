@@ -432,6 +432,29 @@ final class PulseTest extends TestCase{
 		}
 	}
 
+	public function testSpikeZoneCostsCombineDifferentParentPaths() : void{
+		$context = new PulseContext();
+		$shared = $context->zone("shared")->getId();
+		$other = $context->zone("other")->getId();
+		$session = new PulseSession($context, "main", spikeThresholdNs: 1);
+		$now = (int) hrtime(true);
+		$context->beginTick($now);
+		foreach(["parent.a", "parent.b"] as $name){
+			$parent = $context->zone($name)->getId();
+			$p = $context->begin($parent, $now);
+			$c = $context->begin($shared, $now);
+			$now += 40;
+			$context->end($shared, $c, $now);
+			$context->end($parent, $p, $now);
+		}
+		$scope = $context->begin($other, $now);
+		$context->end($other, $scope, $now + 50);
+		$context->endTick($now + 50);
+		$spike = $session->getSpikes(1)[0];
+		self::assertSame("shared", $spike["zone"]);
+		self::assertSame(80, $spike["self_ns"]);
+	}
+
 	public function testStatsAndTopCombineParentPathsWithoutCountingChildrenTwice() : void{
 		$context = new PulseContext();
 		$a = $context->zone("a")->getId();

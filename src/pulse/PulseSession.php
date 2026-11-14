@@ -104,10 +104,13 @@ final class PulseSession{
 		foreach(array_slice($spikes, 0, $limit) as $spike){
 			$name = null;
 			$self = 0;
+			$costs = [];
 			foreach($spike["nodes"] as $node){
-				if($node[3] > $self){
-					$self = $node[3];
-					$name = $capture["zones"][$capture["nodes"][$node[0] - 1][1]];
+				$zone = $capture["nodes"][$node[0] - 1][1];
+				$cost = $costs[$zone] = ($costs[$zone] ?? 0) + $node[3];
+				if($cost > $self){
+					$self = $cost;
+					$name = $capture["zones"][$zone];
 				}
 			}
 			$result[] = ["tick_id" => $spike["tick"][0], "offset_ns" => $spike["tick"][1], "duration_ns" => $spike["tick"][2], "zone" => $name, "self_ns" => $self];
