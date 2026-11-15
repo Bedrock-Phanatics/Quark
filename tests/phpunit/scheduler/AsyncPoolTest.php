@@ -47,6 +47,7 @@ use function usleep;
 class AsyncPoolTest extends TestCase{
 
 	public static int $completions = 0;
+	public static bool $finishRaced = false;
 
 	/** @var AsyncPool */
 	private $pool;
@@ -133,6 +134,41 @@ class AsyncPoolTest extends TestCase{
 		}
 		self::assertSame(1, self::$completions);
 		self::assertFalse($this->pool->collectTasks());
+	}
+
+	public function testTaskFinishingDuringCollectionIsCompletedLater() : void{
+		self::$completions = 0;
+		self::$finishRaced = false;
+		$this->pool->submitTask(new class extends AsyncTask{
+			public function onRun() : void{
+				//dummy
+			}
+
+			public function isFinished() : bool{
+				if(AsyncPoolTest::$finishRaced){
+					return parent::isFinished();
+				}
+				AsyncPoolTest::$finishRaced = true;
+				//let the worker finish and hand the task to its collect() queue while the pool still sees it running
+				$deadline = microtime(true) + 5;
+				while(!parent::isFinished() && microtime(true) < $deadline){
+					usleep(1000);
+				}
+				usleep(100 * 1000);
+				return false;
+			}
+
+			public function onCompletion() : void{
+				++AsyncPoolTest::$completions;
+			}
+		});
+
+		$deadline = microtime(true) + 5;
+		while($this->pool->collectTasks() && microtime(true) < $deadline){
+			usleep(10 * 1000);
+		}
+		self::assertTrue(self::$finishRaced);
+		self::assertSame(1, self::$completions);
 	}
 
 	public function testThreadSafeSetResult() : void{
