@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\math\Vector3;
 use quark\block\inventory\window\BlockInventoryWindow;
 use quark\block\tile\ContainerTile;
 use quark\inventory\Inventory;
 use quark\item\Item;
+use quark\math\Vector3;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\world\Position;

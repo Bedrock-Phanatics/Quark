@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world\format\io;
 
+use quark\world\DimensionRegistry;
 use quark\world\format\Chunk;
 use quark\world\generator\GeneratorManager;
 use quark\world\generator\normal\Normal;
@@ -109,6 +110,7 @@ class FormatConverter{
 			->setSeed($data->getSeed())
 			->setSpawnPosition($data->getSpawn())
 			->setDifficulty($data->getDifficulty())
+			->setDimension(DimensionRegistry::getInstance()->get($data->getDimension()) ?? throw new \RuntimeException("Unknown dimension \"{$data->getDimension()}\""))
 		);
 
 		return $this->newProvider->fromPath($convertedOutput, $this->logger);

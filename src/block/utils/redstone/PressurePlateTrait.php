@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\block\utils\redstone;
 
 use Generator;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\utils\AnalogRedstoneSignalEmitter;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 
 trait PressurePlateTrait{

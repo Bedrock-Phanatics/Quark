@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Axis;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\utils\HorizontalConnectable;
 use quark\block\utils\StaticSupportTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\math\Axis;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use function mt_rand;
 
 final class ChorusPlant extends Flowable implements HorizontalConnectable{

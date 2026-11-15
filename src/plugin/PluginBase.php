@@ -312,7 +312,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		if(!file_exists($this->dataFolder)){
 			mkdir($this->dataFolder, 0755, true);
 		}
-		Filesystem::safeFilePutContents($this->configFile, ConfigurationMigration::yamlToToml(Filesystem::fileGetContents($bundled), $bundled));
+		Filesystem::atomicWrite($this->configFile, ConfigurationMigration::yamlToToml(Filesystem::fileGetContents($bundled), $bundled));
 		return true;
 	}
 

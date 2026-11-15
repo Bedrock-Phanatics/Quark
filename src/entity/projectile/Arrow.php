@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\projectile;
 
-use pocketmine\math\RayTraceResult;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
@@ -36,6 +35,7 @@ use quark\entity\Location;
 use quark\event\entity\EntityItemPickupEvent;
 use quark\event\entity\ProjectileHitEvent;
 use quark\item\VanillaItems;
+use quark\math\RayTraceResult;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\player\Player;

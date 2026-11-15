@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
-use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\utils\Binary;
 use quark\block\Block;
 use quark\block\FillableCauldron;
+use quark\color\Color;
 use quark\data\bedrock\block\BlockStateNames;
 use quark\data\bedrock\PotionTypeIdMap;
 use quark\data\SavedDataLoadingException;

@@ -32,6 +32,7 @@ parameters:
 		- src/Quark.php
 		- tests/phpstan/stubs/bedwire.stub
 		- tests/phpstan/stubs/chunkutils2-light.stub
+		- tests/phpstan/stubs/qmath.stub
 		- tests/phpstan/stubs/toml.stub
 		- tests/phpstan/stubs/zigritedb.stub
 	paths:
@@ -59,6 +60,7 @@ parameters:
 		- tests/phpstan/stubs/JsonMapper.stub
 		- tests/phpstan/stubs/leveldb.stub
 		- tests/phpstan/stubs/pmmpthread.stub
+		- tests/phpstan/stubs/qmath.stub
 	reportUnmatchedIgnoredErrors: false #no other way to silence platform-specific non-warnings
 	typeAliases:
 		#variadics don't work for this - mixed probably shouldn't work either, but for now it does

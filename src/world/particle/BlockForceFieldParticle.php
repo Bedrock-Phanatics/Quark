@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\math\Vector3;
 
 class BlockForceFieldParticle implements Particle{
 	//TODO: proper encode/decode of data

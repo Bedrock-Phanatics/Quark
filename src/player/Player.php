@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\player;
 
 use DateTimeImmutable;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
@@ -43,6 +42,7 @@ use quark\block\BlockTypeTags;
 use quark\block\RespawnAnchor;
 use quark\block\UnknownBlock;
 use quark\block\VanillaBlocks;
+use quark\camera\CameraController;
 use quark\command\CommandSender;
 use quark\crafting\CraftingGrid;
 use quark\data\java\GameModeIdMap;
@@ -120,6 +120,8 @@ use quark\item\Releasable;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
 use quark\lang\Translatable;
+use quark\math\collision\CollisionDataException;
+use quark\math\Vector3;
 use quark\network\mcpe\NetworkSession;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
@@ -127,6 +129,7 @@ use quark\permission\PermissibleBase;
 use quark\permission\PermissibleDelegateTrait;
 use quark\player\chat\StandardChatFormatter;
 use quark\pulse\internal\PulseZones;
+use quark\scoreboard\Scoreboard;
 use quark\Server;
 use quark\ServerProperties;
 use quark\utils\AssumptionFailedError;
@@ -179,6 +182,8 @@ use const PHP_INT_MAX;
  */
 class Player extends Human implements CommandSender, ChunkListener, IPlayer, NeverSavedWithChunkEntity{
 	use PermissibleDelegateTrait;
+
+	private ?CameraController $camera = null;
 
 	private const MOVES_PER_TICK = 2;
 	private const MOVE_BACKLOG_SIZE = 100 * self::MOVES_PER_TICK; //100 ticks backlog (5 seconds)
@@ -332,6 +337,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	protected int $formIdCounter = 0;
 	/** @var Form[] */
 	protected array $forms = [];
+	private ?Scoreboard $scoreboard = null;
 
 	protected \Logger $logger;
 
@@ -684,6 +690,19 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		return $this->networkSession;
 	}
 
+	public function getCamera() : CameraController{
+		return $this->camera ??= new CameraController($this, $this->server->getCameraPresets(), $this->server->getCameraAimAssist());
+	}
+
+	public function getScoreboard() : Scoreboard{
+		return $this->scoreboard ??= new Scoreboard($this);
+	}
+
+	/** @internal */
+	public function getCameraIfCreated() : ?CameraController{
+		return $this->camera;
+	}
+
 	/**
 	 * Gets the username
 	 */
@@ -818,16 +837,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		if(parent::setPosition($pos)){
 			$newWorld = $this->getWorld();
 			if($oldWorld !== $newWorld){
+				$this->camera?->resetForContext();
 				if($oldWorld !== null){
-					foreach($this->usedChunks as $index => $status){
-						World::getXZ($index, $X, $Z);
-						$this->unloadChunk($X, $Z, $oldWorld);
-					}
+					$this->unloadAllChunks($oldWorld);
 				}
-
-				$this->usedChunks = [];
-				$this->loadQueue = [];
-				$this->keptChunks = [];
 				$this->getNetworkSession()->onEnterWorld();
 			}
 
@@ -835,6 +848,27 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 
 		return false;
+	}
+
+	private function unloadAllChunks(World $world) : void{
+		foreach($this->usedChunks as $index => $status){
+			World::getXZ($index, $X, $Z);
+			$this->unloadChunk($X, $Z, $world);
+		}
+		$this->usedChunks = [];
+		$this->loadQueue = [];
+		$this->keptChunks = [];
+	}
+
+	/**
+	 * @internal Called by the network session after telling the client to change dimension, which drops every chunk
+	 * and entity it had.
+	 */
+	public function onClientDimensionChange() : void{
+		$this->unloadAllChunks($this->getWorld());
+		$this->nextChunkOrderRun = 0;
+		//like on join, the loading screen stays up until the spawn area has arrived
+		$this->spawnChunkLoadCount = 0;
 	}
 
 	protected function unloadChunk(int $x, int $z, ?World $world = null) : void{
@@ -989,6 +1023,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return;
 		}
 		$this->spawned = true;
+		try{
+			$this->getCamera()->synchronize();
+		}catch(\Throwable $e){
+			$this->spawned = false;
+			throw $e;
+		}
 		$this->recheckBroadcastPermissions();
 		$this->getPermissionRecalculationCallbacks()->add(function(array $changedPermissionsOldValues) : void{
 			if(isset($changedPermissionsOldValues[Server::BROADCAST_CHANNEL_ADMINISTRATIVE]) || isset($changedPermissionsOldValues[Server::BROADCAST_CHANNEL_USERS])){
@@ -1372,6 +1412,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 
+		$this->camera?->resetForContext();
 		$this->internalSetGameMode($gm);
 
 		if($this->isSpectator()){
@@ -1465,7 +1506,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			//the old and new positions (running down stairs necessitates this)
 			$bb = $bb->addCoord(-$dx, -$dy, -$dz);
 
-			$this->onGround = $this->isCollided = count($this->getWorld()->getCollisionBlocks($bb, true)) > 0;
+			$world = $this->getWorld();
+			try{
+				$collided = $world->getCollisionRegion($bb)->collides($bb);
+			}catch(\ValueError | CollisionDataException){
+				//collision data can't cover this box, the block scan can
+				$collided = count($world->getCollisionBlocks($bb, true)) > 0;
+			}
+			$this->onGround = $this->isCollided = $collided;
 		}
 	}
 
@@ -1627,6 +1675,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function revertMovement(Location $from) : void{
+		//the client falls from $from again, so the undone drop must not count twice
+		$this->fallDistance = max(0.0, $this->fallDistance - max(0.0, $from->y - $this->location->y));
 		$this->setPosition($from);
 		$this->sendPosition($from, $from->yaw, $from->pitch, MovePlayerPacket::MODE_RESET);
 	}
@@ -1957,6 +2007,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 
 		$item = $block->getPickedItem($addTileNBT);
+		if($item->isNull()){
+			//equipping nothing would overwrite the held item when the inventory is full
+			return true;
+		}
 
 		$ev = new PlayerBlockPickEvent($this, $block, $item);
 		$existingSlot = $this->inventory->first($item);
@@ -2538,6 +2592,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @param Translatable|string|null $disconnectScreenMessage Shown on the player's disconnection screen (null will use the reason)
 	 */
 	public function disconnect(Translatable|string $reason, Translatable|string|null $quitMessage = null, Translatable|string|null $disconnectScreenMessage = null) : void{
+		$this->camera?->resetForContext(disconnect: true);
 		if(!$this->isConnected()){
 			return;
 		}
@@ -2554,9 +2609,11 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * @param Translatable|string|null $quitMessage Message to broadcast to online players (null will use default)
 	 */
 	public function onPostDisconnect(Translatable|string $reason, Translatable|string|null $quitMessage) : void{
+		$this->camera?->resetForContext(disconnect: true);
 		if($this->isConnected()){
 			throw new \LogicException("Player is still connected");
 		}
+		$this->scoreboard?->close();
 
 		//prevent the player receiving their own disconnect message
 		$this->server->unsubscribeFromAllBroadcastChannels($this);
@@ -2613,6 +2670,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function destroyCycles() : void{
+		$this->scoreboard?->close();
+		$this->scoreboard = null;
+		$this->camera?->resetForContext(disconnect: true);
+		$this->camera = null;
 		unset($this->itemHeldListener);
 		$this->forms = [];
 		$this->networkSession = null;
@@ -2685,6 +2746,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function onDeath() : void{
+		$this->camera?->resetForContext();
 		//Crafting grid must always be evacuated even if keep-inventory is true. This dumps the contents into the
 		//main inventory and drops the rest on the ground.
 		$this->removeCurrentWindow();
@@ -2737,6 +2799,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	protected function actuallyRespawn() : void{
+		$this->camera?->resetForContext();
 		if($this->respawnLocked){
 			return;
 		}
@@ -2845,8 +2908,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 		if($this->deathPosition !== null && $this->deathPosition->world === $this->location->world){
 			$properties->setBlockPos(EntityMetadataProperties::PLAYER_DEATH_POSITION, BlockPosition::fromVector3($this->deathPosition));
-			//TODO: this should be updated when dimensions are implemented
-			$properties->setInt(EntityMetadataProperties::PLAYER_DEATH_DIMENSION, DimensionIds::OVERWORLD);
+			$properties->setInt(EntityMetadataProperties::PLAYER_DEATH_DIMENSION, $this->getWorld()->getDimension()->networkId);
 			$properties->setByte(EntityMetadataProperties::PLAYER_HAS_DIED, 1);
 		}else{
 			$properties->setBlockPos(EntityMetadataProperties::PLAYER_DEATH_POSITION, new BlockPosition(0, 0, 0));

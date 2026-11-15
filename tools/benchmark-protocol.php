@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\tools\benchmark_protocol;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\MoveActorAbsolutePacket;
 use pocketmine\network\mcpe\protocol\Packet;
@@ -33,6 +32,7 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use quark\math\Vector3;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
 use function array_map;

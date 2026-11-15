@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\data\bedrock\block\convert\property;
 
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
 use quark\block\Bamboo;
 use quark\block\utils\BellAttachmentType;
 use quark\block\utils\DirtType;
@@ -39,6 +37,8 @@ use quark\block\utils\StairShape;
 use quark\data\bedrock\block\BlockLegacyMetadata as LegacyMeta;
 use quark\data\bedrock\block\BlockStateStringValues as StringValues;
 use quark\data\bedrock\block\BlockTypeNames as Ids;
+use quark\math\Axis;
+use quark\math\Facing;
 use quark\utils\SingletonTrait;
 
 final class ValueMappings{

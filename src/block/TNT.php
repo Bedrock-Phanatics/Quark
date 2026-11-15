@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use quark\block\utils\redstone\Powerable;
 use quark\block\utils\redstone\PowerableTrait;
 use quark\block\utils\redstone\RedstoneBlockAccessTrait;
@@ -37,6 +35,8 @@ use quark\item\enchantment\VanillaEnchantments;
 use quark\item\FlintSteel;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
+use quark\math\RayTraceResult;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\Random;
 use quark\world\sound\IgniteSound;

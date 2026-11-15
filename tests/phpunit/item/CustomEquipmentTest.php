@@ -6,8 +6,11 @@ namespace quark\item;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
+use quark\block\BlockIdentifier;
+use quark\block\BlockTypeIds;
+use quark\block\custom\UnknownCustomBlock;
 use quark\block\tile\dispenser\ArmorDispensableItem;
+use quark\data\bedrock\block\BlockStateData;
 use quark\entity\animation\Animation;
 use quark\entity\AttributeMap;
 use quark\entity\effect\EffectManager;
@@ -31,6 +34,7 @@ use quark\inventory\transaction\TransactionValidationException;
 use quark\item\custom\CustomSword;
 use quark\item\enchantment\ItemEnchantmentTags;
 use quark\item\enchantment\VanillaEnchantments;
+use quark\math\Vector3;
 use quark\player\GameMode;
 use quark\player\Player;
 use quark\player\PlayerInventoryType;
@@ -148,6 +152,19 @@ final class CustomEquipmentTest extends TestCase{
 		self::assertEqualsWithDelta(15.52, $this->victim->getHealth(), 0.00001);
 	}
 
+	public function testArmorPointsAreCappedAtVanillaMaximum() : void{
+		$inventory = $this->victim->getArmorInventory();
+		foreach([ArmorInventory::SLOT_HEAD, ArmorInventory::SLOT_CHEST, ArmorInventory::SLOT_LEGS, ArmorInventory::SLOT_FEET] as $slot){
+			$tag = [ItemEnchantmentTags::HELMET, ItemEnchantmentTags::CHESTPLATE, ItemEnchantmentTags::LEGGINGS, ItemEnchantmentTags::BOOTS][$slot];
+			$inventory->setItem($slot, new Armor(new ItemIdentifier(ItemTypeIds::newId()), "Heavy", new ArmorTypeInfo(10, 100, $slot), [$tag]));
+		}
+		self::assertSame(40, $this->victim->getArmorPoints());
+		$event = new EntityDamageEvent($this->victim, EntityDamageEvent::CAUSE_ENTITY_ATTACK, 10);
+		$this->victim->attack($event);
+		self::assertEqualsWithDelta(-8.0, $event->getModifier(EntityDamageEvent::MODIFIER_ARMOR), 0.00001);
+		self::assertEqualsWithDelta(18.0, $this->victim->getHealth(), 0.00001);
+	}
+
 	public function testProtectionAndBreakageUseNativeArmorPathAndCallbacks() : void{
 		$helmet = $this->helmet()->addEnchantment(VanillaEnchantments::PROTECTION(), 4);
 		self::assertInstanceOf(Armor::class, $helmet);
@@ -188,13 +205,20 @@ final class CustomEquipmentTest extends TestCase{
 	}
 
 	public function testDispenserEquipsOneItemAndConsumesOne() : void{
-		$this->world->method("getNearbyEntities")->willReturn([$this->victim]);
+		$this->world->method("getNearbyEntities")->willReturn([$this->victim, $this->attacker]);
+		$this->world->expects(self::once())->method("dropItem");
 		$inventory = new SimpleInventory(9);
-		$inventory->setItem(0, $this->helmet());
-		self::assertTrue((new ArmorDispensableItem(ArmorInventory::SLOT_HEAD))->dispense(new Position(0, 64, 0, $this->world), $inventory, 0, new Vector3(0, 64, 1), 3));
+		$inventory->setItem(0, $this->helmet()->setCount(2));
+		$dispenser = new ArmorDispensableItem(ArmorInventory::SLOT_HEAD);
+		self::assertTrue($dispenser->dispense(new Position(0, 64, 0, $this->world), $inventory, 0, new Vector3(0, 64, 1), 3));
+		self::assertSame(1, $inventory->getItem(0)->getCount());
+		//mobs that would not save the armor are skipped
+		self::assertTrue($this->victim->getArmorInventory()->getHelmet()->isNull());
+		self::assertInstanceOf(Armor::class, $this->attacker->getArmorInventory()->getHelmet());
+		self::assertSame(1, $this->attacker->getArmorInventory()->getHelmet()->getCount());
+		//an occupied slot drops the item instead
+		self::assertTrue($dispenser->dispense(new Position(0, 64, 0, $this->world), $inventory, 0, new Vector3(0, 64, 1), 3));
 		self::assertTrue($inventory->getItem(0)->isNull());
-		self::assertInstanceOf(Armor::class, $this->victim->getArmorInventory()->getHelmet());
-		self::assertSame(1, $this->victim->getArmorInventory()->getHelmet()->getCount());
 	}
 
 	public function testArmorEquipsFromHandWithNativeSound() : void{
@@ -215,6 +239,19 @@ final class CustomEquipmentTest extends TestCase{
 		self::assertTrue($this->attacker->attackEntity($this->victim));
 		self::assertTrue($this->attacker->getMainHandItem()->isNull());
 		self::assertSame(11.0, $this->victim->getHealth());
+	}
+
+	public function testPickingBlockWithoutItemKeepsHeldItemInFullInventory() : void{
+		$this->world->method("getBlock")->willReturn(new UnknownCustomBlock(new BlockIdentifier(BlockTypeIds::newId()), BlockStateData::current("removed:block", [])));
+		$this->attacker->makeCreative();
+		$sword = $this->sword();
+		$inventory = $this->attacker->getInventory();
+		for($i = 0; $i < $inventory->getSize(); ++$i){
+			$inventory->setItem($i, VanillaItems::STICK());
+		}
+		$this->attacker->setMainHandItem($sword);
+		self::assertTrue($this->attacker->pickBlock(new Vector3(0, 64, 2), false));
+		self::assertTrue($sword->equalsExact($this->attacker->getMainHandItem()));
 	}
 
 	public function testCreativeCannotForgeUnlistedItem() : void{

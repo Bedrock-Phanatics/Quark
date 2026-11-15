@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\utils\SupportType;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 
 class GrassPath extends Transparent{
 

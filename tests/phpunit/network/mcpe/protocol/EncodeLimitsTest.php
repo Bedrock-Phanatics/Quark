@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace quark\network\mcpe\protocol;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\SetTimePacket;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
@@ -38,6 +37,7 @@ use quark\item\enchantment\EnchantingOption;
 use quark\item\enchantment\EnchantmentInstance;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\VanillaItems;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\LegacySkinAdapter;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\NetworkSession;

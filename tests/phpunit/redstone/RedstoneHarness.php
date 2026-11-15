@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\world\redstone;
 
-use pocketmine\math\Vector3;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
+use quark\math\collision\CollisionRegion;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\utils\ReversePriorityQueue;
@@ -63,7 +63,7 @@ final class RedstoneHarness{
 		$set("folderName", "redstone_test");
 		$set("displayName", "redstone_test");
 		$set("logger", new class(function(string $message) : void{ $this->warnings[] = $message; }) extends \SimpleLogger{
-			/** @param \Closure(string) : void $onWarning */
+			/** @phpstan-param \Closure(string) : void $onWarning */
 			public function __construct(private \Closure $onWarning){}
 
 			public function warning($message){
@@ -74,6 +74,7 @@ final class RedstoneHarness{
 		$set("blockStateRegistry", RuntimeBlockStateRegistry::getInstance());
 		$set("minY", World::Y_MIN);
 		$set("maxY", World::Y_MAX);
+		$set("collisionRegion", new CollisionRegion());
 		$queue = new ReversePriorityQueue();
 		$queue->setExtractFlags(\SplPriorityQueue::EXTR_BOTH);
 		$set("scheduledBlockUpdateQueue", $queue);
@@ -138,23 +139,8 @@ final class RedstoneHarness{
 	public function tick(int $ticks = 1) : void{
 		$advance = \Closure::bind(fn() : int => ++$this->tickCounter, $this->server, Server::class);
 		$update = \Closure::bind(function(int $tick) : void{
-			while($this->scheduledBlockUpdateQueue->count() > 0){
-				/** @var array{priority: int, data: Vector3} $next */
-				$next = $this->scheduledBlockUpdateQueue->current();
-				if($next["priority"] > $tick){
-					break;
-				}
-				$this->scheduledBlockUpdateQueue->extract();
-				$vec = $next["data"];
-				unset($this->scheduledBlockUpdateQueueIndex[World::blockHash((int) $vec->x, (int) $vec->y, (int) $vec->z)]);
-				$this->getBlock($vec)->onScheduledUpdate();
-			}
-			while($this->neighbourBlockUpdateQueue->count() > 0){
-				$hash = $this->neighbourBlockUpdateQueue->dequeue();
-				unset($this->neighbourBlockUpdateQueueIndex[$hash]);
-				World::getBlockXYZ($hash, $x, $y, $z);
-				$this->getBlockAt($x, $y, $z)->onNearbyBlockChange();
-			}
+			$this->runScheduledBlockUpdates($tick);
+			$this->runNeighbourBlockUpdates();
 		}, $this->world, World::class);
 		for($i = 0; $i < $ticks; ++$i){
 			$update($advance());

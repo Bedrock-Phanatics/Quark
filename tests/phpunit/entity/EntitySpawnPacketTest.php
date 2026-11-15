@@ -24,10 +24,10 @@ declare(strict_types=1);
 namespace quark\entity;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
+use quark\math\Vector3;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\player\Player;

@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
 use quark\block\utils\StaticSupportTrait;
+use quark\math\Facing;
 
 final class Coral extends BaseCoral{
 	use StaticSupportTrait;

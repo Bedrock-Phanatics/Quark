@@ -23,21 +23,22 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\BlockEventHelper;
-use quark\block\utils\DirtType;
 use quark\item\Fertilizer;
 use quark\item\Hoe;
 use quark\item\Item;
 use quark\item\Shovel;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\Random;
 use quark\world\generator\object\TallGrass as TallGrassObject;
+use quark\world\light\LightUpdate;
 use quark\world\sound\ItemUseOnBlockSound;
 use function mt_rand;
 
 class Grass extends Opaque{
+	private static ?int $dirtStateId = null;
 
 	public function getDropsForCompatibleTool(Item $item) : array{
 		return [
@@ -60,23 +61,23 @@ class Grass extends Opaque{
 			//grass dies
 			BlockEventHelper::spread($this, VanillaBlocks::DIRT(), $this);
 		}elseif($lightAbove >= 9){
-			//try grass spread
+			//try grass spread; candidates are rarely dirt, so check raw states before building any block
+			$dirt = self::$dirtStateId ??= VanillaBlocks::DIRT()->getStateId();
+			$lightFilter = RuntimeBlockStateRegistry::getInstance()->lightFilter;
 			for($i = 0; $i < 4; ++$i){
 				$x = mt_rand($this->position->x - 1, $this->position->x + 1);
 				$y = mt_rand($this->position->y - 3, $this->position->y + 1);
 				$z = mt_rand($this->position->z - 1, $this->position->z + 1);
 
-				$b = $world->getBlockAt($x, $y, $z);
 				if(
-					!($b instanceof Dirt) ||
-					$b->getDirtType() !== DirtType::NORMAL ||
+					$world->getBlockStateIdAt($x, $y, $z) !== $dirt ||
 					$world->getFullLightAt($x, $y + 1, $z) < 4 ||
-					$world->getBlockAt($x, $y + 1, $z)->getLightFilter() >= 2
+					(($above = $world->getBlockStateIdAt($x, $y + 1, $z)) !== null && ($lightFilter[$above] ?? 0) >= 2 + LightUpdate::BASE_LIGHT_FILTER)
 				){
 					continue;
 				}
 
-				BlockEventHelper::spread($b, VanillaBlocks::GRASS(), $this);
+				BlockEventHelper::spread($world->getBlockAt($x, $y, $z), VanillaBlocks::GRASS(), $this);
 			}
 		}
 	}

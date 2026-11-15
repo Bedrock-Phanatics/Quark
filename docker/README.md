@@ -83,11 +83,11 @@ Change `--tail=100` to the number of recent lines in the log you want to see.
 	This includes `config/`, `data/players/`, `data/worlds/`, `data/plugins/`, `data/access.sqlite`, `resource-packs/`, `logs/`, `diagnostics/`, `backups/`, and `runtime/`.
 - `/plugins` is a read-only data directory where Quark loads plugins from.
 
-## Advanced usage: Passing args to Quark.phar inside the container
-The `QUARK_ARGS` environment variable will be passed to `Quark.phar` when run.
+## Advanced usage: Passing args to Quark-v6.phar inside the container
+The `QUARK_ARGS` environment variable will be passed to `Quark-v6.phar` when run.
 
 ## Building this image
-The Dockerfile requires a build-arg `GIT_HASH` to fill the git hash metadata when building `Quark.phar`.
+The Dockerfile requires a build-arg `GIT_HASH` to fill the git hash metadata when building `Quark-v6.phar`.
 This ensures that `/version`, crash reports, logs etc. report the correct server version.
 
 Initialize the pinned PHP compiler before building:

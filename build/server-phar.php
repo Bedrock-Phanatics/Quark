@@ -25,6 +25,7 @@ namespace quark\build\server_phar;
 
 use quark\utils\Filesystem;
 use quark\utils\Git;
+use quark\VersionInfo;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
 use function count;
@@ -157,7 +158,7 @@ function main() : void{
 		}
 		$pharPath = $opts["out"];
 	}else{
-		$pharPath = getcwd() . DIRECTORY_SEPARATOR . "Quark.phar";
+		$pharPath = getcwd() . DIRECTORY_SEPARATOR . VersionInfo::pharName();
 	}
 	foreach(buildPhar(
 		$pharPath,

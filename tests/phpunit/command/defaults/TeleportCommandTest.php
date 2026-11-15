@@ -47,7 +47,7 @@ final class TeleportCommandTest extends DefaultCommandTestCase{
 		$world->method("isLoaded")->willReturn(true);
 		$location = new Location($x, $y, $z, $world, $yaw, $pitch);
 		$player->method("getLocation")->willReturn($location);
-		$player->method("teleport")->willReturnCallback(function(\pocketmine\math\Vector3 $pos, ?float $yaw = null, ?float $pitch = null) use ($name) : bool{
+		$player->method("teleport")->willReturnCallback(function(\quark\math\Vector3 $pos, ?float $yaw = null, ?float $pitch = null) use ($name) : bool{
 			$this->teleports[$name] = $pos instanceof Location ? $pos : new Location($pos->x, $pos->y, $pos->z, null, $yaw ?? 0.0, $pitch ?? 0.0);
 			return true;
 		});

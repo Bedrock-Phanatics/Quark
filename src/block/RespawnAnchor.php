@@ -23,13 +23,13 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Vector3;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\event\block\BlockPreExplodeEvent;
 use quark\event\player\PlayerRespawnAnchorUseEvent;
 use quark\item\Item;
 use quark\item\ItemTypeIds;
 use quark\lang\KnownTranslationFactory;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\TextFormat;
 use quark\world\Explosion;
@@ -77,7 +77,10 @@ final class RespawnAnchor extends Opaque{
 				return false;
 			}
 
-			$ev = new PlayerRespawnAnchorUseEvent($player, $this, PlayerRespawnAnchorUseEvent::ACTION_EXPLODE);
+			$ev = new PlayerRespawnAnchorUseEvent($player, $this, $this->position->getWorld()->getDimension()->respawnAnchorWorks ?
+				PlayerRespawnAnchorUseEvent::ACTION_SET_SPAWN :
+				PlayerRespawnAnchorUseEvent::ACTION_EXPLODE
+			);
 			$ev->call();
 			if($ev->isCancelled()){
 				return false;

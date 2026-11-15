@@ -27,6 +27,7 @@ use quark\pulse\Pulse;
 use quark\pulse\PulseZone;
 use function gc_collect_cycles;
 use function gc_disable;
+use function gc_enable;
 use function gc_status;
 use function hrtime;
 use function max;
@@ -60,8 +61,13 @@ final class GarbageCollectorManager{
 	public function __construct(
 		\Logger $logger,
 		int $threshold = self::DEFAULT_THRESHOLD,
+		bool $phpAutomaticGc = false,
 	){
-		gc_disable();
+		if($phpAutomaticGc){
+			gc_enable();
+		}else{
+			gc_disable();
+		}
 		$this->threshold = min(self::GC_THRESHOLD_MAX, max(0, $threshold));
 		$this->minimumThreshold = $this->threshold;
 		$this->logger = new log\SourceLogger($logger, "Cyclic Garbage Collector");

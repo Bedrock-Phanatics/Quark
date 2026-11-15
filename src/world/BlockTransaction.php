@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world;
 
-use pocketmine\math\Vector3;
 use quark\block\Block;
+use quark\math\Vector3;
 use quark\utils\Utils;
 
 class BlockTransaction{

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\command\argument;
 
-use pocketmine\math\Vector3;
+use quark\math\Vector3;
 
 final class RelativePosition{
 	public function __construct(

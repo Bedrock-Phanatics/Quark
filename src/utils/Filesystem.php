@@ -26,6 +26,9 @@ namespace quark\utils;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
 use Symfony\Component\Filesystem\Path;
 use function basename;
+use function bin2hex;
+use function chmod;
+use function clearstatcache;
 use function copy;
 use function count;
 use function dirname;
@@ -34,16 +37,20 @@ use function fflush;
 use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
+use function fileperms;
 use function flock;
 use function fopen;
+use function fsync;
 use function ftruncate;
 use function fwrite;
 use function getmypid;
 use function is_dir;
 use function is_file;
 use function is_link;
+use function is_writable;
 use function ltrim;
 use function mkdir;
+use function random_bytes;
 use function realpath;
 use function rename;
 use function rmdir;
@@ -263,6 +270,41 @@ final class Filesystem{
 			flock(self::$lockFileHandles[$lockFilePath], LOCK_UN);
 			fclose(self::$lockFileHandles[$lockFilePath]);
 			unset(self::$lockFileHandles[$lockFilePath]);
+		}
+	}
+
+	/**
+	 * Replace an unchanged file, or create a new file when $original is null.
+	 */
+	public static function atomicWrite(string $path, string $content, ?string $original = null) : void{
+		if(is_link($path) || ($original !== null && !is_writable($path))){
+			throw new \RuntimeException("Cannot write configuration: $path");
+		}
+		$tmp = $path . "." . bin2hex(random_bytes(8)) . ".tmp";
+		$stream = @fopen($tmp, "xb");
+		if($stream === false){
+			throw new \RuntimeException("Cannot create temporary configuration: $tmp");
+		}
+		try{
+			try{
+				$mode = DIRECTORY_SEPARATOR === "/" && $original !== null ? @fileperms($path) : false;
+				if(($mode !== false && !@chmod($tmp, $mode & 0777)) || @fwrite($stream, $content) !== strlen($content) || !@fsync($stream)){
+					throw new \RuntimeException("Cannot write configuration: $path");
+				}
+			}finally{
+				fclose($stream);
+			}
+			clearstatcache(true, $path);
+			if(is_link($path) || ($original === null ? file_exists($path) : self::fileGetContents($path) !== $original)){
+				throw new \RuntimeException("Configuration changed before replacement: $path");
+			}
+			if(!@rename($tmp, $path)){
+				throw new \RuntimeException("Cannot replace configuration: $path");
+			}
+		}finally{
+			if(is_file($tmp)){
+				@unlink($tmp);
+			}
 		}
 	}
 

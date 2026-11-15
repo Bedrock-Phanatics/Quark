@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\entity\effect;
 
-use pocketmine\color\Color;
+use quark\color\Color;
 use quark\entity\Entity;
 use quark\entity\Living;
 use quark\event\entity\EntityDamageEvent;

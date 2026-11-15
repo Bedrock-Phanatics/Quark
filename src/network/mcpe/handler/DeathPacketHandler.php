@@ -27,6 +27,8 @@ use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\DeathInfoPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
 use pocketmine\network\mcpe\protocol\RespawnPacket;
+use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
+use pocketmine\network\mcpe\protocol\types\hud\LoadingScreenType;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use quark\lang\Translatable;
 use quark\network\mcpe\InventoryManager;
@@ -70,6 +72,13 @@ class DeathPacketHandler extends PacketHandler{
 		}
 
 		return false;
+	}
+
+	public function handleServerboundLoadingScreen(ServerboundLoadingScreenPacket $packet) : bool{
+		if($packet->getLoadingScreenType() === LoadingScreenType::STOP_LOADING_SCREEN){
+			$this->session->onLoadingScreenClosed($packet->getLoadingScreenId());
+		}
+		return true;
 	}
 
 	public function handleContainerClose(ContainerClosePacket $packet) : bool{

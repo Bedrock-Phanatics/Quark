@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
-use pocketmine\math\Vector3;
 use quark\command\argument\PositionArgument;
 use quark\command\argument\RelativePosition;
 use quark\command\Command;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
+use quark\math\Vector3;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;

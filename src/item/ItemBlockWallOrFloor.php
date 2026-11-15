@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use pocketmine\math\Axis;
-use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
+use quark\math\Axis;
+use quark\math\Facing;
 
 class ItemBlockWallOrFloor extends Item{
 	private int $floorVariant;

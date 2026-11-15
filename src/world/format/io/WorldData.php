@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world\format\io;
 
-use pocketmine\math\Vector3;
+use quark\math\Vector3;
 
 interface WorldData{
 
@@ -44,6 +44,11 @@ interface WorldData{
 	public function getGeneratorOptions() : string;
 
 	public function getSeed() : int;
+
+	/**
+	 * Returns the identifier of the world's dimension, see {@link \quark\world\DimensionRegistry}.
+	 */
+	public function getDimension() : string;
 
 	public function getTime() : int;
 

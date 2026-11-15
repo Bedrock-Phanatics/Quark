@@ -19,14 +19,14 @@ DATA_DIR="$(pwd)/test_data"
 PLUGINS_DIR="$DATA_DIR/plugins"
 
 rm -rf "$DATA_DIR"
-rm -f Quark.phar
+rm -f Quark-v6.phar
 mkdir "$DATA_DIR"
 mkdir "$PLUGINS_DIR"
 
 php -d phar.readonly=0 tests/build-plugin-phar.php tests/plugins/TesterPlugin "$PLUGINS_DIR/TesterPlugin.phar"
 composer make-server
 
-if [ -f Quark.phar ]; then
+if [ -f Quark-v6.phar ]; then
 	echo Server phar created successfully.
 else
 	echo Server phar was not created!
@@ -35,7 +35,7 @@ fi
 
 cp tests/plugins/TestScriptPlugin.php "$PLUGINS_DIR"
 
-echo -e "stop\n" | php Quark.phar \
+echo -e "stop\n" | php Quark-v6.phar \
   --no-wizard \
   --disable-ansi \
   --disable-readline \

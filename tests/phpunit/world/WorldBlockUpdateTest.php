@@ -25,13 +25,13 @@ namespace quark\world;
 
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
 use quark\block\tile\Chest as TileChest;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
+use quark\math\AxisAlignedBB;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\player\Player;
 use quark\world\format\Chunk;
@@ -194,7 +194,7 @@ final class WorldBlockUpdateTest extends TestCase{
 	}
 
 	private function hasCachedCollision(int $x, int $y, int $z) : bool{
-		return (fn() : bool => isset($this->blockCollisionBoxCache[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)][World::chunkBlockHash($x, $y, $z)]))->call($this->world);
+		return (fn() : bool => $this->collisionRegion->isKnown($x, $y, $z))->call($this->world);
 	}
 
 	public function testCollisionCacheInvalidatedAcrossChunkBoundary() : void{

@@ -14,9 +14,12 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 ## Networking and performance
 
 - Served the `nethernet` transport natively through `ext-bedwire` and nethernet-zig, replacing the PHP WebRTC transport, `ext-webrtc` and `axolotl-pm/nethernet`. Its settings live under `transport.nethernet`.
+- Added `transport.nethernet.advertise-addresses` so a server behind NAT or in a container can offer its public IPs to NetherNet clients.
 - Added `zlib` and `snappy` packet-batch compression modes.
 - Added safe fallback to zlib when Snappy is selected but `ext-snappy` is unavailable.
 - Added configurable compression thresholds, levels, asynchronous compression, and asynchronous size thresholds.
+- Replaced `pocketmine/math` and `pocketmine/color` with the native ext-qmath extension.
+- Entity movement collision, block collision queries, projectile raycasts, explosion rays and exposure, world generation noise and nearby entity queries run natively, with identical results. Collision data is cached per world in native sections loaded straight from chunk palettes, and block changes only refresh the cells they affect.
 - Added optional low-latency combat feedback with at most one early packet batch per player per tick.
 - Reduced work in entity, armor, world-storage, serialization, and network hot paths.
 - Expanded use of native extensions for encoding, serialization, compression, database access, and networking.
@@ -50,20 +53,27 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Removed active Thorns and Frost Walker behavior and acquisition paths while retaining inert saved/network enchantment data.
 - Removed per-tick worn-item callbacks from armor processing.
 - Removed the Turtle Helmet Water Breathing effect.
+- Hoppers now move items: they push into the container they face, pull from the one above, and collect dropped items, with vanilla furnace, brewing stand and double chest slot rules. Powered hoppers stay locked. Idle hoppers sleep until a neighbouring inventory, block or dropped item gives them work, and a per-tick update budget defers the rest fairly.
 
 ## API
 
+- Added a [per-player sidebar scoreboard API](docs/scoreboard.md) with named-row updates, batched row changes, unchanged-update suppression, and hide/show support.
 - Changed the root PHP namespace from `pocketmine` to `quark`.
-- Renamed the Composer root package to `quark/quark` while retaining the existing `axolotl-pm/*` and `pocketmine/*` dependencies.
-- Renamed the bootstrap to `src/Quark.php`, the release artifact to `Quark.phar`, and the main configuration to `quark.yml`.
+- Moved math and colour types to `quark\math` and `quark\color`, removing legacy getters such as `Vector3::getX()` and `RayTraceResult::getHitVector()`. See [Math](docs/MIGRATING-FROM-POCKETMINE-5.md#math).
+- Added `World::getCollisionRegion()` for native collision queries.
+- Made `Block::calculateIntercept()` and `quark\world\generator\noise\Simplex` final.
+- Renamed the Composer root package to `quark/quark` while retaining the existing `axolotl-pm/*` and other `pocketmine/*` dependencies.
+- Renamed the bootstrap to `src/Quark.php`, the release artifact to `Quark-v6.phar`, and the main configuration to `quark.yml`.
 - Replaced the inherited example plugin with a Quark 6 example and updated the script example to API 6.0.0.
 - Removed automatic crash uploads. Crashes now print details to the console and save local `.txt` reports.
 - Retained the existing `pmmpthread` native extension contract.
 - Added the redstone manager and runtime world/chunk override API.
+- Added cancellable `HopperTransferEvent` and `HopperPickupItemEvent`.
 - Added built-in menu, modal and custom forms with validated responses, named custom-control values and separate cancellation callbacks. See [form migration notes](docs/MIGRATING-FROM-POCKETMINE-5.md#forms) for usage and server-settings limitations.
 - Added multiworld management: `WorldManager::getWorldNames()`, `copyWorld()` and `deleteWorld()` run file work off the main thread through hidden staging folders, which are cleaned up on startup if interrupted, and reserve the names involved, including nested and differently cased ones, until done, world names must be plain relative paths that cannot point outside the worlds directory or alias another name, name lookups are constant time, and the `/world` command lists, loads, unloads, creates, copies, deletes and teleports between worlds.
 - `Filesystem::recursiveUnlink()` removes links instead of deleting what they point to, and it and `recursiveCopy()` throw when a file cannot be removed or copied.
 - Added the weather API: `World::getWeather()`, `setWeather()`, `strikeLightning()`, `isRainingAt()`, the weather cycle toggle, the cancellable `WorldWeatherChangeEvent` and `LightningStrikeEvent`, and `EntityDamageEvent::CAUSE_LIGHTNING`.
+- Added dimensions: `Dimension`, `DimensionRegistry`, `World::getDimension()` and `WorldCreationOptions::setDimension()`. Worlds can be overworld, nether, end or a plugin-registered dimension shown to clients as one of those, with its own height range, sky light, weather, and bed and respawn anchor behaviour. The dimension is saved in `level.dat` and existing worlds stay overworld. Players moving between dimensions get a proper client dimension change with the destination terrain sent before the loading screen closes. See [Dimensions](docs/dimensions.md).
 - Added declarative commands: `Command::registerArgument()`, `registerArguments()`, `syntax()` and `run()`, typed arguments, custom `Argument` implementations, per-syntax permissions and `CommandArgs`. A command can declare several overloads with typed handlers, words in the middle of a syntax, relative `x y z` and `yaw pitch` arguments, reusable `CommandEnum` definitions including native PHP enums, and dynamic `SoftEnum` lists that reach clients as soft enum update packets. Greedy text keeps the exact quotes and spacing that were typed. Ambiguous overloads are rejected when the command is registered. The same definitions drive client autocomplete. Commands overriding `execute()` keep working unchanged. See [Commands](docs/commands.md).
 - Migrated every built-in command to declarative syntaxes. They reject extra arguments, validate all input before changing any state, `/give` no longer drops items that don't fit, `/clear` is operator-only by default like the other inventory commands, `/tp` keeps the current rotation and rejects out-of-range coordinates, and `/time query` was added.
 - Added `SimpleCommandMap::dispatchParsed()` to dispatch already tokenized commands.
@@ -87,6 +97,7 @@ Added or expanded settings for:
 - Adaptive and periodic garbage collection.
 - Redstone enablement, world policy, world list, component limits, piston limits, and dispenser limits.
 - TNT enablement and activation/entity limits.
+- Hopper enablement, transfer cooldown, items per transfer, and updates per tick.
 - Weather cycle, thunderstorm lightning chance and lightning fire.
 - Local crash reports, anonymous statistics, updater, timings, console behavior, memory limits, and plugin data placement.
 

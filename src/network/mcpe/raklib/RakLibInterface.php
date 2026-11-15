@@ -35,6 +35,7 @@ use quark\network\Network;
 use quark\network\NetworkInterfaceStartException;
 use quark\network\PacketHandlingException;
 use quark\pulse\internal\PulseZones;
+use quark\pulse\Pulse;
 use quark\Server;
 use quark\thread\ThreadCrashException;
 use quark\utils\Utils;
@@ -276,6 +277,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 
 	public function onBandwidthStatsUpdate(int $bytesSentDiff, int $bytesReceivedDiff) : void{
 		$this->network->getBandwidthTracker()->add($bytesSentDiff, $bytesReceivedDiff);
+		Pulse::getNetworkTelemetry()?->transportBytes("raklib", $bytesSentDiff, $bytesReceivedDiff);
 	}
 
 	public function putPacket(int $sessionId, string $payload, bool $immediate = true, ?int $receiptId = null) : void{

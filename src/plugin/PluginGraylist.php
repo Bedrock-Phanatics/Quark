@@ -23,19 +23,22 @@ declare(strict_types=1);
 
 namespace quark\plugin;
 
-use quark\utils\Utils;
 use function array_fill_keys;
+use function array_is_list;
+use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function is_array;
 use function is_float;
 use function is_int;
 use function is_string;
+use function trim;
 
 class PluginGraylist{
 
 	/**
 	 * @var true[]
-	 * @phpstan-var array<string, true>
+	 * @phpstan-var array<array-key, true>
 	 */
 	private array $plugins;
 	private bool $isWhitelist = false;
@@ -54,7 +57,7 @@ class PluginGraylist{
 	 * @phpstan-return list<string>
 	 */
 	public function getPlugins() : array{
-		return array_keys($this->plugins);
+		return array_map(static fn(string|int $name) : string => (string) $name, array_keys($this->plugins));
 	}
 
 	public function isWhitelist() : bool{
@@ -72,26 +75,23 @@ class PluginGraylist{
 	 * @param mixed[] $array
 	 */
 	public static function fromArray(array $array) : PluginGraylist{
-		if(!isset($array["mode"]) || ($array["mode"] !== "whitelist" && $array["mode"] !== "blacklist")){
-			throw new \InvalidArgumentException("\"mode\" must be set");
+		$mode = $array["mode"] ?? null;
+		if($mode !== "whitelist" && $mode !== "blacklist"){
+			throw new \InvalidArgumentException("Invalid mode in plugins.toml: expected 'whitelist' or 'blacklist'");
 		}
-		$isWhitelist = match($array["mode"]){
-			"whitelist" => true,
-			"blacklist" => false
-		};
 		$plugins = [];
-		if(isset($array["plugins"])){
-			if(!is_array($array["plugins"])){
-				throw new \InvalidArgumentException("\"plugins\" must be an array");
+		if(array_key_exists("plugins", $array)){
+			if(!is_array($array["plugins"]) || !array_is_list($array["plugins"])){
+				throw new \InvalidArgumentException("Invalid plugins in plugins.toml: expected a list of plugin names");
 			}
-			foreach(Utils::promoteKeys($array["plugins"]) as $k => $v){
-				if(!is_string($v) && !is_int($v) && !is_float($v)){
-					throw new \InvalidArgumentException("\"plugins\" contains invalid element at position $k");
+			foreach($array["plugins"] as $index => $name){
+				if((!is_string($name) && !is_int($name) && !is_float($name)) || trim((string) $name) === ""){
+					throw new \InvalidArgumentException("Invalid plugins entry $index in plugins.toml: expected a plugin name");
 				}
-				$plugins[] = (string) $v;
+				$plugins[] = (string) $name;
 			}
 		}
-		return new PluginGraylist($plugins, $isWhitelist);
+		return new PluginGraylist($plugins, $mode === "whitelist");
 	}
 
 	/**

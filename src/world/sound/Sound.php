@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use quark\math\Vector3;
 
 interface Sound{
 

@@ -50,6 +50,7 @@ use function extension_loaded;
 use function file_get_contents;
 use function glob;
 use function hrtime;
+use function implode;
 use function rmdir;
 use function str_pad;
 use function str_repeat;
@@ -145,7 +146,7 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertStringContainsString("[Pulse] Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
 		$map->dispatchParsed($sender, "pulse", ["help"]);
-		self::assertCount(4, $messages);
+		self::assertCount(5, $messages);
 		$map->dispatchParsed($sender, "pulse", ["start", "1m"]);
 		$session = $recorder->getSession();
 		self::assertNotNull($session);
@@ -155,17 +156,32 @@ final class PulseIntegrationTest extends TestCase{
 		$zone->stop($scope);
 		$messages->exchangeArray([]);
 		$map->dispatchParsed($sender, "pulse", ["top", "1"]);
-		self::assertCount(2, $messages);
-		self::assertStringContainsString("command.work BAD", $messages[1] ?? "");
-		self::assertStringNotContainsString("\n", $messages[1] ?? "");
-		self::assertStringNotContainsString("\x1b", $messages[1] ?? "");
+		self::assertCount(3, $messages);
+		self::assertStringContainsString("command.work BAD", $messages[2] ?? "");
+		self::assertStringNotContainsString("\n", $messages[2] ?? "");
+		self::assertStringNotContainsString("\x1b", $messages[2] ?? "");
+		$messages->exchangeArray([]);
+		$map->dispatchParsed($sender, "pulse", ["spikes", "1"]);
+		self::assertStringContainsString("No retained spikes yet", $messages[0] ?? "");
+		$messages->exchangeArray([]);
+		$map->dispatchParsed($sender, "pulse", ["status"]);
+		$status = implode("\n", $messages->getArrayCopy());
+		self::assertStringContainsString("Recent process CPU", $status);
+		self::assertStringContainsString("PHP memory", $status);
+		self::assertStringContainsString("p95", $status);
+		self::assertStringContainsString("over 50 ms", $status);
+		foreach(["plugins" => "No plugin work measured yet", "workers" => "Recorded 0 submitted", "memory" => "PHP heap (main thread)", "network" => "Received 0 batches"] as $command => $expected){
+			$messages->exchangeArray([]);
+			$map->dispatchParsed($sender, "pulse", [$command]);
+			self::assertStringContainsString($expected, implode("\n", $messages->getArrayCopy()));
+		}
 		$messages->exchangeArray([]);
 		$map->dispatchParsed($sender, "pulse", ["stop"]);
 		self::assertFalse($session->isRecording());
 		self::assertSame(1, $saves);
 		self::assertStringStartsWith("[Pulse] Collecting report", $messages[count($messages) - 2] ?? "");
 		self::assertSame("[Pulse] Report saved to test.qpulse", $messages[count($messages) - 1]);
-		foreach([["start", "60s", "1s"], ["start", "--spikes"], ["top", "11"], ["top", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
+		foreach([["start", "60s", "1s"], ["start", "--spikes"], ["top", "11"], ["top", "-1"], ["spikes", "11"], ["spikes", "-1"], ["stop", "other"], ["status", "extra"], ["unknown"]] as $args){
 			$messages->exchangeArray([]);
 			$map->dispatchParsed($sender, "pulse", $args);
 			self::assertMatchesRegularExpression('/^(Usage: \/pulse|Invalid value for <)/', $messages[0] ?? "");

@@ -71,7 +71,7 @@ class ChunkCache implements ChunkListener{
 		}
 		if(!isset(self::$instances[$worldId][$compressorId])){
 			\GlobalLogger::get()->debug("Created new chunk packet cache (world#$worldId, compressor#$compressorId)");
-			self::$instances[$worldId][$compressorId] = new self($world, $compressor);
+			self::$instances[$worldId][$compressorId] = new self($world, $compressor, $world->getDimension()->networkId);
 		}
 		return self::$instances[$worldId][$compressorId];
 	}

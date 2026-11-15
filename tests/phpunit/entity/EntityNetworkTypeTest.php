@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace quark\entity;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use quark\math\Vector3;
 use quark\world\sound\EntityLongFallSound;
 use quark\world\sound\EntityShortFallSound;
 

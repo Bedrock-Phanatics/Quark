@@ -24,12 +24,12 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\entity\Location;
+use quark\math\Vector3;
 use quark\network\FilterNoisyPacketException;
 use quark\network\mcpe\InventoryManager;
 use quark\network\mcpe\NetworkSession;

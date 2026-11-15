@@ -49,10 +49,10 @@ jobs:
           php build/generate-build-info-json.php \
             "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" \
             "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_ID" \
-            https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/pm5-php-8.4-latest \
+            https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/qrk6-php-8.4-latest \
             > build_info.json
           php tools/generate-permission-doc.php rst
-          test -s Quark.phar
+          test -s Quark-v6.phar
           test -s build_info.json
           test -s core-permissions.rst
 
@@ -62,7 +62,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: |
-            Quark.phar
+            Quark-v6.phar
             start.sh
             start.cmd
             build_info.json
@@ -93,7 +93,7 @@ jobs:
             "See the [Quark changelog](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/CHANGELOG.md)." \
             '' \
             'Requires 64-bit PHP 8.4 and the extensions in composer.json.' \
-            'Download the recommended runtime from https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/pm5-php-8.4-latest.' \
+            'Download the recommended runtime from https://github.com/Bedrock-Phanatics/PHP-Binaries/releases/tag/qrk6-php-8.4-latest.' \
             > release-notes.md
           flags=(--draft)
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi

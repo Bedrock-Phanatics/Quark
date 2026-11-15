@@ -23,9 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
 use quark\block\utils\SupportType;
@@ -33,6 +30,9 @@ use quark\block\utils\WoodMaterial;
 use quark\block\utils\WoodTypeTrait;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\sound\DoorSound;

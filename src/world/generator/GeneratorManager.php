@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world\generator;
 
-use pocketmine\math\Vector3;
+use quark\math\Vector3;
 use quark\utils\SingletonTrait;
 use quark\utils\Utils;
 use quark\world\generator\hell\Nether;

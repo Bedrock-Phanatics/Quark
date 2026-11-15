@@ -1,12 +1,6 @@
-# This configuration file controls global resources used on your Quark server.
-
-# Choose whether players must use your chosen resource packs to join the server.
-# This does nothing if there are no resource packs in the stack below.
+# Require players to accept the packs in the stack to join.
 force_resources = false
 
-# Resource packs are applied from last to first, so resources in earlier packs override those in later packs.
-# Entries are the filenames of resource packs in this folder, for example:
-# resource_stack = ["natural.zip", "vanilla.zip"]
-# To force clients to use vanilla resources, place a vanilla resource pack in this folder and add it to the stack.
-# To specify a resource encryption key, put the key in a <resource>.key file beside the pack, for example vanilla.zip.key
+# List pack filenames in this folder. Earlier packs override later packs.
+# For an encrypted pack, place its key beside it, for example natural.zip.key.
 resource_stack = []

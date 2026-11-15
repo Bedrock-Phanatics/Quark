@@ -38,6 +38,7 @@ use function array_map;
 use function assert;
 use function count;
 use function get_class;
+use function hrtime;
 use function spl_object_id;
 use function time;
 use const PHP_INT_MAX;
@@ -60,6 +61,7 @@ class AsyncPool{
 	 * @phpstan-var (\Closure(int $workerId) : void)[]
 	 */
 	private array $workerStartHooks = [];
+	private bool $pulseTelemetry = false;
 
 	public function __construct(
 		protected int $size,
@@ -67,7 +69,8 @@ class AsyncPool{
 		private ThreadSafeClassLoader $classLoader,
 		private ThreadSafeLogger $logger,
 		private SleeperHandler $eventLoop,
-		private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD
+		private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD,
+		private bool $phpAutomaticGc = false,
 	){}
 
 	/**
@@ -129,9 +132,10 @@ class AsyncPool{
 			$sleeperEntry = $this->eventLoop->addNotifier(function() use ($workerId) : void{
 				$this->collectTasksFromWorker($workerId);
 			});
-			$this->workers[$workerId] = new AsyncPoolWorkerEntry(new AsyncWorker($this->logger, $workerId, $this->workerMemoryLimit, $sleeperEntry, $this->gcThreshold), $sleeperEntry->getNotifierId());
-			$this->workers[$workerId]->worker->setClassLoaders([$this->classLoader]);
-			$this->workers[$workerId]->worker->start(self::WORKER_START_OPTIONS);
+			$worker = new AsyncWorker($this->logger, $workerId, $this->workerMemoryLimit, $sleeperEntry, $this->gcThreshold, $this->phpAutomaticGc);
+			$this->workers[$workerId] = new AsyncPoolWorkerEntry($worker, $sleeperEntry->getNotifierId());
+			$worker->setClassLoaders([$this->classLoader]);
+			$worker->start(self::WORKER_START_OPTIONS);
 
 			foreach($this->workerStartHooks as $hook){
 				$hook($workerId);
@@ -154,9 +158,17 @@ class AsyncPool{
 			throw new \InvalidArgumentException("Cannot submit the same AsyncTask instance more than once");
 		}
 
-		$task->setSubmitted();
+		$telemetry = $this->pulseTelemetry && !$task instanceof PulseControlTask ? Pulse::getWorkerTelemetry() : null;
+		$task->setSubmitted($telemetry === null ? 1 : (int) hrtime(true));
 
-		$this->getWorker($worker)->submit($task);
+		$entry = $this->getWorker($worker);
+		$entry->submit($task);
+		$telemetry?->submitted($entry->tasks->count());
+	}
+
+	/** @internal Lets Pulse report queue and latency metrics for this pool. */
+	public function enablePulseTelemetry() : void{
+		$this->pulseTelemetry = true;
 	}
 
 	/**
@@ -257,7 +269,11 @@ class AsyncPool{
 		if(!isset($this->workers[$worker])){
 			throw new \InvalidArgumentException("No such worker $worker");
 		}
-		$queue = $this->workers[$worker]->tasks;
+		$entry = $this->workers[$worker];
+		$queue = $entry->tasks;
+		if($queue->isEmpty() && !$entry->uncollected){
+			return false;
+		}
 		$more = false;
 		while(!$queue->isEmpty()){
 			/** @var AsyncTask $task */
@@ -269,6 +285,9 @@ class AsyncPool{
 					$this->checkCrashedWorker($worker, $task);
 					throw new AssumptionFailedError("checkCrashedWorker() should have thrown an exception, making this unreachable");
 				}else{
+					if($this->pulseTelemetry && ($telemetry = Pulse::getWorkerTelemetry()) !== null && ($times = $task->getPulseTimes()) !== null){
+						$telemetry->collected($times[0], $times[1], (int) hrtime(true));
+					}
 					if($task instanceof PulseControlTask || !Pulse::isRecording()){
 						$task->onCompletion();
 					}else{
@@ -282,7 +301,8 @@ class AsyncPool{
 				break; //current task is still running, skip to next worker
 			}
 		}
-		$this->workers[$worker]->worker->collect();
+		//collect() may free a task that finished after the check above, so only an empty queue lets the worker be skipped
+		$entry->uncollected = $entry->worker->collect() > 0;
 		return $more;
 	}
 

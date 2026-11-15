@@ -99,7 +99,11 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 	}
 
 	public function onEntityRemoved(array $recipients, Entity $entity) : void{
-		$this->sendDataPacket($recipients, RemoveActorPacket::create($entity->getId()));
+		$entityId = $entity->getId();
+		foreach($recipients as $session){
+			$session->getPlayer()?->getCameraIfCreated()?->onEntityRemoved($entityId);
+		}
+		$this->sendDataPacket($recipients, RemoveActorPacket::create($entityId));
 	}
 
 	public function onMobMainHandItemChange(array $recipients, Human $mob) : void{

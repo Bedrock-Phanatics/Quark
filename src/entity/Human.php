@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -61,6 +60,7 @@ use quark\item\enchantment\EnchantingHelper;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
 use quark\item\Totem;
+use quark\math\Vector3;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;

@@ -7,8 +7,24 @@ Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to name
 ### Namespaces
 
 - Core namespace: `pocketmine\` → `quark\`
-- External libraries such as `pocketmine\math` and `pocketmine\nbt` remain unchanged.
+- Math and colour types come from the native ext-qmath extension: `pocketmine\math` → `quark\math` and `pocketmine\color` → `quark\color`, with the same class names. See [Math](#math).
+- Other external libraries such as `pocketmine\nbt` remain unchanged.
 - Update reflection strings, serialized class names, PHPStan configuration, tests, and scripts referencing the old namespace.
+
+### Math
+
+`pocketmine/math` and `pocketmine/color` are replaced by [ext-qmath](https://github.com/Bedrock-Phanatics/ext-qmath), which Quark requires at runtime. Results match pmmp/Math 1.0 and pocketmine/color 0.3 exactly. Besides the namespace:
+
+- `Vector3::getX()`, `getY()`, `getZ()` and `Vector2::getX()`, `getY()` are gone, read `->x`, `->y`, `->z`.
+- `RayTraceResult::getBoundingBox()`, `getHitFace()`, `getHitVector()` are gone, read `->bb`, `->hitFace`, `->hitVector`. The properties are readonly.
+- `Vector3::sidesArray()` is gone. `sides()` and `sidesAroundAxis()` return arrays keyed by facing instead of generators.
+- `Vector3::maxPlainDistance()`, `getIntermediateWith*Value()`, `AxisAlignedBB::isVectorIn*()` and `Matrix` are gone.
+- `VoxelRayTrace` returns a lazy `VoxelRayIterator` instead of a generator.
+- Serialized vectors from PocketMine do not unserialize into the new classes.
+- `Block::calculateIntercept()` is final, block raycasts use the block's collision boxes.
+- `quark\world\generator\noise\Simplex` is final and samples natively.
+- Collision queries outside ±33,554,432 blocks horizontally are not supported. Entities there stay in place instead of moving.
+- `World::getBlockCollisionBoxes()` and `getCollisionRegion()` cover at most 4096 chunk sections per query, about 256 × 256 × 256 blocks, and throw `quark\math\collision\CollisionDataException` beyond that.
 
 ### Composer
 
@@ -21,7 +37,7 @@ Quark 6 is based on PocketMine-MP 5.47.0 but introduces breaking changes to name
 
 | PocketMine-MP 5 | Quark 6 |
 |---|---|
-| `PocketMine-MP.phar` | `Quark.phar` |
+| `PocketMine-MP.phar` | `Quark-v6.phar` |
 | `src/PocketMine.php` | `src/Quark.php` |
 | `pocketmine.yml` | `config/server.toml` |
 | `plugin.yml` | `plugin.toml` |
@@ -202,7 +218,7 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 - Compression algorithm is configurable rather than fixed to zlib.
 - Plugins should use Quark's `Compressor` abstraction.
-- Snappy requires `ext-snappy`; invalid or unavailable compression modes fall back to zlib.
+- Snappy requires `ext-snappy` and falls back to zlib when the extension is unavailable.
 
 ### Async Tasks
 
@@ -210,9 +226,9 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 ## Configuration Migration
 
-Use `--migration-dry-run` to preview migration, then `--migrate-legacy` to convert supported legacy configurations with a recoverable snapshot.
+Quark upgrades older `config/server.toml` files automatically. The upgrade moves legacy language and memory-limit settings, translates disabled chunk ticking to a zero tick radius, and adds missing defaults. It preserves unrelated settings. Quark rejects unsupported config versions.
 
-Review the generated [server.toml](../resources/server.toml) and [plugins.toml](../resources/plugins.toml).
+Use `--migration-dry-run` to preview a legacy filesystem migration, then start with `--migrate-legacy` or set `[migration] auto_on_startup = true` in `config/migration.ini` before conversion. Quark snapshots the original YAML and properties files in `backups/`. Review the generated files. [Server template](../resources/server.toml) · [Plugin template](../resources/plugins.toml)
 
 ### New Configuration Options
 
@@ -220,6 +236,7 @@ Review the generated [server.toml](../resources/server.toml) and [plugins.toml](
 - `network.async-compression`
 - `network.async-compression-threshold`
 - `network.combat-low-latency-feedback`
+- `memory.garbage-collection.php-automatic`
 - `memory.garbage-collection.threshold`
 - `memory.garbage-collection.period`
 - `redstone.*`

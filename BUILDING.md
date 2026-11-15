@@ -15,7 +15,7 @@ The compiler's `-P5` option and `bin/php7/bin/php` directory select the inherite
 
 CI builds PHP 8.4 ZTS from the pinned submodule on Linux x86_64 and Windows x64, extracts the package, and verifies its native extensions before installing Composer dependencies. Docker builds the same pinned sources, including checksum files. Other native packaging targets and PHP 8.5 remain disabled until verified.
 
-The runtime includes ext-bedwire ^0.5.0 with its pinned phpz/Zig dependencies and the patched libdatachannel from nethernet-zig, which serves the `nethernet` transport. Quark rejects missing or incompatible extensions before starting the server.
+The runtime includes ext-qmath ^0.3.0, which provides `quark\math` and `quark\color` and the native collision, raycast, explosion and noise kernels, and ext-bedwire ^0.5.0 with its pinned phpz/Zig dependencies and the patched libdatachannel from nethernet-zig, which serves the `nethernet` transport. Quark rejects missing or incompatible extensions before starting the server.
 
 The optional `tests/plugins/DevTools` submodule is an inherited PocketMine-MP project. CI does not initialize it. The tracked [Quark 6 example plugin](examples/plugins/QuarkExample) can be built with `php -dphar.readonly=0 tests/build-plugin-phar.php examples/plugins/QuarkExample QuarkExample.phar`.
 
@@ -34,10 +34,10 @@ Use `bin\php\run-php.cmd` for the bundled Windows runtime when invoking PHP or C
 ## Optimizing for release builds
 1. Add the flags `--no-dev --classmap-authoritative` to your `composer install` command. This will reduce build size and improve autoloading speed.
 
-## Building `Quark.phar`
-Run `composer make-server` using your preferred PHP binary. It'll drop a `Quark.phar` into the current working directory.
+## Building `Quark-v6.phar`
+Run `composer make-server` using your preferred PHP binary. It'll drop a `Quark-v6.phar` into the current working directory. The name follows the major version in `src/VersionInfo.php`, so the release workflow, Dockerfile and launchers need the new name when that changes.
 
-To select an output filename, first install production dependencies with `composer install --no-dev --classmap-authoritative`, then run `php -dphar.readonly=0 build/server-phar.php --out path/to/Quark.phar`.
+To select an output filename, first install production dependencies with `composer install --no-dev --classmap-authoritative`, then run `php -dphar.readonly=0 build/server-phar.php --out path/to/Quark-v6.phar`.
 
 `composer make-server` removes development dependencies. Run `composer install` again before running PHPUnit or PHPStan.
 
@@ -47,7 +47,7 @@ CI runs native NBT and lifecycle checks, PHPStan, PHPUnit, integration tests and
 
 Push builds cover `main` and `dev`; other branches are checked through pull requests or manual dispatch to avoid duplicate push/PR builds.
 
-To prepare a release, set `IS_DEVELOPMENT_BUILD` to `false`, verify the version/channel in `src/VersionInfo.php`, update `CHANGELOG.md`, and push a matching version tag (for example `6.0.0` or `v6.0.0`). After CI passes, the tag workflow builds `Quark.phar`, launcher scripts, `build_info.json` and core permission documentation, then creates a draft release. Publishing the draft starts the container pipeline for `ghcr.io/bedrock-phanatics/quark`; stable releases also receive major, minor and `latest` tags. Container smoke tests must pass before tags are pushed.
+To prepare a release, set `IS_DEVELOPMENT_BUILD` to `false`, verify the version/channel in `src/VersionInfo.php`, update `CHANGELOG.md`, and push a matching version tag (for example `6.0.0` or `v6.0.0`). After CI passes, the tag workflow builds `Quark-v6.phar`, launcher scripts, `build_info.json` and core permission documentation, then creates a draft release. Publishing the draft starts the container pipeline for `ghcr.io/bedrock-phanatics/quark`; stable releases also receive major, minor and `latest` tags. Container smoke tests must pass before tags are pushed.
 
 ## Running Quark from source code
 Run `src/Quark.php` using your preferred PHP binary.

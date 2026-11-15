@@ -6,4 +6,5 @@ if output=$(php -n src/Quark.php --version 2>&1); then
 	exit 1
 fi
 grep -F "(bedwire) extension." <<< "$output"
+grep -F "(qmath) extension." <<< "$output"
 grep -F 'Selected PHP binary does not satisfy some requirements.' <<< "$output"

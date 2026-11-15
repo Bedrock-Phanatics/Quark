@@ -150,6 +150,10 @@ class LevelDB extends BedrockWorldProvider{
 
 	}
 
+	public function flush() : void{
+		//LevelDB syncs its log on its own schedule
+	}
+
 	public function close() : void{
 		unset($this->db);
 	}

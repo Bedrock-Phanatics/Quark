@@ -97,7 +97,7 @@ final class ItemSerializer{
 		if($item instanceof UnknownCustomItem){
 			$tag = clone $item->getNamedTag();
 			$tag->removeTag(UnknownCustomItem::IDENTITY_TAG);
-			return new Data($item->getSavedIdentifier(), $item->getSavedMeta(), null, $tag);
+			return new Data($item->getSavedIdentifier(), $item->getSavedMeta(), null, $tag->count() > 0 ? $tag : null);
 		}
 		if($item instanceof ItemBlock){
 			$data = $this->serializeBlockItem($item->getBlock());

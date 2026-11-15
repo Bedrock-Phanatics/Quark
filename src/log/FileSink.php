@@ -110,6 +110,8 @@ final class FileSink implements Sink{
 		if($this->stream !== null && !@fflush($this->stream)){ throw new \RuntimeException("Cannot flush log file: $this->file"); }
 	}
 
+	public function hasPending() : bool{ return $this->buffer !== ""; }
+
 	public function close() : void{
 		try{ $this->flush(); }finally{
 			if($this->stream !== null){

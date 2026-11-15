@@ -33,6 +33,9 @@ use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use pocketmine\snooze\SleeperHandler;
 use quark\block\tile\comparator\ComparatorWeightRegistry;
 use quark\block\tile\dispenser\DispensableItemManager;
+use quark\block\utils\HopperConfig;
+use quark\camera\CameraAimAssistRegistry;
+use quark\camera\CameraPresetRegistry;
 use quark\command\Command;
 use quark\command\CommandSender;
 use quark\command\SimpleCommandMap;
@@ -105,6 +108,7 @@ use quark\pulse\internal\PulseRecorder;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\pulse\PulseReport;
+use quark\pulse\PulseSession;
 use quark\pulse\PulseZone;
 use quark\resourcepacks\ResourcePackManager;
 use quark\scheduler\AsyncPool;
@@ -127,6 +131,7 @@ use quark\utils\SignalHandler;
 use quark\utils\Terminal;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
+use quark\world\DimensionRegistry;
 use quark\world\format\io\WorldMigration;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WritableWorldProviderManagerEntry;
@@ -163,11 +168,11 @@ use function extension_loaded;
 use function fclose;
 use function fflush;
 use function file_exists;
-use function file_put_contents;
 use function fopen;
 use function function_exists;
 use function get_class;
 use function get_debug_type;
+use function hrtime;
 use function implode;
 use function in_array;
 use function ini_set;
@@ -193,12 +198,13 @@ use function sleep;
 use function spl_object_id;
 use function sprintf;
 use function str_repeat;
-use function str_replace;
 use function strcasecmp;
+use function strcspn;
 use function strlen;
 use function strncasecmp;
 use function strtolower;
 use function strval;
+use function substr;
 use function time;
 use function trim;
 use function unlink;
@@ -214,6 +220,9 @@ class Server{
 	use NotCloneable;
 	use NotSerializable;
 
+	private ?CameraPresetRegistry $cameraPresets = null;
+	private ?CameraAimAssistRegistry $cameraAimAssist = null;
+
 	public const BROADCAST_CHANNEL_ADMINISTRATIVE = "quark.broadcast.admin";
 	public const BROADCAST_CHANNEL_USERS = "quark.broadcast.user";
 
@@ -223,7 +232,7 @@ class Server{
 	public const DEFAULT_PORT_IPV6 = 19133;
 	public const DEFAULT_MAX_VIEW_DISTANCE = 16;
 	public const MAX_VIEW_DISTANCE = 96; //the client's own render distance limit
-	private const MAX_ACTIVE_TRANSPORTS = 8;
+	public const MAX_ACTIVE_TRANSPORTS = 8;
 
 	/**
 	 * Worlds, network, commands and most other things are polled this many times per second on average.
@@ -236,12 +245,15 @@ class Server{
 	 */
 	public const TARGET_SECONDS_PER_TICK = 1 / self::TARGET_TICKS_PER_SECOND;
 	public const TARGET_NANOSECONDS_PER_TICK = 1_000_000_000 / self::TARGET_TICKS_PER_SECOND;
+	private const PULSE_AUTO_CAPTURE_NS = 60_000_000_000;
+	private const PULSE_AUTO_CAPTURE_COOLDOWN_NS = 600_000_000_000;
 
 	/**
 	 * The TPS threshold below which the server will generate log warnings.
 	 */
 	private const TPS_OVERLOAD_WARNING_THRESHOLD = self::TARGET_TICKS_PER_SECOND * 0.6;
 
+	private const REDACTED_COMMANDS = ["tell" => true, "login" => true, "register" => true, "unregister" => true, "password" => true, "passwd" => true, "changepassword" => true];
 	private const TICKS_PER_WORLD_CACHE_CLEAR = 5 * self::TARGET_TICKS_PER_SECOND;
 	private const TICKS_PER_TPS_OVERLOAD_WARNING = 5 * self::TARGET_TICKS_PER_SECOND;
 
@@ -270,6 +282,10 @@ class Server{
 	/** @var Promise<string>|null */
 	private ?Promise $pulseReport = null;
 	private ?AsyncPool $pulseReportPool = null;
+	private int $pulseAutoCaptureNs = 0;
+	private int $pulseAutoCaptureReady = 0;
+	private ?PulseSession $pulseAutoSession = null;
+	private bool $pulseAutoSaved = true;
 
 	private UpdateChecker $updater;
 
@@ -334,6 +350,8 @@ class Server{
 	private QueryInfo $queryInfo;
 
 	private ServerConfigGroup $configGroup;
+	private int $gcThreshold = GarbageCollectorManager::DEFAULT_THRESHOLD;
+	private bool $phpAutomaticGc = true;
 	private bool $lowLatencyCombatFeedbackEnabled;
 
 	/** @var Player[] */
@@ -541,6 +559,14 @@ class Server{
 		return $this->pluginManager;
 	}
 
+	public function getCameraPresets() : CameraPresetRegistry{
+		return $this->cameraPresets ??= new CameraPresetRegistry();
+	}
+
+	public function getCameraAimAssist() : CameraAimAssistRegistry{
+		return $this->cameraAimAssist ??= new CameraAimAssistRegistry();
+	}
+
 	public function getCraftingManager() : CraftingManager{
 		return $this->craftingManager;
 	}
@@ -653,7 +679,7 @@ class Server{
 		$directory = $this->getFilesystemPaths()->profiles();
 		if(isset($this->tickSleeper, $this->autoloader, $this->logger)){ //@phpstan-ignore isset.initializedProperty, isset.initializedProperty, isset.initializedProperty (tests build partial servers)
 			// Disk writes must not occupy the networking and generation workers.
-			$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->pulseReportPool ??= new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper, $this->gcThreshold, $this->phpAutomaticGc);
 			/** @var Deferred<string> $deferred */
 			$deferred = new Deferred();
 			$this->pulseReportPool->submitTask(new PulseReportWriteTask($captures, $metadata, $directory, $deferred, $maxProfiles));
@@ -682,6 +708,50 @@ class Server{
 		}catch(\LogicException $e){
 			$this->logger->debug($e->getMessage());
 		}
+	}
+
+	/**
+	 * Records the minute after a slow tick and saves it once the recording expires. Manual sessions always win, and the
+	 * cooldown keeps a sustained problem from producing a report every minute.
+	 */
+	private function checkPulseAutoCapture(int $tickNs) : void{
+		$session = $this->pulse->getSession();
+		$auto = $this->pulseAutoSession;
+		if(!$this->pulseAutoSaved && $auto !== null && $session === $auto && !$auto->isRecording()){
+			$stats = $auto->getStats();
+			// A manual /pulse stop saves its own report.
+			if($stats["elapsed_ns"] < $stats["duration_ns"]){
+				$this->pulseAutoSaved = true;
+			}else{
+				try{
+					$this->exportPulseReport()->observe(
+						fn(string $file) => $this->logger->info("Pulse report saved to $file"),
+						fn(\Throwable $e) => $this->logger->error("Failed to create Pulse report: " . $e->getMessage())
+					);
+					$this->pulseAutoSaved = true;
+				}catch(\LogicException){
+					//another report or worker collection is in flight; retry next tick
+				}
+			}
+		}
+		if($tickNs <= $this->pulseAutoCaptureNs || ($session !== null && ($session !== $auto || $session->isRecording()))){
+			return;
+		}
+		$now = (int) hrtime(true);
+		if($now < $this->pulseAutoCaptureReady || $this->pulseReport !== null || $this->pulse->getPendingOperations() > 0){
+			return;
+		}
+		// Failed starts wait out the cooldown too, so a broken watchdog is not retried on every slow tick.
+		$this->pulseAutoCaptureReady = $now + self::PULSE_AUTO_CAPTURE_NS + self::PULSE_AUTO_CAPTURE_COOLDOWN_NS;
+		try{
+			$this->pulse->start(self::PULSE_AUTO_CAPTURE_NS, $this->pulseAutoCaptureNs);
+		}catch(\Exception $e){
+			$this->logger->warning("Automatic Pulse capture failed to start: " . $e->getMessage());
+			return;
+		}
+		$this->pulseAutoSession = $this->pulse->getSession();
+		$this->pulseAutoSaved = false;
+		$this->logger->info(sprintf("Tick took %.1f ms; recording Pulse for 60 seconds", $tickNs / 1_000_000));
 	}
 
 	private function drainPulseReports() : void{
@@ -1091,7 +1161,8 @@ class Server{
 		private ThreadSafeClassLoader $autoloader,
 		private AttachableThreadSafeLogger $logger,
 		string $dataPath,
-		string $pluginPath
+		string $pluginPath,
+		?ServerConfigGroup $configGroup = null
 	){
 		if(self::$instance !== null){
 			throw new \LogicException("Only one server instance can exist at once");
@@ -1123,24 +1194,12 @@ class Server{
 			$this->paths = new FilesystemPaths($this->dataPath, $this->pluginPath);
 
 			$this->logger->info("Loading server configuration");
-			$serverTomlPath = $this->paths->serverToml();
-			if(!file_exists($serverTomlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "server.toml"));
-				if(VersionInfo::IS_DEVELOPMENT_BUILD){
-					$content = str_replace("preferred-channel = 'stable'", "preferred-channel = 'beta'", $content);
-				}
-				if(@file_put_contents($serverTomlPath, $content) === false){
-					throw new \RuntimeException("Cannot create $serverTomlPath");
-				}
-			}
-			$config = new Config($serverTomlPath, Config::TOML);
-			CoreConfig::validateServer($config->getAll());
-			$this->configGroup = new ServerConfigGroup($config, $config, true);
+			$this->configGroup = $configGroup ?? ServerConfigGroup::load($this->paths->serverToml());
 
 			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
 			$this->forceLanguage = $this->configGroup->getPropertyBool(Yml::SETTINGS_FORCE_LANGUAGE, false);
-			$selectedLang = $this->configGroup->getConfigString(ServerProperties::LANGUAGE, $this->configGroup->getPropertyString("settings.language", Language::FALLBACK_LANGUAGE));
+			$selectedLang = $this->configGroup->getConfigString(ServerProperties::LANGUAGE, Language::FALLBACK_LANGUAGE);
 			try{
 				$this->language = new Language($selectedLang);
 			}catch(LanguageNotFoundException $e){
@@ -1174,6 +1233,8 @@ class Server{
 				$this->logger->warning(str_repeat("-", 40));
 			}
 
+			$this->gcThreshold = $this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD);
+			$this->phpAutomaticGc = $this->configGroup->getPropertyBool(Yml::MEMORY_GARBAGE_COLLECTION_PHP_AUTOMATIC, true);
 			$this->memoryManager = new MemoryManager($this);
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
@@ -1195,17 +1256,16 @@ class Server{
 				$this->autoloader,
 				$this->logger,
 				$this->tickSleeper,
-				$this->configGroup->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_THRESHOLD, GarbageCollectorManager::DEFAULT_THRESHOLD)
+				$this->gcThreshold,
+				$this->phpAutomaticGc
 			);
 			$this->pulse = new PulseRecorder($this->asyncPool, $this->logger instanceof MainLogger ? $this->logger->getLogWriterThread() : null, $this->autoloader);
 			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
 				$this->pulse->start();
 			}
+			$this->pulseAutoCaptureNs = $this->configGroup->getPropertyInt(Yml::DIAGNOSTICS_PULSE_AUTO_CAPTURE_MS, 0) * 1_000_000;
 
-			$netCompressionThreshold = -1;
-			if($this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256) >= 0){
-				$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
-			}
+			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
 			if($netCompressionThreshold < 0){
 				$netCompressionThreshold = null;
 			}
@@ -1228,7 +1288,7 @@ class Server{
 				$this->networkCompressor = ZlibCompressor::getInstance();
 			}
 
-			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, true);
+			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, false);
 			$this->networkCompressionAsyncThreshold = max(
 				$this->configGroup->getPropertyInt(Yml::NETWORK_ASYNC_COMPRESSION_THRESHOLD, self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD),
 				$netCompressionThreshold ?? self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD
@@ -1310,11 +1370,17 @@ class Server{
 				is_array($redstoneWorlds) ? $redstoneWorlds : []
 			);
 			TntConfig::configure(
-				$this->configGroup->getPropertyBool(Yml::TNT_LIMITS_ENABLED, true),
+				$this->configGroup->getPropertyBool(Yml::TNT_LIMITS_ENABLED, false),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_PER_CHUNK, 64),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_ACTIVE_NEARBY, 192),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_IGNITIONS_PER_CHUNK_PER_TICK, 24),
 				$this->configGroup->getPropertyInt(Yml::TNT_LIMITS_MAX_DISPENSER_IGNITIONS_PER_SECOND, 20)
+			);
+			HopperConfig::configure(
+				$this->configGroup->getPropertyBool(Yml::HOPPERS_ENABLED, true),
+				$this->configGroup->getPropertyInt(Yml::HOPPERS_TRANSFER_COOLDOWN, 8),
+				$this->configGroup->getPropertyInt(Yml::HOPPERS_ITEMS_PER_TRANSFER, 1),
+				$this->configGroup->getPropertyInt(Yml::HOPPERS_MAX_UPDATES_PER_TICK, 512)
 			);
 			ItemEntity::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_ITEM_MERGE_RADIUS, ItemEntity::MAX_MERGE_RADIUS));
 			ExperienceOrb::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_XP_ORB_MERGE_RADIUS, ExperienceOrb::MAX_MERGE_RADIUS));
@@ -1375,7 +1441,7 @@ class Server{
 
 			$this->queryInfo = new QueryInfo($this);
 
-			$this->playerDataPool = new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper);
+			$this->playerDataPool = new AsyncPool(1, 256, $this->autoloader, $this->logger, $this->tickSleeper, $this->gcThreshold, $this->phpAutomaticGc);
 			$this->playerDataProvider = new DatFilePlayerDataProvider($this->paths->players(), $this->playerDataPool);
 
 			register_shutdown_function($this->crashDump(...));
@@ -1532,6 +1598,16 @@ class Server{
 					if($convertedSeed !== null){
 						$creationOptions->setSeed($convertedSeed);
 					}
+				}
+
+				if(isset($options["dimension"])){
+					$dimension = is_string($options["dimension"]) ? DimensionRegistry::getInstance()->get($options["dimension"]) : null;
+					if($dimension === null){
+						$this->logger->error("Unknown dimension for world \"$name\" in config/server.toml");
+						$anyWorldFailedToLoad = true;
+						continue;
+					}
+					$creationOptions->setDimension($dimension);
 				}
 
 				$spawnPosition = $generatorEntry->getSpawnPosition($creationOptions->getSeed());
@@ -1832,9 +1908,25 @@ class Server{
 			}
 
 			$commandLine = $ev->getCommand();
+			$this->logCommand($sender, $commandLine);
 		}
 
 		return $this->commandMap->dispatch($sender, $commandLine);
+	}
+
+	private function logCommand(CommandSender $sender, string $commandLine) : void{
+		if(!$this->logger instanceof MainLogger){
+			return;
+		}
+		$line = ltrim($commandLine);
+		$label = substr($line, 0, strcspn($line, " \t\r\n"));
+		$command = $this->commandMap->getCommand($label);
+		$message = match(true){
+			$command === null => "/$label [unknown command]",
+			isset(self::REDACTED_COMMANDS[$command->getName()]) => "/$label [redacted]",
+			default => "/$line"
+		};
+		$this->logger->event("info", preg_replace('/[\x00-\x1F\x7F]/', " ", $message) ?? "", $sender instanceof ConsoleCommandSender ? "Console" : $sender->getName(), category: "command");
 	}
 
 	/**
@@ -1893,7 +1985,13 @@ class Server{
 			if(isset($this->worldManager)){
 				$this->logger->debug("Unloading all worlds");
 				foreach($this->worldManager->getWorlds() as $world){
-					$this->worldManager->unloadWorld($world, true);
+					try{
+						$this->worldManager->unloadWorld($world, true);
+					}catch(\Throwable $e){
+						//one world failing to save must not keep the others from being saved and closed
+						$this->logger->critical("World \"" . $world->getFolderName() . "\" was not saved completely: " . $e->getMessage());
+						$this->logger->logException($e);
+					}
 				}
 			}
 
@@ -2277,11 +2375,6 @@ class Server{
 				$serverCommandScope = PulseZones::$serverCommand->start();
 				while(($line = $this->console->readLine()) !== null){
 					$this->consoleSender ??= new ConsoleCommandSender($this, $this->language);
-					if($this->logger instanceof MainLogger){
-						$name = explode(" ", ltrim($line, "/"), 2)[0];
-						$command = $this->commandMap->getCommand($name);
-						$this->logger->event("info", $command === null ? "/[unknown command]" : "/" . $command->getName(), "Console", category: "command");
-					}
 					$this->dispatchCommand($this->consoleSender, $line);
 				}
 				PulseZones::$serverCommand->stop($serverCommandScope);
@@ -2296,6 +2389,9 @@ class Server{
 		$totalTickTimeSeconds = $now - $tickTime + ($this->tickSleeper->getNotificationProcessingTime() / 1_000_000_000);
 		$this->currentTPS = min(self::TARGET_TICKS_PER_SECOND, 1 / max(0.001, $totalTickTimeSeconds));
 		$this->currentUse = min(1, $totalTickTimeSeconds / self::TARGET_SECONDS_PER_TICK);
+		if($this->pulseAutoCaptureNs > 0){
+			$this->checkPulseAutoCapture((int) ($totalTickTimeSeconds * 1_000_000_000));
+		}
 
 		$idx = $this->tickCounter % self::TARGET_TICKS_PER_SECOND;
 		$this->tickAverage[$idx] = $this->currentTPS;

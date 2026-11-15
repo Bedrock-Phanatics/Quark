@@ -65,6 +65,7 @@ final class PulseRecorder{
 	private ?PulseNetworkWatchdog $watchdog = null;
 
 	public function __construct(private readonly AsyncPool $pool, private readonly ?LogDispatcher $logWriter = null, private readonly ?ThreadSafeClassLoader $loader = null){
+		$pool->enablePulseTelemetry();
 		$pool->addWorkerStartHook(function(int $worker) : void{
 			if($this->isRecording()){
 				$this->control(PulseControlTask::START, $worker);
@@ -73,6 +74,7 @@ final class PulseRecorder{
 	}
 
 	public function isRecording() : bool{ return $this->session?->isRecording() ?? false; }
+	public function getPool() : AsyncPool{ return $this->pool; }
 	public function getSession() : ?PulseSession{ return $this->session; }
 	public function getPendingOperations() : int{ return $this->controls + $this->pendingCollections; }
 

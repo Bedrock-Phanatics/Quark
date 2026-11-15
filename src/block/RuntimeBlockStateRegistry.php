@@ -79,6 +79,12 @@ class RuntimeBlockStateRegistry{
 	 * @phpstan-var array<int, float>
 	 */
 	public array $blastResistance = [];
+	/**
+	 * States that have entity-inside actions, see {@link Block::hasEntityCollision()}
+	 * @var true[]
+	 * @phpstan-var array<int, true>
+	 */
+	public array $entityCollision = [];
 
 	/**
 	 * Map of state ID -> useful AABB info to avoid unnecessary block allocations
@@ -188,6 +194,9 @@ class RuntimeBlockStateRegistry{
 			$this->lightFilter[$index] = min(15, $block->getLightFilter() + LightUpdate::BASE_LIGHT_FILTER);
 			if($block->blocksDirectSkyLight()){
 				$this->blocksDirectSkyLight[$index] = true;
+			}
+			if($block->hasEntityCollision()){
+				$this->entityCollision[$index] = true;
 			}
 
 			$this->collisionInfo[$index] = self::calculateCollisionInfo($block);

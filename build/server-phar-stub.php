@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\server_phar_stub;
 
+use function basename;
 use function clearstatcache;
 use function copy;
 use function define;
@@ -143,7 +144,7 @@ function lockPharCache(string $lockFilePath) : void{
 }
 
 /**
- * Prepares a decompressed .tar of Quark.phar in the system temp directory for loading code from.
+ * Prepares a decompressed .tar of the server phar in the system temp directory for loading code from.
  *
  * @return string path to the temporary decompressed phar (actually a .tar)
  */
@@ -161,7 +162,7 @@ function preparePharCache(string $tmpPath, string $pharPath) : string{
 
 $tmpDir = preparePharCacheDirectory();
 cleanupPharCache($tmpDir);
-echo "Preparing Quark.phar decompressed cache...\n";
+echo "Preparing " . basename(__FILE__) . " decompressed cache...\n";
 $start = hrtime(true);
 $cacheName = preparePharCache($tmpDir, __FILE__);
 echo "Cache ready at $cacheName in " . number_format((hrtime(true) - $start) / 1e9, 2) . "s\n";

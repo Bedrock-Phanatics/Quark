@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\world\light;
 
-use pocketmine\math\Facing;
 use pocketmine\world\format\LightArray;
+use quark\math\Facing;
 use quark\world\format\SubChunk;
 use quark\world\utils\SubChunkExplorer;
 use quark\world\utils\SubChunkExplorerStatus;

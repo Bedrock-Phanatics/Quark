@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\utils;
 
 use pocketmine\errorhandler\ErrorToExceptionHandler;
+use quark\CoreConfig;
 use quark\permission\AccessStorage;
 use Symfony\Component\Filesystem\Path;
 use function array_change_key_case;
@@ -42,8 +43,9 @@ use function is_bool;
 use function is_file;
 use function json_decode;
 use function json_encode;
-use function preg_match_all;
+use function preg_match;
 use function preg_replace;
+use function preg_split;
 use function serialize;
 use function str_replace;
 use function strlen;
@@ -80,6 +82,8 @@ class Config{
 	 * @phpstan-var array<mixed, mixed>
 	 */
 	private array $config = [];
+	/** @var array<array-key, mixed>|null */
+	private ?array $tomlBaseline = null;
 
 	/**
 	 * @var mixed[]
@@ -130,12 +134,14 @@ class Config{
 	 */
 	public function reload() : void{
 		$this->config = [];
+		$this->tomlBaseline = null;
 		$this->nestedCache = [];
 		$this->accessIndex = [];
 		if($this->type === Config::TOML){
-			\quark\CoreConfig::forget($this->file);
+			CoreConfig::forget($this->file);
 		}
 		$this->load($this->file, $this->type);
+		$this->changed = false;
 	}
 
 	public function hasChanged() : bool{
@@ -205,7 +211,9 @@ class Config{
 					break;
 				case Config::TOML:
 					try{
-						$config = \quark\CoreConfig::load($this->file);
+						$config = CoreConfig::load($this->file);
+						CoreConfig::forget($this->file);
+						$this->tomlBaseline = $config;
 					}catch(\Exception $e){
 						throw ConfigLoadException::wrap($this->file, $e);
 					}
@@ -260,8 +268,18 @@ class Config{
 				$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
 				break;
 			case Config::TOML:
-				$content = is_file($this->file) ? \quark\CoreConfig::update(Filesystem::fileGetContents($this->file), $this->config) : \quark\CoreConfig::encode($this->config);
-				break;
+				$original = is_file($this->file) ? Filesystem::fileGetContents($this->file) : null;
+				if(!CoreConfig::equivalent($this->tomlBaseline, $original !== null ? CoreConfig::parse($original) : null)){
+					throw new \RuntimeException("Configuration changed since it was loaded: " . $this->file);
+				}
+				$content = $original !== null ? CoreConfig::update($original, $this->config) : CoreConfig::encode($this->config);
+				if($content !== $original){
+					Filesystem::atomicWrite($this->file, $content, $original);
+				}
+				$this->tomlBaseline = $this->config;
+				CoreConfig::forget($this->file);
+				$this->changed = false;
+				return;
 			case Config::SERIALIZED:
 				$content = serialize($this->config);
 				break;
@@ -273,9 +291,6 @@ class Config{
 		}
 
 		Filesystem::safeFilePutContents($this->file, $content);
-		if($this->type === Config::TOML){
-			\quark\CoreConfig::forget($this->file);
-		}
 
 		$this->changed = false;
 	}
@@ -607,35 +622,37 @@ class Config{
 	}
 
 	/**
+	 * @param array<string, true> $strings
 	 * @return string[]|int[]|float[]|bool[]
 	 * @phpstan-return array<int|string, string|int|float|bool>
 	 */
-	public static function parseProperties(string $content) : array{
+	public static function parseProperties(string $content, array $strings = [], bool $strict = false) : array{
 		$result = [];
-		if(preg_match_all('/^\s*([a-zA-Z0-9\-_\.]+)[ \t]*=([^\r\n]*)/um', $content, $matches) > 0){ //false or 0 matches
-			foreach($matches[1] as $i => $k){
-				$v = trim($matches[2][$i]);
-				switch(strtolower($v)){
-					case "on":
-					case "true":
-					case "yes":
-						$v = true;
-						break;
-					case "off":
-					case "false":
-					case "no":
-						$v = false;
-						break;
-					default:
-						$v = match($v){
-							(string) ((int) $v) => (int) $v,
-							(string) ((float) $v) => (float) $v,
-							default => $v,
-						};
-						break;
-				}
-				$result[$k] = $v;
+		foreach(Utils::assumeNotFalse(preg_split('/\r\n|\n|\r/', $content)) as $index => $line){
+			$line = trim($line);
+			if($line === "" || $line[0] === "#" || $line[0] === "!" || $line[0] === ";"){
+				continue;
 			}
+			if(preg_match('/^([a-zA-Z0-9_.-]+)[ \t]*=(.*)$/D', $line, $matches) !== 1){
+				if($strict){
+					throw new \InvalidArgumentException("Invalid server.properties at line " . ($index + 1));
+				}
+				continue;
+			}
+			[, $key, $raw] = $matches;
+			if($strict && isset($result[$key])){
+				throw new \InvalidArgumentException("Duplicate server.properties key: $key");
+			}
+			$value = trim($raw);
+			$result[$key] = isset($strings[$key]) ? $value : match(strtolower($value)){
+				"on", "true", "yes" => true,
+				"off", "false", "no" => false,
+				default => match($value){
+					(string) (int) $value => (int) $value,
+					(string) (float) $value => (float) $value,
+					default => $value,
+				},
+			};
 		}
 
 		return $result;

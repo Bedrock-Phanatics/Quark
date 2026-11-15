@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace quark\item;
 
-use pocketmine\color\Color;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\utils\Binary;
 use quark\block\utils\DyeColor;
+use quark\color\Color;
 use quark\data\SavedDataLoadingException;
 
 class FireworkStar extends Item{

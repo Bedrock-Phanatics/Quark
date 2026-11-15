@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity\object;
 
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
@@ -33,6 +32,7 @@ use quark\entity\Entity;
 use quark\entity\EntitySizeInfo;
 use quark\entity\Human;
 use quark\entity\Location;
+use quark\math\Vector3;
 use quark\player\Player;
 use function max;
 use function min;

@@ -23,10 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
-use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use quark\block\tile\Campfire as TileCampfire;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\HorizontalFacingTrait;
@@ -51,6 +47,10 @@ use quark\item\ItemTypeIds;
 use quark\item\PotionType;
 use quark\item\Shovel;
 use quark\item\VanillaItems;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
+use quark\math\RayTraceResult;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\sound\BlazeShootSound;
@@ -221,6 +221,9 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 		$furnaceType = $this->getFurnaceType();
 		$maxCookDuration = $furnaceType->getCookDurationTicks();
 		foreach($inventory->getContents() as $slot => $item){
+			if($inventory->getMatchingItemCount($slot, $item, true) !== $item->getCount()){
+				continue;
+			}
 			$cookingTime = min($maxCookDuration, $tile->getCookingTime($slot) + self::UPDATE_INTERVAL_TICKS);
 			$tile->setCookingTime($slot, $cookingTime);
 			if($cookingTime < $maxCookDuration){
@@ -235,11 +238,11 @@ class Campfire extends Transparent implements Lightable, HorizontalFacing{
 			$ev = new CampfireCookEvent($this, $slot, $item, $result);
 			$ev->call();
 
-			if($ev->isCancelled()){
-				continue;
-			}
 			if($this->getTile() !== $tile){
 				return;
+			}
+			if($ev->isCancelled() || $inventory->getMatchingItemCount($slot, $item, true) !== $item->getCount() || $tile->getCookingTime($slot) !== $cookingTime){
+				continue;
 			}
 
 			$inventory->setItem($slot, VanillaItems::AIR());

@@ -39,6 +39,7 @@ use function extension_loaded;
 use function file_exists;
 use function mkdir;
 use function phpversion;
+use function sprintf;
 use function version_compare;
 
 /**
@@ -49,8 +50,10 @@ final class ZigriteDB extends BedrockWorldProvider{
 	/** Where ZigriteDB keeps level.dat and the other Bedrock world files, as `zigrite import` lays them out. */
 	private const BEDROCK_DIR = "bedrock";
 	private const OVERWORLD = 0;
+	private const MIN_EXTENSION_VERSION = "0.3.2";
 	/** ZigriteDB status codes, see zigritedb.h. */
 	private const STATUS_CORRUPTION = 6;
+	private const STATUS_NEEDS_RECOVERY = 8;
 	private const STATUS_BUSY = 9;
 	private const STATUS_NEEDS_MIGRATION = 16;
 
@@ -64,8 +67,8 @@ final class ZigriteDB extends BedrockWorldProvider{
 		return [
 			//a save rewrites every record of the chunk, and most of them haven't changed
 			"skip_unchanged" => true,
-			//chunks bigger than this are still saved, just without being atomic
-			"batch_buffer_size" => 16 * 1024 * 1024,
+			//the most one atomic write can hold; a bigger chunk is still saved, but in several writes a crash can split
+			"batch_buffer_size" => 64 * 1024 * 1024,
 			//an evicted region is synced and reopened later, which made random loads 15x slower at the default 64
 			"max_open_regions" => 256,
 		];
@@ -75,10 +78,10 @@ final class ZigriteDB extends BedrockWorldProvider{
 		if(!extension_loaded("zigritedb")){
 			throw new UnsupportedWorldFormatException("The zigritedb PHP extension is required to use this world format");
 		}
-		//older builds link ZigriteDB versions whose skip_unchanged can abort the process
+		//older builds leave a region unusable after a crash cuts a write short, and size their buffers by batch_buffer_size
 		$version = phpversion("zigritedb");
-		if($version === false || version_compare($version, "0.2.0", "<")){
-			throw new UnsupportedWorldFormatException("ZigriteDB worlds need ext-zigritedb 0.2.0 or newer, found " . ($version === false ? "none" : $version));
+		if($version === false || version_compare($version, self::MIN_EXTENSION_VERSION, "<")){
+			throw new UnsupportedWorldFormatException("ZigriteDB worlds need ext-zigritedb " . self::MIN_EXTENSION_VERSION . " or newer, found " . ($version === false ? "none" : $version));
 		}
 		if(!ZigriteWorld::isSupported()){
 			throw new UnsupportedWorldFormatException("ZigriteDB can't store worlds on this platform");
@@ -132,16 +135,39 @@ final class ZigriteDB extends BedrockWorldProvider{
 			if($e->getCode() === self::STATUS_CORRUPTION){
 				throw new CorruptedChunkException($e->getMessage(), 0, $e);
 			}
-			throw $e;
+			throw $this->explain($chunkX, $chunkZ, $e);
 		}
 	}
 
 	protected function writeChunkRecords(int $chunkX, int $chunkZ, array $records) : void{
-		$this->world->writeChunk(self::OVERWORLD, $chunkX, $chunkZ, $records);
+		try{
+			$this->world->writeChunk(self::OVERWORLD, $chunkX, $chunkZ, $records);
+		}catch(ZigriteException $e){
+			throw $this->explain($chunkX, $chunkZ, $e);
+		}
+	}
+
+	/**
+	 * A region that lost data it had already synced refuses every read and write until it is recovered by hand. That
+	 * isn't a corrupted chunk: treating it as one would regenerate the whole region over data that can still be saved.
+	 */
+	private function explain(int $chunkX, int $chunkZ, ZigriteException $e) : \Throwable{
+		if($e->getCode() !== self::STATUS_NEEDS_RECOVERY){
+			return $e;
+		}
+		$region = Path::join($this->getPath(), sprintf("%08x-%08x-%08x.region", self::OVERWORLD, ($chunkX >> 5) & 0xffffffff, ($chunkZ >> 5) & 0xffffffff));
+		return new \RuntimeException("Region $region is damaged. Stop the server, run \"zigrite recover\" on it with an empty folder as the destination, and put the result in its place. " . $e->getMessage(), 0, $e);
 	}
 
 	public function doGarbageCollection() : void{
 
+	}
+
+	/**
+	 * Chunk writes are buffered: they survive a crash of the server, but only a flush makes them survive a power loss.
+	 */
+	public function flush() : void{
+		$this->world->flush();
 	}
 
 	public function close() : void{

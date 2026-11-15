@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\math\Facing;
 use quark\block\Block;
+use quark\math\Facing;
 use quark\world\World;
 use function array_fill_keys;
 use function intdiv;

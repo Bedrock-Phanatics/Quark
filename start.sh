@@ -33,10 +33,12 @@ if [ "$PHP_BINARY" == "" ]; then
 fi
 
 if [ "$QUARK_FILE" == "" ]; then
-	if [ -f ./Quark.phar ]; then
+	if [ -f ./Quark-v6.phar ]; then
+		QUARK_FILE="./Quark-v6.phar"
+	elif [ -f ./Quark.phar ]; then
 		QUARK_FILE="./Quark.phar"
 	else
-		echo "Quark.phar not found"
+		echo "Quark-v6.phar not found"
 		echo "Downloads can be found at https://github.com/Bedrock-Phanatics/Quark/releases"
 		exit 1
 	fi

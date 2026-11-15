@@ -28,7 +28,12 @@ use quark\block\Campfire as BlockCampfire;
 use quark\block\VanillaBlocks;
 use quark\crafting\CraftingManagerFromDataHelper;
 use quark\data\bedrock\BedrockDataFiles;
+use quark\event\block\CampfireCookEvent;
+use quark\event\EventPriority;
+use quark\event\HandlerListManager;
 use quark\item\VanillaItems;
+use quark\plugin\Plugin;
+use quark\plugin\PluginManager;
 use quark\Server;
 use quark\world\redstone\RedstoneHarness;
 
@@ -39,6 +44,17 @@ final class CampfireTest extends TestCase{
 		$this->harness = new RedstoneHarness();
 		$server = $this->harness->world->getServer();
 		(new \ReflectionProperty(Server::class, "craftingManager"))->setValue($server, CraftingManagerFromDataHelper::make(BedrockDataFiles::RECIPES));
+	}
+
+	protected function tearDown() : void{
+		HandlerListManager::global()->unregisterAll();
+	}
+
+	/** @param \Closure(CampfireCookEvent) : void $listener */
+	private function onCook(\Closure $listener) : void{
+		$plugin = self::createStub(Plugin::class);
+		$plugin->method("isEnabled")->willReturn(true);
+		(new PluginManager($this->harness->world->getServer(), null))->registerEvent(CampfireCookEvent::class, $listener, EventPriority::NORMAL, $plugin);
 	}
 
 	private function placeCampfire(int $x = 2, int $z = 2) : BlockCampfire{
@@ -158,5 +174,79 @@ final class CampfireTest extends TestCase{
 
 		$block->onScheduledUpdate();
 		self::assertSame(0, $tile->getCookingTime(0));
+	}
+
+	public function testCookListenerCanReplaceTheIngredient() : void{
+		$this->harness->set(2, 64, 2, VanillaBlocks::CAMPFIRE()->setLit(true));
+		$block = $this->harness->get(2, 64, 2);
+		self::assertInstanceOf(BlockCampfire::class, $block);
+		$tile = $this->tile($block);
+		$tile->getInventory()->setItem(0, VanillaItems::RAW_BEEF());
+		$tile->setCookingTime(0, 590);
+		$this->onCook(static function(CampfireCookEvent $event) use ($tile) : void{
+			$tile->getInventory()->setItem($event->getSlot(), VanillaItems::RAW_PORKCHOP());
+		});
+
+		$block->onScheduledUpdate();
+		self::assertTrue($tile->getInventory()->getItem(0)->equalsExact(VanillaItems::RAW_PORKCHOP()));
+		self::assertSame(0, $tile->getCookingTime(0));
+		self::assertSame([], $this->harness->world->getEntities());
+	}
+
+	public function testCookListenerCanReplaceALaterIngredient() : void{
+		$this->harness->set(2, 64, 2, VanillaBlocks::CAMPFIRE()->setLit(true));
+		$block = $this->harness->get(2, 64, 2);
+		self::assertInstanceOf(BlockCampfire::class, $block);
+		$tile = $this->tile($block);
+		foreach([0, 1] as $slot){
+			$tile->getInventory()->setItem($slot, VanillaItems::RAW_BEEF());
+			$tile->setCookingTime($slot, 590);
+		}
+		$this->onCook(static function(CampfireCookEvent $event) use ($tile) : void{
+			$event->cancel();
+			if($event->getSlot() === 0){
+				$tile->getInventory()->setItem(1, VanillaItems::RAW_PORKCHOP());
+			}
+		});
+
+		$block->onScheduledUpdate();
+		self::assertTrue($tile->getInventory()->getItem(1)->equalsExact(VanillaItems::RAW_PORKCHOP()));
+		self::assertSame(0, $tile->getCookingTime(1), "a replacement isn't cooked using the old inventory snapshot");
+	}
+
+	public function testCancelledCookCanRemoveTheTile() : void{
+		$this->harness->set(2, 64, 2, VanillaBlocks::CAMPFIRE()->setLit(true));
+		$block = $this->harness->get(2, 64, 2);
+		self::assertInstanceOf(BlockCampfire::class, $block);
+		$tile = $this->tile($block);
+		foreach([0, 1] as $slot){
+			$tile->getInventory()->setItem($slot, VanillaItems::RAW_BEEF());
+			$tile->setCookingTime($slot, 590);
+		}
+		$this->onCook(function(CampfireCookEvent $event) use ($tile) : void{
+			$event->cancel();
+			$this->harness->world->removeTile($tile);
+		});
+
+		$block->onScheduledUpdate();
+		self::assertNull($block->getInventory());
+		self::assertSame(590, $tile->getCookingTime(1), "cooking stops when the tile is detached");
+	}
+
+	public function testCookListenerCanResetTheCookingTime() : void{
+		$this->harness->set(2, 64, 2, VanillaBlocks::CAMPFIRE()->setLit(true));
+		$block = $this->harness->get(2, 64, 2);
+		self::assertInstanceOf(BlockCampfire::class, $block);
+		$tile = $this->tile($block);
+		$tile->getInventory()->setItem(0, VanillaItems::RAW_BEEF());
+		$tile->setCookingTime(0, 590);
+		$this->onCook(static function(CampfireCookEvent $event) use ($tile) : void{
+			$tile->setCookingTime($event->getSlot(), 0);
+		});
+
+		$block->onScheduledUpdate();
+		self::assertTrue($tile->getInventory()->getItem(0)->equalsExact(VanillaItems::RAW_BEEF()));
+		self::assertSame(0, $tile->getCookingTime(0));
+		self::assertSame([], $this->harness->world->getEntities());
 	}
 }

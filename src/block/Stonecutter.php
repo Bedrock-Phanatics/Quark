@@ -23,14 +23,14 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\inventory\window\StonecutterInventoryWindow;
 use quark\block\utils\FacesOppositePlacingPlayerTrait;
 use quark\block\utils\HorizontalFacing;
 use quark\block\utils\MenuAccessor;
 use quark\block\utils\MenuAccessorTrait;
 use quark\block\utils\SupportType;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\player\InventoryWindow;
 use quark\player\Player;
 use quark\world\Position;

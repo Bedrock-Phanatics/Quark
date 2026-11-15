@@ -58,7 +58,8 @@ final class ConsoleReader{
 
 		$r = [$this->stdin];
 		$w = $e = null;
-		if(($count = stream_select($r, $w, $e, 0, 200000)) === 0){ //nothing changed in 200000 microseconds
+		//the reader thread has nothing else to do, so it sleeps until input arrives
+		if(($count = stream_select($r, $w, $e, null)) === 0){
 			return null;
 		}elseif($count === false){ //stream error
 			return null;

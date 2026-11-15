@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\sound;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ClientboundUpdateSoundDataPacket;
 use pocketmine\network\mcpe\protocol\types\sound\SoundDataEvent;
+use quark\math\Vector3;
 
 class RecordStopSound implements Sound{
 	public function __construct(private int $serverSoundHandleId = 0){

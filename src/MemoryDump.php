@@ -71,12 +71,30 @@ final class MemoryDump{
 		$gcEnabled = gc_enabled();
 		gc_disable();
 
-		if(!file_exists($outputFolder)){
-			mkdir($outputFolder, 0777, true);
+		try{
+			if(!file_exists($outputFolder)){
+				mkdir($outputFolder, 0777, true);
+			}
+
+			$obData = Utils::assumeNotFalse(fopen(Path::join($outputFolder, "objects.js"), "wb+"));
+			try{
+				self::writeDump($startingObject, $outputFolder, $maxNesting, $maxStringSize, $logger, $obData);
+			}finally{
+				fclose($obData);
+			}
+			$logger->info("Finished!");
+		}finally{
+			if($gcEnabled){
+				gc_enable();
+			}else{
+				gc_disable();
+			}
+			ini_set('memory_limit', $hardLimit);
 		}
+	}
 
-		$obData = Utils::assumeNotFalse(fopen(Path::join($outputFolder, "objects.js"), "wb+"));
-
+	/** @param resource $obData */
+	private static function writeDump(mixed $startingObject, string $outputFolder, int $maxNesting, int $maxStringSize, \Logger $logger, $obData) : void{
 		$objects = [];
 
 		$refCounts = [];
@@ -236,20 +254,11 @@ final class MemoryDump{
 
 		$logger->info("Wrote " . count($objects) . " objects");
 
-		fclose($obData);
-
 		file_put_contents(Path::join($outputFolder, "serverEntry.js"), json_encode($data, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 		file_put_contents(Path::join($outputFolder, "referenceCounts.js"), json_encode($refCounts, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
 
 		arsort($instanceCounts, SORT_NUMERIC);
 		file_put_contents(Path::join($outputFolder, "instanceCounts.js"), json_encode($instanceCounts, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
-
-		$logger->info("Finished!");
-
-		ini_set('memory_limit', $hardLimit);
-		if($gcEnabled){
-			gc_enable();
-		}
 	}
 
 	/**

@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\entity\Entity;
@@ -32,6 +30,8 @@ use quark\entity\Living;
 use quark\event\block\FarmlandHydrationChangeEvent;
 use quark\event\entity\EntityTrampleFarmlandEvent;
 use quark\item\Item;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\utils\Utils;
 use function intdiv;
 

@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\particle;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\types\ParticleIds;
+use quark\math\Vector3;
 
 class InkParticle implements Particle{
 	public function __construct(private int $scale = 0){}

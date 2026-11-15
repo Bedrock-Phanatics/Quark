@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\world\generator\object;
 
-use pocketmine\math\Facing;
-use pocketmine\math\Vector3;
 use quark\block\VanillaBlocks;
+use quark\math\Facing;
+use quark\math\Vector3;
 use quark\utils\Random;
 use quark\world\BlockTransaction;
 use function abs;

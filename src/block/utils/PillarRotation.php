@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
-use pocketmine\math\Axis;
+use quark\math\Axis;
 
 interface PillarRotation{
 

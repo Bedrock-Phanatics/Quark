@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace quark\block\custom;
 
-use pocketmine\math\AxisAlignedBB;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
+use quark\math\AxisAlignedBB;
 use quark\utils\Utils;
 use function count;
 use function in_array;

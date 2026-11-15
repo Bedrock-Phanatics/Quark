@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world\generator\object;
 
-use pocketmine\math\VectorMath;
+use quark\math\VectorMath;
 use quark\utils\Random;
 use quark\world\ChunkManager;
 use quark\world\format\SubChunk;

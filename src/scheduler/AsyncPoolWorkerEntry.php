@@ -36,6 +36,8 @@ final class AsyncPoolWorkerEntry{
 	 * @phpstan-var \SplQueue<AsyncTask>
 	 */
 	public \SplQueue $tasks;
+	/** Whether the last collect() left tasks on the worker that it could not free yet. */
+	public bool $uncollected = false;
 
 	public function __construct(
 		public readonly AsyncWorker $worker,

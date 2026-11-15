@@ -25,13 +25,13 @@ namespace quark\world\redstone;
 
 use Generator;
 use InvalidArgumentException;
-use pocketmine\math\Facing;
 use quark\block\Block;
 use quark\block\Opaque;
 use quark\block\RedstoneWire;
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\redstone\RedstoneBlockUtils;
 use quark\block\utils\redstone\Waitable;
+use quark\math\Facing;
 use quark\pulse\internal\PulseZones;
 use quark\world\ChunkListener;
 use quark\world\ChunkListenerNoOpTrait;

@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Facing;
 use pocketmine\network\mcpe\protocol\BlockEventPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\inventory\window\BlockInventoryWindow;
@@ -40,6 +38,8 @@ use quark\block\utils\SupportType;
 use quark\event\block\ChestPairEvent;
 use quark\inventory\CombinedInventoryProxy;
 use quark\inventory\Inventory;
+use quark\math\AxisAlignedBB;
+use quark\math\Facing;
 use quark\player\Player;
 use quark\world\Position;
 use quark\world\sound\ChestCloseSound;

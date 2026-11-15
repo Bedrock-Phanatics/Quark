@@ -23,11 +23,10 @@ declare(strict_types=1);
 
 namespace quark\command\defaults;
 
-use pocketmine\color\Color;
-use pocketmine\math\Vector3;
 use pocketmine\utils\Limits;
 use quark\block\Block;
 use quark\block\BlockTypeIds;
+use quark\color\Color;
 use quark\command\argument\ArgumentParseException;
 use quark\command\argument\CommandEnum;
 use quark\command\argument\EnumArgument;
@@ -41,6 +40,7 @@ use quark\item\Item;
 use quark\item\StringToItemParser;
 use quark\item\VanillaItems;
 use quark\lang\KnownTranslationFactory;
+use quark\math\Vector3;
 use quark\permission\DefaultPermissionNames;
 use quark\player\Player;
 use quark\utils\AssumptionFailedError;

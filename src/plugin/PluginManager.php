@@ -487,9 +487,9 @@ class PluginManager{
 		if(!$plugin->isEnabled()){
 			$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_enable($plugin->getDescription()->getFullName())));
 
-			$plugin->getScheduler()->setEnabled(true);
+			$plugin->getScheduler()->setEnabled(true, $this->server->getTick());
 			try{
-				$plugin->onEnableStateChange(true);
+				PulseZones::getPluginLifecycleZone($plugin->getDescription()->getFullName(), "enable")->time(fn() => $plugin->onEnableStateChange(true));
 			}catch(DisablePluginException){
 				$this->disablePlugin($plugin);
 			}
@@ -562,8 +562,17 @@ class PluginManager{
 			//every step runs even if onDisable() throws, the first failure is rethrown afterwards
 			$failure = null;
 			foreach([
-				fn() => $plugin->onEnableStateChange(false),
+				fn() => PulseZones::getPluginLifecycleZone($plugin->getDescription()->getFullName(), "disable")->time(fn() => $plugin->onEnableStateChange(false)),
 				fn() => $plugin->getScheduler()->shutdown(),
+				function() use ($plugin) : void{
+					foreach($this->server->getOnlinePlayers() as $player){
+						try{
+							$player->getCameraIfCreated()?->cancelForOwner($plugin);
+						}catch(\Throwable $e){
+							$this->server->getLogger()->logException($e);
+						}
+					}
+				},
 				fn() => HandlerListManager::global()->unregisterAll($plugin),
 				fn() => $commandMap->unregisterPluginSyntaxCommands($plugin),
 			] as $step){

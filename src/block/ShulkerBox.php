@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\BlockEventPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
@@ -36,6 +35,7 @@ use quark\block\utils\ContainerTrait;
 use quark\block\utils\SupportType;
 use quark\data\runtime\RuntimeDataDescriber;
 use quark\item\Item;
+use quark\math\Vector3;
 use quark\player\Player;
 use quark\world\BlockTransaction;
 use quark\world\Position;

@@ -29,9 +29,9 @@ namespace quark\utils;
 
 use DaveRandom\CallbackValidator\Prototype;
 use pocketmine\errorhandler\ErrorTypeToStringMap;
-use pocketmine\math\Vector3;
 use pocketmine\utils\Limits;
 use quark\entity\Location;
+use quark\math\Vector3;
 use quark\thread\ThreadCrashInfoFrame;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;

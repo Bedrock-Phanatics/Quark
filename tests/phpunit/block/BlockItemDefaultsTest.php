@@ -25,11 +25,11 @@ namespace quark\block;
 
 use Bedwire\Nbt;
 use PHPUnit\Framework\TestCase;
-use pocketmine\math\Facing;
 use pocketmine\nbt\tag\Tag;
 use quark\crafting\CraftingManagerFromDataHelper;
 use quark\data\bedrock\BedrockDataFiles;
 use quark\inventory\json\CreativeGroupData;
+use quark\math\Facing;
 use quark\utils\Utils;
 use quark\world\format\io\GlobalBlockStateHandlers;
 use Symfony\Component\Filesystem\Path;

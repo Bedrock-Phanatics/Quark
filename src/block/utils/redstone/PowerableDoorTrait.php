@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace quark\block\utils\redstone;
 
-use pocketmine\math\Facing;
 use quark\block\Door;
+use quark\math\Facing;
 use quark\world\redstone\RedstoneManager;
 use quark\world\sound\DoorSound;
 

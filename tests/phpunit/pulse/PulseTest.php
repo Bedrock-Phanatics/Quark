@@ -406,6 +406,55 @@ final class PulseTest extends TestCase{
 		self::assertSame(1, $context->capture()["unbalanced_scopes"]);
 	}
 
+	public function testSpikesRankRetainedTicksAndTheirLargestSelfCost() : void{
+		$context = new PulseContext();
+		$parent = $context->zone("parent")->getId();
+		$child = $context->zone("child")->getId();
+		$session = new PulseSession($context, "main", spikeThresholdNs: 5);
+		$now = (int) hrtime(true);
+		$context->beginTick($now);
+		$p = $context->begin($parent, $now);
+		$c = $context->begin($child, $now + 10);
+		$context->end($child, $c, $now + 80);
+		$context->end($parent, $p, $now + 100);
+		$context->endTick($now + 100);
+		$context->beginTick($now + 200);
+		$context->endTick($now + 400);
+		$before = $context->capture()["spikes"];
+		$spikes = $session->getSpikes();
+		self::assertSame([2, 1], array_column($spikes, "tick_id"));
+		self::assertSame([null, "child"], array_column($spikes, "zone"));
+		self::assertSame([0, 70], array_column($spikes, "self_ns"));
+		self::assertCount(1, $session->getSpikes(1));
+		self::assertSame($before, $context->capture()["spikes"]);
+		foreach([0, 51] as $limit){
+			try{ $session->getSpikes($limit); self::fail("Invalid spike limit accepted"); }catch(\InvalidArgumentException){}
+		}
+	}
+
+	public function testSpikeZoneCostsCombineDifferentParentPaths() : void{
+		$context = new PulseContext();
+		$shared = $context->zone("shared")->getId();
+		$other = $context->zone("other")->getId();
+		$session = new PulseSession($context, "main", spikeThresholdNs: 1);
+		$now = (int) hrtime(true);
+		$context->beginTick($now);
+		foreach(["parent.a", "parent.b"] as $name){
+			$parent = $context->zone($name)->getId();
+			$p = $context->begin($parent, $now);
+			$c = $context->begin($shared, $now);
+			$now += 40;
+			$context->end($shared, $c, $now);
+			$context->end($parent, $p, $now);
+		}
+		$scope = $context->begin($other, $now);
+		$context->end($other, $scope, $now + 50);
+		$context->endTick($now + 50);
+		$spike = $session->getSpikes(1)[0];
+		self::assertSame("shared", $spike["zone"]);
+		self::assertSame(80, $spike["self_ns"]);
+	}
+
 	public function testStatsAndTopCombineParentPathsWithoutCountingChildrenTwice() : void{
 		$context = new PulseContext();
 		$a = $context->zone("a")->getId();

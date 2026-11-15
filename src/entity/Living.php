@@ -23,8 +23,6 @@ declare(strict_types=1);
 
 namespace quark\entity;
 
-use pocketmine\math\Vector3;
-use pocketmine\math\VoxelRayTrace;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
@@ -55,6 +53,9 @@ use quark\item\Durable;
 use quark\item\enchantment\Enchantment;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
+use quark\math\physics\Physics;
+use quark\math\Vector3;
+use quark\math\VoxelRayTrace;
 use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkBroadcastUtils;
 use quark\player\Player;
@@ -392,7 +393,9 @@ abstract class Living extends Entity{
 	}
 
 	protected function calculateFallDamage(float $fallDistance) : float{
-		return ceil($fallDistance - 3 - (($jumpBoost = $this->effectManager->get(VanillaEffects::JUMP_BOOST())) !== null ? $jumpBoost->getEffectLevel() : 0));
+		//vanilla floors, so a jump off a 2 block ledge (~3.25 from the apex) is harmless. The distance is a sum of
+		//per-move deltas, so drop the summation error (movement is only 4 decimals precise) before flooring.
+		return floor(round($fallDistance, 4) - 3 - (($jumpBoost = $this->effectManager->get(VanillaEffects::JUMP_BOOST())) !== null ? $jumpBoost->getEffectLevel() : 0));
 	}
 
 	protected function onHitGround() : ?float{
@@ -466,7 +469,8 @@ abstract class Living extends Entity{
 		}
 		if($source->canBeReducedByArmor()){
 			//MCPE uses the same system as PC did pre-1.9
-			$source->setModifier(-$source->getFinalDamage() * $this->getArmorPoints() * 0.04, EntityDamageEvent::MODIFIER_ARMOR);
+			//capped at the vanilla maximum, otherwise custom armor sets could cancel all damage
+			$source->setModifier(-$source->getFinalDamage() * min(20, $this->getArmorPoints()) * 0.04, EntityDamageEvent::MODIFIER_ARMOR);
 		}
 
 		$cause = $source->getCause();
@@ -609,21 +613,14 @@ abstract class Living extends Entity{
 			return;
 		}
 		if(mt_rand() / mt_getrandmax() > $this->knockbackResistanceAttr->getValue()){
-			$f = 1 / $f;
-
-			$motionX = $this->motion->x / 2;
-			$motionY = $this->motion->y / 2;
-			$motionZ = $this->motion->z / 2;
-			$motionX += $x * $f * $force;
-			$motionY += $force;
-			$motionZ += $z * $f * $force;
-
-			$verticalLimit ??= $force;
-			if($motionY > $verticalLimit){
-				$motionY = $verticalLimit;
+			try{
+				$motion = Physics::knockBack($this->motion, $x, $z, $force, $verticalLimit);
+			}catch(\ValueError){
+				return;
 			}
-
-			$this->setMotion(new Vector3($motionX, $motionY, $motionZ));
+			if($motion !== null){
+				$this->setMotion($motion);
+			}
 		}
 	}
 
