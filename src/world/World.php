@@ -204,7 +204,7 @@ class World implements ChunkManager{
 	public const DIFFICULTY_HARD = 3;
 
 	public const DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK = 3;
-	private const RANDOM_TICK_RESCAN_TICKS = 20;
+	private const RANDOM_TICK_RESCAN_TICKS = 16; //power of two, see tickChunk()
 
 	//TODO: this could probably do with being a lot bigger
 	private const BLOCK_CACHE_SIZE_CAP = 2048;
@@ -1674,7 +1674,9 @@ class World implements ChunkManager{
 
 		$scan = $this->randomTickSubChunks[$chunkHash] ?? null;
 		if($scan === null || $scan[0] <= $currentTick){
-			$scan = $this->randomTickSubChunks[$chunkHash] = [$currentTick + self::RANDOM_TICK_RESCAN_TICKS, $this->findRandomTickSubChunks($chunk)];
+			//rescans land on a phase taken from the chunk position, so neighbouring chunks don't all rescan on one tick
+			$next = $currentTick + self::RANDOM_TICK_RESCAN_TICKS - (($currentTick - $chunkHash) & (self::RANDOM_TICK_RESCAN_TICKS - 1));
+			$scan = $this->randomTickSubChunks[$chunkHash] = [$next, $this->findRandomTickSubChunks($chunk)];
 		}
 
 		$blockFactory = $this->blockStateRegistry;

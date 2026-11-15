@@ -28,6 +28,8 @@ use quark\block\Farmland;
 use quark\block\VanillaBlocks;
 use quark\Server;
 use quark\world\redstone\RedstoneHarness;
+use function array_column;
+use function array_unique;
 
 final class WorldRandomTickTest extends TestCase{
 	private const SUBCHUNK = 4;
@@ -35,11 +37,11 @@ final class WorldRandomTickTest extends TestCase{
 	private RedstoneHarness $harness;
 
 	protected function setUp() : void{
-		$this->harness = new RedstoneHarness(1);
+		$this->harness = new RedstoneHarness(2);
 		$world = $this->harness->world;
 		(new \ReflectionProperty(World::class, "chunkTickRadius"))->setValue($world, 1);
-		for($x = -1; $x <= 1; ++$x){
-			for($z = -1; $z <= 1; ++$z){
+		for($x = -2; $x <= 2; ++$x){
+			for($z = -2; $z <= 2; ++$z){
 				$world->getChunk($x, $z)?->setLightPopulated(true);
 			}
 		}
@@ -92,7 +94,21 @@ final class WorldRandomTickTest extends TestCase{
 			$chunk->setBlockStateId($i & 15, (self::SUBCHUNK << 4) + (($i >> 4) & 15), $i >> 8, $state);
 		}
 		self::assertSame(0, $this->driedBlocks());
-		$this->tickChunks(21);
+		$this->tickChunks(16);
 		self::assertGreaterThan(0, $this->driedBlocks());
+	}
+
+	public function testNeighbouringChunksRescanOnDifferentTicks() : void{
+		$world = $this->harness->world;
+		for($x = -1; $x <= 1; ++$x){
+			for($z = -1; $z <= 1; ++$z){
+				$world->registerTickingChunk(new ChunkTicker(), $x, $z);
+			}
+		}
+		$this->tickChunks();
+		$scans = (new \ReflectionProperty(World::class, "randomTickSubChunks"))->getValue($world);
+		self::assertIsArray($scans);
+		self::assertCount(9, $scans);
+		self::assertCount(9, array_unique(array_column($scans, 0)));
 	}
 }
