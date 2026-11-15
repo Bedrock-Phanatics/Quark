@@ -231,6 +231,12 @@ legacy-data-dir = false
 # stop = []
 # abort = ['quark:stop']
 
+# Optional per-world view distance caps keyed by world folder name, from 2 to server.view-distance.
+# Worlds not listed use server.view-distance. Quote names that contain dots or spaces.
+# [view-distances]
+# nether = 8
+# "mini games" = 6
+
 # Optional world generation overrides keyed by world folder name.
 # [worlds.example]
 # seed = 404

@@ -26,7 +26,8 @@ namespace quark\event\player;
 use quark\player\Player;
 
 /**
- * Called when a player requests a different viewing distance than the current one.
+ * Called when a player's effective viewing distance changes. This happens when the client or a plugin requests a
+ * different distance, and when the player enters a world with a different limit or the memory limit changes.
  */
 class PlayerViewDistanceChangeEvent extends PlayerEvent{
 	public function __construct(

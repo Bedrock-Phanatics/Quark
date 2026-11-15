@@ -679,6 +679,18 @@ final class CoreConfig{
 			new log\LoggingConfig($logging);
 		}
 
+		if(array_key_exists("view-distances", $data)){
+			$limits = $data["view-distances"];
+			if(!is_array($limits) || $limits !== [] && array_is_list($limits)){
+				throw new \InvalidArgumentException("Invalid view-distances: expected table");
+			}
+			foreach(Utils::promoteKeys($limits) as $name => $limit){
+				if(!is_int($limit) || $limit < 2 || $limit > Server::MAX_VIEW_DISTANCE){
+					throw new \InvalidArgumentException("Invalid view-distances.$name: expected integer from 2 to " . Server::MAX_VIEW_DISTANCE);
+				}
+			}
+		}
+
 		foreach(["aliases", "worlds"] as $section){
 			if(!array_key_exists($section, $data)){
 				continue;

@@ -247,11 +247,21 @@ final class CoreConfigTest extends TestCase{
 		yield "ticks-per.autosave" => [["ticks-per" => ["autosave" => 0]]];
 		yield "chunk-sending.spawn-radius" => [["chunk-sending" => ["spawn-radius" => PHP_INT_MAX]]];
 		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
+		yield "view-distances.low" => [["view-distances" => ["low" => 1]]];
+		yield "view-distances.high" => [["view-distances" => ["high" => 97]]];
+		yield "view-distances.text" => [["view-distances" => ["text" => "8"]]];
+		yield "view-distances.nested" => [["view-distances" => ["nested" => ["x" => 8]]]];
 		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
 		yield "hoppers.enabled" => [["hoppers" => ["enabled" => "yes"]]];
 		yield "hoppers.transfer-cooldown" => [["hoppers" => ["transfer-cooldown" => 0]]];
 		yield "hoppers.items-per-transfer" => [["hoppers" => ["items-per-transfer" => 65]]];
 		yield "hoppers.max-updates-per-tick" => [["hoppers" => ["max-updates-per-tick" => -1]]];
+	}
+
+	public function testViewDistancesAcceptTheirLimitsAndAnyWorldName() : void{
+		CoreConfig::validateServer(["view-distances" => []]);
+		CoreConfig::validateServer(["view-distances" => ["nether" => 2, "my.world" => 96, "mini games" => 8, "plugins/x" => 16]]);
+		$this->addToAssertionCount(1);
 	}
 
 	public function testHopperSettingsAcceptTheirLimits() : void{

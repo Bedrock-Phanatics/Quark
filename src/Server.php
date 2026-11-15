@@ -178,6 +178,7 @@ use function in_array;
 use function ini_set;
 use function is_array;
 use function is_dir;
+use function is_int;
 use function is_link;
 use function is_numeric;
 use function is_resource;
@@ -496,10 +497,29 @@ class Server{
 	}
 
 	/**
-	 * Returns a view distance up to the currently-allowed limit.
+	 * Returns the view distance limit of the world with the given folder name: its `view-distances` entry if it has
+	 * one, never above the server-wide maximum.
 	 */
-	public function getAllowedViewDistance(int $distance) : int{
-		return max(2, min($distance, $this->memoryManager->getViewDistance($this->getViewDistance())));
+	public function getWorldViewDistanceLimit(string $folderName) : int{
+		$max = $this->getViewDistance();
+		$limits = $this->configGroup->getProperty("view-distances", []);
+		$limit = is_array($limits) ? ($limits[$folderName] ?? null) : null;
+		if(!is_int($limit)){
+			return $max;
+		}
+		if($limit > $max){
+			$this->logger->warning("view-distances.$folderName ($limit) exceeds server.view-distance ($max), using $max");
+		}
+		return max(2, min($limit, $max));
+	}
+
+	/**
+	 * Returns a view distance up to the currently-allowed limit, which is the server maximum or the given world's
+	 * maximum if that is lower, further reduced under memory pressure.
+	 */
+	public function getAllowedViewDistance(int $distance, ?World $world = null) : int{
+		$limit = $world?->getViewDistanceLimit() ?? $this->getViewDistance();
+		return max(2, min($distance, $this->memoryManager->getViewDistance($limit)));
 	}
 
 	public function getIp() : string{

@@ -286,6 +286,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	private bool $releaseViewOnlyChunks;
 	private bool $releasingChunks = false;
 
+	/** The distance the client or a plugin asked for, before the server and world limits are applied. */
+	protected int $requestedViewDistance = -1;
 	protected int $viewDistance = -1;
 	protected int $spawnThreshold;
 	protected int $spawnChunkLoadCount = 0;
@@ -652,27 +654,56 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$this->inAirTicks = 0;
 	}
 
+	/**
+	 * Returns the view distance in effect for this player, or -1 before the client has requested one. This is the
+	 * requested distance reduced by the server, world and memory limits.
+	 */
 	public function getViewDistance() : int{
 		return $this->viewDistance;
 	}
 
-	public function setViewDistance(int $distance) : void{
-		$newViewDistance = $this->server->getAllowedViewDistance($distance);
+	/**
+	 * Returns the view distance the client or a plugin last asked for, or -1 if none yet.
+	 */
+	public function getRequestedViewDistance() : int{
+		return $this->requestedViewDistance;
+	}
 
-		if($newViewDistance !== $this->viewDistance){
-			$ev = new PlayerViewDistanceChangeEvent($this, $this->viewDistance, $newViewDistance);
-			$ev->call();
+	/**
+	 * Sets the view distance the player wants. The effective distance is capped by the server maximum, the maximum of
+	 * the world the player is in, and any low-memory limit. The request is remembered, so entering a world with a
+	 * higher limit later restores it.
+	 */
+	public function setViewDistance(int $distance) : void{
+		$this->requestedViewDistance = max(0, $distance);
+		if($this->updateViewDistance()){
+			$this->nextChunkOrderRun = 0;
+		}
+	}
+
+	/**
+	 * Recomputes the effective view distance and tells the client when it changed.
+	 *
+	 * @return bool whether the effective distance changed
+	 */
+	private function updateViewDistance() : bool{
+		if($this->requestedViewDistance === -1){
+			return false;
+		}
+		$newViewDistance = $this->server->getAllowedViewDistance($this->requestedViewDistance, $this->getWorld());
+		if($newViewDistance === $this->viewDistance){
+			return false;
 		}
 
+		$ev = new PlayerViewDistanceChangeEvent($this, $this->viewDistance, $newViewDistance);
+		$ev->call();
+
 		$this->viewDistance = $newViewDistance;
+		$this->spawnThreshold = (int) (min($newViewDistance, $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_SPAWN_RADIUS, 4)) ** 2 * M_PI);
+		$this->getNetworkSession()->syncViewAreaRadius($newViewDistance);
 
-		$this->spawnThreshold = (int) (min($this->viewDistance, $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_SPAWN_RADIUS, 4)) ** 2 * M_PI);
-
-		$this->nextChunkOrderRun = 0;
-
-		$this->getNetworkSession()->syncViewAreaRadius($this->viewDistance);
-
-		$this->logger->debug("Setting view distance to " . $this->viewDistance . " (requested " . $distance . ")");
+		$this->logger->debug("Setting view distance to $newViewDistance (requested $this->requestedViewDistance)");
+		return true;
 	}
 
 	public function isOnline() : bool{
@@ -842,6 +873,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 					$this->unloadAllChunks($oldWorld);
 				}
 				$this->getNetworkSession()->onEnterWorld();
+				$this->updateViewDistance();
 			}
 
 			return true;
@@ -985,7 +1017,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 							}else{
 								$this->spawnEntitiesOnChunk($X, $Z);
 							}
-						}elseif($this->spawnChunkLoadCount++ === $this->spawnThreshold){
+						}elseif($this->spawnChunkLoadCount++ >= $this->spawnThreshold){
 							$this->spawnChunkLoadCount = -1;
 
 							$this->spawnEntitiesOnAllChunks();
@@ -1159,6 +1191,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return;
 		}
 
+		//low memory can change the limit without any other trigger
+		$this->updateViewDistance();
+		if(!$this->isConnected()){
+			return;
+		}
+
 		$playerChunkOrderScope = PulseZones::$playerChunkOrder->start();
 
 		$newOrder = [];
@@ -1172,7 +1210,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$keptChunkRadius = max($tickingChunkRadius, 1);
 
 		foreach($this->chunkSelector->selectChunks(
-			$this->server->getAllowedViewDistance($this->viewDistance),
+			$this->viewDistance,
 			$this->location->getFloorX() >> Chunk::COORD_BIT_SIZE,
 			$this->location->getFloorZ() >> Chunk::COORD_BIT_SIZE
 		) as $radius => $hash){

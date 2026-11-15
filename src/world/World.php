@@ -433,6 +433,7 @@ class World implements ChunkManager{
 	private int $sleepTicks = 0;
 
 	private int $chunkTickRadius;
+	private int $viewDistanceLimit;
 	/** Chunks around players where entities tick every tick, 0 to tick everything. */
 	private int $activationChunkRadius = 0;
 	private int $inactiveTickInterval = 20;
@@ -664,6 +665,7 @@ class World implements ChunkManager{
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
 		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 3)));
+		$this->viewDistanceLimit = $this->server->getWorldViewDistanceLimit($this->folderName);
 		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
 		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 32);
 		$activationRange = max(0, min(self::MAX_ACTIVATION_RANGE, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0)));
@@ -1469,6 +1471,14 @@ class World implements ChunkManager{
 	public function removeRandomTickedBlock(Block $block) : void{
 		unset($this->randomTickBlocks[$block->getStateId()]);
 		$this->randomTickSubChunks = [];
+	}
+
+	/**
+	 * Returns the largest view distance, in chunks, players may have in this world: the `view-distances` override for
+	 * this world if one is configured, capped by the server-wide maximum.
+	 */
+	public function getViewDistanceLimit() : int{
+		return $this->viewDistanceLimit;
 	}
 
 	/**
