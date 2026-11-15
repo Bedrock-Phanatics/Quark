@@ -156,7 +156,7 @@ final class ViewDistanceTest extends TestCase{
 			$player->setViewDistance($request);
 			self::assertSame(2, $player->getViewDistance());
 		}
-		self::assertSame([2], $this->radiusPackets);
+		self::assertSame([2, 2], $this->radiusPackets); //the second distinct request is acknowledged only
 	}
 
 	public function testHugeRequestsAreCappedWithoutOverflow() : void{
@@ -171,9 +171,19 @@ final class ViewDistanceTest extends TestCase{
 		(new \ReflectionProperty(Player::class, "nextChunkOrderRun"))->setValue($player, PHP_INT_MAX);
 		for($i = 0; $i < 50; ++$i){
 			$player->setViewDistance(12);
-			$player->setViewDistance(9); //capped to the same effective distance
 		}
 		self::assertSame([8], $this->radiusPackets);
+		self::assertCount(1, $this->events);
+		self::assertSame(PHP_INT_MAX, $this->nextChunkOrderRun($player));
+	}
+
+	public function testNewRequestsWithTheSameEffectiveDistanceAreAcknowledgedWithoutReordering() : void{
+		$player = $this->player($this->world(8));
+		$player->setViewDistance(12);
+		(new \ReflectionProperty(Player::class, "nextChunkOrderRun"))->setValue($player, PHP_INT_MAX);
+		$player->setViewDistance(10);
+		$player->setViewDistance(9);
+		self::assertSame([8, 8, 8], $this->radiusPackets);
 		self::assertCount(1, $this->events);
 		self::assertSame(PHP_INT_MAX, $this->nextChunkOrderRun($player));
 	}

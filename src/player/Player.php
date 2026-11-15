@@ -675,9 +675,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * higher limit later restores it.
 	 */
 	public function setViewDistance(int $distance) : void{
-		$this->requestedViewDistance = max(0, $distance);
+		$requested = max(0, $distance);
+		$changedRequest = $requested !== $this->requestedViewDistance;
+		$this->requestedViewDistance = $requested;
 		if($this->updateViewDistance()){
 			$this->nextChunkOrderRun = 0;
+		}elseif($changedRequest){
+			//the client waits for an answer to every new request, even when the effective distance stays the same
+			$this->getNetworkSession()->syncViewAreaRadius($this->viewDistance);
 		}
 	}
 
