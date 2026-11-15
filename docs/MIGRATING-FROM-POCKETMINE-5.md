@@ -228,6 +228,12 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 Quark upgrades older `config/server.toml` files automatically. The upgrade moves legacy language and memory-limit settings, translates disabled chunk ticking to a zero tick radius, and adds missing defaults. It preserves unrelated settings. Quark rejects unsupported config versions.
 
+Resource pack settings live in `resource-packs/resource_packs.toml`. Older TOML files receive missing defaults without replacing configured values. Under `[encryption]`, set `enabled = true`; `packs = []` encrypts all eligible packs, or list filenames from `resource_stack`. Use either a stable 32-byte printable ASCII `key` or a local `key-file` beside the packs, never both. With neither set, Quark securely creates `resource-packs/.encryption.key` once. Back up this key and keep it stable across restarts. The template links to the 1Password password generator; 32 Unicode characters may exceed 32 bytes.
+
+Original archives remain untouched. Prepared downloads are reused from `.quark-encryption` while source bytes, key and encryption format remain unchanged; corrupt cache files are rebuilt. Existing encrypted packs and their `<filename>.key` files retain their keys and bypass native encryption. Plugin resource-pack offers remain supported. Encryption deters casual extraction: the client receives the key. Native encryption limits archives to 65,535 entries, 1 GiB per file and 2 GiB expanded total, with at most 1,000:1 expansion and one unambiguous manifest root.
+
+To check a client release, use a pack with a visible texture change, enable encryption, clear its entry under Minecraft's Settings → Storage → Cached Data, then join and accept the download. Confirm the texture renders, reconnect, restart Quark, and reconnect again; unchanged sources should reuse the cached archive. Repeat with mixed encrypted/plain packs, subpacks if used, and any plugin-modified offers. After changing assets, bump the manifest version so clients download the update.
+
 Use `--migration-dry-run` to preview a legacy filesystem migration, then start with `--migrate-legacy` or set `[migration] auto_on_startup = true` in `config/migration.ini` before conversion. Quark snapshots the original YAML and properties files in `backups/`. Review the generated files. [Server template](../resources/server.toml) · [Plugin template](../resources/plugins.toml)
 
 ### New Configuration Options

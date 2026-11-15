@@ -45,6 +45,7 @@ use function str_ends_with;
 use function str_repeat;
 use function str_replace;
 use function strlen;
+use function strpbrk;
 use function strpos;
 use function strrev;
 use function strspn;
@@ -844,6 +845,7 @@ final class CoreConfig{
 		}
 	}
 
+	/** @phpstan-assert ($allowLegacyIds is false ? list<string> : list<int|string>) $value */
 	private static function validateStringList(mixed $value, string $path, bool $allowLegacyIds = false) : void{
 		if(!is_array($value) || !array_is_list($value)){
 			throw new \InvalidArgumentException("Invalid $path: expected list");
@@ -862,14 +864,64 @@ final class CoreConfig{
 
 	/**
 	 * @param array<string, mixed> $data
-	 * @phpstan-assert array{force_resources?: bool, resource_stack?: list<string>} $data
+	 * @phpstan-assert array{force_resources?: bool, resource_stack?: list<string>, encryption?: array{enabled?: bool, packs?: list<string>, key?: string, key-file?: string}} $data
 	 */
-	public static function validateResourcePacks(array $data) : void{
+	public static function validateResourcePacks(#[\SensitiveParameter] array $data) : void{
 		if(array_key_exists("force_resources", $data) && !is_bool($data["force_resources"])){
 			throw new \InvalidArgumentException("Invalid force_resources in resource_packs.toml: expected boolean");
 		}
-		if(array_key_exists("resource_stack", $data)){
-			self::validateStringList($data["resource_stack"], "resource_stack");
+		$stack = array_key_exists("resource_stack", $data) ? $data["resource_stack"] : [];
+		self::validateStringList($stack, "resource_stack");
+		if(!array_key_exists("encryption", $data)){
+			return;
+		}
+		$encryption = $data["encryption"];
+		if(!is_array($encryption) || $encryption !== [] && array_is_list($encryption)){
+			throw new \InvalidArgumentException("Invalid encryption in resource_packs.toml: expected table");
+		}
+		foreach(array_keys($encryption) as $name){
+			if(!in_array($name, ["enabled", "packs", "key", "key-file"], true)){
+				throw new \InvalidArgumentException("Unknown resource-pack encryption setting: $name");
+			}
+		}
+		if(array_key_exists("enabled", $encryption) && !is_bool($encryption["enabled"])){
+			throw new \InvalidArgumentException("Invalid encryption.enabled: expected boolean");
+		}
+		$key = array_key_exists("key", $encryption) ? $encryption["key"] : "";
+		$keyFile = array_key_exists("key-file", $encryption) ? $encryption["key-file"] : "";
+		if(!is_string($key)){
+			throw new \InvalidArgumentException("Invalid encryption.key: expected string");
+		}
+		if(!is_string($keyFile)){
+			throw new \InvalidArgumentException("Invalid encryption.key-file: expected string");
+		}
+		if($key !== "" && (strlen($key) !== 32 || preg_match('/^[\x20-\x7e]{32}$/D', $key) !== 1)){
+			throw new \InvalidArgumentException("Invalid encryption.key: expected exactly 32 printable ASCII bytes");
+		}
+		if($keyFile !== "" && ($keyFile === "." || $keyFile === ".." || strpbrk($keyFile, "/\\:") !== false || preg_match('/[\x00-\x1f\x7f]/', $keyFile) === 1 || in_array($keyFile, ["resource_packs.toml", "resource_packs.yml", ".quark-encryption"], true))){
+			throw new \InvalidArgumentException("Invalid encryption.key-file: expected a safe filename in the resource-packs directory");
+		}
+		if($keyFile !== "" && in_array($keyFile, $stack, true)){
+			throw new \InvalidArgumentException("Invalid encryption.key-file: conflicts with resource_stack entry $keyFile");
+		}
+		if($key !== "" && $keyFile !== ""){
+			throw new \InvalidArgumentException("Invalid encryption: key and key-file are mutually exclusive");
+		}
+		if(array_key_exists("packs", $encryption)){
+			self::validateStringList($encryption["packs"], "encryption.packs");
+			$seen = [];
+			foreach($encryption["packs"] as $pack){
+				if($pack === "." || $pack === ".." || strpbrk($pack, "/\\:") !== false || preg_match('/[\x00-\x1f\x7f]/', $pack) === 1){
+					throw new \InvalidArgumentException("Invalid encryption.packs entry: expected a safe filename");
+				}
+				if(in_array($pack, $seen, true)){
+					throw new \InvalidArgumentException("Invalid encryption.packs: duplicate pack $pack");
+				}
+				if(!in_array($pack, $stack, true)){
+					throw new \InvalidArgumentException("Invalid encryption.packs: $pack is not in resource_stack");
+				}
+				$seen[] = $pack;
+			}
 		}
 	}
 }

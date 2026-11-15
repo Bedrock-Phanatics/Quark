@@ -13,6 +13,7 @@ use quark\world\format\io\data\BedrockWorldData;
 use quark\world\format\io\WorldProviderManager;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
+use function array_diff_key;
 use function assert;
 use function bin2hex;
 use function copy;
@@ -37,6 +38,7 @@ use function random_bytes;
 use function rename;
 use function rmdir;
 use function str_contains;
+use function str_repeat;
 use function symlink;
 use function sys_get_temp_dir;
 use function unlink;
@@ -115,6 +117,7 @@ final class FilesystemMigrationTest extends TestCase{
 		$converted = CoreConfig::load($this->paths->resourcePacks() . "/resource_packs.toml");
 		self::assertTrue($converted["force_resources"]);
 		self::assertSame(["natural.zip", "vanilla.zip"], $converted["resource_stack"]);
+		self::assertSame(["enabled" => false, "packs" => [], "key" => "", "key-file" => ""], $converted["encryption"]);
 		self::assertStringNotContainsString("__quark_nulls", (string) file_get_contents($this->paths->resourcePacks() . "/resource_packs.toml"));
 		self::assertFileDoesNotExist($this->paths->resourcePacks() . "/resource_packs.yml");
 		$snapshots = glob($this->paths->backups() . "/yaml-*/resource_packs.yml");
@@ -125,6 +128,19 @@ final class FilesystemMigrationTest extends TestCase{
 		file_put_contents($this->paths->resourcePacks() . "/resource_packs.yml", "force_resources: false\n");
 		self::assertSame("modern", $this->migration->prepare());
 		self::assertTrue(CoreConfig::load($this->paths->resourcePacks() . "/resource_packs.toml")["force_resources"]);
+	}
+
+	public function testResourcePackTomlUpgradeAddsOnlyMissingEncryptionDefaults() : void{
+		self::assertSame("empty", $this->migration->prepare());
+		$path = $this->paths->resourcePacks() . "/resource_packs.toml";
+		$key = str_repeat("a", 32);
+		file_put_contents($path, "force_resources = true\nresource_stack = [\"pack.zip\"]\n\n[encryption]\nkey = \"$key\"\n");
+		self::assertSame("modern", $this->migration->prepare());
+		$data = CoreConfig::load($path);
+		self::assertIsArray($data["encryption"]);
+		self::assertSame($key, $data["encryption"]["key"]);
+		self::assertSame(["enabled" => false, "packs" => [], "key-file" => ""], array_diff_key($data["encryption"], ["key" => true]));
+		self::assertTrue($data["force_resources"]);
 	}
 
 	public function testFreshLayoutAcceptsProvisionedToml() : void{

@@ -43,6 +43,8 @@ tests/phpunit/item/*
 !tests/phpunit/item/CustomItemTest.php
 !tests/phpunit/item/CustomEquipmentTest.php
 !tests/phpunit/FilesystemMigrationTest.php
+!tests/phpunit/ResourcePackEncryptionTest.php
+!tests/phpunit/ResourcePackEncryptorTest.php
 !tests/phpunit/LoggingPipelineTest.php
 !tests/phpunit/ProcessTestHelper.php
 

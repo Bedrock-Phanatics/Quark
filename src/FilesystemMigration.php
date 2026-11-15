@@ -8,7 +8,7 @@ use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_push;
-use function array_replace;
+use function array_replace_recursive;
 use function assert;
 use function basename;
 use function chmod;
@@ -99,8 +99,24 @@ final class FilesystemMigration{
 			CoreConfig::validateResourcePacks($settings);
 			$template = Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "resource_packs.toml"));
 			$defaults = CoreConfig::parse($template);
-			return CoreConfig::update($template, array_replace($defaults, $settings));
+			return CoreConfig::update($template, array_replace_recursive($defaults, $settings));
 		});
+		$path = $this->resourcePacksToml();
+		if(is_link($path)){
+			throw new \RuntimeException("Configuration migration refuses symbolic link: $path");
+		}
+		if(!is_file($path)){
+			return;
+		}
+		$original = Filesystem::fileGetContents($path);
+		$data = CoreConfig::parse($original);
+		CoreConfig::validateResourcePacks($data);
+		$template = Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "resource_packs.toml"));
+		$updated = CoreConfig::update($original, array_replace_recursive(CoreConfig::parse($template), $data));
+		if($updated !== $original){
+			Filesystem::atomicWrite($path, $updated, $original);
+			CoreConfig::forget($path);
+		}
 	}
 
 	private function exists(string $path) : bool{

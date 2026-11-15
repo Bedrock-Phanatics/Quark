@@ -28,10 +28,14 @@ use quark\utils\Filesystem;
 use Ramsey\Uuid\Uuid;
 use Symfony\Component\Filesystem\Path;
 use function array_keys;
+use function assert;
+use function chmod;
 use function copy;
 use function count;
 use function file_exists;
+use function in_array;
 use function is_dir;
+use function is_file;
 use function is_link;
 use function mkdir;
 use function rtrim;
@@ -96,47 +100,80 @@ class ResourcePackManager{
 		$resourcePacksConfig = CoreConfig::load($resourcePacksToml);
 		CoreConfig::validateResourcePacks($resourcePacksConfig);
 		$this->serverForceResources = $resourcePacksConfig["force_resources"] ?? false;
+		$encryption = $resourcePacksConfig["encryption"] ?? [];
+		$encryptionCache = null;
+		if($encryption["enabled"] ?? false){
+			if(($encryption["key"] ?? "") !== "" && DIRECTORY_SEPARATOR === "/" && !@chmod($resourcePacksToml, 0600)){
+				throw new ResourcePackException("Cannot restrict permissions on the resource-pack encryption configuration");
+			}
+			$encryptionCache = new ResourcePackEncryptionCache($this->path, $encryption);
+		}
 
 		$logger->info("Loading resource packs...");
 
-		foreach($resourcePacksConfig["resource_stack"] ?? [] as $pack){
-			try{
-				if($pack === "" || $pack === "." || $pack === ".." || strpbrk($pack, "/\\\0") !== false){
-					throw new ResourcePackException("Pack entry must be a filename inside the resource-packs directory");
-				}
-				$newPack = $this->loadPackFromPath(Path::join($this->path, $pack));
-
-				$index = strtolower($newPack->getPackId());
-				if(!Uuid::isValid($index)){
-					//TODO: we should use Uuid in ResourcePack interface directly but that would break BC
-					//for now we need to validate this here to make sure it doesn't cause crashes later on
-					throw new ResourcePackException("Invalid UUID ($index)");
-				}
-				if(isset($this->uuidList[$index])){
-					throw new ResourcePackException("Duplicate resource pack UUID ($index)");
-				}
-
-				$keyPath = Path::join($this->path, $pack . ".key");
-				if(is_link($keyPath)){
-					throw new ResourcePackException("Encryption key file must not be a symbolic link");
-				}
-				if(file_exists($keyPath)){
-					try{
-						$key = Filesystem::fileGetContents($keyPath);
-					}catch(\RuntimeException $e){
-						throw new ResourcePackException("Could not read encryption key file: " . $e->getMessage(), 0, $e);
+		try{
+			foreach($resourcePacksConfig["resource_stack"] ?? [] as $pack){
+				$encrypt = $encryptionCache !== null && (($encryption["packs"] ?? []) === [] || in_array($pack, $encryption["packs"], true));
+				try{
+					if($pack === "" || $pack === "." || $pack === ".." || strpbrk($pack, "/\\:\0") !== false){
+						throw new ResourcePackException("Pack entry must be a filename inside the resource-packs directory");
 					}
-					$key = rtrim($key, "\r\n");
-					if(strlen($key) !== 32){
-						throw new ResourcePackException("Invalid encryption key length, must be exactly 32 bytes");
+					$packPath = Path::join($this->path, $pack);
+					$keyPath = Path::join($this->path, $pack . ".key");
+					if($encrypt && !file_exists($keyPath)){
+						if(is_link($packPath) || ResourcePackEncryptor::isEncrypted($packPath)){
+							throw new ResourcePackException("Already encrypted packs require their existing .key file; symbolic links are unsupported");
+						}
 					}
-					$this->encryptionKeys[$index] = $key;
+					$newPack = $this->loadPackFromPath($packPath);
+
+					$index = strtolower($newPack->getPackId());
+					if(!Uuid::isValid($index)){
+						//TODO: we should use Uuid in ResourcePack interface directly but that would break BC
+						//for now we need to validate this here to make sure it doesn't cause crashes later on
+						throw new ResourcePackException("Invalid UUID ($index)");
+					}
+					if(isset($this->uuidList[$index])){
+						throw new ResourcePackException("Duplicate resource pack UUID ($index)");
+					}
+
+					if(is_link($keyPath)){
+						throw new ResourcePackException("Encryption key file must not be a symbolic link");
+					}
+					if(file_exists($keyPath)){
+						try{
+							if(!is_file($keyPath)){
+								throw new ResourcePackException("Encryption key must be a regular file");
+							}
+							$key = Filesystem::fileGetContents($keyPath, false, null, 0, 4096);
+							if(strlen($key) === 4096){
+								throw new ResourcePackException("Encryption key file is too large");
+							}
+						}catch(\RuntimeException $e){
+							throw new ResourcePackException("Could not read encryption key file: " . $e->getMessage(), 0, $e);
+						}
+						$key = rtrim($key, "\r\n");
+						if(strlen($key) !== 32){
+							throw new ResourcePackException("Invalid encryption key length, must be exactly 32 bytes");
+						}
+						$this->encryptionKeys[$index] = $key;
+					}elseif($encrypt && $encryptionCache !== null){
+						assert($newPack instanceof ZippedResourcePack);
+						$newPack = $encryptionCache->prepare($newPack);
+						$this->encryptionKeys[$index] = $encryptionCache->getKey();
+					}
+					$newPack->getSha256();
+					$this->uuidList[$index] = $newPack;
+					$this->resourcePacks[] = $newPack;
+				}catch(ResourcePackException $e){
+					if($encrypt){
+						throw new ResourcePackException("Could not prepare encrypted resource pack \"$pack\": " . $e->getMessage(), 0, $e);
+					}
+					$logger->critical("Could not load resource pack \"$pack\": " . $e->getMessage());
 				}
-				$this->uuidList[$index] = $newPack;
-				$this->resourcePacks[] = $newPack;
-			}catch(ResourcePackException $e){
-				$logger->critical("Could not load resource pack \"$pack\": " . $e->getMessage());
 			}
+		}finally{
+			$encryptionCache?->finish();
 		}
 
 		$logger->debug("Successfully loaded " . count($this->resourcePacks) . " resource packs");
@@ -152,10 +189,13 @@ class ResourcePackManager{
 		if(is_dir($packPath)){
 			throw new ResourcePackException("Directory resource packs are unsupported");
 		}
+		if(!is_file($packPath)){
+			throw new ResourcePackException("Resource pack must be a regular file");
+		}
 
 		//Detect the type of resource pack.
 		$info = new \SplFileInfo($packPath);
-		switch($info->getExtension()){
+		switch(strtolower($info->getExtension())){
 			case "zip":
 			case "mcpack":
 				return new ZippedResourcePack($packPath);

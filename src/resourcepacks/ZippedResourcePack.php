@@ -31,16 +31,21 @@ use function assert;
 use function fclose;
 use function file_exists;
 use function filesize;
+use function flock;
 use function fopen;
 use function fread;
 use function fseek;
 use function gettype;
-use function hash_file;
+use function hash_final;
+use function hash_init;
+use function hash_update_stream;
 use function implode;
 use function is_resource;
 use function min;
 use function preg_match;
 use function strlen;
+use const LOCK_NB;
+use const LOCK_SH;
 
 class ZippedResourcePack implements ResourcePack{
 	protected string $path;
@@ -52,11 +57,16 @@ class ZippedResourcePack implements ResourcePack{
 	protected $fileResource = null;
 
 	/**
-	 * @param string $zipPath Path to the resource pack zip
+	 * @param string      $zipPath        Path to the resource pack zip
+	 * @param string|null $verifiedSha256 Raw digest already verified by the startup encryption cache.
 	 * @throws ResourcePackException
 	 */
-	public function __construct(string $zipPath){
+	public function __construct(string $zipPath, ?string $verifiedSha256 = null){
+		if($verifiedSha256 !== null && strlen($verifiedSha256) !== 32){
+			throw new \InvalidArgumentException("Resource pack SHA-256 must be 32 bytes");
+		}
 		$this->path = $zipPath;
+		$this->sha256 = $verifiedSha256;
 
 		if(!file_exists($zipPath)){
 			throw new ResourcePackException("File not found");
@@ -75,30 +85,36 @@ class ZippedResourcePack implements ResourcePack{
 			throw new ResourcePackException("Encountered ZipArchive error code $openResult while trying to open $zipPath");
 		}
 
-		if(($manifestData = $archive->getFromName("manifest.json")) === false){
-			$manifestPath = null;
-			$manifestIdx = null;
-			for($i = 0; $i < $archive->numFiles; ++$i){
-				$name = Utils::assumeNotFalse($archive->getNameIndex($i), "This index should be valid");
-				if(
-					($manifestPath === null || strlen($name) < strlen($manifestPath)) &&
-					preg_match('#.*/manifest.json$#', $name) === 1
-				){
-					$manifestPath = $name;
-					$manifestIdx = $i;
+		try{
+			if(($manifestData = $archive->getFromName("manifest.json", 1048577)) === false){
+				$manifestPath = null;
+				$manifestIdx = null;
+				for($i = 0; $i < $archive->numFiles; ++$i){
+					$name = Utils::assumeNotFalse($archive->getNameIndex($i), "This index should be valid");
+					if(
+						($manifestPath === null || strlen($name) < strlen($manifestPath)) &&
+						preg_match('#.*/manifest.json$#', $name) === 1
+					){
+						$manifestPath = $name;
+						$manifestIdx = $i;
+					}
+				}
+				if($manifestIdx !== null){
+					$manifestData = $archive->getFromIndex($manifestIdx, 1048577);
+					assert($manifestData !== false);
+				}elseif($archive->locateName("pack_manifest.json") !== false){
+					throw new ResourcePackException("Unsupported old pack format");
+				}else{
+					throw new ResourcePackException("manifest.json not found in the archive root");
 				}
 			}
-			if($manifestIdx !== null){
-				$manifestData = $archive->getFromIndex($manifestIdx);
-				assert($manifestData !== false);
-			}elseif($archive->locateName("pack_manifest.json") !== false){
-				throw new ResourcePackException("Unsupported old pack format");
-			}else{
-				throw new ResourcePackException("manifest.json not found in the archive root");
-			}
-		}
 
-		$archive->close();
+			if(strlen($manifestData) > 1048576){
+				throw new ResourcePackException("Resource pack manifest exceeds 1 MiB");
+			}
+		}finally{
+			$archive->close();
+		}
 
 		//maybe comments in the json, use stripped decoder (thanks mojang)
 		try{
@@ -129,6 +145,10 @@ class ZippedResourcePack implements ResourcePack{
 		$fileResource = @fopen($zipPath, "rb");
 		if($fileResource === false){
 			throw new ResourcePackException("Unable to open resource pack file: $zipPath");
+		}
+		if(!flock($fileResource, LOCK_SH | LOCK_NB)){
+			fclose($fileResource);
+			throw new ResourcePackException("Resource pack file is locked for replacement");
 		}
 		$this->fileResource = $fileResource;
 	}
@@ -161,7 +181,15 @@ class ZippedResourcePack implements ResourcePack{
 
 	public function getSha256(bool $cached = true) : string{
 		if($this->sha256 === null || !$cached){
-			$this->sha256 = hash_file("sha256", $this->path, true);
+			$stream = $this->fileResource;
+			if(!is_resource($stream) || fseek($stream, 0) !== 0){
+				throw new ResourcePackException("Unable to seek resource pack for hashing");
+			}
+			$hash = hash_init("sha256");
+			if(hash_update_stream($hash, $stream) !== $this->size){
+				throw new ResourcePackException("Resource pack changed while hashing");
+			}
+			$this->sha256 = hash_final($hash, true);
 		}
 		return $this->sha256;
 	}

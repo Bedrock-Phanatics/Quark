@@ -276,7 +276,7 @@ final class Filesystem{
 	/**
 	 * Replace an unchanged file, or create a new file when $original is null.
 	 */
-	public static function atomicWrite(string $path, string $content, ?string $original = null) : void{
+	public static function atomicWrite(string $path, #[\SensitiveParameter] string $content, #[\SensitiveParameter] ?string $original = null) : void{
 		if(is_link($path) || ($original !== null && !is_writable($path))){
 			throw new \RuntimeException("Cannot write configuration: $path");
 		}

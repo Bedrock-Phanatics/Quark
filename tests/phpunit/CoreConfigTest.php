@@ -20,6 +20,7 @@ use function ksort;
 use function mkdir;
 use function random_bytes;
 use function range;
+use function str_repeat;
 use function str_replace;
 use function sys_get_temp_dir;
 use function unlink;
@@ -314,6 +315,47 @@ final class CoreConfigTest extends TestCase{
 	public function testResourcePackPolicyRejectsAStringBoolean() : void{
 		$this->expectExceptionMessage("force_resources");
 		CoreConfig::validateResourcePacks(CoreConfig::parse("force_resources = 'false'"));
+	}
+
+	public function testResourcePackEncryptionAcceptsStableKeysAndSelectedPacks() : void{
+		CoreConfig::validateResourcePacks(CoreConfig::parse(CoreConfig::encode([
+			"resource_stack" => ["base.zip", "encrypted.zip"],
+			"encryption" => ["enabled" => true, "packs" => ["encrypted.zip"], "key" => str_repeat("a", 32)]
+		])));
+		CoreConfig::validateResourcePacks(CoreConfig::parse('[encryption]' . "\nkey-file = 'secret.key'\n"));
+		$this->addToAssertionCount(1);
+	}
+
+	public function testResourcePackEncryptionRejectsInvalidSettings() : void{
+		$key = str_repeat("a", 32);
+		foreach([
+			["encryption" => "enabled"],
+			["encryption" => ["enabled" => "true"]],
+			["encryption" => ["enable" => true]],
+			["encryption" => ["key" => 32]],
+			["encryption" => ["key-file" => 32]],
+			["encryption" => ["key" => null]],
+			["encryption" => ["key-file" => null]],
+			["encryption" => ["key-file" => "secret\nkey"]],
+			["encryption" => ["packs" => ["one" => "pack.zip"]]],
+			["encryption" => ["key" => str_repeat("a", 31)]],
+			["encryption" => ["key" => str_repeat("é", 16)]],
+			["encryption" => ["key" => $key, "key-file" => "secret.key"]],
+			["encryption" => ["key-file" => "../secret.key"]],
+			["encryption" => ["key-file" => "resource_packs.toml"]],
+			["encryption" => ["key-file" => ".quark-encryption"]],
+			["resource_stack" => ["pack.zip"], "encryption" => ["key-file" => "pack.zip"]],
+			["resource_stack" => ["pack.zip"], "encryption" => ["packs" => ["pack.zip", "pack.zip"]]],
+			["resource_stack" => ["pack.zip"], "encryption" => ["packs" => ["../pack.zip"]]],
+			["resource_stack" => [], "encryption" => ["packs" => ["pack.zip"]]],
+		] as $data){
+			try{
+				CoreConfig::validateResourcePacks($data);
+				self::fail("Accepted invalid resource pack encryption settings");
+			}catch(\InvalidArgumentException){
+			}
+		}
+		$this->addToAssertionCount(1);
 	}
 
 	public function testEncodeRejectsWhatTomlCannotHold() : void{

@@ -40,6 +40,7 @@ use quark\network\mcpe\NetworkSession;
 use quark\network\PacketHandlingException;
 use quark\resourcepacks\ResourcePack;
 use Ramsey\Uuid\Uuid;
+use function array_change_key_case;
 use function array_keys;
 use function array_map;
 use function ceil;
@@ -49,6 +50,7 @@ use function sprintf;
 use function strpos;
 use function strtolower;
 use function substr;
+use const CASE_LOWER;
 
 /**
  * Handler used for the resource packs sequence phase of the session. This handler takes care of downloading resource
@@ -110,8 +112,9 @@ class ResourcePacksPacketHandler extends PacketHandler{
 		private \Closure $completionCallback
 	){
 		$this->requestQueue = new \SplQueue();
+		$this->encryptionKeys = array_change_key_case($encryptionKeys, CASE_LOWER);
 		foreach($resourcePackStack as $pack){
-			$this->resourcePacksById[$pack->getPackId()] = $pack;
+			$this->resourcePacksById[strtolower($pack->getPackId())] = $pack;
 		}
 	}
 
@@ -127,7 +130,7 @@ class ResourcePacksPacketHandler extends PacketHandler{
 				Uuid::fromString($pack->getPackId()),
 				$pack->getPackVersion(),
 				$pack->getPackSize(),
-				$this->encryptionKeys[$pack->getPackId()] ?? "",
+				$this->encryptionKeys[strtolower($pack->getPackId())] ?? "",
 				"",
 				$pack->getPackId(),
 				false
