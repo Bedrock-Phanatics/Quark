@@ -151,6 +151,27 @@ final class ConfigUpgradeTest extends TestCase{
 		self::assertSame(3, $group->getPropertyInt("settings.async-workers", 0));
 	}
 
+	public function testMigratedViewDistancesReachTheRuntimeLookup() : void{
+		file_put_contents($this->paths->serverToml(), "config-version = 1\n[server]\nview-distance = 12\n[view-distances]\nnether = 8\n\"mini games\" = 6\n");
+		$this->migration->upgradeServer();
+		$server = (new \ReflectionClass(Server::class))->newInstanceWithoutConstructor();
+		(new \ReflectionProperty(Server::class, "configGroup"))->setValue($server, ServerConfigGroup::load($this->paths->serverToml()));
+		self::assertSame(12, $server->getViewDistance());
+		self::assertSame(8, $server->getWorldViewDistanceLimit("nether"));
+		self::assertSame(6, $server->getWorldViewDistanceLimit("mini games"));
+		self::assertSame(12, $server->getWorldViewDistanceLimit("world"));
+	}
+
+	public function testViewDistancesExampleInTheTemplateIsValid() : void{
+		$template = str_replace("\r\n", "\n", Filesystem::fileGetContents(__DIR__ . "/../../resources/server.toml"));
+		self::assertArrayNotHasKey("view-distances", CoreConfig::parse($template));
+		$enabled = str_replace(["# [view-distances]", "# nether = 8", "# \"mini games\" = 6"], ["[view-distances]", "nether = 8", "\"mini games\" = 6"], $template);
+		self::assertNotSame($template, $enabled);
+		$data = CoreConfig::parse($enabled);
+		CoreConfig::validateServer($data);
+		self::assertSame(["nether" => 8, "mini games" => 6], $data["view-distances"]);
+	}
+
 	public function testSparseVersionOneKeepsDefaultsAndSettersInvalidateCachedValues() : void{
 		file_put_contents($this->paths->serverToml(), "config-version = 1\n");
 		$this->migration->upgradeServer();
