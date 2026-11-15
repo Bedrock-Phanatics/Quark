@@ -199,10 +199,12 @@ use function spl_object_id;
 use function sprintf;
 use function str_repeat;
 use function strcasecmp;
+use function strcspn;
 use function strlen;
 use function strncasecmp;
 use function strtolower;
 use function strval;
+use function substr;
 use function time;
 use function trim;
 use function unlink;
@@ -251,6 +253,7 @@ class Server{
 	 */
 	private const TPS_OVERLOAD_WARNING_THRESHOLD = self::TARGET_TICKS_PER_SECOND * 0.6;
 
+	private const REDACTED_COMMANDS = ["tell" => true, "login" => true, "register" => true, "unregister" => true, "password" => true, "passwd" => true, "changepassword" => true];
 	private const TICKS_PER_WORLD_CACHE_CLEAR = 5 * self::TARGET_TICKS_PER_SECOND;
 	private const TICKS_PER_TPS_OVERLOAD_WARNING = 5 * self::TARGET_TICKS_PER_SECOND;
 
@@ -1905,9 +1908,25 @@ class Server{
 			}
 
 			$commandLine = $ev->getCommand();
+			$this->logCommand($sender, $commandLine);
 		}
 
 		return $this->commandMap->dispatch($sender, $commandLine);
+	}
+
+	private function logCommand(CommandSender $sender, string $commandLine) : void{
+		if(!$this->logger instanceof MainLogger){
+			return;
+		}
+		$line = ltrim($commandLine);
+		$label = substr($line, 0, strcspn($line, " \t\r\n"));
+		$command = $this->commandMap->getCommand($label);
+		$message = match(true){
+			$command === null => "/$label [unknown command]",
+			isset(self::REDACTED_COMMANDS[$command->getName()]) => "/$label [redacted]",
+			default => "/$line"
+		};
+		$this->logger->event("info", preg_replace('/[\x00-\x1F\x7F]/', " ", $message) ?? "", $sender instanceof ConsoleCommandSender ? "Console" : $sender->getName(), category: "command");
 	}
 
 	/**
@@ -2356,11 +2375,6 @@ class Server{
 				$serverCommandScope = PulseZones::$serverCommand->start();
 				while(($line = $this->console->readLine()) !== null){
 					$this->consoleSender ??= new ConsoleCommandSender($this, $this->language);
-					if($this->logger instanceof MainLogger){
-						$name = explode(" ", ltrim($line, "/"), 2)[0];
-						$command = $this->commandMap->getCommand($name);
-						$this->logger->event("info", $command === null ? "/[unknown command]" : "/" . $command->getName(), "Console", category: "command");
-					}
 					$this->dispatchCommand($this->consoleSender, $line);
 				}
 				PulseZones::$serverCommand->stop($serverCommandScope);
