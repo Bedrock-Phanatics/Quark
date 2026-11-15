@@ -149,12 +149,13 @@ final class LogDispatcher extends Thread{
 			$processed = 0;
 			$acknowledged = 0;
 			$reportedDrops = 0;
+			$consoleDrops = 0;
 			$reportedConsoleDrops = 0;
 			$lastConsoleReport = hrtime(true);
 			$lastFlush = hrtime(true);
 			do{
-				//with no output left to deliver, only a new record, a flush request or close needs this thread
-				$idle = true;
+				//with no output or rate-limited drop report left to deliver, only a new record, a flush request or close needs this thread
+				$idle = $consoleDrops === $reportedConsoleDrops;
 				foreach($sinks as $sink){
 					if($sink->hasPending()){
 						$idle = false;
