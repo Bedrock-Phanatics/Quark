@@ -192,7 +192,7 @@ final class ConfigUpgradeTest extends TestCase{
 		$original = Filesystem::fileGetContents($this->paths->serverToml());
 		$argv = $_SERVER["argv"] ?? [];
 		try{
-			$_SERVER["argv"] = ["quark", "--network.port=19140", "--server-port=19141", "--network.port=19142", "--network.xbox-auth=true", "--xbox-auth=false", "--network.xbox-auth=true", "--network.compression.level=invalid", "--network.compression-level=7", "--settings.async-workers=2", "--performance.async-workers=3", "--white-list=true", "--server.whitelist=false", "--level-name=legacy", "--world.name=modern", "--server.motd=Custom", "--network.compression.threshold=-1"];
+			$_SERVER["argv"] = ["quark", "--network.port=19140", "--server-port=19141", "--network.port=19142", "--network.xbox-auth=true", "--xbox-auth=false", "--network.xbox-auth=true", "--network.compression.level=invalid", "--network.compression-level=7", "--settings.async-workers=2", "--performance.async-workers=3", "--white-list=true", "--server.whitelist=false", "--level-name=legacy", "--world.name=modern", "--server.motd=Custom", "--network.compression.threshold=-1", "--view-distance=9"];
 			$group = ServerConfigGroup::load($this->paths->serverToml());
 			self::assertSame(19142, $group->getConfigInt(ServerProperties::SERVER_PORT_IPV4));
 			self::assertTrue($group->getConfigBool(ServerProperties::XBOX_AUTH));
@@ -201,6 +201,7 @@ final class ConfigUpgradeTest extends TestCase{
 			self::assertSame("modern", $group->getConfigString(ServerProperties::DEFAULT_WORLD_NAME));
 			self::assertSame("Custom", $group->getConfigString(ServerProperties::MOTD));
 			self::assertSame(-1, $group->getPropertyInt(YmlServerProperties::NETWORK_COMPRESSION_THRESHOLD, 0));
+			self::assertSame(9, $group->getConfigInt(ServerProperties::VIEW_DISTANCE));
 			self::assertSame(7, $group->getPropertyInt(YmlServerProperties::NETWORK_COMPRESSION_LEVEL, 0));
 			$group->save();
 			self::assertSame($original, Filesystem::fileGetContents($this->paths->serverToml()));

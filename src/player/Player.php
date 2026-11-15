@@ -700,14 +700,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			return false;
 		}
 
-		$ev = new PlayerViewDistanceChangeEvent($this, $this->viewDistance, $newViewDistance);
-		$ev->call();
-
+		$oldViewDistance = $this->viewDistance;
 		$this->viewDistance = $newViewDistance;
 		$this->spawnThreshold = (int) (min($newViewDistance, $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNKS_SPAWN_RADIUS, 4)) ** 2 * M_PI);
 		$this->getNetworkSession()->syncViewAreaRadius($newViewDistance);
-
 		$this->logger->debug("Setting view distance to $newViewDistance (requested $this->requestedViewDistance)");
+
+		//last, so a handler that changes the distance again isn't overwritten by this update
+		(new PlayerViewDistanceChangeEvent($this, $oldViewDistance, $newViewDistance))->call();
 		return true;
 	}
 

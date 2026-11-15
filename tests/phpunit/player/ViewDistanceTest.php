@@ -72,11 +72,16 @@ final class ViewDistanceTest extends TestCase{
 		$memory->method("getViewDistance")->willReturnCallback(fn(int $distance) : int => $this->lowMemory ? min(self::LOW_MEMORY_LIMIT, $distance) : $distance);
 		(new \ReflectionProperty(Server::class, "memoryManager"))->setValue($this->server, $memory);
 
+		$this->listen(function(PlayerViewDistanceChangeEvent $event) : void{
+			$this->events[] = [$event->getOldDistance(), $event->getNewDistance()];
+		});
+	}
+
+	/** @param \Closure(PlayerViewDistanceChangeEvent) : void $handler */
+	private function listen(\Closure $handler) : void{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method("isEnabled")->willReturn(true);
-		(new PluginManager($this->createMock(Server::class), null))->registerEvent(PlayerViewDistanceChangeEvent::class, function(PlayerViewDistanceChangeEvent $event) : void{
-			$this->events[] = [$event->getOldDistance(), $event->getNewDistance()];
-		}, EventPriority::NORMAL, $plugin);
+		(new PluginManager($this->createMock(Server::class), null))->registerEvent(PlayerViewDistanceChangeEvent::class, $handler, EventPriority::NORMAL, $plugin);
 	}
 
 	protected function tearDown() : void{
@@ -186,6 +191,18 @@ final class ViewDistanceTest extends TestCase{
 		self::assertSame([8, 8, 8], $this->radiusPackets);
 		self::assertCount(1, $this->events);
 		self::assertSame(PHP_INT_MAX, $this->nextChunkOrderRun($player));
+	}
+
+	public function testHandlerChangingTheDistanceIsNotOverwritten() : void{
+		$this->listen(function(PlayerViewDistanceChangeEvent $event) : void{
+			if($event->getNewDistance() === 12){
+				$event->getPlayer()->setViewDistance(5);
+			}
+		});
+		$player = $this->player($this->world(self::SERVER_MAX));
+		$player->setViewDistance(12);
+		self::assertSame(5, $player->getViewDistance());
+		self::assertSame([12, 5], $this->radiusPackets);
 	}
 
 	public function testChangesScheduleOneChunkReorder() : void{
