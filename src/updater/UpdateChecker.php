@@ -60,7 +60,7 @@ class UpdateChecker{
 		$this->checkUpdate($updateInfo);
 		if($this->hasUpdate()){
 			(new UpdateNotifyEvent($this))->call();
-			if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_UPDATER_ON_UPDATE_WARN_CONSOLE, true)){
+			if($this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::AUTO_UPDATER_WARN_CONSOLE, true)){
 				$this->showConsoleUpdate();
 			}
 		}else{

@@ -368,9 +368,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			$rootPermissions[DefaultPermissions::ROOT_OPERATOR] = true;
 		}
 		$this->perm = new PermissibleBase($rootPermissions);
-		$this->chunksPerTick = $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_PER_TICK, 4);
-		$this->spawnThreshold = (int) (($this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_SPAWN_RADIUS, 4) ** 2) * M_PI);
-		$this->releaseViewOnlyChunks = $this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CHUNK_TICKING_UNLOAD_VIEW_ONLY_CHUNKS, true);
+		$this->chunksPerTick = $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNKS_SEND_PER_TICK, 4);
+		$this->spawnThreshold = (int) (($this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNKS_SPAWN_RADIUS, 4) ** 2) * M_PI);
+		$this->releaseViewOnlyChunks = $this->server->getConfigGroup()->getPropertyBool(YmlServerProperties::CHUNKS_UNLOAD_VIEW_ONLY_CHUNKS, true);
 		$this->chunkSelector = new ChunkSelector();
 
 		$this->chunkLoader = new ChunkLoader();
@@ -699,7 +699,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$ev->call();
 
 		$this->viewDistance = $newViewDistance;
-		$this->spawnThreshold = (int) (min($newViewDistance, $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNK_SENDING_SPAWN_RADIUS, 4)) ** 2 * M_PI);
+		$this->spawnThreshold = (int) (min($newViewDistance, $this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::CHUNKS_SPAWN_RADIUS, 4)) ** 2 * M_PI);
 		$this->getNetworkSession()->syncViewAreaRadius($newViewDistance);
 
 		$this->logger->debug("Setting view distance to $newViewDistance (requested $this->requestedViewDistance)");

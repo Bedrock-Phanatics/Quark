@@ -28,10 +28,12 @@ use quark\utils\Utils;
 use function array_key_exists;
 use function array_pad;
 use function array_replace_recursive;
+use function array_reverse;
 use function count;
 use function explode;
 use function file_exists;
 use function filter_var;
+use function implode;
 use function is_array;
 use function is_bool;
 use function is_float;
@@ -82,6 +84,7 @@ final class ServerConfigGroup{
 					if($this->toml && str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
 						$key = substr($key, 7);
 					}
+					unset($this->overrides[$key]);
 					$this->overrides[$key] = $value;
 				}
 			}
@@ -96,8 +99,17 @@ final class ServerConfigGroup{
 		$defaults = CoreConfig::defaults();
 		$serverDefaults = $defaults["server"] ?? [];
 		$changes = [];
-		foreach(Utils::stringifyKeys($this->overrides) as $name => $raw){
+		$overrides = [];
+		// Process the last spelling first, so overridden values are neither applied nor validated.
+		foreach(Utils::stringifyKeys(array_reverse($this->overrides, true)) as $name => $raw){
+			$argument = $name;
+			$legacy = "server.$name";
+			$name = CoreConfig::RENAMED_SETTINGS[$legacy] ?? CoreConfig::RENAMED_SETTINGS[$name] ?? $name;
 			$path = is_array($serverDefaults) && isset($serverDefaults[$name]) ? ["server", $name] : explode(".", $name, 4);
+			$canonical = implode(".", $path);
+			if(isset($overrides[$canonical])){
+				continue;
+			}
 			$expected = $defaults;
 			foreach($path as $segment){
 				$expected = is_array($expected) ? ($expected[$segment] ?? null) : null;
@@ -106,24 +118,25 @@ final class ServerConfigGroup{
 				continue;
 			}
 			if(!is_string($raw) || is_array($expected)){
-				throw new \InvalidArgumentException("Invalid --$name: pass a scalar value with --$name=value or edit config/server.toml");
+				throw new \InvalidArgumentException("Invalid --$argument: pass a scalar value with --$argument=value or edit config/server.toml");
 			}
 			$value = match(true){
 				is_bool($expected) => trim($raw) !== "" ? filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null,
-				is_int($expected), $name === "settings.async-workers" && $raw !== "auto" => filter_var($raw, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE),
+				is_int($expected), $name === "performance.async-workers" && $raw !== "auto" => filter_var($raw, FILTER_VALIDATE_INT, FILTER_NULL_ON_FAILURE),
 				is_float($expected) => is_numeric($raw) ? (float) $raw : null,
 				default => $raw,
 			};
 			if($value === null){
-				throw new \InvalidArgumentException("Invalid value for --$name");
+				throw new \InvalidArgumentException("Invalid value for --$argument");
 			}
-			$this->overrides[$name] = $value;
+			$overrides[$canonical] = $value;
 			$patch = $value;
 			for($index = count($path) - 1; $index > 0; --$index){
 				$patch = [$path[$index] => $patch];
 			}
 			$changes = array_replace_recursive($changes, [$path[0] => $patch]);
 		}
+		$this->overrides = $overrides;
 		$this->configOverrides = $changes;
 	}
 
@@ -140,11 +153,14 @@ final class ServerConfigGroup{
 	}
 
 	public function getProperty(string $variable, mixed $defaultValue = null) : mixed{
+		if($this->toml){
+			$variable = CoreConfig::RENAMED_SETTINGS[$variable] ?? $variable;
+		}
 		if(!array_key_exists($variable, $this->propertyCache)){
 			if(isset($this->overrides[$variable])){
 				$this->propertyCache[$variable] = $this->overrides[$variable];
 			}else{
-				$this->propertyCache[$variable] = $this->quarkYml->getNested($variable);
+				$this->propertyCache[$variable] = $this->quarkYml->getNested($variable, $this->toml ? CoreConfig::defaultValue($variable) : null);
 			}
 		}
 
@@ -164,37 +180,25 @@ final class ServerConfigGroup{
 	}
 
 	public function getConfigString(string $variable, string $defaultValue = "") : string{
-		if(isset($this->overrides[$variable])){
-			return (string) $this->overrides[$variable];
-		}
-
-		$value = $this->toml ? $this->serverProperties->getNested("server.$variable", $defaultValue) : ($this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue);
+		$value = $this->getConfigValue($variable, $defaultValue);
 		return is_scalar($value) ? (string) $value : $defaultValue;
 	}
 
 	public function setConfigString(string $variable, string $value) : void{
-		$this->toml ? $this->serverProperties->setNested("server.$variable", $value) : $this->serverProperties->set($variable, $value);
+		$this->setConfigValue($variable, $value);
 	}
 
 	public function getConfigInt(string $variable, int $defaultValue = 0) : int{
-		if(isset($this->overrides[$variable])){
-			return (int) $this->overrides[$variable];
-		}
-
-		$value = $this->toml ? $this->serverProperties->getNested("server.$variable", $defaultValue) : ($this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue);
+		$value = $this->getConfigValue($variable, $defaultValue);
 		return is_scalar($value) ? (int) $value : $defaultValue;
 	}
 
 	public function setConfigInt(string $variable, int $value) : void{
-		$this->toml ? $this->serverProperties->setNested("server.$variable", $value) : $this->serverProperties->set($variable, $value);
+		$this->setConfigValue($variable, $value);
 	}
 
 	public function getConfigBool(string $variable, bool $defaultValue = false) : bool{
-		if(isset($this->overrides[$variable])){
-			$value = $this->overrides[$variable];
-		}else{
-			$value = $this->toml ? $this->serverProperties->getNested("server.$variable", $defaultValue) : ($this->serverProperties->exists($variable) ? $this->serverProperties->get($variable) : $defaultValue);
-		}
+		$value = $this->getConfigValue($variable, $defaultValue);
 		if(is_bool($value)){
 			return $value;
 		}
@@ -215,7 +219,24 @@ final class ServerConfigGroup{
 	}
 
 	public function setConfigBool(string $variable, bool $value) : void{
-		$this->toml ? $this->serverProperties->setNested("server.$variable", $value) : $this->serverProperties->set($variable, $value ? "1" : "0");
+		$this->setConfigValue($variable, $this->toml ? $value : ($value ? "1" : "0"));
+	}
+
+	private function getConfigValue(string $variable, mixed $defaultValue) : mixed{
+		if($this->toml){
+			return $this->getProperty(CoreConfig::RENAMED_SETTINGS["server.$variable"] ?? "server.$variable", $defaultValue);
+		}
+		return $this->overrides[$variable] ?? $this->serverProperties->get($variable, $defaultValue);
+	}
+
+	private function setConfigValue(string $variable, string|int|bool $value) : void{
+		if($this->toml){
+			$path = CoreConfig::RENAMED_SETTINGS["server.$variable"] ?? "server.$variable";
+			$this->serverProperties->setNested($path, $value);
+		}else{
+			$this->serverProperties->set($variable, $value);
+		}
+		$this->propertyCache = [];
 	}
 
 	public function save() : void{

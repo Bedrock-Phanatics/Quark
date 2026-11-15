@@ -67,7 +67,7 @@ final class QueryInfo{
 
 	public function __construct(Server $server){
 		$this->serverName = $server->getMotd();
-		$this->listPlugins = $server->getConfigGroup()->getPropertyBool(YmlServerProperties::SETTINGS_QUERY_PLUGINS, true);
+		$this->listPlugins = $server->getConfigGroup()->getPropertyBool(YmlServerProperties::NETWORK_QUERY_PLUGINS, true);
 		$this->plugins = $server->getPluginManager()->getPlugins();
 		$this->players = array_map(fn(Player $p) => $p->getName(), $server->getOnlinePlayers());
 

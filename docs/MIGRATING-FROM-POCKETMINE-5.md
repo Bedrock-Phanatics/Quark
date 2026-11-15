@@ -160,6 +160,9 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 ### Chunk Loading
 
 - `ChunkLoader` is now a final class instead of an interface. Replace implementations with `new ChunkLoader()` instances, one per owner.
+- `Player::setViewDistance()` sets the distance the player wants, which Quark remembers as `Player::getRequestedViewDistance()`. `Player::getViewDistance()` is the effective distance: the request capped by `server.view-distance`, the world's `[view-distances]` entry (`World::getViewDistanceLimit()`), and the low-memory limit. Entering a world with a higher cap restores the request.
+- `PlayerViewDistanceChangeEvent` fires whenever the effective distance changes, including world transfers and low-memory changes, not only client requests.
+- `Server::getAllowedViewDistance()` takes an optional `World` to apply that world's cap.
 
 ### Damage
 
@@ -226,7 +229,22 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 ## Configuration Migration
 
-Quark upgrades older `config/server.toml` files automatically. The upgrade moves legacy language and memory-limit settings, translates disabled chunk ticking to a zero tick radius, and adds missing defaults. It preserves unrelated settings. Quark rejects unsupported config versions.
+Quark upgrades older `config/server.toml` files automatically. Version 2 separates gameplay, networking, world defaults, compression, and performance settings. It combines chunk sending, ticking, and generation under `[chunks]`, flattens the memory dump, low-memory view-distance, and updater warning settings, and renames `migration.auto_on_startup` to `migration.auto-on-startup`.
+
+The upgrade preserves explicit values and unrelated settings; an explicit new key wins over its old spelling. Missing defaults are filled once, with version 0's historical sparse-file defaults preserved. Comments and formatting survive where the TOML can be patched in place, and subsequent startups leave the file unchanged. Global `[aliases]` entries are kept. The retired PHP NetherNet MTU/signaling settings are removed. Unsupported colocated plugin data still requires manual migration. Quark rejects invalid known values and unsupported config versions.
+
+Per-world view distance caps use a flat table keyed by world folder name:
+
+```toml
+[server]
+view-distance = 16
+
+[view-distances]
+nether = 8
+"mini games" = 6
+```
+
+`server.view-distance` stays the global maximum, and a world entry (2 to 96) can only lower it; a larger value is capped with a warning. Unlisted worlds use the global maximum. The player's requested distance is kept separately and the lowest of the request, the global maximum, the world cap, and the low-memory limit applies. The template ships the table commented out, and upgrades neither add nor change it.
 
 Resource pack settings live in `resource-packs/resource_packs.toml`. Older TOML files receive missing defaults without replacing configured values. Under `[encryption]`, set `enabled = true`; `packs = []` encrypts all eligible packs, or list filenames from `resource_stack`. Use either a stable 32-byte printable ASCII `key` or a local `key-file` beside the packs, never both. With neither set, Quark securely creates `resource-packs/.encryption.key` once. Back up this key and keep it stable across restarts. The template links to the 1Password password generator; 32 Unicode characters may exceed 32 bytes.
 
@@ -238,17 +256,17 @@ Use `--migration-dry-run` to preview a legacy filesystem migration, then start w
 
 ### New Configuration Options
 
-- `network.compression-algorithm`
-- `network.async-compression`
-- `network.async-compression-threshold`
-- `network.combat-low-latency-feedback`
+- `network.compression.algorithm`
+- `network.compression.async`
+- `network.compression.async-threshold`
+- `gameplay.combat-low-latency-feedback`
 - `memory.garbage-collection.php-automatic`
 - `memory.garbage-collection.threshold`
 - `memory.garbage-collection.period`
 - `redstone.*`
 - `tnt-limits.*`
 
-Migration stops on invalid or conflicting values. Resolve the reported configuration key and rerun `--migrate-legacy`.
+Legacy YAML files with conflicting values stop migration. Resolve the reported configuration key and rerun `--migrate-legacy`. For TOML upgrades, new keys take precedence over legacy keys; old command-line property names remain accepted.
 
 ## Migration Checklist
 

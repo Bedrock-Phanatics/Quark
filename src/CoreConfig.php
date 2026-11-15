@@ -25,6 +25,7 @@ use function filter_var;
 use function get_debug_type;
 use function implode;
 use function in_array;
+use function inet_ntop;
 use function inet_pton;
 use function is_array;
 use function is_bool;
@@ -64,7 +65,57 @@ use const JSON_THROW_ON_ERROR;
 use const PHP_INT_MAX;
 
 final class CoreConfig{
-	public const SERVER_VERSION = 1;
+	public const SERVER_VERSION = 2;
+
+	/** @var array<string, string> */
+	public const RENAMED_SETTINGS = [
+		"server.gamemode" => "gameplay.gamemode",
+		"server.force-gamemode" => "gameplay.force-gamemode",
+		"server.difficulty" => "gameplay.difficulty",
+		"server.hardcore" => "gameplay.hardcore",
+		"server.pvp" => "gameplay.pvp",
+		"server.server-ip" => "network.bind-address",
+		"server.server-ipv6" => "network.bind-address-v6",
+		"server.server-port" => "network.port",
+		"server.server-portv6" => "network.port-v6",
+		"server.enable-ipv6" => "network.enable-ipv6",
+		"server.enable-query" => "network.enable-query",
+		"server.white-list" => "server.whitelist",
+		"server.xbox-auth" => "network.xbox-auth",
+		"server.level-name" => "world.name",
+		"server.level-seed" => "world.seed",
+		"server.level-type" => "world.generator",
+		"server.generator-settings" => "world.generator-settings",
+		"server.auto-save" => "world.auto-save",
+		"settings.force-language" => "server.force-language",
+		"settings.shutdown-message" => "server.shutdown-message",
+		"settings.query-plugins" => "network.query-plugins",
+		"settings.enable-dev-builds" => "server.enable-dev-builds",
+		"settings.enable-profiling" => "diagnostics.enable-profiling",
+		"settings.async-workers" => "performance.async-workers",
+		"network.max-mtu-size" => "transport.raknet.max-mtu-size",
+		"network.compression-algorithm" => "network.compression.algorithm",
+		"network.batch-threshold" => "network.compression.threshold",
+		"network.compression-level" => "network.compression.level",
+		"network.async-compression" => "network.compression.async",
+		"network.async-compression-threshold" => "network.compression.async-threshold",
+		"network.combat-low-latency-feedback" => "gameplay.combat-low-latency-feedback",
+		"player.save-player-data" => "player.save-data",
+		"level-settings.default-format" => "world.default-format",
+		"level-settings.format-migration" => "world.format-migration",
+		"ticks-per.autosave" => "world.autosave-interval",
+		"chunk-sending.per-tick" => "chunks.send-per-tick",
+		"chunk-sending.spawn-radius" => "chunks.spawn-radius",
+		"chunk-ticking.tick-radius" => "chunks.tick-radius",
+		"chunk-ticking.unload-view-only-chunks" => "chunks.unload-view-only-chunks",
+		"chunk-ticking.blocks-per-subchunk-per-tick" => "chunks.random-ticks-per-subchunk",
+		"chunk-ticking.disable-block-ticking" => "chunks.disabled-random-tick-blocks",
+		"chunk-generation.population-queue-size" => "chunks.population-queue-size",
+		"memory.memory-dump.dump-async-worker" => "memory.dump-async-workers",
+		"memory.max-chunks.chunk-radius" => "memory.low-memory-view-distance",
+		"auto-updater.on-update.warn-console" => "auto-updater.warn-console",
+		"migration.auto_on_startup" => "migration.auto-on-startup",
+	];
 
 	/** @var array<string, array<string, mixed>> */
 	private static array $loaded = [];
@@ -74,6 +125,10 @@ final class CoreConfig{
 	/** @return array<string, mixed> */
 	public static function defaults() : array{
 		return self::$defaults ??= require __DIR__ . "/../generated/CoreConfigSchema.php";
+	}
+
+	public static function defaultValue(string $path) : mixed{
+		return self::lookup(self::defaults(), explode(".", $path, 4));
 	}
 
 	/** @return array<string, mixed> */
@@ -678,6 +733,10 @@ final class CoreConfig{
 		if(is_array($logging) && $logging !== []){
 			new log\LoggingConfig($logging);
 		}
+		$plugins = $data["plugins"] ?? [];
+		if(is_array($plugins) && array_key_exists("legacy-data-dir", $plugins) && $plugins["legacy-data-dir"] !== false){
+			throw new \InvalidArgumentException("Colocated plugin data needs a migration handler; migrate it to data/plugins and remove plugins.legacy-data-dir");
+		}
 
 		if(array_key_exists("view-distances", $data)){
 			$limits = $data["view-distances"];
@@ -691,21 +750,24 @@ final class CoreConfig{
 			}
 		}
 
-		foreach(["aliases", "worlds"] as $section){
-			if(!array_key_exists($section, $data)){
-				continue;
+		if(array_key_exists("aliases", $data)){
+			$aliases = $data["aliases"];
+			if(!is_array($aliases) || $aliases !== [] && array_is_list($aliases)){
+				throw new \InvalidArgumentException("Invalid aliases: expected table");
 			}
-			$entries = $data[$section];
+			foreach(Utils::promoteKeys($aliases) as $key => $value){
+				if(!is_string($value)){
+					self::validateStringList($value, "aliases.$key");
+				}
+			}
+		}
+
+		if(array_key_exists("worlds", $data)){
+			$entries = $data["worlds"];
 			if(!is_array($entries) || $entries !== [] && array_is_list($entries)){
-				throw new \InvalidArgumentException("Invalid $section: expected table");
+				throw new \InvalidArgumentException("Invalid worlds: expected table");
 			}
 			foreach(Utils::promoteKeys($entries) as $key => $value){
-				if($section === "aliases"){
-					if(!is_string($value)){
-						self::validateStringList($value, "$section.$key");
-					}
-					continue;
-				}
 				$path = "worlds.$key";
 				if(!is_array($value) || $value !== [] && array_is_list($value)){
 					throw new \InvalidArgumentException("Invalid $path: expected table");
@@ -727,10 +789,10 @@ final class CoreConfig{
 
 	/** @param array<string, mixed> $data */
 	private static function validateServerCombinations(array $data) : void{
-		$port = self::lookup($data, ["server", "server-port"]) ?? Server::DEFAULT_PORT_IPV4;
+		$port = self::lookup($data, ["network", "port"]) ?? Server::DEFAULT_PORT_IPV4;
 		if(
 			self::lookup($data, ["transport", "nethernet", "port-range"]) === [$port, $port] &&
-			(self::lookup($data, ["server", "enable-query"]) ?? true) === true &&
+			(self::lookup($data, ["network", "enable-query"]) ?? true) === true &&
 			self::lookup($data, ["transport", "nethernet", "ice-udp-mux"]) === true
 		){
 			$transports = self::lookup($data, ["transport", "name"]);
@@ -755,6 +817,22 @@ final class CoreConfig{
 		return [$range[0], $range[1]];
 	}
 
+	/** @return list<string> */
+	public static function validateNetherNetIceServers(mixed $servers) : array{
+		$path = "transport.nethernet.ice-servers";
+		self::validateStringList($servers, $path);
+		/** @var list<string> $servers */
+		if(count($servers) > 32){
+			throw new \InvalidArgumentException("Invalid $path: expected at most 32 ICE server URLs");
+		}
+		foreach($servers as $index => $server){
+			if(strlen($server) > 512 || str_contains($server, "\0")){
+				throw new \InvalidArgumentException("Invalid $path entry $index: expected at most 512 bytes without NUL characters");
+			}
+		}
+		return $servers;
+	}
+
 	/**
 	 * These are addresses the server tells clients to reach it on, not an allowlist of clients.
 	 *
@@ -768,8 +846,9 @@ final class CoreConfig{
 		$seen = [];
 		foreach($addresses as $address){
 			$packed = is_string($address) && filter_var($address, FILTER_VALIDATE_IP) !== false ? inet_pton($address) : false;
+			$canonical = $packed !== false ? inet_ntop($packed) : false;
 			//the unspecified, multicast, link-local and IPv4-mapped ranges can't name a server
-			if($packed === false || isset($seen[$packed]) || preg_match('/^(0\.|22[4-9]\.|2[3-5]\d\.|169\.254\.|::$|ff|fe[89ab]|::ffff:)/i', $address) === 1){
+			if($packed === false || $canonical === false || isset($seen[$packed]) || preg_match('/^(0\.|22[4-9]\.|2[3-5]\d\.|169\.254\.|::$|ff|fe[89ab]|::ffff:)/i', $canonical) === 1){
 				throw new \InvalidArgumentException($error . ", got " . (is_string($address) ? "'$address'" : get_debug_type($address)));
 			}
 			$seen[$packed] = true;
@@ -778,13 +857,17 @@ final class CoreConfig{
 	}
 
 	private static function validateShape(mixed $value, mixed $expected, string $path) : void{
-		if($path === "settings.async-workers"){
+		if($path === "performance.async-workers"){
 			if(!(is_int($value) && $value > 0 || $value === "auto")){
 				throw new \InvalidArgumentException("Invalid $path: expected a positive integer or 'auto'");
 			}
 		}elseif(is_array($expected)){
 			if($expected === []){
-				self::validateStringList($value, $path, $path === "chunk-ticking.disable-block-ticking");
+				if($path === "transport.nethernet.ice-servers"){
+					self::validateNetherNetIceServers($value);
+				}else{
+					self::validateStringList($value, $path, $path === "chunks.disabled-random-tick-blocks");
+				}
 				return;
 			}
 			if(!is_array($value) || $value !== [] && array_is_list($value)){
@@ -805,20 +888,20 @@ final class CoreConfig{
 				throw new \InvalidArgumentException("Invalid $path: expected integer");
 			}
 			[$min, $max] = match($path){
-				"server.server-port", "server.server-portv6" => [1, 65535],
+				"network.port", "network.port-v6" => [1, 65535],
 				"server.max-players" => [1, 0xffffffff],
-				"server.difficulty" => [0, 3],
-				"network.batch-threshold" => [-1, PHP_INT_MAX],
-				"network.compression-level" => [1, 9],
-				"network.max-mtu-size" => [\raklib\generic\Session::MIN_MTU_SIZE, 65535],
+				"gameplay.difficulty" => [0, 3],
+				"network.compression.threshold" => [-1, PHP_INT_MAX],
+				"network.compression.level" => [1, 9],
+				"transport.raknet.max-mtu-size" => [\raklib\generic\Session::MIN_MTU_SIZE, 65535],
 				"diagnostics.max-crash-reports", "diagnostics.max-profiles" => [0, 100000],
 				"diagnostics.pulse-auto-capture-ms" => [0, 60000],
 				"entities.activation-range" => [0, World::MAX_ACTIVATION_RANGE],
-				"chunk-sending.spawn-radius" => [0, Server::MAX_VIEW_DISTANCE],
+				"chunks.spawn-radius" => [0, Server::MAX_VIEW_DISTANCE],
 				"memory.global-limit", "memory.main-limit", "memory.main-hard-limit", "memory.async-worker-hard-limit" => [0, PHP_INT_MAX >> 20],
-				"server.view-distance", "ticks-per.autosave",
+				"server.view-distance", "world.autosave-interval",
 				"memory.check-rate", "memory.continuous-trigger-rate", "entities.inactive-tick-interval",
-				"chunk-sending.per-tick", "chunk-generation.population-queue-size",
+				"chunks.send-per-tick", "chunks.population-queue-size",
 				"redstone.max-wire-network-size", "redstone.max-scheduled-updates", "redstone.max-updates-per-tick",
 				"redstone.max-piston-actions-per-tick", "redstone.max-dispenser-actions-per-tick" => [1, PHP_INT_MAX],
 				"hoppers.transfer-cooldown" => [1, HopperConfig::MAX_TRANSFER_COOLDOWN],
@@ -832,21 +915,27 @@ final class CoreConfig{
 			if(!is_string($value)){
 				throw new \InvalidArgumentException("Invalid $path: expected string");
 			}
+			if(str_contains($value, "\0")){
+				throw new \InvalidArgumentException("Invalid $path: NUL characters are not allowed");
+			}
+			if($path === "transport.nethernet.key-file" && trim($value) === ""){
+				throw new \InvalidArgumentException("Invalid $path: expected a nonempty identity file path");
+			}
 			$choices = match($path){
-				"network.compression-algorithm" => ["zlib", "snappy"],
+				"network.compression.algorithm" => ["zlib", "snappy"],
 				"redstone.world-policy" => ["all", "allowlist", "blocklist"],
-				"level-settings.format-migration" => ["off", "manual", "automatic"],
+				"world.format-migration" => ["off", "manual", "automatic"],
 				default => []
 			};
 			$normalized = match($path){
-				"level-settings.format-migration" => $value,
+				"world.format-migration" => $value,
 				"redstone.world-policy" => strtolower(trim($value)),
 				default => strtolower($value)
 			};
 			if($choices !== [] && !in_array($normalized, $choices, true)){
 				throw new \InvalidArgumentException("Invalid $path: expected " . implode(", ", $choices));
 			}
-			if($path === "server.gamemode" && GameMode::fromString($value) === null){
+			if($path === "gameplay.gamemode" && GameMode::fromString($value) === null){
 				throw new \InvalidArgumentException("Invalid $path: expected survival, creative, adventure, or spectator");
 			}
 			if($path === "transport.name" && (trim($value) === "" || substr_count($value, ",") >= Server::MAX_ACTIVE_TRANSPORTS)){

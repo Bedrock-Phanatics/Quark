@@ -120,7 +120,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			$threadToMainBuffer,
 			$this->bindAddress,
 			$this->rakServerId,
-			$this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::NETWORK_MAX_MTU_SIZE, 1492),
+			$this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::TRANSPORT_RAKNET_MAX_MTU_SIZE, 1492),
 			self::MCPE_RAKNET_PROTOCOL_VERSION,
 			$sleeperEntry
 		);
