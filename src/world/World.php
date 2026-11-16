@@ -146,6 +146,7 @@ use function array_merge;
 use function array_push;
 use function array_sum;
 use function assert;
+use function ceil;
 use function chr;
 use function cos;
 use function count;
@@ -3578,7 +3579,8 @@ class World implements ChunkManager{
 			if($this->fallingStarts !== null){
 				$column = (($pos->getFloorX() & Chunk::COORD_MASK) << Chunk::COORD_BIT_SIZE) | ($pos->getFloorZ() & Chunk::COORD_MASK);
 				$this->fallingStarts[$chunkHash][0][$entity->getId()] = true;
-				$this->fallingStarts[$chunkHash][1][$column] = max($this->fallingStarts[$chunkHash][1][$column] ?? $this->minY - 1, $pos->getFloorY());
+				//rounded up, so a block stacked above one loaded mid-fall can't overlap it
+				$this->fallingStarts[$chunkHash][1][$column] = max($this->fallingStarts[$chunkHash][1][$column] ?? $this->minY - 1, (int) ceil($pos->y));
 			}
 		}
 		$this->entityLastKnownPositions[$entity->getId()] = $pos;

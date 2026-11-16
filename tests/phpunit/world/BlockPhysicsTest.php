@@ -303,9 +303,9 @@ final class BlockPhysicsTest extends TestCase{
 		$pass->setValue($h->world, []);
 		try{
 			//a plugin can spawn one directly; its start is still known
-			$spawned = new FallingBlock(new Location(0.5, 50, 0.5, $h->world, 0, 0), VanillaBlocks::SAND());
+			$spawned = new FallingBlock(new Location(0.5, 50.25, 0.5, $h->world, 0, 0), VanillaBlocks::SAND());
 			self::assertSame(1, $h->world->startFallingBlock(1, 40, 0, true));
-			self::assertSame(51, $h->world->startFallingBlock(0, 60, 0, true));
+			self::assertSame(52, $h->world->startFallingBlock(0, 60, 0, true), "a full block above one caught mid-fall");
 			self::assertSame(45, $h->world->startFallingBlock(0, 45, 0, true));
 			$spawned->teleport(new Vector3(0.5, 30, 0.5));
 			self::assertSame(40, $h->world->startFallingBlock(1, 40, 0, true));
