@@ -41,6 +41,8 @@ final class YmlServerProperties{
 	public const AUTO_UPDATER_HOST = 'auto-updater.host';
 	public const AUTO_UPDATER_PREFERRED_CHANNEL = 'auto-updater.preferred-channel';
 	public const AUTO_UPDATER_WARN_CONSOLE = 'auto-updater.warn-console';
+	public const BLOCK_PHYSICS = 'block-physics';
+	public const BLOCK_PHYSICS_FAST_FALLING_BLOCKS = 'block-physics.fast-falling-blocks';
 	public const CHUNKS = 'chunks';
 	public const CHUNKS_DISABLED_RANDOM_TICK_BLOCKS = 'chunks.disabled-random-tick-blocks';
 	public const CHUNKS_POPULATION_QUEUE_SIZE = 'chunks.population-queue-size';

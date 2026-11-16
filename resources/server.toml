@@ -153,6 +153,11 @@ max-active-nearby = 192
 max-ignitions-per-chunk-per-tick = 24
 max-dispenser-ignitions-per-second = 20
 
+[block-physics]
+# Non-vanilla: sand, gravel and other falling blocks over open air appear right above where they land,
+# skipping the visible fall. Landing, damage and events are unchanged.
+fast-falling-blocks = false
+
 [weather]
 cycle = true
 # 1-in-N chance per ticking chunk per tick during thunderstorms. Zero disables strikes.

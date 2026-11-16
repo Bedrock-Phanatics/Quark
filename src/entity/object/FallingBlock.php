@@ -32,6 +32,7 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use quark\block\Block;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\utils\Fallable;
+use quark\block\utils\FallableTrait;
 use quark\data\bedrock\block\BlockStateDeserializeException;
 use quark\data\SavedDataLoadingException;
 use quark\entity\Entity;
@@ -57,6 +58,31 @@ class FallingBlock extends Entity{
 	private const TAG_DATA = "Data"; //TAG_Byte
 
 	public function getNetworkTypeId() : string{ return EntityIds::FALLING_BLOCK; }
+
+	private static bool $fastFalling = false;
+	/** @var array<class-string, bool> */
+	private static array $canFallFast = [];
+
+	/**
+	 * Opt-in shortcut where blocks dropping through open air start falling right above their landing spot. Landing,
+	 * damage and events still run normally, but the fall itself takes a tick instead of being seen.
+	 */
+	public static function setFastFalling(bool $enabled) : void{
+		self::$fastFalling = $enabled;
+	}
+
+	public static function isFastFalling() : bool{
+		return self::$fastFalling;
+	}
+
+	/**
+	 * Skipping the fall is only safe for blocks that do nothing while in the air, which rules out anything with its
+	 * own tickFalling(), like concrete powder hardening beside water.
+	 */
+	public static function canFallFast(Block $block) : bool{
+		return self::$canFallFast[$block::class] ??= $block instanceof Fallable &&
+			(new \ReflectionMethod($block, "tickFalling"))->getFileName() === (new \ReflectionMethod(FallableTrait::class, "tickFalling"))->getFileName();
+	}
 
 	protected Block $block;
 

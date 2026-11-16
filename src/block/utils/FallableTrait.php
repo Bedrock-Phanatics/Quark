@@ -27,7 +27,6 @@ use quark\block\Block;
 use quark\block\VanillaBlocks;
 use quark\entity\Location;
 use quark\entity\object\FallingBlock;
-use quark\math\Facing;
 use quark\utils\AssumptionFailedError;
 use quark\world\Position;
 use quark\world\sound\Sound;
@@ -44,14 +43,18 @@ trait FallableTrait{
 	public function onNearbyBlockChange() : void{
 		$pos = $this->getPosition();
 		$world = $pos->getWorld();
-		$down = $world->getBlock($pos->getSide(Facing::DOWN));
-		if($down->canBeReplaced()){
-			$world->setBlock($pos, VanillaBlocks::AIR());
+		$x = $pos->getFloorX();
+		$y = $pos->getFloorY();
+		$z = $pos->getFloorZ();
+		if($world->getBlockAt($x, $y - 1, $z)->canBeReplaced()){
+			$world->setBlockAt($x, $y, $z, VanillaBlocks::AIR());
 
 			$block = $this;
 			if(!($block instanceof Block)) throw new AssumptionFailedError(__TRAIT__ . " should only be used by Blocks");
 
-			$fall = new FallingBlock(Location::fromObject($pos->add(0.5, 0, 0.5), $world), $block);
+			$startY = $world->startFallingBlock($x, $y, $z, FallingBlock::canFallFast($block));
+			$fall = new FallingBlock(new Location($x + 0.5, $startY, $z + 0.5, $world, 0, 0), $block);
+			$fall->fallDistance = $y - $startY;
 			$fall->spawnToAll();
 		}
 	}

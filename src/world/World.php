@@ -244,6 +244,14 @@ class World implements ChunkManager{
 	 * @phpstan-var array<ChunkPosHash, array<int, Entity>>
 	 */
 	private array $entitiesByChunk = [];
+	/** @phpstan-var array<ChunkPosHash, int> falling block entities in each chunk of $entitiesByChunk */
+	private array $fallingBlockCounts = [];
+	/**
+	 * Falling blocks added during the running neighbour update pass that haven't moved, by chunk: their IDs, and the
+	 * highest start in each column. Null outside the pass.
+	 * @phpstan-var array<ChunkPosHash, array{0?: array<int, true>, 1?: array<int, int>}>|null
+	 */
+	private ?array $fallingStarts = null;
 
 	/**
 	 * @var Entity[] entity runtime ID => Entity
@@ -1910,6 +1918,15 @@ class World implements ChunkManager{
 	}
 
 	private function runNeighbourBlockUpdates() : void{
+		$this->fallingStarts = [];
+		try{
+			$this->processNeighbourBlockUpdates();
+		}finally{
+			$this->fallingStarts = null;
+		}
+	}
+
+	private function processNeighbourBlockUpdates() : void{
 		while($this->neighbourBlockUpdateQueue->count() > 0){
 			/** @var array<int, true> $cells */
 			$cells = [];
@@ -1951,6 +1968,46 @@ class World implements ChunkManager{
 				$this->notifyEntitiesInUpdatedCells($cells, $entityChunks);
 			}
 		}
+	}
+
+	private function forgetFallingBlock(int $chunkHash, FallingBlock $entity) : void{
+		if(--$this->fallingBlockCounts[$chunkHash] === 0){
+			unset($this->fallingBlockCounts[$chunkHash]);
+		}
+		unset($this->fallingStarts[$chunkHash][0][$entity->getId()]);
+	}
+
+	/**
+	 * @internal Returns the Y a block leaving x,y,z should start falling from.
+	 *
+	 * With fast falling blocks on, a block that would drop through open air starts right above where it lands, or above
+	 * the highest falling block started below it in this column. That is only safe while every falling block in the
+	 * chunk was added in this pass and hasn't moved, so none can be overtaken; otherwise it starts at $y.
+	 */
+	public function startFallingBlock(int $x, int $y, int $z, bool $mayFallFast) : int{
+		if($this->fallingStarts === null || !FallingBlock::isFastFalling()){
+			return $y;
+		}
+		$chunkHash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
+		$localX = $x & Chunk::COORD_MASK;
+		$localZ = $z & Chunk::COORD_MASK;
+		$column = ($localX << Chunk::COORD_BIT_SIZE) | $localZ;
+		$below = $this->fallingStarts[$chunkHash][1][$column] ?? $this->minY - 1;
+		if(
+			!$mayFallFast ||
+			$below >= $y ||
+			count($this->fallingStarts[$chunkHash][0] ?? []) !== ($this->fallingBlockCounts[$chunkHash] ?? 0) ||
+			($chunk = $this->chunks[$chunkHash] ?? null) === null
+		){
+			return $y;
+		}
+		$air = VanillaBlocks::AIR()->getStateId();
+		$cursor = $y - 1;
+		while($cursor > $below && $cursor >= $this->minY && $chunk->getBlockStateId($localX, $cursor, $localZ) === $air){
+			--$cursor;
+		}
+		//falling out of the world isn't shortened
+		return $cursor >= $this->minY ? $cursor + 1 : $y;
 	}
 
 	/**
@@ -3499,7 +3556,16 @@ class World implements ChunkManager{
 			throw new \LogicException("Entity " . $entity::class . " is not registered for a save ID in EntityFactory");
 		}
 		$pos = $entity->getPosition()->asVector3();
-		$this->entitiesByChunk[World::chunkHash($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE)][$entity->getId()] = $entity;
+		$chunkHash = World::chunkHash($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE);
+		$this->entitiesByChunk[$chunkHash][$entity->getId()] = $entity;
+		if($entity instanceof FallingBlock){
+			$this->fallingBlockCounts[$chunkHash] = ($this->fallingBlockCounts[$chunkHash] ?? 0) + 1;
+			if($this->fallingStarts !== null){
+				$column = (($pos->getFloorX() & Chunk::COORD_MASK) << Chunk::COORD_BIT_SIZE) | ($pos->getFloorZ() & Chunk::COORD_MASK);
+				$this->fallingStarts[$chunkHash][0][$entity->getId()] = true;
+				$this->fallingStarts[$chunkHash][1][$column] = max($this->fallingStarts[$chunkHash][1][$column] ?? $this->minY - 1, $pos->getFloorY());
+			}
+		}
 		$this->entityLastKnownPositions[$entity->getId()] = $pos;
 
 		if($entity instanceof Player){
@@ -3528,6 +3594,9 @@ class World implements ChunkManager{
 			}else{
 				unset($this->entitiesByChunk[$chunkHash][$entity->getId()]);
 			}
+			if($entity instanceof FallingBlock){
+				$this->forgetFallingBlock($chunkHash, $entity);
+			}
 		}
 		unset($this->entityLastKnownPositions[$entity->getId()]);
 
@@ -3550,6 +3619,10 @@ class World implements ChunkManager{
 		}
 		$oldPosition = $this->entityLastKnownPositions[$entity->getId()];
 		$newPosition = $entity->getPosition();
+		if($this->fallingStarts !== null && $entity instanceof FallingBlock){
+			//its recorded start no longer says where it is
+			unset($this->fallingStarts[World::chunkHash($oldPosition->getFloorX() >> Chunk::COORD_BIT_SIZE, $oldPosition->getFloorZ() >> Chunk::COORD_BIT_SIZE)][0][$entity->getId()]);
+		}
 
 		$oldChunkX = $oldPosition->getFloorX() >> Chunk::COORD_BIT_SIZE;
 		$oldChunkZ = $oldPosition->getFloorZ() >> Chunk::COORD_BIT_SIZE;
@@ -3564,11 +3637,15 @@ class World implements ChunkManager{
 				}
 			}
 			$oldChunkHash = World::chunkHash($oldChunkX, $oldChunkZ);
+			$fallingBlock = $entity instanceof FallingBlock;
 			if(isset($this->entitiesByChunk[$oldChunkHash][$entity->getId()])){
 				if(count($this->entitiesByChunk[$oldChunkHash]) === 1){
 					unset($this->entitiesByChunk[$oldChunkHash]);
 				}else{
 					unset($this->entitiesByChunk[$oldChunkHash][$entity->getId()]);
+				}
+				if($fallingBlock){
+					$this->forgetFallingBlock($oldChunkHash, $entity);
 				}
 			}
 
@@ -3586,6 +3663,9 @@ class World implements ChunkManager{
 
 			$newChunkHash = World::chunkHash($newChunkX, $newChunkZ);
 			$this->entitiesByChunk[$newChunkHash][$entity->getId()] = $entity;
+			if($fallingBlock){
+				$this->fallingBlockCounts[$newChunkHash] = ($this->fallingBlockCounts[$newChunkHash] ?? 0) + 1;
+			}
 		}
 		$this->entityLastKnownPositions[$entity->getId()] = $newPosition->asVector3();
 	}

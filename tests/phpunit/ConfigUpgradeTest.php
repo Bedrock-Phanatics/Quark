@@ -242,6 +242,26 @@ final class ConfigUpgradeTest extends TestCase{
 		}
 	}
 
+	public function testBlockPhysicsIsOffForConfigsWrittenBeforeIt() : void{
+		$existing = "config-version = 2\n[server]\nmotd = 'kept'\n";
+		file_put_contents($this->paths->serverToml(), $existing);
+		$this->migration->upgradeServer();
+		self::assertSame($existing, Filesystem::fileGetContents($this->paths->serverToml()));
+		$group = ServerConfigGroup::load($this->paths->serverToml());
+		self::assertFalse($group->getPropertyBool(YmlServerProperties::BLOCK_PHYSICS_FAST_FALLING_BLOCKS, false));
+		self::assertFalse(CoreConfig::defaultValue(YmlServerProperties::BLOCK_PHYSICS_FAST_FALLING_BLOCKS));
+
+		file_put_contents($this->paths->serverToml(), "config-version = 2\n[block-physics]\nfast-falling-blocks = true\n");
+		CoreConfig::forget($this->paths->serverToml());
+		self::assertTrue(ServerConfigGroup::load($this->paths->serverToml())->getPropertyBool(YmlServerProperties::BLOCK_PHYSICS_FAST_FALLING_BLOCKS, false));
+	}
+
+	public function testBlockPhysicsRejectsNonBooleans() : void{
+		file_put_contents($this->paths->serverToml(), "config-version = 2\n[block-physics]\nfast-falling-blocks = 1\n");
+		$this->expectExceptionMessage("block-physics.fast-falling-blocks");
+		ServerConfigGroup::load($this->paths->serverToml());
+	}
+
 	public function testCurrentConfigRejectsUnsupportedColocatedPluginData() : void{
 		file_put_contents($this->paths->serverToml(), "config-version = 2\n[plugins]\nlegacy-data-dir = true\n");
 		$this->expectExceptionMessage("plugins.legacy-data-dir");

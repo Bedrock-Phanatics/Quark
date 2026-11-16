@@ -49,6 +49,7 @@ use quark\data\bedrock\BedrockDataFiles;
 use quark\entity\EntityDataHelper;
 use quark\entity\Location;
 use quark\entity\object\ExperienceOrb;
+use quark\entity\object\FallingBlock;
 use quark\entity\object\ItemEntity;
 use quark\event\HandlerListManager;
 use quark\event\player\PlayerCreationEvent;
@@ -1402,6 +1403,7 @@ class Server{
 				$this->configGroup->getPropertyInt(Yml::HOPPERS_ITEMS_PER_TRANSFER, 1),
 				$this->configGroup->getPropertyInt(Yml::HOPPERS_MAX_UPDATES_PER_TICK, 512)
 			);
+			FallingBlock::setFastFalling($this->configGroup->getPropertyBool(Yml::BLOCK_PHYSICS_FAST_FALLING_BLOCKS, false));
 			ItemEntity::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_ITEM_MERGE_RADIUS, ItemEntity::MAX_MERGE_RADIUS));
 			ExperienceOrb::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_XP_ORB_MERGE_RADIUS, ExperienceOrb::MAX_MERGE_RADIUS));
 			if($redstoneEnabled){

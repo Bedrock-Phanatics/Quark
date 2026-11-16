@@ -267,6 +267,7 @@ Use `--migration-dry-run` to preview a legacy filesystem migration, then start w
 - `memory.garbage-collection.period`
 - `redstone.*`
 - `tnt-limits.*`
+- `block-physics.fast-falling-blocks` (off by default): falling blocks over open air start right above their landing spot. Landing, fall damage, `EntityBlockChangeEvent` and drops are unchanged, but the fall is not visible and `EntitySpawnEvent` sees the lower position. Blocks with their own `tickFalling()`, such as concrete powder, and falls into the void are never shortened. No config upgrade is needed; files without the key keep vanilla behaviour.
 
 Legacy YAML files with conflicting values stop migration. Resolve the reported configuration key and rerun `--migrate-legacy`. For TOML upgrades, new keys take precedence over legacy keys; old command-line property names remain accepted.
 
