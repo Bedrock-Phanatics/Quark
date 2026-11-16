@@ -1217,7 +1217,11 @@ final class VanillaBlocksInputs extends RegistrySource{
 	private function registerGroundCoverAndPlants() : void{
 		$mossInfo = new Info(new BreakInfo(0.1, ToolType::HOE), [Tags::DIRT]);
 		self::register("moss_block", fn(BID $id) => new Opaque($id, "Moss Block", $mossInfo));
-		self::register("pale_moss_block", fn(BID $id) => new Opaque($id, "Pale Moss Block", $mossInfo));
+		self::register("pale_moss_block", fn(BID $id) => new class($id, "Pale Moss Block", $mossInfo) extends Opaque{
+			public function getFlameEncouragement() : int{ return 15; }
+
+			public function getFlammability() : int{ return 100; }
+		});
 		$mossCarpetInfo = new Info(new BreakInfo(0.1, ToolType::HOE));
 		self::register("moss_carpet", fn(BID $id) => new MossCarpet($id, "Moss Carpet", $mossCarpetInfo));
 		self::register("pale_moss_carpet", fn(BID $id) => new PaleMossCarpet($id, "Pale Moss Carpet", $mossCarpetInfo));

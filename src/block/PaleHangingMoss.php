@@ -76,7 +76,7 @@ class PaleHangingMoss extends Flowable{
 	}
 
 	public function getFlameEncouragement() : int{
-		return 5;
+		return 15;
 	}
 
 	public function getFlammability() : int{

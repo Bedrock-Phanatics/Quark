@@ -75,7 +75,7 @@ class Scaffolding extends Transparent{
 	}
 
 	public function getFlammability() : int{
-		return 60;
+		return 20;
 	}
 
 	public function getFuelTime() : int{

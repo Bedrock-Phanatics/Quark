@@ -82,6 +82,14 @@ class PaleMossCarpet extends Flowable{
 		return $this->top ? [] : [AxisAlignedBB::one()->trim(Facing::UP, 15 / 16)];
 	}
 
+	public function getFlameEncouragement() : int{
+		return 15;
+	}
+
+	public function getFlammability() : int{
+		return 100;
+	}
+
 	private function canBeSupportedAt(Block $block) : bool{
 		$down = $block->getSide(Facing::DOWN);
 		return $this->top ? $down instanceof PaleMossCarpet && !$down->top : $down->getTypeId() !== BlockTypeIds::AIR;
