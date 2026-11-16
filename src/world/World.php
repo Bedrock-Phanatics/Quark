@@ -1911,26 +1911,114 @@ class World implements ChunkManager{
 
 	private function runNeighbourBlockUpdates() : void{
 		while($this->neighbourBlockUpdateQueue->count() > 0){
-			$index = $this->neighbourBlockUpdateQueue->dequeue();
-			unset($this->neighbourBlockUpdateQueueIndex[$index]);
-			World::getBlockXYZ($index, $x, $y, $z);
-			if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
-				continue;
-			}
-
-			$block = $this->getBlockAt($x, $y, $z);
-
-			if(BlockUpdateEvent::hasHandlers()){
-				$ev = new BlockUpdateEvent($block);
-				$ev->call();
-				if($ev->isCancelled()){
+			/** @var array<int, true> $cells */
+			$cells = [];
+			/** @var array<ChunkPosHash, true> $entityChunks */
+			$entityChunks = [];
+			while($this->neighbourBlockUpdateQueue->count() > 0){
+				$index = $this->neighbourBlockUpdateQueue->dequeue();
+				unset($this->neighbourBlockUpdateQueueIndex[$index]);
+				World::getBlockXYZ($index, $x, $y, $z);
+				if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
 					continue;
 				}
+
+				$block = $this->getBlockAt($x, $y, $z);
+
+				if(BlockUpdateEvent::hasHandlers()){
+					$ev = new BlockUpdateEvent($block);
+					$ev->call();
+					if($ev->isCancelled()){
+						continue;
+					}
+				}
+				if(count($this->entitiesByChunk) > 0){
+					//same chunk reach as getNearbyEntities() for this cell
+					$maxChunkX = ($x + 3) >> Chunk::COORD_BIT_SIZE;
+					$maxChunkZ = ($z + 3) >> Chunk::COORD_BIT_SIZE;
+					for($chunkX = ($x - 2) >> Chunk::COORD_BIT_SIZE; $chunkX <= $maxChunkX; ++$chunkX){
+						for($chunkZ = ($z - 2) >> Chunk::COORD_BIT_SIZE; $chunkZ <= $maxChunkZ; ++$chunkZ){
+							if(isset($this->entitiesByChunk[$chunkHash = World::chunkHash($chunkX, $chunkZ)])){
+								$entityChunks[$chunkHash] = true;
+								$cells[$index] = true;
+							}
+						}
+					}
+				}
+				$block->onNearbyBlockChange();
 			}
-			foreach($this->getNearbyEntities(AxisAlignedBB::one()->offset($x, $y, $z)) as $entity){
-				$entity->onNearbyBlockChange();
+			if(count($cells) > 0){
+				$this->notifyEntitiesInUpdatedCells($cells, $entityChunks);
 			}
-			$block->onNearbyBlockChange();
+		}
+	}
+
+	/**
+	 * Entity notifications are only hints to recheck physics, so they're batched per pass. Querying entities for each
+	 * updated block was quadratic once a tower of falling blocks or a pile of drops shared a chunk.
+	 *
+	 * @param array<int, true>          $cells        block hashes of updated cells
+	 * @param array<ChunkPosHash, true> $entityChunks chunks whose entities may overlap them
+	 */
+	private function notifyEntitiesInUpdatedCells(array $cells, array $entityChunks) : void{
+		//matches the epsilon AxisAlignedBB::intersectsWith() uses against a full block
+		$epsilon = 0.00001;
+		$minY = $this->minY;
+		$maxY = $this->maxY - 1;
+		foreach($entityChunks as $chunkHash => $_){
+			foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
+				if($entity->isClosed()){
+					continue;
+				}
+				$bb = $entity->getBoundingBox();
+				$x0 = (int) floor($bb->minX);
+				if(($x0 + 1) - $bb->minX <= $epsilon){
+					++$x0;
+				}
+				$x1 = (int) floor($bb->maxX);
+				if($bb->maxX - $x1 <= $epsilon){
+					--$x1;
+				}
+				$y0 = (int) floor($bb->minY);
+				if(($y0 + 1) - $bb->minY <= $epsilon){
+					++$y0;
+				}
+				$y1 = (int) floor($bb->maxY);
+				if($bb->maxY - $y1 <= $epsilon){
+					--$y1;
+				}
+				$z0 = (int) floor($bb->minZ);
+				if(($z0 + 1) - $bb->minZ <= $epsilon){
+					++$z0;
+				}
+				$z1 = (int) floor($bb->maxZ);
+				if($bb->maxZ - $z1 <= $epsilon){
+					--$z1;
+				}
+				$y0 = max($y0, $minY);
+				$y1 = min($y1, $maxY);
+				if(($x1 - $x0 + 1) * ($y1 - $y0 + 1) * ($z1 - $z0 + 1) > count($cells)){
+					//a huge box has more cells than were updated
+					foreach($cells as $hash => $unused){
+						World::getBlockXYZ($hash, $x, $y, $z);
+						if($x >= $x0 && $x <= $x1 && $y >= $y0 && $y <= $y1 && $z >= $z0 && $z <= $z1){
+							$entity->onNearbyBlockChange();
+							break;
+						}
+					}
+					continue;
+				}
+				for($x = $x0; $x <= $x1; ++$x){
+					for($z = $z0; $z <= $z1; ++$z){
+						for($y = $y0; $y <= $y1; ++$y){
+							if(isset($cells[World::blockHash($x, $y, $z)])){
+								$entity->onNearbyBlockChange();
+								continue 4;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 

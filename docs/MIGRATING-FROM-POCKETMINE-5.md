@@ -185,6 +185,7 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 ### Entities
 
 - `Entity::getNetworkTypeId()` is an instance method. Remove the `static` keyword from custom entities, so one class can report different network types.
+- `Entity::onNearbyBlockChange()` runs once per entity after a batch of neighbour updates instead of once per updated block, with the same set of entities. Treat it as a request to recheck physics, not a per-block callback.
 
 ### Player Data
 
