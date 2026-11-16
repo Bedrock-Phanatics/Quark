@@ -1932,6 +1932,8 @@ class World implements ChunkManager{
 			$cells = [];
 			/** @var array<ChunkPosHash, true> $entityChunks */
 			$entityChunks = [];
+			$minX = $minY = $minZ = PHP_INT_MAX;
+			$maxX = $maxY = $maxZ = PHP_INT_MIN;
 			while($this->neighbourBlockUpdateQueue->count() > 0){
 				$index = $this->neighbourBlockUpdateQueue->dequeue();
 				unset($this->neighbourBlockUpdateQueueIndex[$index]);
@@ -1961,11 +1963,19 @@ class World implements ChunkManager{
 							}
 						}
 					}
+					if(isset($cells[$index])){
+						$minX = min($minX, $x);
+						$minY = min($minY, $y);
+						$minZ = min($minZ, $z);
+						$maxX = max($maxX, $x);
+						$maxY = max($maxY, $y);
+						$maxZ = max($maxZ, $z);
+					}
 				}
 				$block->onNearbyBlockChange();
 			}
 			if(count($cells) > 0){
-				$this->notifyEntitiesInUpdatedCells($cells, $entityChunks);
+				$this->notifyEntitiesInUpdatedCells($cells, $entityChunks, new AxisAlignedBB($minX, $minY, $minZ, $maxX + 1, $maxY + 1, $maxZ + 1));
 			}
 		}
 	}
@@ -2016,14 +2026,19 @@ class World implements ChunkManager{
 	 *
 	 * @param array<int, true>          $cells        block hashes of updated cells
 	 * @param array<ChunkPosHash, true> $entityChunks chunks whose entities may overlap them
+	 * @param AxisAlignedBB             $bounds       box around every cell, for a native first pass over the entities
 	 */
-	private function notifyEntitiesInUpdatedCells(array $cells, array $entityChunks) : void{
+	private function notifyEntitiesInUpdatedCells(array $cells, array $entityChunks, AxisAlignedBB $bounds) : void{
 		//matches the epsilon AxisAlignedBB::intersectsWith() uses against a full block
 		$epsilon = 0.00001;
 		$minY = $this->minY;
 		$maxY = $this->maxY - 1;
 		foreach($entityChunks as $chunkHash => $_){
-			foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
+			$chunkEntities = $this->entitiesByChunk[$chunkHash] ?? [];
+			if(count($chunkEntities) === 0){
+				continue;
+			}
+			foreach(Spatial::overlapping($chunkEntities, $bounds) as $entity){
 				if($entity->isClosed()){
 					continue;
 				}
