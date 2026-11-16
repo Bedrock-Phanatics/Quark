@@ -85,6 +85,12 @@ class RuntimeBlockStateRegistry{
 	 * @phpstan-var array<int, true>
 	 */
 	public array $entityCollision = [];
+	/**
+	 * States liquid can flow into, see {@link Block::canBeFlowedInto()}
+	 * @var true[]
+	 * @phpstan-var array<int, true>
+	 */
+	public array $flowable = [];
 
 	/**
 	 * Map of state ID -> useful AABB info to avoid unnecessary block allocations
@@ -197,6 +203,9 @@ class RuntimeBlockStateRegistry{
 			}
 			if($block->hasEntityCollision()){
 				$this->entityCollision[$index] = true;
+			}
+			if($block->canBeFlowedInto()){
+				$this->flowable[$index] = true;
 			}
 
 			$this->collisionInfo[$index] = self::calculateCollisionInfo($block);

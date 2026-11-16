@@ -134,6 +134,7 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 
 - Default block states follow Bedrock Dedicated Server, so items from `asItem()` match the creative inventory and recipe ingredients. Stairs and trapdoors default to east, anvils, bells, furnaces, fence gates and lecterns to south, pistons and amethyst clusters to up, and sea pickles start underwater.
 - To change the default facing of a custom block, override `DEFAULT_FACING` on the class. `HorizontalFacing` and `AnyFacing` declare it.
+- `MinimumCostFlowCalculator` only asks its `canFlowInto` callback about blocks that can be flowed into, and reuses one answer per block state. Keep the callback state-based.
 
 ### Enums
 
