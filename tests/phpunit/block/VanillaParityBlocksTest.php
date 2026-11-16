@@ -47,6 +47,7 @@ use quark\item\VanillaItems;
 use quark\math\Facing;
 use quark\network\mcpe\convert\TypeConverter;
 use quark\utils\Filesystem;
+use quark\utils\Utils;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\GlobalBlockStateHandlers;
@@ -55,7 +56,6 @@ use quark\world\format\io\leveldb\LevelDB;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function bin2hex;
-use function count;
 use function random_bytes;
 use function sys_get_temp_dir;
 
@@ -111,7 +111,7 @@ final class VanillaParityBlocksTest extends TestCase{
 	public function testBlockItemsRoundTrip() : void{
 		$serializer = GlobalItemDataHandlers::getSerializer();
 		$deserializer = GlobalItemDataHandlers::getDeserializer();
-		foreach(VanillaBlocks::getAll() as $name => $block){
+		foreach(Utils::stringifyKeys(VanillaBlocks::getAll()) as $name => $block){
 			if($block->getTypeId() < BlockTypeIds::ALLOW && $block->getTypeId() !== BlockTypeIds::CHERRY_SAPLING){
 				continue;
 			}
@@ -251,14 +251,14 @@ final class VanillaParityBlocksTest extends TestCase{
 		);
 		self::assertInstanceOf(TileShelf::class, $tile);
 		self::assertTrue($tile->getInventory()->getItem(1)->equalsExact(VanillaItems::DIAMOND()));
-		self::assertSame(1, count($tile->getInventory()->getContents()));
+		self::assertCount(1, $tile->getInventory()->getContents());
 
 		$copy = self::reload($tile);
 		self::assertInstanceOf(TileShelf::class, $copy);
 		self::assertTrue($copy->getInventory()->getItem(1)->equalsExact(VanillaItems::DIAMOND()));
 		$items = $copy->saveNBT()->getListTag("Items");
 		self::assertNotNull($items);
-		self::assertSame(TileShelf::SLOTS, $items->count());
+		self::assertCount(TileShelf::SLOTS, $items);
 	}
 
 	public function testWorldSaveAndReload() : void{

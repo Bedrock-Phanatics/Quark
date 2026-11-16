@@ -23,16 +23,26 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+/**
+ * TODO: Implement placing boats on water, riding them and the chest boat inventory.
+ */
 class Boat extends Item{
-	private BoatType $boatType;
 
-	public function __construct(ItemIdentifier $identifier, string $name, BoatType $boatType){
+	public function __construct(
+		ItemIdentifier $identifier,
+		string $name,
+		private BoatType $boatType,
+		private bool $withChest = false
+	){
 		parent::__construct($identifier, $name);
-		$this->boatType = $boatType;
 	}
 
 	public function getType() : BoatType{
 		return $this->boatType;
+	}
+
+	public function hasChest() : bool{
+		return $this->withChest;
 	}
 
 	public function getFuelTime() : int{
@@ -42,6 +52,4 @@ class Boat extends Item{
 	public function getMaxStackSize() : int{
 		return 1;
 	}
-
-	//TODO
 }
