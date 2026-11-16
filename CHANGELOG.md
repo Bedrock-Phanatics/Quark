@@ -53,6 +53,7 @@ Quark 6.0.0 will be the first release under the Quark identity. It tracks Axolot
 - Removed active Thorns and Frost Walker behavior and acquisition paths while retaining inert saved/network enchantment data.
 - Removed per-tick worn-item callbacks from armor processing.
 - Removed the Turtle Helmet Water Breathing effect.
+- Added about 80 missing vanilla blocks and 170 items natively, with their states, block entity data and world persistence. Droppers work; most of the others place, break and save correctly but don't have their gameplay yet. Sticky pistons now extend a sticky arm.
 - Hoppers now move items: they push into the container they face, pull from the one above, and collect dropped items, with vanilla furnace, brewing stand and double chest slot rules. Powered hoppers stay locked. Idle hoppers sleep until a neighbouring inventory, block or dropped item gives them work, and a per-tick update budget defers the rest fairly.
 
 ## API
