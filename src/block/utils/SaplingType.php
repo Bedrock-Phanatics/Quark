@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\utils;
 
+use quark\utils\AssumptionFailedError;
 use quark\world\generator\object\TreeType;
 
 enum SaplingType{
@@ -32,9 +33,13 @@ enum SaplingType{
 	case JUNGLE;
 	case ACACIA;
 	case DARK_OAK;
-	//TODO: cherry
+	case CHERRY;
+	case PALE_OAK;
 
-	public function getTreeType() : TreeType{
+	/**
+	 * Returns null if Quark can't generate this tree yet, in which case the sapling never grows.
+	 */
+	public function getTreeType() : ?TreeType{
 		return match($this){
 			self::OAK => TreeType::OAK,
 			self::SPRUCE => TreeType::SPRUCE,
@@ -42,10 +47,16 @@ enum SaplingType{
 			self::JUNGLE => TreeType::JUNGLE,
 			self::ACACIA => TreeType::ACACIA,
 			self::DARK_OAK => TreeType::DARK_OAK,
+			//TODO: Implement cherry and pale oak tree generation so these saplings can grow.
+			self::CHERRY, self::PALE_OAK => null,
 		};
 	}
 
 	public function getDisplayName() : string{
-		return $this->getTreeType()->getDisplayName();
+		return match($this){
+			self::CHERRY => "Cherry",
+			self::PALE_OAK => "Pale Oak",
+			default => $this->getTreeType()?->getDisplayName() ?? throw new AssumptionFailedError("Missing display name for sapling $this->name"),
+		};
 	}
 }

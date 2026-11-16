@@ -32,35 +32,55 @@ use quark\block\tile\Banner as TileBanner;
 use quark\block\tile\Barrel as TileBarrel;
 use quark\block\tile\Beacon as TileBeacon;
 use quark\block\tile\Bed as TileBed;
+use quark\block\tile\Beehive as TileBeehive;
 use quark\block\tile\Bell as TileBell;
 use quark\block\tile\BlastFurnace as TileBlastFurnace;
 use quark\block\tile\BrewingStand as TileBrewingStand;
+use quark\block\tile\BrushableBlock as TileBrushableBlock;
+use quark\block\tile\CalibratedSculkSensor as TileCalibratedSculkSensor;
 use quark\block\tile\Campfire as TileCampfire;
 use quark\block\tile\Cauldron as TileCauldron;
 use quark\block\tile\Chest as TileChest;
 use quark\block\tile\ChiseledBookshelf as TileChiseledBookshelf;
+use quark\block\tile\CommandBlock as TileCommandBlock;
 use quark\block\tile\Comparator as TileComparator;
+use quark\block\tile\Conduit as TileConduit;
+use quark\block\tile\Crafter as TileCrafter;
 use quark\block\tile\DaylightSensor as TileDaylightSensor;
+use quark\block\tile\DecoratedPot as TileDecoratedPot;
 use quark\block\tile\dispenser\Dispenser as TileDispenser;
+use quark\block\tile\dispenser\Dropper as TileDropper;
 use quark\block\tile\EnchantTable as TileEnchantingTable;
 use quark\block\tile\EnderChest as TileEnderChest;
+use quark\block\tile\EndGateway as TileEndGateway;
+use quark\block\tile\EndPortal as TileEndPortal;
 use quark\block\tile\FlowerPot as TileFlowerPot;
 use quark\block\tile\GlowingItemFrame as TileGlowingItemFrame;
 use quark\block\tile\HangingSign as TileHangingSign;
 use quark\block\tile\Hopper as TileHopper;
 use quark\block\tile\ItemFrame as TileItemFrame;
+use quark\block\tile\JigsawBlock as TileJigsawBlock;
 use quark\block\tile\Jukebox as TileJukebox;
 use quark\block\tile\Lectern as TileLectern;
+use quark\block\tile\Lodestone as TileLodestone;
 use quark\block\tile\MobHead as TileMobHead;
 use quark\block\tile\MonsterSpawner as TileMonsterSpawner;
+use quark\block\tile\MovingBlock as TileMovingBlock;
 use quark\block\tile\NormalFurnace as TileNormalFurnace;
 use quark\block\tile\Note as TileNote;
 use quark\block\tile\piston\PistonArm as TilePistonArm;
 use quark\block\tile\PotentSulfur as TilePotentSulfur;
+use quark\block\tile\SculkCatalyst as TileSculkCatalyst;
+use quark\block\tile\SculkSensor as TileSculkSensor;
+use quark\block\tile\SculkShrieker as TileSculkShrieker;
+use quark\block\tile\Shelf as TileShelf;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
 use quark\block\tile\Sign as TileSign;
 use quark\block\tile\Smoker as TileSmoker;
+use quark\block\tile\StructureBlock as TileStructureBlock;
 use quark\block\tile\Tile;
+use quark\block\tile\TrialSpawner as TileTrialSpawner;
+use quark\block\tile\Vault as TileVault;
 use quark\block\utils\AmethystTrait;
 use quark\block\utils\LeavesType;
 use quark\block\utils\SaplingType;
@@ -680,6 +700,11 @@ final class VanillaBlocksInputs extends RegistrySource{
 		self::registerOres();
 		self::registerWoodenBlocks();
 		self::registerCauldronBlocks();
+		self::registerGroundCoverAndPlants();
+		self::registerSculkBlocks();
+		self::registerTrialChamberBlocks();
+		self::registerTechnicalBlocks();
+		self::registerUtilityBlocks();
 	}
 
 	/**
@@ -1187,5 +1212,116 @@ final class VanillaBlocksInputs extends RegistrySource{
 		self::register("water_cauldron", fn(BID $id) => new WaterCauldron($id, "Water Cauldron", $cauldronBreakInfo), TileCauldron::class);
 		self::register("lava_cauldron", fn(BID $id) => new LavaCauldron($id, "Lava Cauldron", $cauldronBreakInfo), TileCauldron::class);
 		self::register("potion_cauldron", fn(BID $id) => new PotionCauldron($id, "Potion Cauldron", $cauldronBreakInfo), TileCauldron::class);
+	}
+
+	private function registerGroundCoverAndPlants() : void{
+		$mossInfo = new Info(new BreakInfo(0.1, ToolType::HOE), [Tags::DIRT]);
+		self::register("moss_block", fn(BID $id) => new Opaque($id, "Moss Block", $mossInfo));
+		self::register("pale_moss_block", fn(BID $id) => new Opaque($id, "Pale Moss Block", $mossInfo));
+		$mossCarpetInfo = new Info(new BreakInfo(0.1, ToolType::HOE));
+		self::register("moss_carpet", fn(BID $id) => new MossCarpet($id, "Moss Carpet", $mossCarpetInfo));
+		self::register("pale_moss_carpet", fn(BID $id) => new PaleMossCarpet($id, "Pale Moss Carpet", $mossCarpetInfo));
+		self::register("pale_hanging_moss", fn(BID $id) => new PaleHangingMoss($id, "Pale Hanging Moss", new Info(BreakInfo::instant(ToolType::SHEARS, 1))));
+
+		$shearsOnlyInfo = new Info(BreakInfo::instant(ToolType::SHEARS, 1));
+		self::register("bush", fn(BID $id) => new Shrub($id, "Bush", $shearsOnlyInfo, fn(Block $b) => $b->hasTypeTag(Tags::DIRT) || $b->hasTypeTag(Tags::MUD)));
+		$onDryGround = fn(Block $b) => $b->hasTypeTag(Tags::DIRT) || $b->hasTypeTag(Tags::MUD) || $b->hasTypeTag(Tags::SAND) ||
+			$b->getTypeId() === BlockTypeIds::HARDENED_CLAY || $b->getTypeId() === BlockTypeIds::STAINED_CLAY;
+		self::register("short_dry_grass", fn(BID $id) => new Shrub($id, "Short Dry Grass", $shearsOnlyInfo, $onDryGround));
+		self::register("tall_dry_grass", fn(BID $id) => new Shrub($id, "Tall Dry Grass", $shearsOnlyInfo, $onDryGround));
+		self::register("firefly_bush", fn(BID $id) => new class($id, "Firefly Bush", new Info(BreakInfo::instant(), [Tags::POTTABLE_PLANTS])) extends Flower{
+			public function getLightLevel() : int{ return 2; }
+		});
+
+		$flowerTypeInfo = new Info(BreakInfo::instant(), [Tags::POTTABLE_PLANTS]);
+		//TODO: Implement eyeblossoms opening at night and closing during the day.
+		self::register("open_eyeblossom", fn(BID $id) => new Flower($id, "Open Eyeblossom", $flowerTypeInfo));
+		self::register("closed_eyeblossom", fn(BID $id) => new Flower($id, "Closed Eyeblossom", $flowerTypeInfo));
+		self::register("golden_dandelion", fn(BID $id) => new Flower($id, "Golden Dandelion", $flowerTypeInfo));
+		self::register("wildflowers", fn(BID $id) => new PinkPetals($id, "Wildflowers", new Info(BreakInfo::instant())));
+		self::register("leaf_litter", fn(BID $id) => new LeafLitter($id, "Leaf Litter", new Info(BreakInfo::instant())));
+		self::register("mangrove_propagule", fn(BID $id) => new MangrovePropagule($id, "Mangrove Propagule", new Info(BreakInfo::instant(), [Tags::POTTABLE_PLANTS])));
+
+		self::register("kelp", fn(BID $id) => new Kelp($id, "Kelp", new Info(BreakInfo::instant())));
+		self::register("seagrass", fn(BID $id) => new SeaGrass($id, "Seagrass", $shearsOnlyInfo));
+		self::register("frog_spawn", fn(BID $id) => new FrogSpawn($id, "Frogspawn", new Info(BreakInfo::instant())));
+		self::register("bubble_column", fn(BID $id) => new BubbleColumn($id, "Bubble Column", new Info(BreakInfo::instant())));
+
+		$dripstoneInfo = new Info(BreakInfo::pickaxe(1.5, ToolTier::WOOD, 15.0));
+		self::register("dripstone_block", fn(BID $id) => new Opaque($id, "Dripstone Block", new Info(BreakInfo::pickaxe(1.5, ToolTier::WOOD, 5.0))));
+		self::register("pointed_dripstone", fn(BID $id) => new PointedDripstone($id, "Pointed Dripstone", $dripstoneInfo));
+		self::register("powder_snow", fn(BID $id) => new PowderSnow($id, "Powder Snow", new Info(new BreakInfo(0.25))));
+
+		$suspiciousInfo = new Info(BreakInfo::shovel(0.25));
+		self::register("suspicious_sand", fn(BID $id) => new BrushableBlock($id, "Suspicious Sand", $suspiciousInfo), TileBrushableBlock::class);
+		self::register("suspicious_gravel", fn(BID $id) => new BrushableBlock($id, "Suspicious Gravel", $suspiciousInfo), TileBrushableBlock::class);
+
+		self::register("sniffer_egg", fn(BID $id) => new SnifferEgg($id, "Sniffer Egg", new Info(new BreakInfo(0.5))));
+		self::register("turtle_egg", fn(BID $id) => new TurtleEgg($id, "Turtle Egg", new Info(new BreakInfo(0.5))));
+		self::register("creaking_heart", fn(BID $id) => new CreakingHeart($id, "Creaking Heart", new Info(BreakInfo::axe(10.0))));
+	}
+
+	private function registerSculkBlocks() : void{
+		$sensorInfo = new Info(new BreakInfo(1.5, ToolType::HOE));
+		self::register("sculk_sensor", fn(BID $id) => new SculkSensor($id, "Sculk Sensor", $sensorInfo), TileSculkSensor::class);
+		self::register("calibrated_sculk_sensor", fn(BID $id) => new CalibratedSculkSensor($id, "Calibrated Sculk Sensor", $sensorInfo), TileCalibratedSculkSensor::class);
+		self::register("sculk_catalyst", fn(BID $id) => new SculkCatalyst($id, "Sculk Catalyst", new Info(new BreakInfo(3.0, ToolType::HOE))), TileSculkCatalyst::class);
+		self::register("sculk_shrieker", fn(BID $id) => new SculkShrieker($id, "Sculk Shrieker", new Info(new BreakInfo(3.0, ToolType::HOE))), TileSculkShrieker::class);
+		self::register("sculk_vein", fn(BID $id) => new SculkVein($id, "Sculk Vein", new Info(new BreakInfo(0.2, ToolType::HOE))));
+	}
+
+	private function registerTrialChamberBlocks() : void{
+		$info = new Info(BreakInfo::pickaxe(50.0));
+		self::register("trial_spawner", fn(BID $id) => new TrialSpawner($id, "Trial Spawner", $info), TileTrialSpawner::class);
+		self::register("vault", fn(BID $id) => new Vault($id, "Vault", $info), TileVault::class);
+		self::register("crafter", fn(BID $id) => new Crafter($id, "Crafter", new Info(BreakInfo::pickaxe(1.5, ToolTier::WOOD, 17.5))), TileCrafter::class);
+		self::register("decorated_pot", fn(BID $id) => new DecoratedPot($id, "Decorated Pot", new Info(BreakInfo::instant())), TileDecoratedPot::class);
+	}
+
+	private function registerTechnicalBlocks() : void{
+		$borderInfo = new Info(new BreakInfo(0.2, blastResistance: 18000.0));
+		self::register("allow", fn(BID $id) => new Opaque($id, "Allow", $borderInfo));
+		self::register("deny", fn(BID $id) => new Opaque($id, "Deny", $borderInfo));
+		self::register("border_block", fn(BID $id) => new Wall($id, "Border", $borderInfo));
+
+		$info = new Info(BreakInfo::indestructible(18000000.0));
+		self::register("command_block", fn(BID $id) => new CommandBlock($id, "Command Block", $info), TileCommandBlock::class);
+		self::register("chain_command_block", fn(BID $id) => new CommandBlock($id, "Chain Command Block", $info), TileCommandBlock::class);
+		self::register("repeating_command_block", fn(BID $id) => new CommandBlock($id, "Repeating Command Block", $info), TileCommandBlock::class);
+		self::register("structure_block", fn(BID $id) => new StructureBlock($id, "Structure Block", $info), TileStructureBlock::class);
+		self::register("jigsaw", fn(BID $id) => new Jigsaw($id, "Jigsaw Block", $info), TileJigsawBlock::class);
+		self::register("moving_block", fn(BID $id) => new MovingBlock($id, "Moving Block", new Info(BreakInfo::indestructible(0.0))), TileMovingBlock::class);
+
+		self::register("end_portal", fn(BID $id) => new EndPortal($id, "End Portal", $info), TileEndPortal::class);
+		self::register("end_gateway", fn(BID $id) => new EndGateway($id, "End Gateway", $info), TileEndGateway::class);
+	}
+
+	private function registerUtilityBlocks() : void{
+		self::register("observer", fn(BID $id) => new Observer($id, "Observer", new Info(BreakInfo::pickaxe(3.0, ToolTier::WOOD))));
+		self::register("dropper", fn(BID $id) => new Dropper($id, "Dropper", new Info(new BreakInfo(3.5, ToolType::PICKAXE))), TileDropper::class);
+		self::register("sticky_piston_arm_collision", fn(BID $id) => new PistonArmCollision($id, "Sticky Piston Arm", new Info(new BreakInfo(1.5))));
+		//TODO: Implement the target's redstone signal when hit by a projectile, stronger towards the centre.
+		self::register("target", fn(BID $id) => new Opaque($id, "Target", new Info(new BreakInfo(0.5, ToolType::HOE))));
+		self::register("honey_block", fn(BID $id) => new HoneyBlock($id, "Honey Block", new Info(BreakInfo::instant())));
+		self::register("lodestone", fn(BID $id) => new Opaque($id, "Lodestone", new Info(BreakInfo::pickaxe(3.5, ToolTier::WOOD))), TileLodestone::class);
+		self::register("conduit", fn(BID $id) => new Conduit($id, "Conduit", new Info(BreakInfo::pickaxe(3.0))), TileConduit::class);
+		self::register("grindstone", fn(BID $id) => new Grindstone($id, "Grindstone", new Info(BreakInfo::pickaxe(2.0, ToolTier::WOOD, 30.0))));
+		self::register("composter", fn(BID $id) => new Composter($id, "Composter", new Info(BreakInfo::axe(0.6))));
+		self::register("scaffolding", fn(BID $id) => new Scaffolding($id, "Scaffolding", new Info(BreakInfo::instant())));
+
+		self::register("beehive", fn(BID $id) => new Beehive($id, "Beehive", new Info(BreakInfo::axe(0.6))), TileBeehive::class);
+		self::register("bee_nest", fn(BID $id) => new class($id, "Bee Nest", new Info(BreakInfo::axe(0.3))) extends Beehive{
+			public function getDropsForCompatibleTool(Item $item) : array{ return []; }
+
+			public function isAffectedBySilkTouch() : bool{ return true; }
+		}, TileBeehive::class);
+
+		$shelfInfo = new Info(BreakInfo::axe(2.0, null, 15.0));
+		foreach(WoodType::cases() as $woodType){
+			$name = $woodType->getDisplayName();
+			self::register(strtolower($woodType->name) . "_shelf", fn(BID $id) => new Shelf($id, $name . " Shelf", $shelfInfo, $woodType), TileShelf::class);
+		}
+
+		self::register("copper_chest", fn(BID $id) => new CopperChest($id, "Copper Chest", new Info(BreakInfo::pickaxe(3.0, ToolTier::WOOD, 30.0))), TileChest::class);
 	}
 }

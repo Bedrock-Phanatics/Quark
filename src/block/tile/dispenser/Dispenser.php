@@ -33,6 +33,7 @@ use quark\block\tile\NameableTrait;
 use quark\block\tile\Spawnable;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
+use quark\item\Item;
 use quark\player\Player;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
@@ -109,13 +110,17 @@ class Dispenser extends Spawnable implements ContainerTile, Nameable{
 		}else{
 			/** @var int $slot */
 			$slot = array_rand($contents);
-			if(!DispensableItemManager::get($this->inventory->getItem($slot))->dispense($tilePos, $this->inventory, $slot, $side_block, $facing, $player)){
+			if(!$this->getDispenseBehaviour($this->inventory->getItem($slot))->dispense($tilePos, $this->inventory, $slot, $side_block, $facing, $player)){
 				$tilePos->getWorld()->broadcastPacketToViewers($tilePos, LevelEventPacket::create(LevelEvent::SOUND_CLICK_FAIL, 0, $tilePos));
 			}else{
 				$tilePos->getWorld()->broadcastPacketToViewers($tilePos, LevelEventPacket::create(LevelEvent::SOUND_CLICK, 0, $tilePos));
 				$tilePos->getWorld()->broadcastPacketToViewers($pos, LevelEventPacket::create(LevelEvent::PARTICLE_SHOOT, $faces[$dispenser->getFacing()], $pos));
 			}
 		}
+	}
+
+	protected function getDispenseBehaviour(Item $item) : DispensableItem{
+		return DispensableItemManager::get($item);
 	}
 
 	protected function addAdditionalSpawnData(CompoundTag $nbt) : void{
