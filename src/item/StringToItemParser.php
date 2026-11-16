@@ -1568,6 +1568,8 @@ final class StringToItemParser extends StringToTParser{
 		$result->register("elixir", fn() => Items::MEDICINE()->setType(MedicineType::ELIXIR));
 		$result->register("elytra", fn() => Items::ELYTRA());
 		$result->register("emerald", fn() => Items::EMERALD());
+		$result->register("empty_map", fn() => Items::EMPTY_MAP());
+		$result->register("empty_locator_map", fn() => Items::EMPTY_MAP()->setLocator(true));
 		$result->register("enchanted_book", fn() => Items::ENCHANTED_BOOK());
 		$result->register("enchanted_golden_apple", fn() => Items::ENCHANTED_GOLDEN_APPLE());
 		$result->register("enchanting_bottle", fn() => Items::EXPERIENCE_BOTTLE());
@@ -1585,6 +1587,7 @@ final class StringToItemParser extends StringToTParser{
 		$result->register("feather", fn() => Items::FEATHER());
 		$result->register("fermented_spider_eye", fn() => Items::FERMENTED_SPIDER_EYE());
 		$result->register("field_masoned_banner_pattern", fn() => Items::FIELD_MASONED_BANNER_PATTERN());
+		$result->register("filled_map", fn() => Items::FILLED_MAP());
 		$result->register("firework_rocket", fn() => Items::FIREWORK_ROCKET());
 		$result->register("firework_star", fn() => Items::FIREWORK_STAR());
 		$result->register("fireworks", fn() => Items::FIREWORK_ROCKET());
@@ -1688,6 +1691,7 @@ final class StringToItemParser extends StringToTParser{
 		$result->register("magma_cube_spawn_egg", fn() => Items::MAGMA_CUBE_SPAWN_EGG());
 		$result->register("mangrove_chest_boat", fn() => Items::MANGROVE_CHEST_BOAT());
 		$result->register("mangrove_hanging_sign", fn() => Items::MANGROVE_HANGING_SIGN());
+		$result->register("map", fn() => Items::FILLED_MAP());
 		$result->register("melon", fn() => Items::MELON());
 		$result->register("melon_seeds", fn() => Items::MELON_SEEDS());
 		$result->register("melon_slice", fn() => Items::MELON());

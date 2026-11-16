@@ -42,6 +42,8 @@ use quark\data\bedrock\PotionTypeIdMap;
 use quark\data\bedrock\SuspiciousStewTypeIdMap;
 use quark\item\Banner;
 use quark\item\Dye;
+use quark\item\EmptyMap;
+use quark\item\FilledMap;
 use quark\item\FireworkStar;
 use quark\item\GoatHorn;
 use quark\item\Item;
@@ -699,6 +701,29 @@ final class ItemSerializerDeserializerRegistrar{
 				// Colors will be defined by CompoundTag deserialization.
 			},
 			fn(FireworkStar $item) => DyeColorIdMap::getInstance()->toInvertedId($item->getExplosion()->getFlashColor())
+		);
+		$this->map1to1ItemWithMeta(
+			Ids::EMPTY_MAP,
+			Items::EMPTY_MAP(),
+			function(EmptyMap $item, int $meta) : void{
+				$item->setLocator(match($meta){
+					0 => false,
+					2 => true,
+					default => throw new ItemTypeDeserializeException("Unknown empty map type $meta")
+				});
+			},
+			fn(EmptyMap $item) => $item->isLocator() ? 2 : 0
+		);
+		$this->map1to1ItemWithMeta(
+			Ids::FILLED_MAP,
+			Items::FILLED_MAP(),
+			function(FilledMap $item, int $meta) : void{
+				if($meta < 0 || $meta > FilledMap::MAX_MAP_TYPE){
+					throw new ItemTypeDeserializeException("Invalid filled map type $meta");
+				}
+				$item->setMapType($meta);
+			},
+			fn(FilledMap $item) => $item->getMapType()
 		);
 		$this->map1to1ItemWithMeta(
 			Ids::GOAT_HORN,

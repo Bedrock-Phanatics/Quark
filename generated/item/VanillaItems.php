@@ -213,6 +213,7 @@ final class VanillaItems{
 	private static Item $_mELDER_GUARDIAN_SPAWN_EGG;
 	private static Elytra $_mELYTRA;
 	private static Item $_mEMERALD;
+	private static EmptyMap $_mEMPTY_MAP;
 	private static EnchantedBook $_mENCHANTED_BOOK;
 	private static GoldenAppleEnchanted $_mENCHANTED_GOLDEN_APPLE;
 	private static Item $_mENDERMAN_SPAWN_EGG;
@@ -228,6 +229,7 @@ final class VanillaItems{
 	private static Item $_mFEATHER;
 	private static Item $_mFERMENTED_SPIDER_EYE;
 	private static Item $_mFIELD_MASONED_BANNER_PATTERN;
+	private static FilledMap $_mFILLED_MAP;
 	private static FireworkRocket $_mFIREWORK_ROCKET;
 	private static FireworkStar $_mFIREWORK_STAR;
 	private static FireCharge $_mFIRE_CHARGE;
@@ -740,6 +742,7 @@ final class VanillaItems{
 			"elder_guardian_spawn_egg" => fn(Item $v) => self::$_mELDER_GUARDIAN_SPAWN_EGG = $v,
 			"elytra" => fn(Elytra $v) => self::$_mELYTRA = $v,
 			"emerald" => fn(Item $v) => self::$_mEMERALD = $v,
+			"empty_map" => fn(EmptyMap $v) => self::$_mEMPTY_MAP = $v,
 			"enchanted_book" => fn(EnchantedBook $v) => self::$_mENCHANTED_BOOK = $v,
 			"enchanted_golden_apple" => fn(GoldenAppleEnchanted $v) => self::$_mENCHANTED_GOLDEN_APPLE = $v,
 			"enderman_spawn_egg" => fn(Item $v) => self::$_mENDERMAN_SPAWN_EGG = $v,
@@ -755,6 +758,7 @@ final class VanillaItems{
 			"feather" => fn(Item $v) => self::$_mFEATHER = $v,
 			"fermented_spider_eye" => fn(Item $v) => self::$_mFERMENTED_SPIDER_EYE = $v,
 			"field_masoned_banner_pattern" => fn(Item $v) => self::$_mFIELD_MASONED_BANNER_PATTERN = $v,
+			"filled_map" => fn(FilledMap $v) => self::$_mFILLED_MAP = $v,
 			"firework_rocket" => fn(FireworkRocket $v) => self::$_mFIREWORK_ROCKET = $v,
 			"firework_star" => fn(FireworkStar $v) => self::$_mFIREWORK_STAR = $v,
 			"fire_charge" => fn(FireCharge $v) => self::$_mFIRE_CHARGE = $v,
@@ -1971,6 +1975,11 @@ final class VanillaItems{
 		return clone self::$_mEMERALD;
 	}
 
+	public static function EMPTY_MAP() : EmptyMap{
+		if(!isset(self::$_mEMPTY_MAP)){ self::init(); }
+		return clone self::$_mEMPTY_MAP;
+	}
+
 	public static function ENCHANTED_BOOK() : EnchantedBook{
 		if(!isset(self::$_mENCHANTED_BOOK)){ self::init(); }
 		return clone self::$_mENCHANTED_BOOK;
@@ -2044,6 +2053,11 @@ final class VanillaItems{
 	public static function FIELD_MASONED_BANNER_PATTERN() : Item{
 		if(!isset(self::$_mFIELD_MASONED_BANNER_PATTERN)){ self::init(); }
 		return clone self::$_mFIELD_MASONED_BANNER_PATTERN;
+	}
+
+	public static function FILLED_MAP() : FilledMap{
+		if(!isset(self::$_mFILLED_MAP)){ self::init(); }
+		return clone self::$_mFILLED_MAP;
 	}
 
 	public static function FIREWORK_ROCKET() : FireworkRocket{

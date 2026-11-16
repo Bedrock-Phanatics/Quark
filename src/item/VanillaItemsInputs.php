@@ -428,6 +428,8 @@ final class VanillaItemsInputs extends RegistrySource{
 		}
 		//TODO: Implement pointing lodestone compasses at their linked lodestone.
 		self::register("lodestone_compass", fn(IID $id) => $unstackable($id, "Lodestone Compass"));
+		self::register("empty_map", fn(IID $id) => new EmptyMap($id, "Empty Map"));
+		self::register("filled_map", fn(IID $id) => new FilledMap($id, "Map"));
 		//TODO: Implement throwing eyes of ender towards the nearest stronghold and placing them in end portal frames.
 		self::register("ender_eye", fn(IID $id) => new Item($id, "Eye of Ender"));
 		//TODO: Implement throwing wind charges and their burst knockback.

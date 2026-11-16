@@ -25,6 +25,9 @@ namespace quark\item;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\data\bedrock\item\ItemTypeDeserializeException;
+use quark\data\bedrock\item\ItemTypeNames;
+use quark\data\bedrock\item\SavedItemData;
 use quark\inventory\ArmorInventory;
 use quark\utils\Utils;
 use quark\world\format\io\GlobalItemDataHandlers;
@@ -96,6 +99,32 @@ final class VanillaParityItemsTest extends TestCase{
 		self::assertSame(BoatType::BAMBOO, VanillaItems::BAMBOO_CHEST_RAFT()->getType());
 		self::assertFalse(VanillaItems::CHERRY_BOAT()->hasChest());
 		self::assertSame(ArmorInventory::SLOT_CHEST, VanillaItems::ELYTRA()->getArmorSlot());
+	}
+
+	public function testMapVariantsRoundTrip() : void{
+		$serializer = GlobalItemDataHandlers::getSerializer();
+		$deserializer = GlobalItemDataHandlers::getDeserializer();
+
+		$locator = VanillaItems::EMPTY_MAP()->setLocator(true);
+		$data = $serializer->serializeType($locator);
+		self::assertSame(2, $data->getMeta());
+		self::assertTrue($locator->equals($deserializer->deserializeType($data)));
+		self::assertFalse($locator->equals(VanillaItems::EMPTY_MAP()), "locator and plain empty maps must not stack");
+
+		$map = VanillaItems::FILLED_MAP()->setMapType(5);
+		$map->getNamedTag()->setLong("map_uuid", -123);
+		$copy = Item::nbtDeserialize($map->nbtSerialize());
+		self::assertInstanceOf(FilledMap::class, $copy);
+		self::assertSame(5, $copy->getMapType());
+		self::assertSame(-123, $copy->getNamedTag()->getLong("map_uuid"));
+
+		foreach([[ItemTypeNames::EMPTY_MAP, 1], [ItemTypeNames::FILLED_MAP, -1]] as [$id, $meta]){
+			try{
+				$deserializer->deserializeType(new SavedItemData($id, $meta));
+				self::fail("$id with meta $meta should be rejected");
+			}catch(ItemTypeDeserializeException){
+			}
+		}
 	}
 
 	public function testElytraNeverBreaks() : void{
