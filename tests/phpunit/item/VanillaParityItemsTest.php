@@ -98,6 +98,15 @@ final class VanillaParityItemsTest extends TestCase{
 		self::assertSame(ArmorInventory::SLOT_CHEST, VanillaItems::ELYTRA()->getArmorSlot());
 	}
 
+	public function testElytraNeverBreaks() : void{
+		$elytra = VanillaItems::ELYTRA();
+		$elytra->applyDamage(10000);
+		self::assertSame($elytra->getMaxDurability() - 1, $elytra->getDamage());
+		self::assertFalse($elytra->isBroken());
+		self::assertFalse($elytra->applyDamage(1));
+		self::assertSame(1, $elytra->getCount());
+	}
+
 	public function testMalformedItemTagsDoNotCrash() : void{
 		$nbt = VanillaItems::TRIAL_KEY()->nbtSerialize();
 		$nbt->setTag("tag", CompoundTag::create()->setString("display", "not a compound"));

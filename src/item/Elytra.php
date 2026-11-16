@@ -23,9 +23,16 @@ declare(strict_types=1);
 
 namespace quark\item;
 
+use function min;
+
 /**
- * TODO: Implement gliding, firework boosting and keeping a broken elytra at 1 durability instead of destroying it.
+ * TODO: Implement gliding, durability loss while gliding and firework boosting.
  */
 class Elytra extends Armor{
 
+	//a worn out elytra stays at 1 durability instead of breaking
+	public function applyDamage(int $amount) : bool{
+		$left = $this->getMaxDurability() - 1 - $this->getDamage();
+		return $left > 0 && parent::applyDamage(min($amount, $left));
+	}
 }

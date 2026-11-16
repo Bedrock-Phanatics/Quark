@@ -50,6 +50,7 @@ use quark\inventory\ArmorInventory;
 use quark\inventory\CallbackInventoryListener;
 use quark\item\Armor;
 use quark\item\Durable;
+use quark\item\Elytra;
 use quark\item\enchantment\Enchantment;
 use quark\item\enchantment\VanillaEnchantments;
 use quark\item\Item;
@@ -522,7 +523,7 @@ abstract class Living extends Entity{
 
 		$armor = $this->armorInventory->getContents();
 		foreach($armor as $slotId => $item){
-			if($item instanceof Armor){
+			if($item instanceof Armor && !$item instanceof Elytra){
 				$oldItem = clone $item;
 				$this->damageItem($item, $durabilityRemoved);
 				if(!$item->equalsExact($oldItem)){
