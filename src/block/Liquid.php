@@ -333,16 +333,20 @@ abstract class Liquid extends Transparent{
 			$new->falling = $falling;
 			$new->decay = $falling ? 0 : $newFlowDecay;
 
-			$ev = new BlockSpreadEvent($block, $this, $new);
-			$ev->call();
-			if(!$ev->isCancelled()){
-				$world = $this->position->getWorld();
-				if($block->getTypeId() !== BlockTypeIds::AIR){
-					$world->useBreakOn($block->position);
+			if(BlockSpreadEvent::hasHandlers()){
+				$ev = new BlockSpreadEvent($block, $this, $new);
+				$ev->call();
+				if($ev->isCancelled()){
+					return;
 				}
-
-				$world->setBlock($block->position, $ev->getNewState());
+				$new = $ev->getNewState();
 			}
+			$world = $this->position->getWorld();
+			if($block->getTypeId() !== BlockTypeIds::AIR){
+				$world->useBreakOn($block->position);
+			}
+
+			$world->setBlock($block->position, $new);
 		}
 	}
 
