@@ -85,8 +85,9 @@ final class WorldMigration{
 	 */
 	public static function checkSupported() : void{
 		$version = extension_loaded("zigritedb") ? phpversion("zigritedb") : false;
-		if($version === false || version_compare($version, "0.3.0", "<")){
-			throw new UnsupportedWorldFormatException("Converting worlds needs ext-zigritedb 0.3.0 or newer, found " . ($version === false ? "none" : $version));
+		//older converters store chunk metadata where ZigriteDB worlds don't read it
+		if($version === false || version_compare($version, "0.3.3", "<")){
+			throw new UnsupportedWorldFormatException("Converting worlds needs ext-zigritedb 0.3.3 or newer, found " . ($version === false ? "none" : $version));
 		}
 		if(!ZigriteWorld::isSupported()){
 			throw new UnsupportedWorldFormatException("ZigriteDB can't store worlds on this platform, so worlds can't be converted here");

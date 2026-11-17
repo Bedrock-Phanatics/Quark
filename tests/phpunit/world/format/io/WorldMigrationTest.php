@@ -38,6 +38,8 @@ use quark\utils\Utils;
 use quark\world\format\Chunk;
 use quark\world\format\io\leveldb\LevelDB;
 use quark\world\format\io\zigrite\ZigriteDB;
+use quark\world\metadata\ChunkMetadata;
+use quark\world\metadata\Retention;
 use quark\world\WorldCreationOptions;
 use quark\world\WorldManager;
 use Symfony\Component\Filesystem\Path;
@@ -86,8 +88,8 @@ final class WorldMigrationTest extends TestCase{
 
 	public function setUp() : void{
 		$version = phpversion("zigritedb");
-		if(!extension_loaded("leveldb") || $version === false || version_compare($version, "0.3.0", "<") || !\Zigrite\World::isSupported()){
-			self::markTestSkipped("ext-zigritedb 0.3.0 with ZigriteDB storage, and ext-leveldb, are needed");
+		if(!extension_loaded("leveldb") || $version === false || version_compare($version, "0.3.3", "<") || !\Zigrite\World::isSupported()){
+			self::markTestSkipped("ext-zigritedb 0.3.3 with ZigriteDB storage, and ext-leveldb, are needed");
 		}
 		$this->root = Path::join(sys_get_temp_dir(), "quark-migration-" . bin2hex(random_bytes(6)));
 		$this->worlds = Path::join($this->root, "worlds");
@@ -215,6 +217,40 @@ final class WorldMigrationTest extends TestCase{
 		self::assertSame("Migration Test", file_get_contents(Path::join($this->world, "levelname.txt")));
 		self::assertTrue(ZigriteDB::isValid($back["backup"]));
 		self::assertSame([], $this->hiddenLeftovers());
+	}
+
+	public function testMetadataSurvivesConversionBothWays() : void{
+		$chunkRecord = static function(string $value) : string{
+			$metadata = new ChunkMetadata();
+			$metadata->setBlockValue(ChunkMetadata::blockHash(1, -64, 2), "someplugin:owner", Retention::BLOCK_TYPE->value, $value);
+			$metadata->setValue("unloaded_plugin:data", 0x80, "\x00\xff");
+			return $metadata->encode();
+		};
+		$provider = new LevelDB($this->world, self::logger());
+		$saved = self::chunk(1);
+		$provider->saveChunk(-300, 451, new ChunkData($saved->getSubChunks(), true, [], [], $chunkRecord("leveldb")), Chunk::DIRTY_FLAGS_ALL | Chunk::DIRTY_FLAG_METADATA);
+		$provider->saveChunk(0, 0, new ChunkData($saved->getSubChunks(), true, [], [], $chunkRecord("metadata only")), Chunk::DIRTY_FLAG_METADATA);
+		$provider->saveWorldMetadata("world record");
+		$provider->close();
+
+		WorldMigration::convert($this->world, WorldMigration::ZIGRITEDB, $this->backups);
+		$provider = new ZigriteDB($this->world, self::logger());
+		self::assertSame($chunkRecord("leveldb"), $provider->loadChunk(-300, 451)?->getData()->getMetadata(), "chunk metadata stays a chunk record");
+		self::assertSame($chunkRecord("metadata only"), $provider->loadChunk(0, 0)?->getData()->getMetadata());
+		self::assertNull($provider->loadChunk(-1, -1)?->getData()->getMetadata());
+		self::assertSame("world record", $provider->loadWorldMetadata());
+		$provider->saveChunk(40, 40, new ChunkData($saved->getSubChunks(), true, [], [], $chunkRecord("zigritedb")), Chunk::DIRTY_FLAGS_ALL | Chunk::DIRTY_FLAG_METADATA);
+		$provider->saveChunk(-300, 451, new ChunkData($saved->getSubChunks(), true, [], [], null), Chunk::DIRTY_FLAG_METADATA);
+		$provider->saveWorldMetadata("updated world record");
+		$provider->close();
+
+		WorldMigration::convert($this->world, WorldMigration::LEVELDB, $this->backups);
+		$provider = new LevelDB($this->world, self::logger());
+		self::assertSame($chunkRecord("zigritedb"), $provider->loadChunk(40, 40)?->getData()->getMetadata());
+		self::assertSame($chunkRecord("metadata only"), $provider->loadChunk(0, 0)?->getData()->getMetadata());
+		self::assertNull($provider->loadChunk(-300, 451)?->getData()->getMetadata(), "a deleted record stays deleted");
+		self::assertSame("updated world record", $provider->loadWorldMetadata());
+		$provider->close();
 	}
 
 	public function testConvertedWorldLoadsSavesAndReopens() : void{
