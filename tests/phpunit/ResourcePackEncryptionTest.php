@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace quark\resourcepacks;
 
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Filesystem\Path;
 use pocketmine\network\mcpe\protocol\ResourcePackChunkDataPacket;
 use pocketmine\network\mcpe\protocol\ResourcePackChunkRequestPacket;
 use pocketmine\network\mcpe\protocol\ResourcePackClientResponsePacket;
@@ -408,7 +409,7 @@ final class ResourcePackEncryptionTest extends TestCase{
 	}
 
 	private function configPath() : string{
-		return $this->packs . DIRECTORY_SEPARATOR . "resource_packs.toml";
+		return Path::join($this->packs, "resource_packs.toml");
 	}
 
 	private function cacheDirectory() : string{
@@ -437,7 +438,7 @@ final class ResourcePackEncryptionTest extends TestCase{
 			"header" => ["name" => $name, "description" => "Test pack", "uuid" => $uuid, "version" => [1, 0, 0], "min_engine_version" => [1, 20, 0]],
 			"modules" => [["type" => "resources", "uuid" => $moduleUuid, "version" => [1, 0, 0]]]
 		], JSON_THROW_ON_ERROR);
-		$path = $this->packs . DIRECTORY_SEPARATOR . $name;
+		$path = Path::join($this->packs, $name);
 		$archive = new \ZipArchive();
 		if($archive->open($path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true){
 			throw new \RuntimeException("Cannot create test resource pack");
