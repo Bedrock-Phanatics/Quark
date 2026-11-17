@@ -33,9 +33,11 @@ use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\math\Facing;
 use quark\math\Vector3;
+use quark\world\metadata\MetadataException;
 use quark\world\Position;
 use quark\world\World;
 use function count;
+use function implode;
 
 final class RedstoneBlockUtils{
 
@@ -131,6 +133,13 @@ final class RedstoneBlockUtils{
 		$destinationZ = (int) $destination->z;
 		$block = $world->getBlockAt($sourceX, $sourceY, $sourceZ);
 		$tileNbt = $world->getTileAt($sourceX, $sourceY, $sourceZ)?->saveNBT();
+		$metadata = $world->getMetadataIfUsed();
+		$moved = null;
+		try{
+			$moved = $metadata?->takeBlock($sourceX, $sourceY, $sourceZ);
+		}catch(MetadataException){
+			//unreadable metadata stays where it is stored
+		}
 		$world->setBlockAt($sourceX, $sourceY, $sourceZ, VanillaBlocks::AIR(), $update);
 		if($tileNbt !== null){
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
@@ -143,6 +152,13 @@ final class RedstoneBlockUtils{
 		}else{
 			$world->useBreakOn($destination);
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
+		}
+		if($moved !== null && $metadata !== null){
+			try{
+				$metadata->putBlock($destinationX, $destinationY, $destinationZ, $moved);
+			}catch(MetadataException|\LengthException $e){
+				$world->getLogger()->error("Lost metadata " . implode(", ", $moved->getNames()) . " of the block moved to x=$destinationX y=$destinationY z=$destinationZ: " . $e->getMessage());
+			}
 		}
 	}
 }

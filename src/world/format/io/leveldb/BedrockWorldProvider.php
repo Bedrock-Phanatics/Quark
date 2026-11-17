@@ -48,8 +48,8 @@ use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\GlobalBlockStateHandlers;
 use quark\world\format\io\LoadedChunkData;
+use quark\world\format\io\MetadataWorldProvider;
 use quark\world\format\io\WorldData;
-use quark\world\format\io\WritableWorldProvider;
 use quark\world\format\SubChunk;
 use Symfony\Component\Filesystem\Path;
 use function array_map;
@@ -65,13 +65,15 @@ use function unpack;
 /**
  * Bedrock's chunk record format, independent of the database the records are stored in.
  */
-abstract class BedrockWorldProvider extends BaseWorldProvider implements WritableWorldProvider{
+abstract class BedrockWorldProvider extends BaseWorldProvider implements MetadataWorldProvider{
 
 	protected const FINALISATION_NEEDS_INSTATICKING = 0;
 	protected const FINALISATION_NEEDS_POPULATION = 1;
 	protected const FINALISATION_DONE = 2;
 
 	protected const ENTRY_FLAT_WORLD_LAYERS = "game_flatworldlayers";
+	/** Too long to be a chunk key, so converters keep it as one of the world's other records. */
+	protected const ENTRY_WORLD_METADATA = "QUARKWorldMetadata";
 
 	protected const CURRENT_LEVEL_CHUNK_VERSION = WorldDataVersions::CHUNK;
 	protected const CURRENT_LEVEL_SUBCHUNK_VERSION = WorldDataVersions::SUBCHUNK;
@@ -726,7 +728,7 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Writabl
 		//TODO: tile ticks, biome states (?)
 
 		return new LoadedChunkData(
-			data: new ChunkData($subChunks, $terrainPopulated, $entities, $tiles),
+			data: new ChunkData($subChunks, $terrainPopulated, $entities, $tiles, $records[ChunkDataKey::QUARK_METADATA] ?? null),
 			upgraded: $hasBeenUpgraded,
 			fixerFlags: LoadedChunkData::FIXER_FLAG_ALL //TODO: fill this by version rather than just setting all flags
 		);
@@ -774,6 +776,10 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Writabl
 
 		$records[ChunkDataKey::BLOCK_ENTITIES] = self::writeTags($chunkData->getTileNBT());
 		$records[ChunkDataKey::ENTITIES] = self::writeTags($chunkData->getEntityNBT());
+
+		if(($dirtyFlags & Chunk::DIRTY_FLAG_METADATA) !== 0){
+			$records[ChunkDataKey::QUARK_METADATA] = $chunkData->getMetadata();
+		}
 
 		$records[ChunkDataKey::HEIGHTMAP_AND_2D_BIOME_COLORS] = null;
 		$records[ChunkDataKey::LEGACY_TERRAIN] = null;

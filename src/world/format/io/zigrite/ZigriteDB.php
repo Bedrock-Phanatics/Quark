@@ -159,6 +159,18 @@ final class ZigriteDB extends BedrockWorldProvider{
 		return new \RuntimeException("Region $region is damaged. Stop the server, run \"zigrite recover\" on it with an empty folder as the destination, and put the result in its place. " . $e->getMessage(), 0, $e);
 	}
 
+	public function loadWorldMetadata() : ?string{
+		return $this->world->auxGet(self::ENTRY_WORLD_METADATA);
+	}
+
+	public function saveWorldMetadata(?string $record) : void{
+		if($record === null){
+			$this->world->auxDelete(self::ENTRY_WORLD_METADATA);
+		}else{
+			$this->world->auxPut(self::ENTRY_WORLD_METADATA, $record);
+		}
+	}
+
 	public function doGarbageCollection() : void{
 
 	}

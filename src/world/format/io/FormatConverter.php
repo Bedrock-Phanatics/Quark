@@ -143,7 +143,14 @@ class FormatConverter{
 		$thisRound = $start;
 		foreach($this->oldProvider->getAllChunks(true, $this->logger) as $coords => $loadedChunkData){
 			[$chunkX, $chunkZ] = $coords;
-			$new->saveChunk($chunkX, $chunkZ, $loadedChunkData->getData(), Chunk::DIRTY_FLAGS_ALL);
+			$flags = Chunk::DIRTY_FLAGS_ALL;
+			if($loadedChunkData->getData()->getMetadata() !== null){
+				if(!$new instanceof MetadataWorldProvider){
+					throw new \RuntimeException("Chunk $chunkX $chunkZ holds metadata, which the new world format can't store");
+				}
+				$flags |= Chunk::DIRTY_FLAG_METADATA;
+			}
+			$new->saveChunk($chunkX, $chunkZ, $loadedChunkData->getData(), $flags);
 			$counter++;
 			if(($counter % $this->chunksPerProgressUpdate) === 0){
 				$time = microtime(true);

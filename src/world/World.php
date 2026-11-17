@@ -117,6 +117,7 @@ use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\GlobalBlockStateHandlers;
+use quark\world\format\io\MetadataWorldProvider;
 use quark\world\format\io\WritableWorldProvider;
 use quark\world\format\SubChunk;
 use quark\world\generator\executor\AsyncGeneratorExecutor;
@@ -129,6 +130,7 @@ use quark\world\light\BlockLightUpdate;
 use quark\world\light\LightPopulationTask;
 use quark\world\light\NativeLight;
 use quark\world\light\SkyLightUpdate;
+use quark\world\metadata\WorldMetadata;
 use quark\world\particle\BlockBreakParticle;
 use quark\world\particle\Particle;
 use quark\world\sound\BlockPlaceSound;
@@ -371,6 +373,16 @@ class World implements ChunkManager{
 	 * @phpstan-var array<ChunkPosHash, string>
 	 */
 	private array $savedChunkStates = [];
+
+	/** Created on first use, so worlds nobody stores metadata in pay nothing for it. */
+	private ?WorldMetadata $metadata = null;
+	/**
+	 * Chunks that failed to load. Whatever metadata storage holds for them belongs to terrain that is gone, so the
+	 * chunk that replaces them deletes it.
+	 * @var true[]
+	 * @phpstan-var array<ChunkPosHash, true>
+	 */
+	private array $corruptedChunks = [];
 
 	/**
 	 * @var true[]
@@ -615,6 +627,9 @@ class World implements ChunkManager{
 		$this->hasSkyLight = $this->dimension->skyLight;
 		$this->hasWeather = $this->dimension->weather;
 		$this->collisionRegion = new CollisionRegion(self::COLLISION_SECTION_LIMIT);
+		if($this->provider instanceof MetadataWorldProvider && ($metadataRecord = $this->provider->loadWorldMetadata()) !== null){
+			$this->metadata = new WorldMetadata($this, $this->provider, $metadataRecord);
+		}
 
 		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_preparing($this->displayName)));
 		$generator = GeneratorManager::getInstance()->getGenerator($this->provider->getWorldData()->getGenerator()) ??
@@ -737,6 +752,30 @@ class World implements ChunkManager{
 	}
 
 	/**
+	 * Persistent plugin data for this world's blocks and chunks, see {@see WorldMetadata}.
+	 *
+	 * @throws WorldException if the world's format can't store metadata
+	 */
+	public function getMetadata() : WorldMetadata{
+		if($this->metadata === null){
+			if(!$this->provider instanceof MetadataWorldProvider){
+				throw new WorldException("World $this->folderName is stored in a format that can't store metadata");
+			}
+			$this->metadata = new WorldMetadata($this, $this->provider, null);
+		}
+		return $this->metadata;
+	}
+
+	/**
+	 * Returns the metadata only if something already uses it, for engine code that moves blocks.
+	 *
+	 * @internal
+	 */
+	public function getMetadataIfUsed() : ?WorldMetadata{
+		return $this->metadata;
+	}
+
+	/**
 	 * Returns the unique world identifier
 	 */
 	final public function getId() : int{
@@ -805,6 +844,7 @@ class World implements ChunkManager{
 			$this->logger->critical("Failed to close the world's storage: " . $e->getMessage());
 			$failure ??= $e;
 		}
+		$this->metadata?->close();
 		$this->blockCache = [];
 		$this->blockCacheSize = 0;
 		$this->collisionRegion->invalidateAll();
@@ -1778,7 +1818,11 @@ class World implements ChunkManager{
 		}finally{
 			//whatever did get written is still worth keeping
 			try{
-				$this->provider->getWorldData()->save();
+				try{
+					$this->metadata?->save();
+				}finally{
+					$this->provider->getWorldData()->save();
+				}
 			}finally{
 				$this->provider->flush();
 				$pulse->stop($scope);
@@ -1832,11 +1876,23 @@ class World implements ChunkManager{
 				->setInt(Tile::TAG_Z, $pos->getFloorZ());
 		}
 		$state = self::chunkSaveState($chunk->isPopulated(), $entities, $tiles);
-		if($chunk->getTerrainDirtyFlags() === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state){
+		//the metadata record is only written when it changed: rewriting an absent one would leave a deletion behind
+		//in LevelDB for every chunk, slowing every later load
+		$flags = $chunk->getTerrainDirtyFlags();
+		$metadataMark = $this->metadata?->getChunkSaveMark($chunkHash);
+		$writeMetadata = $metadataMark !== null || isset($this->corruptedChunks[$chunkHash]);
+		if($writeMetadata){
+			$flags |= Chunk::DIRTY_FLAG_METADATA;
+		}elseif($flags === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state){
 			return;
 		}
-		$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData($chunk->getSubChunks(), $chunk->isPopulated(), $entities, $tiles), $chunk->getTerrainDirtyFlags());
+		$metadata = $writeMetadata ? $this->metadata?->encodeChunk($chunkHash) : null;
+		$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData($chunk->getSubChunks(), $chunk->isPopulated(), $entities, $tiles, $metadata), $flags);
 		$this->savedChunkStates[$chunkHash] = $state;
+		unset($this->corruptedChunks[$chunkHash]);
+		if($metadataMark !== null){
+			$this->metadata?->markChunkSaved($chunkHash, $metadataMark);
+		}
 	}
 
 	public function saveChunks() : void{
@@ -2832,6 +2888,7 @@ class World implements ChunkManager{
 		$block->writeStateToWorld();
 
 		$relativeBlockHash = World::chunkBlockHash($x, $y, $z);
+		$this->metadata?->onBlockChanged($chunkHash, $x, $y, $z, $previousStateId, $stateId);
 		if(isset($this->blockCache[$chunkHash][$relativeBlockHash])){
 			unset($this->blockCache[$chunkHash][$relativeBlockHash]);
 			$this->blockCacheSize--;
@@ -3428,6 +3485,7 @@ class World implements ChunkManager{
 		$chunkHash = World::chunkHash($chunkX, $chunkZ);
 		$oldChunk = $this->loadChunk($chunkX, $chunkZ);
 		if($oldChunk !== null && $oldChunk !== $chunk){
+			$this->metadata?->onChunkReplaced($chunkHash, $oldChunk, $chunk);
 			$deletedTiles = 0;
 			$transferredTiles = 0;
 			foreach($oldChunk->getTiles() as $oldTile){
@@ -3796,6 +3854,7 @@ class World implements ChunkManager{
 			$loadedChunkData = $this->provider->loadChunk($x, $z);
 		}catch(CorruptedChunkException $e){
 			$this->logger->critical("Failed to load chunk x=$x z=$z: " . $e->getMessage());
+			$this->corruptedChunks[$chunkHash] = true;
 		}
 
 		$this->pulse->syncChunkLoadData->stop($syncChunkLoadDataScope);
@@ -3815,6 +3874,9 @@ class World implements ChunkManager{
 			$this->logger->debug("Chunk $x $z has been upgraded, will be saved at the next autosave opportunity");
 		}
 		$this->chunks[$chunkHash] = $chunk;
+		if(($metadataRecord = $chunkData->getMetadata()) !== null && $this->provider instanceof MetadataWorldProvider){
+			$this->getMetadata()->onChunkLoaded($chunkHash, $metadataRecord);
+		}
 
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
@@ -3995,6 +4057,7 @@ class World implements ChunkManager{
 		}
 
 		unset($this->chunks[$chunkHash], $this->savedChunkStates[$chunkHash]);
+		$this->metadata?->onChunkUnloaded($chunkHash);
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
 		$this->collisionRegion->invalidateChunk($x, $z);

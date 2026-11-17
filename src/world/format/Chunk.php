@@ -36,8 +36,13 @@ use function array_map;
 class Chunk{
 	public const DIRTY_FLAG_BLOCKS = 1 << 0;
 	public const DIRTY_FLAG_BIOMES = 1 << 3;
+	/**
+	 * Only passed to providers, chunks track their metadata in {@see \quark\world\metadata\WorldMetadata}. Not part of
+	 * DIRTY_FLAGS_ALL, so code that rewrites a chunk's terrain doesn't delete its metadata.
+	 */
+	public const DIRTY_FLAG_METADATA = 1 << 4;
 
-	public const DIRTY_FLAGS_ALL = ~0;
+	public const DIRTY_FLAGS_ALL = ~self::DIRTY_FLAG_METADATA;
 	public const DIRTY_FLAGS_NONE = 0;
 
 	public const MIN_SUBCHUNK_INDEX = -4;

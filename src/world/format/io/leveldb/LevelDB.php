@@ -138,6 +138,19 @@ class LevelDB extends BedrockWorldProvider{
 		$this->db->write($write);
 	}
 
+	public function loadWorldMetadata() : ?string{
+		$record = $this->db->get(self::ENTRY_WORLD_METADATA);
+		return $record === false ? null : $record;
+	}
+
+	public function saveWorldMetadata(?string $record) : void{
+		if($record === null){
+			$this->db->delete(self::ENTRY_WORLD_METADATA);
+		}else{
+			$this->db->put(self::ENTRY_WORLD_METADATA, $record);
+		}
+	}
+
 	public function getDatabase() : \LevelDB{
 		return $this->db;
 	}
