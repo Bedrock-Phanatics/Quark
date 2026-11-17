@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\block\tile;
 
+use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
@@ -39,6 +40,11 @@ class EndGateway extends Spawnable{
 	];
 
 	public function readSaveData(CompoundTag $nbt) : void{
+		$exit = $nbt->getTag("ExitPortal");
+		if($exit instanceof ListTag && ($exit->getTagType() !== NBT::TAG_Int || $exit->count() !== 3)){
+			$nbt = clone $nbt;
+			$nbt->removeTag("ExitPortal");
+		}
 		$this->loadRetainedTags($nbt, self::RETAINED_TAGS);
 	}
 

@@ -26,8 +26,10 @@ namespace quark\block\tile;
 use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
+use pocketmine\nbt\tag\StringTag;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use function strlen;
 
 /**
  * TODO: Implement inserting items into the pot, the wobble animation and hopper interaction.
@@ -35,6 +37,8 @@ use quark\item\VanillaItems;
 class DecoratedPot extends Spawnable{
 	public const TAG_SHERDS = "sherds"; //TAG_List<TAG_String>
 	private const TAG_ITEM = "item"; //TAG_Compound
+	private const MAX_SHERDS = 4;
+	private const MAX_SHERD_ID_LENGTH = 128;
 
 	private ?ListTag $sherds = null;
 	private Item $item;
@@ -65,7 +69,21 @@ class DecoratedPot extends Spawnable{
 
 	private function readSherds(CompoundTag $nbt) : void{
 		$sherds = $nbt->getTag(self::TAG_SHERDS);
-		$this->sherds = $sherds instanceof ListTag && $sherds->getTagType() === NBT::TAG_String ? $sherds->safeClone() : null;
+		$this->sherds = $sherds instanceof ListTag && $sherds->getTagType() === NBT::TAG_String && self::isValidSherdList($sherds) ? $sherds->safeClone() : null;
+	}
+
+	//the sherds go out in spawn data, so a crafted list must not be able to bloat every chunk send
+	private static function isValidSherdList(ListTag $sherds) : bool{
+		if($sherds->count() > self::MAX_SHERDS){
+			return false;
+		}
+		/** @var StringTag $sherd */
+		foreach($sherds as $sherd){
+			if(strlen($sherd->getValue()) > self::MAX_SHERD_ID_LENGTH){
+				return false;
+			}
+		}
+		return true;
 	}
 
 	//Pot items only carry the sherds; the contents are always dropped separately.
