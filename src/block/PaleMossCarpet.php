@@ -26,6 +26,7 @@ namespace quark\block;
 use quark\block\utils\StaticSupportTrait;
 use quark\block\utils\WallConnectionType;
 use quark\data\runtime\RuntimeDataDescriber;
+use quark\item\Item;
 use quark\math\AxisAlignedBB;
 use quark\math\Facing;
 
@@ -88,6 +89,11 @@ class PaleMossCarpet extends Flowable{
 
 	public function getFlammability() : int{
 		return 100;
+	}
+
+	public function getDropsForCompatibleTool(Item $item) : array{
+		//only the bottom part drops, the top is just its overgrowth
+		return $this->top ? [] : parent::getDropsForCompatibleTool($item);
 	}
 
 	private function canBeSupportedAt(Block $block) : bool{

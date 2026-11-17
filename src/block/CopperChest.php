@@ -38,6 +38,10 @@ class CopperChest extends Chest implements CopperMaterial{
 		onInteract as onInteractCopper;
 	}
 
+	public function getFuelTime() : int{
+		return 0;
+	}
+
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null, array &$returnedItems = []) : bool{
 		if($player !== null && $player->isSneaking() && $this->onInteractCopper($item, $face, $clickVector, $player, $returnedItems)){
 			return true;

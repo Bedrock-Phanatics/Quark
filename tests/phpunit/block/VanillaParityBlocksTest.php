@@ -57,6 +57,7 @@ use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use function bin2hex;
 use function random_bytes;
+use function str_repeat;
 use function sys_get_temp_dir;
 
 final class VanillaParityBlocksTest extends TestCase{
@@ -141,6 +142,14 @@ final class VanillaParityBlocksTest extends TestCase{
 		}
 		$this->expectException(\InvalidArgumentException::class);
 		FrontAndTop::fromFacing(Facing::UP, Facing::DOWN);
+	}
+
+	public function testDropsAndFuel() : void{
+		self::assertSame(0, VanillaBlocks::COPPER_CHEST()->getFuelTime());
+		self::assertSame([], VanillaBlocks::PALE_MOSS_CARPET()->setTop(true)->getDropsForCompatibleTool(VanillaItems::AIR()));
+		self::assertCount(1, VanillaBlocks::PALE_MOSS_CARPET()->getDropsForCompatibleTool(VanillaItems::AIR()));
+		//chains of dripstone break without a tool and must still drop every piece
+		self::assertCount(1, VanillaBlocks::POINTED_DRIPSTONE()->getDrops(VanillaItems::AIR()));
 	}
 
 	public function testSaplingsWithoutTreesNeverTick() : void{
@@ -239,6 +248,26 @@ final class VanillaParityBlocksTest extends TestCase{
 		);
 		self::assertInstanceOf(TileDecoratedPot::class, $malformed);
 		self::assertNull($malformed->getSherds());
+
+		foreach([
+			new ListTag([new StringTag("a"), new StringTag("b"), new StringTag("c"), new StringTag("d"), new StringTag("e")]),
+			new ListTag([new StringTag(str_repeat("x", 129))]),
+		] as $oversized){
+			$placed = new TileDecoratedPot();
+			$placed->readSaveData(CompoundTag::create()->setTag(TileDecoratedPot::TAG_SHERDS, $oversized));
+			self::assertNull($placed->getSherds(), "oversized sherd lists are sent to clients and must be dropped");
+		}
+	}
+
+	public function testEndGatewayExitMustBeThreeInts() : void{
+		$valid = new ListTag([new IntTag(1), new IntTag(64), new IntTag(-3)]);
+		foreach([[$valid, true], [new ListTag([new IntTag(1)]), false], [new ListTag([new StringTag("a"), new StringTag("b"), new StringTag("c")]), false]] as [$exit, $kept]){
+			$tile = TileFactory::getInstance()->createFromData(CompoundTag::create()->setString(Tile::TAG_ID, "EndGateway")->setTag("ExitPortal", $exit)->setInt("Age", 5));
+			self::assertNotNull($tile);
+			$saved = $tile->saveNBT();
+			self::assertSame($kept, $saved->getTag("ExitPortal") !== null);
+			self::assertSame(5, $saved->getInt("Age"));
+		}
 	}
 
 	public function testShelfItems() : void{

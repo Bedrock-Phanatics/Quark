@@ -1251,7 +1251,8 @@ final class VanillaBlocksInputs extends RegistrySource{
 		self::register("frog_spawn", fn(BID $id) => new FrogSpawn($id, "Frogspawn", new Info(BreakInfo::instant())));
 		self::register("bubble_column", fn(BID $id) => new BubbleColumn($id, "Bubble Column", new Info(BreakInfo::instant())));
 
-		$dripstoneInfo = new Info(BreakInfo::pickaxe(1.5, ToolTier::WOOD, 15.0));
+		//drops with any tool, so pieces broken by a falling chain aren't lost
+		$dripstoneInfo = new Info(new BreakInfo(1.5, ToolType::PICKAXE, 0, 15.0));
 		self::register("dripstone_block", fn(BID $id) => new Opaque($id, "Dripstone Block", new Info(BreakInfo::pickaxe(1.5, ToolTier::WOOD, 5.0))));
 		self::register("pointed_dripstone", fn(BID $id) => new PointedDripstone($id, "Pointed Dripstone", $dripstoneInfo));
 		self::register("powder_snow", fn(BID $id) => new PowderSnow($id, "Powder Snow", new Info(new BreakInfo(0.25))));

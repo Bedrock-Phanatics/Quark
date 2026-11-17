@@ -72,7 +72,7 @@ class PaleHangingMoss extends Flowable{
 
 	private function canBeSupportedAt(Block $block) : bool{
 		$up = $block->getSide(Facing::UP);
-		return $up instanceof PaleHangingMoss || $up->getSupportType(Facing::DOWN) === SupportType::FULL;
+		return $up instanceof PaleHangingMoss || $up instanceof Leaves || $up->getSupportType(Facing::DOWN) === SupportType::FULL;
 	}
 
 	public function getFlameEncouragement() : int{

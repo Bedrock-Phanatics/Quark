@@ -72,11 +72,11 @@ class PinkPetals extends Flowable implements HorizontalFacing{
 	}
 
 	public function canBePlacedAt(Block $blockReplace, Vector3 $clickVector, int $face, bool $isClickedBlock) : bool{
-		return ($blockReplace instanceof PinkPetals && $blockReplace->count < self::MAX_COUNT) || $this->supportedWhenPlacedAt($blockReplace, $clickVector, $face, $isClickedBlock);
+		return ($blockReplace instanceof PinkPetals && $blockReplace->hasSameTypeId($this) && $blockReplace->count < self::MAX_COUNT) || $this->supportedWhenPlacedAt($blockReplace, $clickVector, $face, $isClickedBlock);
 	}
 
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		if($blockReplace instanceof PinkPetals && $blockReplace->count < self::MAX_COUNT){
+		if($blockReplace instanceof PinkPetals && $blockReplace->hasSameTypeId($this) && $blockReplace->count < self::MAX_COUNT){
 			$this->count = $blockReplace->count + 1;
 			$this->facing = $blockReplace->facing;
 		}elseif($player !== null){
