@@ -57,7 +57,7 @@ final class ChunkMetadataTest extends TestCase{
 		self::assertSame("\x00\xff binary", $decoded->getValue("b:chunk"));
 		self::assertSame("", $decoded->getValue("a:chunk"));
 		self::assertSame("alice", $decoded->getBlockValue(ChunkMetadata::blockHash(0, -64, 0), "a:owner"));
-		self::assertSame(self::POSITION | MetadataKey::FLAG_NOT_COPYABLE | 0x80, $decoded->getFlags("b:unknown.key/x"), "flags this version doesn't know are kept");
+		self::assertSame(self::POSITION | MetadataKey::FLAG_NOT_COPYABLE | 0x80, $decoded->getFlags("b:unknown.key/x", ChunkMetadata::blockHash(15, 319, 15)), "flags this version doesn't know are kept");
 		self::assertFalse($decoded->isDirty(), "a decoded record matches what is stored");
 		self::assertTrue(ChunkMetadata::decode((new ChunkMetadata())->encode())->isEmpty());
 	}
@@ -117,6 +117,23 @@ final class ChunkMetadataTest extends TestCase{
 		self::assertNull($metadata->getBlockValue($hash, "a:type"));
 		self::assertSame("1", $metadata->getBlockValue($hash, "a:pos"));
 		self::assertSame("4", $metadata->getBlockValue($hash, "a:future"), "an unknown retention never removes anything");
+	}
+
+	public function testSameKeyCanHaveDifferentPolicies() : void{
+		$metadata = new ChunkMetadata();
+		$metadata->setBlockValue(0, "a:key", self::TYPE | MetadataKey::FLAG_NOT_COPYABLE, "unique");
+		$metadata->setBlockValue(1, "a:key", self::POSITION, "claim");
+		$metadata->setValue("a:key", self::STATE, "chunk");
+		$metadata = ChunkMetadata::decode($metadata->encode());
+		self::assertSame([], $metadata->takeBlockValues(0, true));
+		self::assertSame([], $metadata->takeBlockValues(1, false));
+		$metadata->onBlockChanged(0, false);
+		self::assertSame("unique", $metadata->getBlockValue(0, "a:key"));
+		$metadata->onBlockChanged(0, true);
+		$metadata->onBlockChanged(1, true);
+		self::assertNull($metadata->getBlockValue(0, "a:key"));
+		self::assertSame("claim", $metadata->getBlockValue(1, "a:key"));
+		self::assertSame("chunk", $metadata->getValue("a:key"));
 	}
 
 	public function testTakeAndCopy() : void{
@@ -184,6 +201,19 @@ final class ChunkMetadataTest extends TestCase{
 		self::assertSame($value, $metadata->getBlockValue(1 << 8, "a:c"), "removals give their space back");
 	}
 
+	public function testKeyNamesCountTowardsTheSizeLimit() : void{
+		$metadata = new ChunkMetadata();
+		$prefix = "a:" . str_repeat("x", 180);
+		try{
+			for($i = 0; $i < 6000; ++$i){
+				$metadata->setValue($prefix . $i, self::TYPE, "");
+			}
+			self::fail("key names exceeded the record budget");
+		}catch(\LengthException){
+		}
+		self::assertLessThanOrEqual(ChunkMetadata::MAX_BYTES + 13, strlen($metadata->encode()));
+	}
+
 	public function testDirtyMarks() : void{
 		$metadata = new ChunkMetadata();
 		self::assertFalse($metadata->isDirty());
@@ -202,11 +232,12 @@ final class ChunkMetadataTest extends TestCase{
 
 	public function testRemoveNamespace() : void{
 		$metadata = self::sample();
-		self::assertTrue($metadata->removeNamespace("a"));
+		self::assertFalse($metadata->removePurgedNamespaces(["a" => 7]));
+		self::assertTrue($metadata->removePurgedNamespaces(["a" => 8]));
 		self::assertNull($metadata->getValue("a:chunk"));
 		self::assertNull($metadata->getBlockValue(ChunkMetadata::blockHash(0, -64, 0), "a:owner"));
 		self::assertNotNull($metadata->getValue("b:chunk"));
-		self::assertFalse($metadata->removeNamespace("a"));
-		self::assertFalse($metadata->removeNamespace("ab"), "namespaces match whole");
+		self::assertFalse($metadata->removePurgedNamespaces(["a" => 8]));
+		self::assertFalse($metadata->removePurgedNamespaces(["ab" => 8]), "namespaces match whole");
 	}
 }

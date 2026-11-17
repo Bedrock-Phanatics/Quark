@@ -815,6 +815,7 @@ class World implements ChunkManager{
 			}
 		}
 		$this->knownUngeneratedChunks = [];
+		$this->corruptedChunks = [];
 		foreach($this->entitiesByChunk as $chunkHash => $entities){
 			self::getXZ($chunkHash, $chunkX, $chunkZ);
 
@@ -1824,8 +1825,11 @@ class World implements ChunkManager{
 					$this->provider->getWorldData()->save();
 				}
 			}finally{
-				$this->provider->flush();
-				$pulse->stop($scope);
+				try{
+					$this->provider->flush();
+				}finally{
+					$pulse->stop($scope);
+				}
 			}
 		}
 
@@ -1880,10 +1884,11 @@ class World implements ChunkManager{
 		//in LevelDB for every chunk, slowing every later load
 		$flags = $chunk->getTerrainDirtyFlags();
 		$metadataMark = $this->metadata?->getChunkSaveMark($chunkHash);
-		$writeMetadata = $metadataMark !== null || isset($this->corruptedChunks[$chunkHash]);
+		$writeMetadata = $metadataMark !== null || ($this->provider instanceof MetadataWorldProvider && isset($this->corruptedChunks[$chunkHash]));
+		$metadataOnly = $flags === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state;
 		if($writeMetadata){
-			$flags |= Chunk::DIRTY_FLAG_METADATA;
-		}elseif($flags === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state){
+			$flags = $metadataOnly ? Chunk::DIRTY_FLAG_METADATA_ONLY : $flags | Chunk::DIRTY_FLAG_METADATA;
+		}elseif($metadataOnly){
 			return;
 		}
 		$metadata = $writeMetadata ? $this->metadata?->encodeChunk($chunkHash) : null;
@@ -2882,13 +2887,13 @@ class World implements ChunkManager{
 		$localZ = $z & Chunk::COORD_MASK;
 		$previousStateId = $chunk->getBlockStateId($localX, $y, $localZ);
 		$chunk->setBlockStateId($localX, $y, $localZ, $stateId);
+		$this->metadata?->onBlockChanged($chunkHash, $x, $y, $z, $previousStateId, $stateId);
 		if(isset($this->randomTickBlocks[$stateId])){
 			unset($this->randomTickSubChunks[$chunkHash]);
 		}
 		$block->writeStateToWorld();
 
 		$relativeBlockHash = World::chunkBlockHash($x, $y, $z);
-		$this->metadata?->onBlockChanged($chunkHash, $x, $y, $z, $previousStateId, $stateId);
 		if(isset($this->blockCache[$chunkHash][$relativeBlockHash])){
 			unset($this->blockCache[$chunkHash][$relativeBlockHash]);
 			$this->blockCacheSize--;
@@ -3485,7 +3490,6 @@ class World implements ChunkManager{
 		$chunkHash = World::chunkHash($chunkX, $chunkZ);
 		$oldChunk = $this->loadChunk($chunkX, $chunkZ);
 		if($oldChunk !== null && $oldChunk !== $chunk){
-			$this->metadata?->onChunkReplaced($chunkHash, $oldChunk, $chunk);
 			$deletedTiles = 0;
 			$transferredTiles = 0;
 			foreach($oldChunk->getTiles() as $oldTile){
@@ -3512,6 +3516,7 @@ class World implements ChunkManager{
 			if($deletedTiles > 0 || $transferredTiles > 0){
 				$this->logger->debug("Replacement of chunk $chunkX $chunkZ caused deletion of $deletedTiles obsolete/conflicted tiles, and transfer of $transferredTiles");
 			}
+			$this->metadata?->onChunkReplaced($chunkHash, $oldChunk, $chunk);
 		}
 
 		$this->chunks[$chunkHash] = $chunk;
@@ -3854,7 +3859,9 @@ class World implements ChunkManager{
 			$loadedChunkData = $this->provider->loadChunk($x, $z);
 		}catch(CorruptedChunkException $e){
 			$this->logger->critical("Failed to load chunk x=$x z=$z: " . $e->getMessage());
-			$this->corruptedChunks[$chunkHash] = true;
+			if($this->provider instanceof MetadataWorldProvider){
+				$this->corruptedChunks[$chunkHash] = true;
+			}
 		}
 
 		$this->pulse->syncChunkLoadData->stop($syncChunkLoadDataScope);

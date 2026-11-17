@@ -25,7 +25,9 @@ namespace quark\world\metadata;
 
 use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
+use pocketmine\utils\Limits;
 use quark\block\Block;
+use quark\math\Vector3;
 use quark\utils\Utils;
 use quark\world\format\Chunk;
 use quark\world\format\io\MetadataWorldProvider;
@@ -51,6 +53,7 @@ use function unpack;
  */
 final class WorldMetadata{
 	private const RECORD_VERSION = 1;
+	private const MAX_PURGES = 8192;
 
 	/**
 	 * @var ChunkMetadata[]
@@ -58,9 +61,9 @@ final class WorldMetadata{
 	 */
 	private array $chunks = [];
 	/**
-	 * Stored records of loaded chunks that couldn't be decoded, kept so saves write them back unchanged.
-	 * @var string[]
-	 * @phpstan-var array<int, string>
+	 * Loaded chunks whose stored metadata must be left untouched.
+	 * @var true[]
+	 * @phpstan-var array<int, true>
 	 */
 	private array $unreadable = [];
 
@@ -73,6 +76,7 @@ final class WorldMetadata{
 	 */
 	private array $purges = [];
 	private int $epoch = 0;
+	private bool $purgeNeedsFlush = false;
 	/** Set when the world record can't be read; every operation fails rather than risk overwriting it. */
 	private ?string $recordError = null;
 	private int $minY;
@@ -185,7 +189,9 @@ final class WorldMetadata{
 	 */
 	public function set(MetadataKey $key, mixed $value) : void{
 		$this->checkUsable();
-		$this->values->setValue($key->name, $key->flags, ($key->codec->encode)($value));
+		$encoded = ($key->codec->encode)($value);
+		$this->checkUsable();
+		$this->values->setValue($key->name, $key->flags, $encoded);
 	}
 
 	/** @phpstan-param MetadataKey<covariant mixed> $key */
@@ -215,7 +221,7 @@ final class WorldMetadata{
 	 */
 	public function takeBlock(int $x, int $y, int $z) : ?BlockMetadata{
 		$values = $this->blockChunk($x, $y, $z, false)?->takeBlockValues(ChunkMetadata::blockHash($x, $y, $z), false) ?? [];
-		return count($values) === 0 ? null : new BlockMetadata($values);
+		return count($values) === 0 ? null : new BlockMetadata($values, singleUse: true);
 	}
 
 	/**
@@ -223,7 +229,47 @@ final class WorldMetadata{
 	 * there, since placing it would invalidate them.
 	 */
 	public function putBlock(int $x, int $y, int $z, BlockMetadata $metadata) : void{
-		$this->blockChunk($x, $y, $z, true)->putBlockValues(ChunkMetadata::blockHash($x, $y, $z), $metadata->getValues());
+		$chunk = $this->blockChunk($x, $y, $z, true);
+		// Chunk loading may call plugins which also hold this snapshot.
+		$chunk->putBlockValues(ChunkMetadata::blockHash($x, $y, $z), $metadata->getValues());
+		$metadata->markPlaced();
+	}
+
+	/**
+	 * Checks a piston move in movement order, accounting for space freed by earlier moves.
+	 *
+	 * @internal
+	 * @param iterable<array{Vector3, Vector3}> $moves
+	 */
+	public function canMoveBlocks(iterable $moves) : bool{
+		if($this->chunks === [] && $this->unreadable === [] && $this->recordError === null){
+			return true;
+		}
+		$projected = [];
+		try{
+			foreach($moves as [$source, $destination]){
+				$from = $this->projectChunk($projected, $source);
+				$to = $this->projectChunk($projected, $destination);
+				$values = $from->takeBlockValues(ChunkMetadata::blockHash($source->getFloorX(), $source->getFloorY(), $source->getFloorZ()), false);
+				$target = ChunkMetadata::blockHash($destination->getFloorX(), $destination->getFloorY(), $destination->getFloorZ());
+				$to->putBlockValues($target, $values);
+			}
+		}catch(MetadataException|\LengthException){
+			return false;
+		}
+		return true;
+	}
+
+	/** @phpstan-param array<int, ChunkMetadata> $projected */
+	private function projectChunk(array &$projected, Vector3 $pos) : ChunkMetadata{
+		$x = $pos->getFloorX();
+		$z = $pos->getFloorZ();
+		$hash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
+		if(!isset($projected[$hash])){
+			$chunk = $this->blockChunk($x, $pos->getFloorY(), $z, false);
+			$projected[$hash] = $chunk !== null ? clone $chunk : new ChunkMetadata($this->epoch);
+		}
+		return $projected[$hash];
 	}
 
 	/**
@@ -245,7 +291,7 @@ final class WorldMetadata{
 	 */
 	public function clearChunk(int $chunkX, int $chunkZ) : void{
 		$this->checkUsable();
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$chunkHash = self::checkedChunkHash($chunkX, $chunkZ);
 		if(!$this->world->isChunkLoaded($chunkX, $chunkZ) && $this->world->loadChunk($chunkX, $chunkZ) === null){
 			return;
 		}
@@ -258,29 +304,41 @@ final class WorldMetadata{
 
 	/**
 	 * Removes every value stored under the namespace in the whole world. Loaded chunks lose them now, the rest when
-	 * they next load. The removal itself is stored before this returns.
+	 * they next load. The removal itself is stored before this returns. If flushing fails after the write, the
+	 * removal stays applied in memory and chunk metadata writes retry the flush before using the new epoch.
 	 */
 	public function removeNamespace(string $namespace) : void{
 		$this->checkUsable();
 		if(preg_match('/^[a-z0-9_.-]{1,' . MetadataKey::MAX_NAMESPACE_LENGTH . '}$/D', $namespace) !== 1){
 			throw new \InvalidArgumentException("Invalid metadata namespace \"$namespace\"");
 		}
+		if($this->epoch === Limits::UINT32_MAX || (!isset($this->purges[$namespace]) && count($this->purges) >= self::MAX_PURGES)){
+			throw new \LengthException("World metadata purge limit reached");
+		}
 		$epoch = $this->epoch + 1;
 		$purges = $this->purges;
 		$purges[$namespace] = $epoch;
 		$values = clone $this->values;
-		$values->removeNamespace($namespace);
+		$pending = [$namespace => $epoch];
+		$values->removePurgedNamespaces($pending);
 		$this->provider->saveWorldMetadata(self::encodeRecord($epoch, $purges, $values));
-		//chunks saved from here on carry the new epoch, so the removal has to be durable before any of them is
-		$this->provider->flush();
 
 		$this->epoch = $epoch;
 		$this->purges = $purges;
 		$this->values = $values;
 		$values->markSaved($values->getChanges());
 		foreach($this->chunks as $chunk){
-			$chunk->removeNamespace($namespace);
+			$chunk->removePurgedNamespaces($pending);
 			$chunk->epoch = $epoch;
+		}
+		$this->purgeNeedsFlush = true;
+		$this->flushPurge();
+	}
+
+	private function flushPurge() : void{
+		if($this->purgeNeedsFlush){
+			$this->provider->flush();
+			$this->purgeNeedsFlush = false;
 		}
 	}
 
@@ -311,14 +369,22 @@ final class WorldMetadata{
 	 * @phpstan-return ($create is true ? ChunkMetadata : ChunkMetadata|null)
 	 */
 	private function blockChunk(int $x, int $y, int $z, bool $create) : ?ChunkMetadata{
-		//only chunks of a loaded, usable world are ever in the map, so a hit needs no other check
-		if($y >= $this->minY && $y < $this->maxY && ($chunk = $this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null) !== null){
-			return $chunk;
-		}
-		if(!$this->world->isInWorld($x, $y, $z)){
+		if($x < Limits::INT32_MIN || $x > Limits::INT32_MAX || $z < Limits::INT32_MIN || $z > Limits::INT32_MAX || $y < $this->minY || $y >= $this->maxY){
 			throw new \InvalidArgumentException("Pos x=$x,y=$y,z=$z is outside of the world bounds");
 		}
+		// Only chunks of a loaded, usable world are in the map.
+		if(($chunk = $this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null) !== null){
+			return $chunk;
+		}
 		return $this->chunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE, $create);
+	}
+
+	private static function checkedChunkHash(int $chunkX, int $chunkZ) : int{
+		if($chunkX < (Limits::INT32_MIN >> Chunk::COORD_BIT_SIZE) || $chunkX > (Limits::INT32_MAX >> Chunk::COORD_BIT_SIZE) ||
+			$chunkZ < (Limits::INT32_MIN >> Chunk::COORD_BIT_SIZE) || $chunkZ > (Limits::INT32_MAX >> Chunk::COORD_BIT_SIZE)){
+			throw new \InvalidArgumentException("Chunk x=$chunkX z=$chunkZ is outside of the world bounds");
+		}
+		return World::chunkHash($chunkX, $chunkZ);
 	}
 
 	/**
@@ -326,13 +392,14 @@ final class WorldMetadata{
 	 */
 	private function chunk(int $chunkX, int $chunkZ, bool $create) : ?ChunkMetadata{
 		$this->checkUsable();
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		$chunkHash = self::checkedChunkHash($chunkX, $chunkZ);
 		if(!isset($this->chunks[$chunkHash]) && !$this->world->isChunkLoaded($chunkX, $chunkZ) && $this->world->loadChunk($chunkX, $chunkZ) === null){
 			if($create){
 				throw new WorldException("Cannot set metadata in un-generated terrain");
 			}
 			return null;
 		}
+		$this->checkUsable();
 		if(isset($this->unreadable[$chunkHash])){
 			throw new MetadataException("Metadata of chunk $chunkX $chunkZ can't be read, see the error logged when it loaded");
 		}
@@ -347,23 +414,22 @@ final class WorldMetadata{
 	 */
 	public function onChunkLoaded(int $chunkHash, string $record) : void{
 		if($this->recordError !== null){
-			$this->unreadable[$chunkHash] = $record;
+			$this->unreadable[$chunkHash] = true;
 			return;
 		}
 		try{
 			$chunk = ChunkMetadata::decode($record);
+			if($chunk->epoch > $this->epoch){
+				throw new MetadataException("Chunk metadata is newer than the world's purge record");
+			}
 		}catch(MetadataException $e){
 			World::getXZ($chunkHash, $chunkX, $chunkZ);
 			$this->world->getLogger()->critical("Metadata of chunk $chunkX $chunkZ can't be read and is kept as stored: " . $e->getMessage());
-			$this->unreadable[$chunkHash] = $record;
+			$this->unreadable[$chunkHash] = true;
 			return;
 		}
 		if($chunk->epoch < $this->epoch){
-			foreach(Utils::stringifyKeys($this->purges) as $namespace => $epoch){
-				if($epoch > $chunk->epoch){
-					$chunk->removeNamespace($namespace);
-				}
-			}
+			$chunk->removePurgedNamespaces($this->purges);
 			$chunk->epoch = $this->epoch;
 		}
 		$this->chunks[$chunkHash] = $chunk;
@@ -377,6 +443,8 @@ final class WorldMetadata{
 	public function close() : void{
 		$this->chunks = [];
 		$this->unreadable = [];
+		$this->values = new ChunkMetadata();
+		$this->purges = [];
 	}
 
 	/**
@@ -401,18 +469,7 @@ final class WorldMetadata{
 	 * @internal
 	 */
 	public function onChunkReplaced(int $chunkHash, Chunk $old, Chunk $new) : void{
-		$chunk = $this->chunks[$chunkHash] ?? null;
-		if($chunk === null){
-			return;
-		}
-		foreach($chunk->getBlockHashes() as $blockHash){
-			$x = $blockHash & Chunk::COORD_MASK;
-			$y = $blockHash >> 8;
-			$z = ($blockHash >> Chunk::COORD_BIT_SIZE) & Chunk::COORD_MASK;
-			if($y >= $this->minY && $y < $this->maxY){
-				$this->onBlockChanged($chunkHash, $x, $y, $z, $old->getBlockStateId($x, $y, $z), $new->getBlockStateId($x, $y, $z));
-			}
-		}
+		($this->chunks[$chunkHash] ?? null)?->onChunkReplaced($old, $new, $this->minY, $this->maxY);
 	}
 
 	/**
@@ -431,9 +488,7 @@ final class WorldMetadata{
 	 * @internal
 	 */
 	public function encodeChunk(int $chunkHash) : ?string{
-		if(isset($this->unreadable[$chunkHash])){
-			return $this->unreadable[$chunkHash];
-		}
+		$this->flushPurge();
 		$chunk = $this->chunks[$chunkHash] ?? null;
 		return $chunk === null || $chunk->isEmpty() ? null : $chunk->encode();
 	}
@@ -458,6 +513,7 @@ final class WorldMetadata{
 	 * @internal
 	 */
 	public function save() : void{
+		$this->flushPurge();
 		if($this->recordError !== null || !$this->values->isDirty()){
 			return;
 		}
@@ -494,6 +550,9 @@ final class WorldMetadata{
 		if(strlen($record) < 5){
 			throw new MetadataException("World metadata record is truncated");
 		}
+		if(strlen($record) > ChunkMetadata::MAX_RECORD_BYTES + self::MAX_PURGES * (MetadataKey::MAX_NAMESPACE_LENGTH + 6) + 15){
+			throw new MetadataException("World metadata record exceeds the size limit");
+		}
 		$payload = substr($record, 0, -4);
 		/** @var int[] $crc */
 		$crc = unpack("V", substr($record, -4));
@@ -507,11 +566,18 @@ final class WorldMetadata{
 				throw new MetadataException("Unsupported world metadata record version $version");
 			}
 			$epoch = $stream->getUnsignedVarInt();
+			if($epoch > Limits::UINT32_MAX){
+				throw new MetadataException("Invalid world metadata purge epoch");
+			}
 			$purges = [];
-			for($i = 0, $count = $stream->getUnsignedVarInt(); $i < $count; ++$i){
+			$count = $stream->getUnsignedVarInt();
+			if($count > self::MAX_PURGES){
+				throw new MetadataException("Too many world metadata purges");
+			}
+			for($i = 0; $i < $count; ++$i){
 				$namespace = $stream->get($stream->getByte());
 				$purgeEpoch = $stream->getUnsignedVarInt();
-				if(isset($purges[$namespace]) || $purgeEpoch > $epoch){
+				if(preg_match('/^[a-z0-9_.-]{1,' . MetadataKey::MAX_NAMESPACE_LENGTH . '}$/D', $namespace) !== 1 || isset($purges[$namespace]) || $purgeEpoch === 0 || $purgeEpoch > $epoch){
 					throw new MetadataException("Invalid world metadata purge of \"$namespace\"");
 				}
 				$purges[$namespace] = $purgeEpoch;

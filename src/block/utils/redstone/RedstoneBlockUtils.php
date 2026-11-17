@@ -33,11 +33,9 @@ use quark\item\Item;
 use quark\item\VanillaItems;
 use quark\math\Facing;
 use quark\math\Vector3;
-use quark\world\metadata\MetadataException;
 use quark\world\Position;
 use quark\world\World;
 use function count;
-use function implode;
 
 final class RedstoneBlockUtils{
 
@@ -124,22 +122,23 @@ final class RedstoneBlockUtils{
 		return $inventoryContentsReader($inventory, $include_empty);
 	}
 
-	public static function moveBlockAndTile(World $world, Vector3 $source, Vector3 $destination, bool $update = true) : void{
-		$sourceX = (int) $source->x;
-		$sourceY = (int) $source->y;
-		$sourceZ = (int) $source->z;
-		$destinationX = (int) $destination->x;
-		$destinationY = (int) $destination->y;
-		$destinationZ = (int) $destination->z;
+	public static function moveBlockAndTile(World $world, Vector3 $source, Vector3 $destination, bool $update = true) : bool{
+		$sourceX = $source->getFloorX();
+		$sourceY = $source->getFloorY();
+		$sourceZ = $source->getFloorZ();
+		$destinationX = $destination->getFloorX();
+		$destinationY = $destination->getFloorY();
+		$destinationZ = $destination->getFloorZ();
+		if($sourceX === $destinationX && $sourceY === $destinationY && $sourceZ === $destinationZ){
+			return true;
+		}
 		$block = $world->getBlockAt($sourceX, $sourceY, $sourceZ);
 		$tileNbt = $world->getTileAt($sourceX, $sourceY, $sourceZ)?->saveNBT();
 		$metadata = $world->getMetadataIfUsed();
-		$moved = null;
-		try{
-			$moved = $metadata?->takeBlock($sourceX, $sourceY, $sourceZ);
-		}catch(MetadataException){
-			//unreadable metadata stays where it is stored
+		if($metadata !== null && !$metadata->canMoveBlocks([[$source, $destination]])){
+			return false;
 		}
+		$moved = $metadata?->takeBlock($sourceX, $sourceY, $sourceZ);
 		$world->setBlockAt($sourceX, $sourceY, $sourceZ, VanillaBlocks::AIR(), $update);
 		if($tileNbt !== null){
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
@@ -154,11 +153,8 @@ final class RedstoneBlockUtils{
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
 		}
 		if($moved !== null && $metadata !== null){
-			try{
-				$metadata->putBlock($destinationX, $destinationY, $destinationZ, $moved);
-			}catch(MetadataException|\LengthException $e){
-				$world->getLogger()->error("Lost metadata " . implode(", ", $moved->getNames()) . " of the block moved to x=$destinationX y=$destinationY z=$destinationZ: " . $e->getMessage());
-			}
+			$metadata->putBlock($destinationX, $destinationY, $destinationZ, $moved);
 		}
+		return true;
 	}
 }

@@ -68,19 +68,20 @@ final class MetadataKey{
 	 * @phpstan-return self<TValue>
 	 */
 	public static function create(Plugin $plugin, string $path, MetadataCodec $codec, Retention $retention, bool $copyable = true) : self{
-		$namespace = self::namespaceOf($plugin->getName());
+		$pluginName = $plugin->getName();
+		$namespace = self::namespaceOf($pluginName);
 		if(strlen($namespace) > self::MAX_NAMESPACE_LENGTH){
 			throw new \InvalidArgumentException("Metadata namespace \"$namespace\" is longer than " . self::MAX_NAMESPACE_LENGTH . " bytes");
 		}
 		if(isset(self::RESERVED_NAMESPACES[$namespace])){
 			throw new \InvalidArgumentException("Metadata namespace \"$namespace\" is reserved");
 		}
-		$owner = self::$owners[$namespace] ??= $plugin->getName();
-		if($owner !== $plugin->getName()){
-			throw new \InvalidArgumentException("Metadata namespace \"$namespace\" already belongs to plugin $owner");
-		}
 		if(preg_match('/^[a-z0-9_.\/-]{1,64}$/D', $path) !== 1){
 			throw new \InvalidArgumentException("Metadata key path \"$path\" must be 1-64 characters of a-z, 0-9, _ . / -");
+		}
+		$owner = self::$owners[$namespace] ??= $pluginName;
+		if($owner !== $pluginName){
+			throw new \InvalidArgumentException("Metadata namespace \"$namespace\" already belongs to plugin $owner");
 		}
 		return new self("$namespace:$path", $codec, $retention, $retention->value | ($copyable ? 0 : self::FLAG_NOT_COPYABLE));
 	}

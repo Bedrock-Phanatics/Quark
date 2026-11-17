@@ -25,26 +25,33 @@ namespace quark\world\metadata;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\Piston;
 use quark\block\utils\DyeColor;
 use quark\block\utils\redstone\RedstoneBlockUtils;
 use quark\block\VanillaBlocks;
+use quark\math\Facing;
 use quark\math\Vector3;
 use quark\plugin\Plugin;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
+use quark\world\format\io\FormatConverter;
 use quark\world\format\io\leveldb\ChunkDataKey;
 use quark\world\format\io\leveldb\LevelDB;
 use quark\world\format\io\MetadataWorldProvider;
+use quark\world\format\io\WorldProviderManager;
 use quark\world\format\io\WritableWorldProvider;
 use quark\world\format\io\zigrite\ZigriteDB;
 use quark\world\World;
 use quark\world\WorldCreationOptions;
 use quark\world\WorldException;
 use Symfony\Component\Filesystem\Filesystem;
+use function chr;
 use function str_repeat;
 use function sys_get_temp_dir;
 use function uniqid;
+use const PHP_INT_MAX;
+use const PHP_INT_MIN;
 
 final class WorldMetadataTest extends TestCase{
 
@@ -205,12 +212,19 @@ final class WorldMetadataTest extends TestCase{
 		self::assertNotNull($world->world->loadChunk(0, 0));
 		$world->world->save(true);
 		self::assertSame([], $faulty->chunkSaves, "a clean chunk is not written");
+		$versionKey = LevelDB::chunkIndex(0, 0) . ChunkDataKey::PM_DATA_VERSION;
+		if($faulty->inner instanceof LevelDB){
+			$faulty->inner->getDatabase()->put($versionKey, "existing version record");
+		}
 
 		$world->world->getMetadata()->setBlock(0, 0, 0, self::$owner, "alice");
 		$world->world->save(true);
 		self::assertCount(1, $faulty->chunkSaves);
 		[, , $flags] = $faulty->chunkSaves[0];
-		self::assertSame(Chunk::DIRTY_FLAG_METADATA, $flags, "only metadata is written for a metadata change");
+		self::assertSame(Chunk::DIRTY_FLAG_METADATA_ONLY, $flags, "only metadata is written for a metadata change");
+		if($faulty->inner instanceof LevelDB){
+			self::assertSame("existing version record", $faulty->inner->getDatabase()->get($versionKey));
+		}
 		$world->world->save(true);
 		self::assertCount(1, $faulty->chunkSaves, "saved metadata is clean");
 
@@ -346,6 +360,61 @@ final class WorldMetadataTest extends TestCase{
 		}
 	}
 
+	public function testMoveSnapshotCanOnlyBePlacedOnce() : void{
+		$world = $this->create("leveldb");
+		$world->generate(0, 0);
+		$metadata = $world->world->getMetadata();
+		$metadata->setBlock(0, 0, 0, self::$serial, "unique");
+		$snapshot = $metadata->takeBlock(0, 0, 0);
+		self::assertNotNull($snapshot);
+		$metadata->putBlock(1, 0, 0, $snapshot);
+		self::assertSame("unique", $metadata->getBlock(1, 0, 0, self::$serial));
+		$this->expectException(MetadataException::class);
+		$metadata->putBlock(2, 0, 0, $snapshot);
+	}
+
+	public function testMetadataCoordinatesMustBeInsideTheWorld() : void{
+		$world = $this->create("leveldb");
+		$world->generate(0, 0);
+		$metadata = $world->world->getMetadata();
+		$metadata->setBlock(0, 0, 0, self::$owner, "loaded");
+		try{
+			$metadata->hasBlock(PHP_INT_MAX, 0, 0, self::$owner);
+			self::fail("out-of-range block coordinate was accepted");
+		}catch(\InvalidArgumentException){
+		}
+		$this->expectException(\InvalidArgumentException::class);
+		$metadata->hasChunk(0, PHP_INT_MIN, self::$owner);
+	}
+
+	public function testPistonRejectsAnOverfullDestinationBeforeMovingTheChain() : void{
+		$world = $this->create("leveldb");
+		$world->generate(0, 0);
+		$world->generate(1, 0);
+		$w = $world->world;
+		$w->setBlockAt(15, 1, 0, VanillaBlocks::STONE(), false);
+		$w->setBlockAt(16, 1, 0, VanillaBlocks::DIRT(), false);
+		$metadata = $w->getMetadata();
+		$value = str_repeat("v", ChunkMetadata::MAX_VALUE_BYTES);
+		$metadata->setBlock(15, 1, 0, self::$serial, $value);
+		for($z = 1; $z < 16; ++$z){
+			$metadata->setBlock(16, 1, $z, self::$claim, $value);
+		}
+		$piston = VanillaBlocks::PISTON()->setFacing(Facing::WEST);
+		$piston->position($w, 14, 1, 0);
+		$push = new \ReflectionMethod(Piston::class, "pushBlocks");
+		self::assertFalse($push->invoke($piston));
+		self::assertSame(VanillaBlocks::STONE()->getStateId(), $w->getBlockAt(15, 1, 0)->getStateId());
+		self::assertSame(VanillaBlocks::DIRT()->getStateId(), $w->getBlockAt(16, 1, 0)->getStateId());
+		self::assertSame(VanillaBlocks::AIR()->getStateId(), $w->getBlockAt(17, 1, 0)->getStateId());
+		self::assertSame($value, $metadata->getBlock(15, 1, 0, self::$serial));
+		$metadata->removeBlock(16, 1, 1, self::$claim);
+		self::assertTrue($push->invoke($piston));
+		self::assertNull($metadata->getBlock(15, 1, 0, self::$serial));
+		self::assertSame($value, $metadata->getBlock(16, 1, 0, self::$serial));
+		self::assertSame(VanillaBlocks::DIRT()->getStateId(), $w->getBlockAt(17, 1, 0)->getStateId());
+	}
+
 	/**
 	 * @dataProvider formats
 	 */
@@ -403,6 +472,91 @@ final class WorldMetadataTest extends TestCase{
 		self::assertSame("world", $metadata->get(self::$owner));
 		$world = $this->restart($world);
 		self::assertSame("alice", $world->world->getMetadata()->getBlock(0, 0, 0, self::$owner));
+	}
+
+	public function testPendingNamespaceFlushBlocksChunkSaveUntilRetry() : void{
+		$world = $this->create("zigritedb");
+		$world->generate(0, 0);
+		$world->world->getMetadata()->setBlock(0, 0, 0, self::$owner, "before");
+		$world = $this->restart($world, static fn(MetadataWorldProvider $provider) => new FaultyProvider($provider));
+		$faulty = $world->provider;
+		self::assertInstanceOf(FaultyProvider::class, $faulty);
+		$metadata = $world->world->getMetadata();
+		self::assertSame("before", $metadata->getBlock(0, 0, 0, self::$owner));
+		$faulty->failFlushes = 2;
+		try{
+			$metadata->removeNamespace("metatest");
+			self::fail("the flush failure should surface");
+		}catch(\RuntimeException $e){
+			self::assertSame("injected flush failure", $e->getMessage());
+		}
+		self::assertNull($metadata->getBlock(0, 0, 0, self::$owner));
+		$metadata->setBlock(0, 0, 1, self::$owner, "after");
+		try{
+			$world->world->unloadChunk(0, 0, false);
+			self::fail("cannot save a newer chunk epoch before the purge is durable");
+		}catch(\RuntimeException $e){
+			self::assertSame("injected flush failure", $e->getMessage());
+		}
+		self::assertSame([], $faulty->chunkSaves);
+		self::assertTrue($world->world->unloadChunk(0, 0, false));
+		$world = $this->restart($world);
+		self::assertNull($world->world->getMetadata()->getBlock(0, 0, 0, self::$owner));
+		self::assertSame("after", $world->world->getMetadata()->getBlock(0, 0, 1, self::$owner));
+	}
+
+	public function testRegeneratedChunkDoesNotInheritOrphanedMetadata() : void{
+		$world = $this->create("leveldb");
+		$world->generate(0, 0);
+		$world->world->getMetadata()->setBlock(0, 0, 0, self::$owner, "old");
+		$world->close();
+		$world = $this->reopen();
+		self::assertInstanceOf(LevelDB::class, $world->provider);
+		$world->provider->getDatabase()->delete(LevelDB::chunkIndex(0, 0) . ChunkDataKey::NEW_VERSION);
+		$world->generate(0, 0);
+		$world = $this->restart($world);
+		self::assertNull($world->world->getMetadata()->getBlock(0, 0, 0, self::$owner));
+	}
+
+	public function testGenericConversionPreservesWorldAndChunkMetadata() : void{
+		$world = $this->create("leveldb");
+		$world->generate(0, 0);
+		$metadata = $world->world->getMetadata();
+		$metadata->set(self::$owner, "world");
+		$metadata->setChunk(0, 0, self::$owner, "chunk");
+		$world->close();
+
+		$target = (new WorldProviderManager())->getDefault();
+		$backup = $this->path . "_backup";
+		try{
+			$converter = new FormatConverter(new LevelDB($this->path, \GlobalLogger::get()), $target, $backup, \GlobalLogger::get());
+			$converter->execute();
+			$metadata = $this->reopen()->world->getMetadata();
+			self::assertSame("world", $metadata->get(self::$owner));
+			self::assertSame("chunk", $metadata->getChunk(0, 0, self::$owner));
+		}finally{
+			(new Filesystem())->remove([$backup, $this->path . "_converted"]);
+		}
+	}
+
+	public function testZigriteRejectsSplitMetadataBatchBeforeWriting() : void{
+		$world = $this->create("zigritedb");
+		$world->generate(0, 0);
+		$world->world->getMetadata()->setChunk(0, 0, self::$owner, "saved");
+		$world->world->save(true);
+		$record = $world->provider->loadChunk(0, 0)?->getData()->getMetadata();
+		self::assertNotNull($record);
+		$records = [ChunkDataKey::QUARK_METADATA => null];
+		$value = str_repeat("x", 16 * 1024 * 1024);
+		for($i = 0; $i < 4; ++$i){
+			$records[ChunkDataKey::SUBCHUNK . chr($i)] = $value;
+		}
+		try{
+			(new \ReflectionMethod(ZigriteDB::class, "writeChunkRecords"))->invoke($world->provider, 0, 0, $records);
+			self::fail("the batch should be rejected before storage writes");
+		}catch(\LengthException){
+		}
+		self::assertSame($record, $world->provider->loadChunk(0, 0)?->getData()->getMetadata());
 	}
 
 	public function testUnreadableChunkMetadataIsKeptAsStored() : void{

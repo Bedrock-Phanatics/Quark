@@ -29,7 +29,8 @@ namespace quark\world\format\io;
  *
  * The contract: loadChunk() returns the chunk's metadata record in {@see ChunkData::getMetadata()}, and saveChunk()
  * stores ChunkData's record (deleting it when null) in the same atomic write as the rest of the chunk whenever
- * {@see \quark\world\format\Chunk::DIRTY_FLAG_METADATA} is set, and leaves it untouched otherwise.
+ * {@see \quark\world\format\Chunk::DIRTY_FLAG_METADATA} is set, or writes only metadata when passed
+ * {@see \quark\world\format\Chunk::DIRTY_FLAG_METADATA_ONLY} alone. Other writes leave the record untouched.
  */
 interface MetadataWorldProvider extends WritableWorldProvider{
 

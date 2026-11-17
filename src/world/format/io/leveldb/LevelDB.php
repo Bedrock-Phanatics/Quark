@@ -33,6 +33,7 @@ use quark\world\format\io\exception\UnsupportedWorldFormatException;
 use quark\world\format\io\exception\WorldInUseException;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
+use function array_key_exists;
 use function defined;
 use function extension_loaded;
 use function file_exists;
@@ -127,7 +128,9 @@ class LevelDB extends BedrockWorldProvider{
 	protected function writeChunkRecords(int $chunkX, int $chunkZ, array $records) : void{
 		$index = self::chunkIndex($chunkX, $chunkZ);
 		$write = new \LevelDBWriteBatch();
-		$write->put($index . ChunkDataKey::PM_DATA_VERSION, LE::packSignedLong(VersionInfo::WORLD_DATA_VERSION));
+		if(array_key_exists(ChunkDataKey::NEW_VERSION, $records)){
+			$write->put($index . ChunkDataKey::PM_DATA_VERSION, LE::packSignedLong(VersionInfo::WORLD_DATA_VERSION));
+		}
 		foreach(Utils::promoteKeys($records) as $suffix => $value){
 			if($value !== null){
 				$write->put($index . $suffix, $value);
@@ -145,9 +148,9 @@ class LevelDB extends BedrockWorldProvider{
 
 	public function saveWorldMetadata(?string $record) : void{
 		if($record === null){
-			$this->db->delete(self::ENTRY_WORLD_METADATA);
+			$this->db->delete(self::ENTRY_WORLD_METADATA, ["sync" => true]);
 		}else{
-			$this->db->put(self::ENTRY_WORLD_METADATA, $record);
+			$this->db->put(self::ENTRY_WORLD_METADATA, $record, ["sync" => true]);
 		}
 	}
 

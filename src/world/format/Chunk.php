@@ -41,8 +41,10 @@ class Chunk{
 	 * DIRTY_FLAGS_ALL, so code that rewrites a chunk's terrain doesn't delete its metadata.
 	 */
 	public const DIRTY_FLAG_METADATA = 1 << 4;
+	/** Provider-only flag to write metadata without rewriting unchanged chunk records. */
+	public const DIRTY_FLAG_METADATA_ONLY = 1 << 5;
 
-	public const DIRTY_FLAGS_ALL = ~self::DIRTY_FLAG_METADATA;
+	public const DIRTY_FLAGS_ALL = ~(self::DIRTY_FLAG_METADATA | self::DIRTY_FLAG_METADATA_ONLY);
 	public const DIRTY_FLAGS_NONE = 0;
 
 	public const MIN_SUBCHUNK_INDEX = -4;

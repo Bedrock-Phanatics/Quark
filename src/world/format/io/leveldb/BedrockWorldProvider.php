@@ -387,8 +387,8 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Metadat
 	abstract protected function readChunkRecords(int $chunkX, int $chunkZ) : array;
 
 	/**
-	 * Puts every string and deletes every null in $records, keyed like {@see readChunkRecords()}, atomically. ZigriteDB
-	 * can only keep that for a chunk of up to 64 MiB, and writes a bigger one in parts.
+	 * Puts every string and deletes every null in $records, keyed like {@see readChunkRecords()}. ZigriteDB
+	 * can split terrain-only batches over 64 MiB. Batches that include metadata must fit in one write.
 	 *
 	 * @param string[]|null[] $records
 	 * @phpstan-param array<array-key, string|null> $records
@@ -632,6 +632,9 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Metadat
 		$records = $this->readChunkRecords($chunkX, $chunkZ);
 		$chunkVersion = self::readVersion($records);
 		if($chunkVersion === null){
+			if(isset($records[ChunkDataKey::QUARK_METADATA])){
+				throw new CorruptedChunkException("Chunk has metadata but no terrain version");
+			}
 			//TODO: this might be a slightly-corrupted chunk with a missing version field
 			return null;
 		}
@@ -735,6 +738,10 @@ abstract class BedrockWorldProvider extends BaseWorldProvider implements Metadat
 	}
 
 	public function saveChunk(int $chunkX, int $chunkZ, ChunkData $chunkData, int $dirtyFlags) : void{
+		if($dirtyFlags === Chunk::DIRTY_FLAG_METADATA_ONLY){
+			$this->writeChunkRecords($chunkX, $chunkZ, [ChunkDataKey::QUARK_METADATA => $chunkData->getMetadata()]);
+			return;
+		}
 		$records = [
 			ChunkDataKey::NEW_VERSION => chr(self::CURRENT_LEVEL_CHUNK_VERSION),
 			ChunkDataKey::OLD_VERSION => null,

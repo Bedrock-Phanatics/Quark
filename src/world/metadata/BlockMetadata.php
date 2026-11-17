@@ -30,6 +30,9 @@ use function array_keys;
  * keys nobody registered travel too.
  */
 final class BlockMetadata{
+	private bool $used = false;
+
+	private function __clone(){}
 
 	/**
 	 * @internal Get snapshots from {@see WorldMetadata::copyBlock()} and {@see WorldMetadata::takeBlock()}.
@@ -38,7 +41,8 @@ final class BlockMetadata{
 	 * @phpstan-param non-empty-array<string, array{int, string}> $values
 	 */
 	public function __construct(
-		private readonly array $values
+		private readonly array $values,
+		private readonly bool $singleUse = false
 	){}
 
 	/**
@@ -46,7 +50,15 @@ final class BlockMetadata{
 	 * @phpstan-return non-empty-array<string, array{int, string}>
 	 */
 	public function getValues() : array{
+		if($this->used){
+			throw new MetadataException("Moved block metadata was already placed");
+		}
 		return $this->values;
+	}
+
+	/** @internal */
+	public function markPlaced() : void{
+		$this->used = $this->singleUse;
 	}
 
 	/**

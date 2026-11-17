@@ -72,13 +72,21 @@ class FormatConverter{
 
 	public function execute() : void{
 		$new = $this->generateNew();
-
-		$this->populateLevelData($new->getWorldData());
-		$this->convertTerrain($new);
+		try{
+			$this->populateLevelData($new->getWorldData());
+			if($this->oldProvider instanceof MetadataWorldProvider && ($record = $this->oldProvider->loadWorldMetadata()) !== null){
+				if(!$new instanceof MetadataWorldProvider){
+					throw new \RuntimeException("The new world format can't store world metadata");
+				}
+				$new->saveWorldMetadata($record);
+			}
+			$this->convertTerrain($new);
+		}finally{
+			$new->close();
+		}
 
 		$path = $this->oldProvider->getPath();
 		$this->oldProvider->close();
-		$new->close();
 
 		$this->logger->info("Backing up pre-conversion world to " . $this->backupPath);
 		if(!@rename($path, $this->backupPath)){
@@ -141,7 +149,7 @@ class FormatConverter{
 
 		$start = microtime(true);
 		$thisRound = $start;
-		foreach($this->oldProvider->getAllChunks(true, $this->logger) as $coords => $loadedChunkData){
+		foreach($this->oldProvider->getAllChunks(!$this->oldProvider instanceof MetadataWorldProvider, $this->logger) as $coords => $loadedChunkData){
 			[$chunkX, $chunkZ] = $coords;
 			$flags = Chunk::DIRTY_FLAGS_ALL;
 			if($loadedChunkData->getData()->getMetadata() !== null){

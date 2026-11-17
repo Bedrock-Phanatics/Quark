@@ -30,7 +30,8 @@ Values of keys that are not registered, for example because their plugin is not 
 unchanged. Disabling or removing a plugin deletes nothing; `removeNamespace("pluginname")` deletes everything a plugin
 stored in a world. Loaded chunks lose the values immediately and the rest when they next load.
 
-Limits: 64 KiB per value and about 1 MiB per chunk. Going over throws and changes nothing.
+Each value can be up to 65,535 bytes. The 1 MiB budget for each chunk or world includes key names and entry overhead.
+Going over throws and leaves existing values intact.
 
 ## Retention
 
@@ -51,7 +52,8 @@ directly bypasses retention; go through the world.
 Pistons move block-bound values with the block, `POSITION` values stay behind. To move or copy blocks yourself,
 `takeBlock()` the values before removing the old block and `putBlock()` them after placing the new one, or use
 `copyBlock()`, which leaves out keys created with `copyable: false` so unique values such as IDs are not duplicated.
-The `BlockMetadata` snapshots these return work across worlds. `getBlocks($chunkX, $chunkZ)` lists the positions of a
+A snapshot from `takeBlock()` can only be placed once. Snapshots work across worlds. A piston move is blocked if it
+would encounter unreadable metadata or exceed its destination's budget. `getBlocks($chunkX, $chunkZ)` lists the positions of a
 chunk that hold values without scanning its blocks.
 
 ## Storage and guarantees
@@ -65,6 +67,12 @@ load; `getMetadata()` throws for a world in a format that can't store metadata r
   shutdown. A value set in a world with autosave off survives only a forced save. Changing only metadata writes only
   the metadata record, and setting a value it already has writes nothing.
 - A failed save keeps the changes for the next one, and a chunk that fails to save stays loaded.
+- A ZigriteDB save that would split a combined terrain and metadata write fails before writing that chunk.
+- Cross-chunk moves still save each chunk separately. A crash can interrupt a move between chunk saves.
+- Existing metadata records remain readable. A record uses the newer encoding when entries for the same key have
+  different retention or copy policies.
+- A namespace removal that fails during flush can already be visible in memory. Chunk metadata saves must complete
+  the pending flush before persisting changes made under the new purge epoch.
 - Reading or writing a value in an unloaded chunk loads it synchronously. Reads in ungenerated terrain return null,
   writes there throw.
 - A record that can't be read is logged and kept as stored: reads and writes of that chunk throw `MetadataException`
