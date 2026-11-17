@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace quark\resourcepacks;
 
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Filesystem\Path;
 use pocketmine\network\mcpe\protocol\ResourcePackChunkDataPacket;
 use pocketmine\network\mcpe\protocol\ResourcePackChunkRequestPacket;
 use pocketmine\network\mcpe\protocol\ResourcePackClientResponsePacket;
@@ -18,6 +17,7 @@ use quark\network\mcpe\handler\ResourcePacksPacketHandler;
 use quark\network\mcpe\NetworkSession;
 use quark\player\PlayerInfo;
 use quark\utils\Filesystem;
+use Symfony\Component\Filesystem\Path;
 use Vow\Promise;
 use function array_map;
 use function bin2hex;
