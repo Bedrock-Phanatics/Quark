@@ -27,8 +27,10 @@ use pocketmine\nbt\NBT;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
+use quark\block\Shelf as BlockShelf;
 use quark\data\bedrock\item\SavedItemData;
 use quark\data\bedrock\item\SavedItemStackData;
+use quark\inventory\CallbackInventoryListener;
 use quark\inventory\Inventory;
 use quark\inventory\SimpleInventory;
 use quark\item\Item;
@@ -48,6 +50,19 @@ class Shelf extends Spawnable implements ContainerTile{
 	public function __construct(){
 		parent::__construct();
 		$this->inventory = new SimpleInventory(self::SLOTS);
+		//shelf items are rendered from the spawn data, so viewers need the block resent on every change
+		$tile = \WeakReference::create($this);
+		$this->inventory->getListeners()->add(CallbackInventoryListener::onAnyChange(static function(Inventory $unused) use ($tile) : void{
+			$shelf = $tile->get();
+			if($shelf === null || !$shelf->isAttached()){
+				return;
+			}
+			$pos = $shelf->getPosition();
+			$block = $pos->getWorld()->getBlock($pos);
+			if($block instanceof BlockShelf){
+				$pos->getWorld()->setBlock($pos, $block);
+			}
+		}));
 	}
 
 	public function getInventory() : Inventory{

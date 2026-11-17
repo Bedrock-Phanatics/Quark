@@ -32,6 +32,7 @@ use pocketmine\nbt\tag\StringTag;
 
 /**
  * TODO: Implement command execution, the operator edit UI and the impulse/chain/repeat modes.
+ * Before commands run, only keep the Command tag from item data placed by operators.
  */
 class CommandBlock extends Tile{
 	use RetainedTagsTrait;

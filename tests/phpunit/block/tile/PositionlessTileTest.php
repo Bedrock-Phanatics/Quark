@@ -25,6 +25,8 @@ namespace quark\block\tile;
 
 use PHPUnit\Framework\TestCase;
 use pocketmine\nbt\tag\CompoundTag;
+use quark\block\tile\dispenser\Dispenser;
+use quark\block\tile\dispenser\Dropper;
 use quark\block\VanillaBlocks;
 use quark\item\VanillaItems;
 use quark\math\Vector3;
@@ -194,6 +196,7 @@ final class PositionlessTileTest extends TestCase{
 			static fn() => new NormalFurnace(),
 			static fn() => new BrewingStand(),
 			static fn() => new Campfire(),
+			static fn() => new Shelf(),
 		] as $create){
 			$tile = $create();
 			$class = $tile::class;
@@ -201,5 +204,20 @@ final class PositionlessTileTest extends TestCase{
 			unset($tile);
 			self::assertNull($ref->get(), "$class is freed without the cycle collector");
 		}
+	}
+
+	public function testSubclassTileWithOtherSaveIdIsReplaced() : void{
+		$world = $this->world();
+		$pos = new Vector3(2, 64, 3);
+		$world->addTile(new Dropper(), $pos);
+
+		$dispenser = VanillaBlocks::DISPENSER();
+		$dispenser->position($world, 2, 64, 3);
+		$dispenser->writeStateToWorld();
+		$tile = $world->getTile($pos);
+		self::assertSame(Dispenser::class, $tile !== null ? $tile::class : null, "a dropper tile must not stay under a dispenser");
+
+		$dispenser->writeStateToWorld();
+		self::assertSame($tile, $world->getTile($pos), "the matching tile is kept");
 	}
 }
