@@ -29,8 +29,11 @@ namespace quark\item;
  */
 class FoodOnAStick extends Tool{
 
-	public function __construct(ItemIdentifier $identifier, string $name, private int $maxDurability){
-		parent::__construct($identifier, $name);
+	/**
+	 * @param string[] $enchantmentTags
+	 */
+	public function __construct(ItemIdentifier $identifier, string $name, private int $maxDurability, array $enchantmentTags = []){
+		parent::__construct($identifier, $name, $enchantmentTags);
 	}
 
 	public function getMaxDurability() : int{

@@ -376,7 +376,7 @@ final class VanillaItemsInputs extends RegistrySource{
 			$name = $sherd . "_pottery_sherd";
 			self::register($name, fn(IID $id) => new Item($id, self::displayName($name)));
 		}
-		self::register("brush", fn(IID $id) => new Brush($id, "Brush"));
+		self::register("brush", fn(IID $id) => new Brush($id, "Brush", [EnchantmentTags::BRUSH]));
 		//TODO: Implement unlocking vaults with trial keys.
 		self::register("trial_key", fn(IID $id) => new Item($id, "Trial Key"));
 		self::register("ominous_trial_key", fn(IID $id) => new Item($id, "Ominous Trial Key"));
@@ -407,8 +407,8 @@ final class VanillaItemsInputs extends RegistrySource{
 		self::register("armadillo_scute", fn(IID $id) => new Item($id, "Armadillo Scute"));
 		//TODO: Implement leashing mobs and tying leads to fences.
 		self::register("lead", fn(IID $id) => new Item($id, "Lead"));
-		self::register("carrot_on_a_stick", fn(IID $id) => new FoodOnAStick($id, "Carrot on a Stick", 25));
-		self::register("warped_fungus_on_a_stick", fn(IID $id) => new FoodOnAStick($id, "Warped Fungus on a Stick", 100));
+		self::register("carrot_on_a_stick", fn(IID $id) => new FoodOnAStick($id, "Carrot on a Stick", 26, [EnchantmentTags::CARROT_ON_STICK]));
+		self::register("warped_fungus_on_a_stick", fn(IID $id) => new FoodOnAStick($id, "Warped Fungus on a Stick", 100, [EnchantmentTags::CARROT_ON_STICK]));
 
 		//TODO: Implement emptying mob buckets, which places water and releases the mob.
 		foreach(["axolotl", "cod", "salmon", "pufferfish", "tropical_fish", "tadpole"] as $mob){
@@ -438,8 +438,8 @@ final class VanillaItemsInputs extends RegistrySource{
 		self::register("armor_stand", fn(IID $id) => new class($id, "Armor Stand") extends Item{
 			public function getMaxStackSize() : int{ return 16; }
 		});
-		self::register("shield", fn(IID $id) => new Shield($id, "Shield"));
-		self::register("crossbow", fn(IID $id) => new Crossbow($id, "Crossbow"));
+		self::register("shield", fn(IID $id) => new Shield($id, "Shield", [EnchantmentTags::SHIELD]));
+		self::register("crossbow", fn(IID $id) => new Crossbow($id, "Crossbow", [EnchantmentTags::CROSSBOW]));
 	}
 
 	private function registerSpawnEggs() : void{
@@ -511,7 +511,7 @@ final class VanillaItemsInputs extends RegistrySource{
 		self::registerDelayed("iron_chestplate", fn($name) : Armor => new Armor(self::makeIID($name), "Iron Chestplate", new ArmorTypeInfo(6, 241, ArmorInventory::SLOT_CHEST, material: ArmorMaterials::IRON()), [EnchantmentTags::CHESTPLATE]));
 		self::registerDelayed("leather_tunic", fn($name) : Armor => new Armor(self::makeIID($name), "Leather Tunic", new ArmorTypeInfo(3, 81, ArmorInventory::SLOT_CHEST, material: ArmorMaterials::LEATHER()), [EnchantmentTags::CHESTPLATE]));
 		self::registerDelayed("netherite_chestplate", fn($name) : Armor => new Armor(self::makeIID($name), "Netherite Chestplate", new ArmorTypeInfo(8, 593, ArmorInventory::SLOT_CHEST, 3, true, material: ArmorMaterials::NETHERITE()), [EnchantmentTags::CHESTPLATE]));
-		self::registerDelayed("elytra", fn($name) : Elytra => new Elytra(self::makeIID($name), "Elytra", new ArmorTypeInfo(0, 432, ArmorInventory::SLOT_CHEST)));
+		self::registerDelayed("elytra", fn($name) : Elytra => new Elytra(self::makeIID($name), "Elytra", new ArmorTypeInfo(0, 432, ArmorInventory::SLOT_CHEST, material: ArmorMaterials::ELYTRA()), [EnchantmentTags::ELYTRA]));
 
 		self::registerDelayed("chainmail_helmet", fn($name) : Armor => new Armor(self::makeIID($name), "Chainmail Helmet", new ArmorTypeInfo(2, 166, ArmorInventory::SLOT_HEAD, material: ArmorMaterials::CHAINMAIL()), [EnchantmentTags::HELMET]));
 		self::registerDelayed("copper_helmet", fn($name) : Armor => new Armor(self::makeIID($name), "Copper Helmet", new ArmorTypeInfo(2, 122, ArmorInventory::SLOT_HEAD, material: ArmorMaterials::COPPER()), [EnchantmentTags::HELMET]));

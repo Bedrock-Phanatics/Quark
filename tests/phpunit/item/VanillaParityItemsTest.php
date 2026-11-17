@@ -29,6 +29,8 @@ use quark\data\bedrock\item\ItemTypeDeserializeException;
 use quark\data\bedrock\item\ItemTypeNames;
 use quark\data\bedrock\item\SavedItemData;
 use quark\inventory\ArmorInventory;
+use quark\item\enchantment\AvailableEnchantmentRegistry;
+use quark\item\enchantment\VanillaEnchantments;
 use quark\utils\Utils;
 use quark\world\format\io\GlobalItemDataHandlers;
 use function count;
@@ -134,6 +136,17 @@ final class VanillaParityItemsTest extends TestCase{
 		self::assertFalse($elytra->isBroken());
 		self::assertFalse($elytra->applyDamage(1));
 		self::assertSame(1, $elytra->getCount());
+		self::assertSame(0, $elytra->getEnchantability(), "elytra can't be enchanted at a table");
+	}
+
+	public function testDurableItemsAcceptUnbreaking() : void{
+		$registry = AvailableEnchantmentRegistry::getInstance();
+		foreach([
+			VanillaItems::ELYTRA(), VanillaItems::SHIELD(), VanillaItems::CROSSBOW(), VanillaItems::BRUSH(),
+			VanillaItems::CARROT_ON_A_STICK(), VanillaItems::WARPED_FUNGUS_ON_A_STICK(),
+		] as $item){
+			self::assertContains(VanillaEnchantments::UNBREAKING(), $registry->getAllEnchantmentsForItem($item), $item->getName());
+		}
 	}
 
 	public function testMalformedItemTagsDoNotCrash() : void{

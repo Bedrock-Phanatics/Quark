@@ -29,7 +29,7 @@ namespace quark\item;
 class Crossbow extends Tool{
 
 	public function getMaxDurability() : int{
-		return 465;
+		return 464;
 	}
 
 	public function getFuelTime() : int{
