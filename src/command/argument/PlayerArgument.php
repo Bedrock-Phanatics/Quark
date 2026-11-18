@@ -26,7 +26,10 @@ namespace quark\command\argument;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
 use quark\player\Player;
+use quark\Server;
 use function str_starts_with;
+use function strlen;
+use function strncasecmp;
 
 /**
  * @phpstan-extends Argument<Player>
@@ -55,8 +58,25 @@ final class PlayerArgument extends Argument{
 			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_selectorUnsupported($input));
 		}
 		$server = $sender->getServer();
-		return ($this->partial ? $server->getPlayerByPrefix($input) : $server->getPlayerExact($input)) ??
+		return $server->getPlayerExact($input) ?? ($this->partial ? self::uniquePrefix($server, $input) : null) ??
 			throw new ArgumentParseException(KnownTranslationFactory::quark_command_error_playerNotFound($input));
+	}
+
+	/**
+	 * A name start shared by two players picks neither, so a command never reaches someone the sender didn't mean.
+	 */
+	private static function uniquePrefix(Server $server, string $input) : ?Player{
+		$found = null;
+		$length = strlen($input);
+		foreach($server->getOnlinePlayers() as $player){
+			if(strncasecmp($player->getName(), $input, $length) === 0){
+				if($found !== null){
+					return null;
+				}
+				$found = $player;
+			}
+		}
+		return $found;
 	}
 
 	public function getKind() : ArgumentKind{
