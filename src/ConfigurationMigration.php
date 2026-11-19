@@ -11,8 +11,10 @@ use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_is_list;
 use function array_key_exists;
+use function array_pop;
 use function array_replace;
 use function array_replace_recursive;
+use function array_shift;
 use function basename;
 use function bin2hex;
 use function clearstatcache;
@@ -20,6 +22,7 @@ use function count;
 use function ctype_digit;
 use function dirname;
 use function disk_free_space;
+use function explode;
 use function file_exists;
 use function file_get_contents;
 use function filesize;
@@ -44,6 +47,7 @@ use function rmdir;
 use function str_starts_with;
 use function strlen;
 use function strtoupper;
+use function substr;
 use function trim;
 use function unlink;
 use function yaml_parse;
@@ -100,12 +104,13 @@ final class ConfigurationMigration{
 	 * @return array<string, mixed>
 	 */
 	private static function upgradeSettings(array $data, bool $fromToml = true) : array{
+		$version = array_key_exists("config-version", $data) ? $data["config-version"] : 0;
 		if(array_key_exists("config-version", $data)){
 			if($data["config-version"] === CoreConfig::SERVER_VERSION){
 				CoreConfig::validateServer($data);
 				return $data;
 			}
-			if($data["config-version"] !== 0){
+			if(!is_int($version) || $version < 0 || $version > CoreConfig::SERVER_VERSION){
 				throw new \InvalidArgumentException("Unsupported config-version in config/server.toml");
 			}
 		}
@@ -173,10 +178,8 @@ final class ConfigurationMigration{
 			$data["auto-updater"] = $updater;
 		}
 		// Older YAML samples represented empty lists and tables as null.
-		foreach(["aliases", "worlds"] as $key){
-			if(array_key_exists($key, $data) && $data[$key] === null){
-				$data[$key] = [];
-			}
+		if(array_key_exists("worlds", $data) && $data["worlds"] === null){
+			$data["worlds"] = [];
 		}
 		foreach(["network" => "trusted-proxy-keys", "chunk-ticking" => "disable-block-ticking"] as $section => $key){
 			if(is_array($data[$section] ?? null) && array_key_exists($key, $data[$section]) && $data[$section][$key] === null){
@@ -202,19 +205,75 @@ final class ConfigurationMigration{
 			}
 			$data["worlds"] = $worlds;
 		}
-		$data["config-version"] = CoreConfig::SERVER_VERSION;
-		CoreConfig::validateServer($data);
 		// Sparse TOML used runtime fallbacks that differed from the shipped template.
-		$previousDefaults = $fromToml ? [
+		$previousDefaults = $fromToml && $version === 0 ? [
 			"tnt-limits" => ["enabled" => true],
 			"chunk-generation" => ["population-queue-size" => 2],
 			"chunk-ticking" => ["tick-radius" => 4],
 			"network" => ["async-compression" => true],
 			"memory" => ["continuous-trigger-rate" => 40],
 		] : [];
-		$data = array_replace_recursive(CoreConfig::defaults(), $previousDefaults, $data);
+		foreach(Utils::stringifyKeys($previousDefaults) as $section => $default){
+			self::table($data, $section);
+		}
+		$data = array_replace_recursive($previousDefaults, $data);
+		foreach(CoreConfig::RENAMED_SETTINGS as $old => $new){
+			[$found, $value] = self::takeSetting($data, explode(".", $old, 4));
+			if(!$found){
+				continue;
+			}
+			$path = explode(".", $new, 4);
+			$key = array_pop($path);
+			$node = &$data;
+			foreach($path as $part){
+				if(!array_key_exists($part, $node)){
+					$node[$part] = [];
+				}
+				if(!is_array($node[$part]) || $node[$part] !== [] && array_is_list($node[$part])){
+					throw new \InvalidArgumentException("Invalid $new: expected table at $part");
+				}
+				$node = &$node[$part];
+			}
+			// An explicit new key wins over its legacy spelling, including false and zero.
+			if(!array_key_exists($key, $node)){
+				$node[$key] = $value;
+			}
+			unset($node);
+		}
+		self::takeSetting($data, ["transport", "nethernet", "mtu"]);
+		self::takeSetting($data, ["transport", "nethernet", "builtin-signaling"]);
+		self::table($data, "plugins");
+		$data["config-version"] = CoreConfig::SERVER_VERSION;
+		CoreConfig::validateServer($data);
+		self::takeSetting($data, ["plugins", "legacy-data-dir"]);
+		$data = array_replace_recursive(CoreConfig::defaults(), $data);
 		CoreConfig::validateServer($data);
 		return $data;
+	}
+
+	/**
+	 * @param array<array-key, mixed> $data
+	 * @param non-empty-list<string>  $path
+	 * @return array{bool, mixed}
+	 */
+	private static function takeSetting(array &$data, array $path) : array{
+		$key = array_shift($path);
+		if(!array_key_exists($key, $data)){
+			return [false, null];
+		}
+		if($path === []){
+			$value = $data[$key];
+			unset($data[$key]);
+			return [true, $value];
+		}
+		if(!is_array($data[$key]) || $data[$key] !== [] && array_is_list($data[$key])){
+			throw new \InvalidArgumentException("Invalid $key: expected table");
+		}
+		$result = self::takeSetting($data[$key], $path);
+		if($data[$key] === []){
+			unset($data[$key]);
+		}
+		return $result;
 	}
 
 	/**
@@ -449,6 +508,11 @@ final class ConfigurationMigration{
 			}
 		}
 		$serverDefaults = self::table(CoreConfig::defaults(), "server");
+		foreach(CoreConfig::RENAMED_SETTINGS as $old => $new){
+			if(str_starts_with($old, "server.")){
+				$serverDefaults[substr($old, 7)] = CoreConfig::defaultValue($new);
+			}
+		}
 		$strings = [];
 		foreach(Utils::promoteKeys($serverDefaults) as $key => $value){
 			if(is_string($key) && is_string($value)){

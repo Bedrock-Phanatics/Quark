@@ -165,8 +165,9 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 					break;
 				case self::STATE_CONTRACT_IDLE:
 					$block = $this->getSide($this->getSideFacing());
-					if(!($block instanceof PistonArmCollision) || $block->getFacing() !== $this->facing){
-						$block->position->getWorld()->setBlockAt((int) $block->position->x, (int) $block->position->y, (int) $block->position->z, VanillaBlocks::PISTON_ARM_COLLISION()->setFacing($this->facing), false);
+					$arm = $this->sticky ? VanillaBlocks::STICKY_PISTON_ARM_COLLISION() : VanillaBlocks::PISTON_ARM_COLLISION();
+					if(!$block->hasSameTypeId($arm) || !$block instanceof PistonArmCollision || $block->getFacing() !== $this->facing){
+						$block->position->getWorld()->setBlockAt((int) $block->position->x, (int) $block->position->y, (int) $block->position->z, $arm->setFacing($this->facing), false);
 					}
 					break;
 				case self::STATE_RETRACT_BEGIN:
@@ -269,9 +270,12 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 				return false;
 			}
 		}
-		$this->position->getWorld()->setBlockAt((int) $future_pos->x, (int) $future_pos->y, (int) $future_pos->z, VanillaBlocks::AIR(), false);
-		RedstoneBlockUtils::moveBlockAndTile($this->position->getWorld(), $block->position, $future_pos);
-		return true;
+		$world = $this->position->getWorld();
+		if($world->getMetadataIfUsed()?->canMoveBlocks([[$block->position, $future_pos]]) === false){
+			return false;
+		}
+		$world->setBlockAt((int) $future_pos->x, (int) $future_pos->y, (int) $future_pos->z, VanillaBlocks::AIR(), false);
+		return RedstoneBlockUtils::moveBlockAndTile($world, $block->position, $future_pos);
 	}
 
 	private function pushBlocks() : bool{
@@ -311,6 +315,18 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 				return false;
 			}
 		}
+		$world = $this->position->getWorld();
+		$metadata = $world->getMetadataIfUsed();
+		if($metadata !== null){
+			$positions = (static function() use ($movements) : \Generator{
+				foreach(RedstoneBlockUtils::reverse($movements) as $movement){
+					yield [$movement->from, $movement->to];
+				}
+			})();
+			if(!$metadata->canMoveBlocks($positions)){
+				return false;
+			}
+		}
 		if($terminalBlock !== null && !($terminalBlock instanceof Air)){
 			if($terminalBlock instanceof Liquid){
 				$this->position->getWorld()->setBlock($terminalBlock->position, VanillaBlocks::AIR());
@@ -321,7 +337,9 @@ class Piston extends Transparent implements AnyFacing, Powerable, Movable{
 
 		$this->pushEntities(count($movements));
 		foreach(RedstoneBlockUtils::reverse($movements) as $movement){
-			RedstoneBlockUtils::moveBlockAndTile($this->position->getWorld(), $movement->from, $movement->to);
+			if(!RedstoneBlockUtils::moveBlockAndTile($world, $movement->from, $movement->to)){
+				return false;
+			}
 		}
 		return true;
 	}

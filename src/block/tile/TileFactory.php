@@ -81,20 +81,31 @@ final class TileFactory{
 		$this->register(MobHead::class, ["Skull", "minecraft:skull"]);
 		$this->register(GlowingItemFrame::class, ["GlowItemFrame"]);
 		$this->register(HangingSign::class, ["HangingSign", "minecraft:hanging_sign"]);
+		$this->register(Beehive::class, ["Beehive", "minecraft:beehive"]);
+		$this->register(BrushableBlock::class, ["BrushableBlock", "minecraft:brushable_block"]);
+		$this->register(CalibratedSculkSensor::class, ["CalibratedSculkSensor", "minecraft:calibrated_sculk_sensor"]);
+		$this->register(CommandBlock::class, ["CommandBlock", "minecraft:command_block"]);
+		$this->register(Conduit::class, ["Conduit", "minecraft:conduit"]);
+		$this->register(Crafter::class, ["Crafter", "minecraft:crafter"]);
+		$this->register(DecoratedPot::class, ["DecoratedPot", "minecraft:decorated_pot"]);
+		$this->register(dispenser\Dropper::class, ["Dropper", "minecraft:dropper"]);
+		$this->register(EndGateway::class, ["EndGateway", "minecraft:end_gateway"]);
+		$this->register(EndPortal::class, ["EndPortal", "minecraft:end_portal"]);
+		$this->register(JigsawBlock::class, ["JigsawBlock", "minecraft:jigsaw"]);
+		$this->register(Lodestone::class, ["Lodestone", "minecraft:lodestone"]);
+		$this->register(MovingBlock::class, ["MovingBlock", "minecraft:moving_block"]);
+		$this->register(SculkCatalyst::class, ["SculkCatalyst", "minecraft:sculk_catalyst"]);
+		$this->register(SculkSensor::class, ["SculkSensor", "minecraft:sculk_sensor"]);
+		$this->register(SculkShrieker::class, ["SculkShrieker", "minecraft:sculk_shrieker"]);
+		$this->register(Shelf::class, ["Shelf", "minecraft:shelf"]);
+		$this->register(StructureBlock::class, ["StructureBlock", "minecraft:structure_block"]);
+		$this->register(TrialSpawner::class, ["TrialSpawner", "minecraft:trial_spawner"]);
+		$this->register(Vault::class, ["Vault", "minecraft:vault"]);
 
 		//TODO: ChalkboardBlock
 		//TODO: ChemistryTable
-		//TODO: CommandBlock
-		//TODO: Conduit
-		//TODO: Dispenser
-		//TODO: Dropper
-		//TODO: EndGateway
-		//TODO: EndPortal
-		//TODO: JigsawBlock
-		//TODO: MovingBlock
+		//TODO: CreakingHeart
 		//TODO: NetherReactor
-		//TODO: PistonArm
-		//TODO: StructureBlock
 	}
 
 	/**

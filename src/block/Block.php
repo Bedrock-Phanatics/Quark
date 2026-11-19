@@ -31,6 +31,7 @@ use pmmp\encoding\LE;
 use pocketmine\nbt\tag\CompoundTag;
 use quark\block\tile\Spawnable;
 use quark\block\tile\Tile;
+use quark\block\tile\TileFactory;
 use quark\block\utils\SupportType;
 use quark\data\runtime\InvalidSerializedRuntimeDataException;
 use quark\data\runtime\RuntimeDataDescriber;
@@ -383,7 +384,7 @@ class Block{
 		$tileType = $this->idInfo->getTileClass();
 		$oldTile = $world->getTile($this->position);
 		if($oldTile !== null){
-			if($tileType === null || !($oldTile instanceof $tileType)){
+			if($tileType === null || !($oldTile instanceof $tileType) || ($oldTile::class !== $tileType && !self::sharesSaveId($oldTile, $tileType))){
 				$oldTile->close();
 				$oldTile = null;
 			}elseif($oldTile instanceof Spawnable){
@@ -398,6 +399,17 @@ class Block{
 			$tile = new $tileType();
 			$world->addTile($tile, $this->position);
 		}
+	}
+
+	/**
+	 * A subclass tile only stands in for its parent when it saves under the same ID (e.g. a plugin override). A dropper
+	 * tile must not survive a dispenser being set over it.
+	 *
+	 * @phpstan-param class-string<Tile> $tileType
+	 */
+	private static function sharesSaveId(Tile $tile, string $tileType) : bool{
+		$factory = TileFactory::getInstance();
+		return !$factory->isRegistered($tile::class) || !$factory->isRegistered($tileType) || $factory->getSaveId($tile::class) === $factory->getSaveId($tileType);
 	}
 
 	/**

@@ -134,6 +134,11 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 
 - Default block states follow Bedrock Dedicated Server, so items from `asItem()` match the creative inventory and recipe ingredients. Stairs and trapdoors default to east, anvils, bells, furnaces, fence gates and lecterns to south, pistons and amethyst clusters to up, and sea pickles start underwater.
 - To change the default facing of a custom block, override `DEFAULT_FACING` on the class. `HorizontalFacing` and `AnyFacing` declare it.
+- `MinimumCostFlowCalculator` only asks its `canFlowInto` callback about blocks that can be flowed into, and reuses one answer per block state. Keep the callback state-based.
+- Blocks and items that plugins such as DummyItemsBlocks used to fake are now built in, including sculk, trial chamber, crafter, decorated pot, shelf, copper chest, command and structure blocks, plus spawn eggs, sherds, chest boats, maps and more. Remove those plugins: their registrations now collide with core types. Many of these keep their state and block entity data but don't have gameplay yet; look for the `TODO` on each class.
+- Worlds keep the block entity data of these blocks across saves. Data that Quark doesn't understand yet is stored as-is, but only for the tag names and types vanilla uses.
+- `SaplingType::getTreeType()` returns null for cherry and pale oak, which can't grow yet. `BoatType` gained cherry, pale oak, bamboo and poplar, and `Boat` has a chest variant.
+- The `bush` alias now gives the vanilla bush instead of a dead bush.
 
 ### Enums
 
@@ -160,6 +165,9 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 ### Chunk Loading
 
 - `ChunkLoader` is now a final class instead of an interface. Replace implementations with `new ChunkLoader()` instances, one per owner.
+- `Player::setViewDistance()` sets the distance the player wants, which Quark remembers as `Player::getRequestedViewDistance()`. `Player::getViewDistance()` is the effective distance: the request capped by `server.view-distance`, the world's `[view-distances]` entry (`World::getViewDistanceLimit()`), and the low-memory limit. Entering a world with a higher cap restores the request.
+- `PlayerViewDistanceChangeEvent` fires whenever the effective distance changes, including world transfers and low-memory changes, not only client requests.
+- `Server::getAllowedViewDistance()` takes an optional `World` to apply that world's cap.
 
 ### Damage
 
@@ -181,6 +189,7 @@ Tiles no longer need a position to exist, so their data can be built, copied or 
 ### Entities
 
 - `Entity::getNetworkTypeId()` is an instance method. Remove the `static` keyword from custom entities, so one class can report different network types.
+- `Entity::onNearbyBlockChange()` runs once per entity after a batch of neighbour updates instead of once per updated block, with the same set of entities. Treat it as a request to recheck physics, not a per-block callback.
 
 ### Player Data
 
@@ -226,23 +235,45 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 ## Configuration Migration
 
-Quark upgrades older `config/server.toml` files automatically. The upgrade moves legacy language and memory-limit settings, translates disabled chunk ticking to a zero tick radius, and adds missing defaults. It preserves unrelated settings. Quark rejects unsupported config versions.
+Quark upgrades older `config/server.toml` files automatically. Version 2 separates gameplay, networking, world defaults, compression, and performance settings. It combines chunk sending, ticking, and generation under `[chunks]`, flattens the memory dump, low-memory view-distance, and updater warning settings, and renames `migration.auto_on_startup` to `migration.auto-on-startup`.
+
+The upgrade preserves explicit values and unrelated settings; an explicit new key wins over its old spelling. Missing defaults are filled once, with version 0's historical sparse-file defaults preserved. Comments and formatting survive where the TOML can be patched in place, and subsequent startups leave the file unchanged. Global `[aliases]` entries are kept. The retired PHP NetherNet MTU/signaling settings are removed. Unsupported colocated plugin data still requires manual migration. Quark rejects invalid known values and unsupported config versions.
+
+Per-world view distance caps use a flat table keyed by world folder name:
+
+```toml
+[server]
+view-distance = 16
+
+[view-distances]
+nether = 8
+"mini games" = 6
+```
+
+`server.view-distance` stays the global maximum, and a world entry (2 to 96) can only lower it; a larger value is capped with a warning. Unlisted worlds use the global maximum. The player's requested distance is kept separately and the lowest of the request, the global maximum, the world cap, and the low-memory limit applies. The template ships the table commented out, and upgrades neither add nor change it.
+
+Resource pack settings live in `resource-packs/resource_packs.toml`. Older TOML files receive missing defaults without replacing configured values. Under `[encryption]`, set `enabled = true`; `packs = []` encrypts all eligible packs, or list filenames from `resource_stack`. Use either a stable 32-byte printable ASCII `key` or a local `key-file` beside the packs, never both. With neither set, Quark securely creates `resource-packs/.encryption.key` once. Back up this key and keep it stable across restarts. The template links to the 1Password password generator; 32 Unicode characters may exceed 32 bytes.
+
+Original archives remain untouched. Prepared downloads are reused from `.quark-encryption` while source bytes, key and encryption format remain unchanged; corrupt cache files are rebuilt. Existing encrypted packs and their `<filename>.key` files retain their keys and bypass native encryption. Plugin resource-pack offers remain supported. Encryption deters casual extraction: the client receives the key. Native encryption limits archives to 65,535 entries, 1 GiB per file and 2 GiB expanded total, with at most 1,000:1 expansion and one unambiguous manifest root.
+
+To check a client release, use a pack with a visible texture change, enable encryption, clear its entry under Minecraft's Settings → Storage → Cached Data, then join and accept the download. Confirm the texture renders, reconnect, restart Quark, and reconnect again; unchanged sources should reuse the cached archive. Repeat with mixed encrypted/plain packs, subpacks if used, and any plugin-modified offers. After changing assets, bump the manifest version so clients download the update.
 
 Use `--migration-dry-run` to preview a legacy filesystem migration, then start with `--migrate-legacy` or set `[migration] auto_on_startup = true` in `config/migration.ini` before conversion. Quark snapshots the original YAML and properties files in `backups/`. Review the generated files. [Server template](../resources/server.toml) · [Plugin template](../resources/plugins.toml)
 
 ### New Configuration Options
 
-- `network.compression-algorithm`
-- `network.async-compression`
-- `network.async-compression-threshold`
-- `network.combat-low-latency-feedback`
+- `network.compression.algorithm`
+- `network.compression.async`
+- `network.compression.async-threshold`
+- `gameplay.combat-low-latency-feedback`
 - `memory.garbage-collection.php-automatic`
 - `memory.garbage-collection.threshold`
 - `memory.garbage-collection.period`
 - `redstone.*`
 - `tnt-limits.*`
+- `block-physics.fast-falling-blocks` (off by default): falling blocks over open air start right above their landing spot. Landing, fall damage, `EntityBlockChangeEvent` and drops are unchanged, but the fall is not visible and `EntitySpawnEvent` sees the lower position. Blocks with their own `tickFalling()`, such as concrete powder, and falls into the void are never shortened. No config upgrade is needed; files without the key keep vanilla behaviour.
 
-Migration stops on invalid or conflicting values. Resolve the reported configuration key and rerun `--migrate-legacy`.
+Legacy YAML files with conflicting values stop migration. Resolve the reported configuration key and rerun `--migrate-legacy`. For TOML upgrades, new keys take precedence over legacy keys; old command-line property names remain accepted.
 
 ## Migration Checklist
 

@@ -27,6 +27,7 @@ use quark\utils\RegistrySource;
 use quark\world\sound\ArmorEquipChainSound;
 use quark\world\sound\ArmorEquipCopperSound;
 use quark\world\sound\ArmorEquipDiamondSound;
+use quark\world\sound\ArmorEquipElytraSound;
 use quark\world\sound\ArmorEquipGenericSound;
 use quark\world\sound\ArmorEquipGoldSound;
 use quark\world\sound\ArmorEquipIronSound;
@@ -59,5 +60,7 @@ final class VanillaArmorMaterialsInputs extends RegistrySource{
 		self::register("gold", new ArmorMaterial(25, new ArmorEquipGoldSound()));
 		self::register("diamond", new ArmorMaterial(10, new ArmorEquipDiamondSound()));
 		self::register("netherite", new ArmorMaterial(15, new ArmorEquipNetheriteSound()));
+		//elytra can only be enchanted with an anvil
+		self::register("elytra", new ArmorMaterial(0, new ArmorEquipElytraSound()));
 	}
 }

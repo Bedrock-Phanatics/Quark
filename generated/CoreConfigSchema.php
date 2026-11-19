@@ -2,40 +2,55 @@
 
 // Generated from resources/server.toml; run composer update-codegen after editing defaults.
 return array (
-  'config-version' => 1,
+  'config-version' => 2,
   'server' =>
   array (
     'motd' => 'Quark Server',
     'max-players' => 20,
+    'view-distance' => 16,
     'language' => 'eng',
+    'force-language' => false,
+    'whitelist' => false,
+    'shutdown-message' => 'Server closed',
+    'enable-dev-builds' => false,
+  ),
+  'gameplay' =>
+  array (
     'gamemode' => 'SURVIVAL',
     'force-gamemode' => false,
     'difficulty' => 2,
     'hardcore' => false,
     'pvp' => true,
-    'server-ip' => '',
-    'server-ipv6' => '',
-    'server-port' => 19132,
-    'server-portv6' => 19133,
+    'combat-low-latency-feedback' => true,
+  ),
+  'player' =>
+  array (
+    'save-data' => true,
+    'verify-xuid' => true,
+  ),
+  'network' =>
+  array (
+    'bind-address' => '',
+    'bind-address-v6' => '',
+    'port' => 19132,
+    'port-v6' => 19133,
     'enable-ipv6' => true,
     'enable-query' => true,
-    'white-list' => false,
-    'xbox-auth' => true,
-    'level-name' => 'world',
-    'level-seed' => '',
-    'level-type' => 'DEFAULT',
-    'generator-settings' => '',
-    'auto-save' => true,
-    'view-distance' => 16,
-  ),
-  'settings' =>
-  array (
-    'force-language' => false,
-    'shutdown-message' => 'Server closed',
     'query-plugins' => true,
-    'enable-dev-builds' => false,
-    'enable-profiling' => false,
-    'async-workers' => 'auto',
+    'xbox-auth' => true,
+    'enable-encryption' => true,
+    'trusted-proxy-keys' =>
+    array (
+    ),
+    'upnp-forwarding' => false,
+    'compression' =>
+    array (
+      'algorithm' => 'zlib',
+      'threshold' => 256,
+      'level' => 6,
+      'async' => false,
+      'async-threshold' => 10000,
+    ),
   ),
   'transport' =>
   array (
@@ -50,52 +65,32 @@ return array (
       ),
       'unreliable-events' => false,
     ),
-  ),
-  'network' =>
-  array (
-    'max-mtu-size' => 1492,
-    'upnp-forwarding' => false,
-    'enable-encryption' => true,
-    'trusted-proxy-keys' =>
+    'raknet' =>
     array (
+      'max-mtu-size' => 1492,
     ),
-    'compression-algorithm' => 'zlib',
-    'batch-threshold' => 256,
-    'compression-level' => 6,
-    'async-compression' => false,
-    'async-compression-threshold' => 10000,
-    'combat-low-latency-feedback' => true,
   ),
-  'player' =>
+  'world' =>
   array (
-    'save-player-data' => true,
-    'verify-xuid' => true,
-  ),
-  'level-settings' =>
-  array (
+    'name' => 'world',
+    'seed' => '',
+    'generator' => 'DEFAULT',
+    'generator-settings' => '',
+    'auto-save' => true,
+    'autosave-interval' => 6000,
     'default-format' => 'leveldb',
     'format-migration' => 'manual',
   ),
-  'ticks-per' =>
+  'chunks' =>
   array (
-    'autosave' => 6000,
-  ),
-  'chunk-sending' =>
-  array (
-    'per-tick' => 4,
+    'send-per-tick' => 4,
     'spawn-radius' => 4,
-  ),
-  'chunk-ticking' =>
-  array (
     'tick-radius' => 3,
     'unload-view-only-chunks' => true,
-    'blocks-per-subchunk-per-tick' => 3,
-    'disable-block-ticking' =>
+    'random-ticks-per-subchunk' => 3,
+    'disabled-random-tick-blocks' =>
     array (
     ),
-  ),
-  'chunk-generation' =>
-  array (
     'population-queue-size' => 32,
   ),
   'entities' =>
@@ -135,11 +130,19 @@ return array (
     'max-ignitions-per-chunk-per-tick' => 24,
     'max-dispenser-ignitions-per-second' => 20,
   ),
+  'block-physics' =>
+  array (
+    'fast-falling-blocks' => false,
+  ),
   'weather' =>
   array (
     'cycle' => true,
     'lightning-chance' => 100000,
     'lightning-fire' => true,
+  ),
+  'performance' =>
+  array (
+    'async-workers' => 'auto',
   ),
   'memory' =>
   array (
@@ -150,19 +153,13 @@ return array (
     'check-rate' => 20,
     'continuous-trigger' => true,
     'continuous-trigger-rate' => 30,
+    'dump-async-workers' => true,
+    'low-memory-view-distance' => 4,
     'garbage-collection' =>
     array (
       'php-automatic' => true,
       'threshold' => 10001,
       'period' => 36000,
-    ),
-    'memory-dump' =>
-    array (
-      'dump-async-worker' => true,
-    ),
-    'max-chunks' =>
-    array (
-      'chunk-radius' => 4,
     ),
   ),
   'logging' =>
@@ -182,34 +179,28 @@ return array (
     'enable-input' => true,
     'title-tick' => true,
   ),
+  'diagnostics' =>
+  array (
+    'enable-profiling' => false,
+    'max-crash-reports' => 0,
+    'max-profiles' => 0,
+    'pulse-auto-capture-ms' => 0,
+  ),
   'crash-dumps' =>
   array (
     'include-code' => true,
     'include-settings' => true,
     'include-phpinfo' => false,
   ),
-  'diagnostics' =>
-  array (
-    'max-crash-reports' => 0,
-    'max-profiles' => 0,
-    'pulse-auto-capture-ms' => 0,
-  ),
   'auto-updater' =>
   array (
     'enabled' => false,
     'preferred-channel' => 'stable',
     'host' => '',
-    'on-update' =>
-    array (
-      'warn-console' => true,
-    ),
+    'warn-console' => true,
   ),
   'migration' =>
   array (
-    'auto_on_startup' => false,
-  ),
-  'plugins' =>
-  array (
-    'legacy-data-dir' => false,
+    'auto-on-startup' => false,
   ),
 );

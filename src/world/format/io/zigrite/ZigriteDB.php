@@ -29,17 +29,20 @@ use quark\world\format\io\exception\CorruptedWorldException;
 use quark\world\format\io\exception\UnsupportedWorldFormatException;
 use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\leveldb\BedrockWorldProvider;
+use quark\world\format\io\leveldb\ChunkDataKey;
 use quark\world\format\io\WorldData;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
 use Zigrite\Exception as ZigriteException;
 use Zigrite\World as ZigriteWorld;
+use function array_key_exists;
 use function count;
 use function extension_loaded;
 use function file_exists;
 use function mkdir;
 use function phpversion;
 use function sprintf;
+use function strlen;
 use function version_compare;
 
 /**
@@ -50,6 +53,7 @@ final class ZigriteDB extends BedrockWorldProvider{
 	/** Where ZigriteDB keeps level.dat and the other Bedrock world files, as `zigrite import` lays them out. */
 	private const BEDROCK_DIR = "bedrock";
 	private const OVERWORLD = 0;
+	private const BATCH_BUFFER_SIZE = 64 * 1024 * 1024;
 	private const MIN_EXTENSION_VERSION = "0.3.2";
 	/** ZigriteDB status codes, see zigritedb.h. */
 	private const STATUS_CORRUPTION = 6;
@@ -68,7 +72,7 @@ final class ZigriteDB extends BedrockWorldProvider{
 			//a save rewrites every record of the chunk, and most of them haven't changed
 			"skip_unchanged" => true,
 			//the most one atomic write can hold; a bigger chunk is still saved, but in several writes a crash can split
-			"batch_buffer_size" => 64 * 1024 * 1024,
+			"batch_buffer_size" => self::BATCH_BUFFER_SIZE,
 			//an evicted region is synced and reopened later, which made random loads 15x slower at the default 64
 			"max_open_regions" => 256,
 		];
@@ -140,6 +144,16 @@ final class ZigriteDB extends BedrockWorldProvider{
 	}
 
 	protected function writeChunkRecords(int $chunkX, int $chunkZ, array $records) : void{
+		if(array_key_exists(ChunkDataKey::QUARK_METADATA, $records)){
+			// Match the extension's frame sizes so it can't split a combined terrain and metadata write.
+			$size = 24 + 16 * count($records);
+			foreach($records as $value){
+				$size += $value !== null ? strlen($value) : 0;
+			}
+			if($size > self::BATCH_BUFFER_SIZE){
+				throw new \LengthException("Chunk $chunkX $chunkZ is too large to save atomically with its metadata");
+			}
+		}
 		try{
 			$this->world->writeChunk(self::OVERWORLD, $chunkX, $chunkZ, $records);
 		}catch(ZigriteException $e){
@@ -157,6 +171,18 @@ final class ZigriteDB extends BedrockWorldProvider{
 		}
 		$region = Path::join($this->getPath(), sprintf("%08x-%08x-%08x.region", self::OVERWORLD, ($chunkX >> 5) & 0xffffffff, ($chunkZ >> 5) & 0xffffffff));
 		return new \RuntimeException("Region $region is damaged. Stop the server, run \"zigrite recover\" on it with an empty folder as the destination, and put the result in its place. " . $e->getMessage(), 0, $e);
+	}
+
+	public function loadWorldMetadata() : ?string{
+		return $this->world->auxGet(self::ENTRY_WORLD_METADATA);
+	}
+
+	public function saveWorldMetadata(?string $record) : void{
+		if($record === null){
+			$this->world->auxDelete(self::ENTRY_WORLD_METADATA);
+		}else{
+			$this->world->auxPut(self::ENTRY_WORLD_METADATA, $record);
+		}
 	}
 
 	public function doGarbageCollection() : void{

@@ -60,6 +60,25 @@ class BlockTest extends TestCase{
 		$this->blockFactory->register($block);
 	}
 
+	public function testReplaceBlockWithSubclass() : void{
+		$block = new MyCustomBlock(new BlockIdentifier(BlockTypeIds::COBBLESTONE), "Cobblestone", new BlockTypeInfo(BlockBreakInfo::instant()));
+		$this->blockFactory->replace($block);
+		self::assertInstanceOf(MyCustomBlock::class, $this->blockFactory->fromStateId(VanillaBlocks::COBBLESTONE()->getStateId()));
+		self::assertSame(0.0, $this->blockFactory->blastResistance[$block->getStateId()]);
+	}
+
+	public function testReplaceRejectsUnrelatedClass() : void{
+		$block = new StrangeNewBlock(new BlockIdentifier(BlockTypeIds::COBBLESTONE_STAIRS), "Cobblestone Stairs", new BlockTypeInfo(BlockBreakInfo::instant()));
+		$this->expectException(\InvalidArgumentException::class);
+		$this->blockFactory->replace($block);
+	}
+
+	public function testReplaceRejectsUnknownType() : void{
+		$block = new StrangeNewBlock(new BlockIdentifier(BlockTypeIds::newId()), "Strange New Block", new BlockTypeInfo(BlockBreakInfo::instant()));
+		$this->expectException(\InvalidArgumentException::class);
+		$this->blockFactory->replace($block);
+	}
+
 	/**
 	 * Test registering a new block which does not yet exist
 	 */

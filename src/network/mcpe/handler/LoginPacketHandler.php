@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\network\mcpe\handler;
 
 use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationInfo;
 use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
 use pocketmine\network\mcpe\protocol\types\login\clientdata\ClientData;
@@ -199,7 +200,7 @@ class LoginPacketHandler extends PacketHandler{
 
 		try{
 			$skin = $this->session->getTypeConverter()->getSkinAdapter()->fromSkinData(ClientDataToSkinDataHelper::fromClientData($clientData));
-		}catch(\InvalidArgumentException | InvalidSkinException $e){
+		}catch(\InvalidArgumentException | InvalidSkinException | PacketDecodeException $e){
 			$this->session->disconnectWithError(
 				reason: "Invalid skin: " . $e->getMessage(),
 				disconnectScreenMessage: KnownTranslationFactory::disconnectionScreen_invalidSkin()

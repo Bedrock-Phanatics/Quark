@@ -85,6 +85,12 @@ class RuntimeBlockStateRegistry{
 	 * @phpstan-var array<int, true>
 	 */
 	public array $entityCollision = [];
+	/**
+	 * States liquid can flow into, see {@link Block::canBeFlowedInto()}
+	 * @var true[]
+	 * @phpstan-var array<int, true>
+	 */
+	public array $flowable = [];
 
 	/**
 	 * Map of state ID -> useful AABB info to avoid unnecessary block allocations
@@ -116,6 +122,41 @@ class RuntimeBlockStateRegistry{
 
 		foreach($block->generateStatePermutations() as $v){
 			$this->fillStaticArrays($v->getStateId(), $v);
+		}
+	}
+
+	/**
+	 * Swaps a registered block type for a subclass with the same states, so a plugin can change how a vanilla block
+	 * behaves. Serializers keep working because the states are unchanged. Do it before worlds load: blocks already
+	 * created keep their old class, and async workers only ever see the original.
+	 *
+	 * @throws \InvalidArgumentException if the type is unknown, or the replacement is not a subclass with the same states
+	 */
+	public function replace(Block $block) : void{
+		$typeId = $block->getTypeId();
+		$old = $this->typeIndex[$typeId] ?? throw new \InvalidArgumentException("Block ID $typeId is not registered");
+		if(!$block instanceof $old){
+			throw new \InvalidArgumentException("Block ID $typeId can only be replaced by a subclass of " . $old::class);
+		}
+		$states = [];
+		foreach($block->generateStatePermutations() as $v){
+			$states[$v->getStateId()] = $v;
+		}
+		$oldCount = 0;
+		foreach($old->generateStatePermutations() as $v){
+			++$oldCount;
+			if(!isset($states[$v->getStateId()])){
+				throw new \InvalidArgumentException("Replacement for block ID $typeId must keep every state of the original");
+			}
+		}
+		if($oldCount !== count($states)){
+			throw new \InvalidArgumentException("Replacement for block ID $typeId must not add states");
+		}
+
+		$this->typeIndex[$typeId] = clone $block;
+		foreach($states as $stateId => $v){
+			unset($this->blocksDirectSkyLight[$stateId], $this->entityCollision[$stateId], $this->flowable[$stateId]);
+			$this->fillStaticArrays($stateId, $v);
 		}
 	}
 
@@ -197,6 +238,9 @@ class RuntimeBlockStateRegistry{
 			}
 			if($block->hasEntityCollision()){
 				$this->entityCollision[$index] = true;
+			}
+			if($block->canBeFlowedInto()){
+				$this->flowable[$index] = true;
 			}
 
 			$this->collisionInfo[$index] = self::calculateCollisionInfo($block);

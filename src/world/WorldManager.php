@@ -279,7 +279,7 @@ class WorldManager{
 	 */
 	public function convertWorld(string $name, string $format) : Promise{
 		if($this->migrationMode === WorldMigration::MODE_OFF){
-			throw new \InvalidArgumentException("World conversion is turned off by level-settings.format-migration in config/server.toml");
+			throw new \InvalidArgumentException("World conversion is turned off by world.format-migration in config/server.toml");
 		}
 		$format = strtolower($format);
 		if($format !== WorldMigration::LEVELDB && $format !== WorldMigration::ZIGRITEDB){

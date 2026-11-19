@@ -769,7 +769,7 @@
     "bubble_column": "minecraft:bubble_column",
     "bucket": "minecraft:bucket",
     "burning_furnace": "minecraft:lit_furnace",
-    "bush": "minecraft:deadbush",
+    "bush": "minecraft:bush",
     "cactus": "minecraft:cactus",
     "cake": "minecraft:cake",
     "cake_block": "minecraft:item.cake",

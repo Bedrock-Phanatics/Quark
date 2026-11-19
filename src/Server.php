@@ -49,6 +49,7 @@ use quark\data\bedrock\BedrockDataFiles;
 use quark\entity\EntityDataHelper;
 use quark\entity\Location;
 use quark\entity\object\ExperienceOrb;
+use quark\entity\object\FallingBlock;
 use quark\entity\object\ItemEntity;
 use quark\event\HandlerListManager;
 use quark\event\player\PlayerCreationEvent;
@@ -178,6 +179,7 @@ use function in_array;
 use function ini_set;
 use function is_array;
 use function is_dir;
+use function is_int;
 use function is_link;
 use function is_numeric;
 use function is_resource;
@@ -496,10 +498,29 @@ class Server{
 	}
 
 	/**
-	 * Returns a view distance up to the currently-allowed limit.
+	 * Returns the view distance limit of the world with the given folder name: its `view-distances` entry if it has
+	 * one, never above the server-wide maximum.
 	 */
-	public function getAllowedViewDistance(int $distance) : int{
-		return max(2, min($distance, $this->memoryManager->getViewDistance($this->getViewDistance())));
+	public function getWorldViewDistanceLimit(string $folderName) : int{
+		$max = $this->getViewDistance();
+		$limits = $this->configGroup->getProperty("view-distances", []);
+		$limit = is_array($limits) ? ($limits[$folderName] ?? null) : null;
+		if(!is_int($limit)){
+			return $max;
+		}
+		if($limit > $max){
+			$this->logger->warning("view-distances.$folderName ($limit) exceeds server.view-distance ($max), using $max");
+		}
+		return max(2, min($limit, $max));
+	}
+
+	/**
+	 * Returns a view distance up to the currently-allowed limit, which is the server maximum or the given world's
+	 * maximum if that is lower, further reduced under memory pressure.
+	 */
+	public function getAllowedViewDistance(int $distance, ?World $world = null) : int{
+		$limit = $world?->getViewDistanceLimit() ?? $this->getViewDistance();
+		return max(2, min($distance, $this->memoryManager->getViewDistance($limit)));
 	}
 
 	public function getIp() : string{
@@ -771,7 +792,7 @@ class Server{
 	}
 
 	public function shouldSavePlayerData() : bool{
-		return $this->configGroup->getPropertyBool(Yml::PLAYER_SAVE_PLAYER_DATA, true);
+		return $this->configGroup->getPropertyBool(Yml::PLAYER_SAVE_DATA, true);
 	}
 
 	/**
@@ -1196,9 +1217,9 @@ class Server{
 			$this->logger->info("Loading server configuration");
 			$this->configGroup = $configGroup ?? ServerConfigGroup::load($this->paths->serverToml());
 
-			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
+			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::GAMEPLAY_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
-			$this->forceLanguage = $this->configGroup->getPropertyBool(Yml::SETTINGS_FORCE_LANGUAGE, false);
+			$this->forceLanguage = $this->configGroup->getPropertyBool(Yml::SERVER_FORCE_LANGUAGE, false);
 			$selectedLang = $this->configGroup->getConfigString(ServerProperties::LANGUAGE, Language::FALLBACK_LANGUAGE);
 			try{
 				$this->language = new Language($selectedLang);
@@ -1215,11 +1236,11 @@ class Server{
 			$this->logger->info($this->language->translate(KnownTranslationFactory::language_selected($this->language->getName(), $this->language->getLang())));
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
-				if(!$this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_DEV_BUILDS, false)){
+				if(!$this->configGroup->getPropertyBool(Yml::SERVER_ENABLE_DEV_BUILDS, false)){
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error1(VersionInfo::NAME)));
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error2()));
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error3()));
-					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error4(Yml::SETTINGS_ENABLE_DEV_BUILDS)));
+					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error4(Yml::SERVER_ENABLE_DEV_BUILDS)));
 					$this->logger->emergency($this->language->translate(KnownTranslationFactory::quark_server_devBuild_error5(VersionInfo::GITHUB_URL . "/releases")));
 					$this->forceShutdownExit();
 
@@ -1239,7 +1260,7 @@ class Server{
 
 			$this->logger->info($this->language->translate(KnownTranslationFactory::quark_server_start(TextFormat::AQUA . $this->getVersion() . TextFormat::RESET)));
 
-			if(($poolSize = $this->configGroup->getPropertyString(Yml::SETTINGS_ASYNC_WORKERS, "auto")) === "auto"){
+			if(($poolSize = $this->configGroup->getPropertyString(Yml::PERFORMANCE_ASYNC_WORKERS, "auto")) === "auto"){
 				$poolSize = 2;
 				$processors = Utils::getCoreCount() - 2;
 
@@ -1260,12 +1281,12 @@ class Server{
 				$this->phpAutomaticGc
 			);
 			$this->pulse = new PulseRecorder($this->asyncPool, $this->logger instanceof MainLogger ? $this->logger->getLogWriterThread() : null, $this->autoloader);
-			if($this->configGroup->getPropertyBool(Yml::SETTINGS_ENABLE_PROFILING, false)){
+			if($this->configGroup->getPropertyBool(Yml::DIAGNOSTICS_ENABLE_PROFILING, false)){
 				$this->pulse->start();
 			}
 			$this->pulseAutoCaptureNs = $this->configGroup->getPropertyInt(Yml::DIAGNOSTICS_PULSE_AUTO_CAPTURE_MS, 0) * 1_000_000;
 
-			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_BATCH_THRESHOLD, 256);
+			$netCompressionThreshold = $this->configGroup->getPropertyInt(Yml::NETWORK_COMPRESSION_THRESHOLD, 256);
 			if($netCompressionThreshold < 0){
 				$netCompressionThreshold = null;
 			}
@@ -1288,9 +1309,9 @@ class Server{
 				$this->networkCompressor = ZlibCompressor::getInstance();
 			}
 
-			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_ASYNC_COMPRESSION, false);
+			$this->networkCompressionAsync = $this->configGroup->getPropertyBool(Yml::NETWORK_COMPRESSION_ASYNC, false);
 			$this->networkCompressionAsyncThreshold = max(
-				$this->configGroup->getPropertyInt(Yml::NETWORK_ASYNC_COMPRESSION_THRESHOLD, self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD),
+				$this->configGroup->getPropertyInt(Yml::NETWORK_COMPRESSION_ASYNC_THRESHOLD, self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD),
 				$netCompressionThreshold ?? self::DEFAULT_ASYNC_COMPRESSION_THRESHOLD
 			);
 
@@ -1382,6 +1403,7 @@ class Server{
 				$this->configGroup->getPropertyInt(Yml::HOPPERS_ITEMS_PER_TRANSFER, 1),
 				$this->configGroup->getPropertyInt(Yml::HOPPERS_MAX_UPDATES_PER_TICK, 512)
 			);
+			FallingBlock::setFastFalling($this->configGroup->getPropertyBool(Yml::BLOCK_PHYSICS_FAST_FALLING_BLOCKS, false));
 			ItemEntity::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_ITEM_MERGE_RADIUS, ItemEntity::MAX_MERGE_RADIUS));
 			ExperienceOrb::setMergeRadius($this->getConfiguredMergeRadius(Yml::ENTITIES_XP_ORB_MERGE_RADIUS, ExperienceOrb::MAX_MERGE_RADIUS));
 			if($redstoneEnabled){
@@ -1408,16 +1430,13 @@ class Server{
 				$this->forceShutdownExit();
 				return;
 			}
-			if($this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, false)){
-				throw new \RuntimeException("Colocated plugin data is unsupported; migrate it to data/plugins and set plugins.legacy-data-dir to false");
-			}
 			$this->pluginManager = new PluginManager($this, $this->paths->pluginData(), $pluginGraylist);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
 			$providerManager = new WorldProviderManager();
 			if(
-				($format = $providerManager->getProviderByName($formatName = $this->configGroup->getPropertyString(Yml::LEVEL_SETTINGS_DEFAULT_FORMAT, ""))) !== null &&
+				($format = $providerManager->getProviderByName($formatName = $this->configGroup->getPropertyString(Yml::WORLD_DEFAULT_FORMAT, ""))) !== null &&
 				$format instanceof WritableWorldProviderManagerEntry
 			){
 				$providerManager->setDefault($format);
@@ -1426,16 +1445,16 @@ class Server{
 			}
 
 			$this->worldManager = new WorldManager($this, $this->paths->worlds(), $providerManager);
-			$migrationMode = $this->configGroup->getPropertyString(Yml::LEVEL_SETTINGS_FORMAT_MIGRATION, WorldMigration::MODE_MANUAL);
+			$migrationMode = $this->configGroup->getPropertyString(Yml::WORLD_FORMAT_MIGRATION, WorldMigration::MODE_MANUAL);
 			if($migrationMode === WorldMigration::MODE_OFF || $migrationMode === WorldMigration::MODE_MANUAL || $migrationMode === WorldMigration::MODE_AUTOMATIC){
 				$this->worldManager->setMigrationMode($migrationMode);
 			}else{
-				$this->logger->warning("Unknown level-settings.format-migration \"$migrationMode\" in config/server.toml, using \"" . WorldMigration::MODE_MANUAL . "\"");
+				$this->logger->warning("Unknown world.format-migration \"$migrationMode\" in config/server.toml, using \"" . WorldMigration::MODE_MANUAL . "\"");
 			}
 			$this->worldManager->removeInterruptedWorldFiles();
 			$this->redstoneWorldManager = new RedstoneManager($this);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool(ServerProperties::AUTO_SAVE, $this->worldManager->getAutoSave()));
-			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::TICKS_PER_AUTOSAVE, $this->worldManager->getAutoSaveInterval()));
+			$this->worldManager->setAutoSaveInterval($this->configGroup->getPropertyInt(Yml::WORLD_AUTOSAVE_INTERVAL, $this->worldManager->getAutoSaveInterval()));
 
 			$this->updater = new UpdateChecker($this, $this->configGroup->getPropertyString(Yml::AUTO_UPDATER_HOST, ""));
 
@@ -1622,7 +1641,7 @@ class Server{
 		if($this->worldManager->getDefaultWorld() === null){
 			$default = $this->configGroup->getConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
 			if(!$this->worldManager->isValidWorldName($default)){
-				$this->logger->warning("level-name \"$default\" is not a valid world name, using default");
+				$this->logger->warning("world.name \"$default\" is not a valid world name, using default");
 				$default = "world";
 				$this->configGroup->setConfigString(ServerProperties::DEFAULT_WORLD_NAME, "world");
 			}
@@ -1978,7 +1997,7 @@ class Server{
 			}
 
 			if(isset($this->network)){
-				$this->network->getSessionManager()->close($this->configGroup->getPropertyString(Yml::SETTINGS_SHUTDOWN_MESSAGE, "Server closed"));
+				$this->network->getSessionManager()->close($this->configGroup->getPropertyString(Yml::SERVER_SHUTDOWN_MESSAGE, "Server closed"));
 			}
 			$this->drainPlayerData();
 

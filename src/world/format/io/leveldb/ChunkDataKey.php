@@ -52,6 +52,12 @@ final class ChunkDataKey{
 
 	public const OLD_VERSION = "\x76";
 
+	/**
+	 * Quark's world metadata for the chunk. Not printable, so it can't be the end of a named LevelDB key, and
+	 * ZigriteDB's converters know it as a chunk record.
+	 */
+	public const QUARK_METADATA = "\x7f";
+
 	public const PM_DATA_VERSION = VersionInfo::TAG_WORLD_DATA_VERSION;
 
 }

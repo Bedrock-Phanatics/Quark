@@ -20,6 +20,7 @@ use function ksort;
 use function mkdir;
 use function random_bytes;
 use function range;
+use function str_repeat;
 use function str_replace;
 use function sys_get_temp_dir;
 use function unlink;
@@ -199,10 +200,10 @@ final class CoreConfigTest extends TestCase{
 			$group->setConfigBool(ServerProperties::WHITELIST, true);
 			$group->save();
 			$saved = Filesystem::fileGetContents($path);
-			self::assertSame(str_replace("white-list = false", "white-list = true", $template), $saved);
+			self::assertSame(str_replace("whitelist = false", "whitelist = true", $template), $saved);
 			$server = CoreConfig::parse($saved)["server"];
 			self::assertIsArray($server);
-			self::assertTrue($server["white-list"]);
+			self::assertTrue($server["whitelist"]);
 		}finally{
 			@unlink($path);
 		}
@@ -234,23 +235,33 @@ final class CoreConfigTest extends TestCase{
 	/** @return iterable<string, array{array<string, mixed>}> */
 	public static function invalidServerSettings() : iterable{
 		yield "config-version" => [["config-version" => CoreConfig::SERVER_VERSION + 1]];
-		yield "server.xbox-auth" => [["server" => ["xbox-auth" => "false"]]];
+		yield "network.xbox-auth" => [["network" => ["xbox-auth" => "false"]]];
 		yield "server.max-players" => [["server" => ["max-players" => 0x100000000]]];
-		yield "server.gamemode" => [["server" => ["gamemode" => "SPECTATE"]]];
+		yield "gameplay.gamemode" => [["gameplay" => ["gamemode" => "SPECTATE"]]];
 		yield "network.enable-encryption" => [["network" => ["enable-encryption" => null]]];
 		yield "network.trusted-proxy-keys" => [["network" => ["trusted-proxy-keys" => [42]]]];
-		yield "network.batch-threshold" => [["network" => ["batch-threshold" => -2]]];
-		yield "network.max-mtu-size" => [["network" => ["max-mtu-size" => 399]]];
+		yield "network.compression.threshold" => [["network" => ["compression" => ["threshold" => -2]]]];
+		yield "transport.raknet.max-mtu-size" => [["transport" => ["raknet" => ["max-mtu-size" => 399]]]];
 		yield "transport.nethernet.port-range" => [["transport" => ["nethernet" => ["port-range" => [30000, 1]]]]];
 		yield "memory.main-limit" => [["memory" => ["main-limit" => 2048]]];
-		yield "ticks-per.autosave" => [["ticks-per" => ["autosave" => 0]]];
-		yield "chunk-sending.spawn-radius" => [["chunk-sending" => ["spawn-radius" => PHP_INT_MAX]]];
+		yield "world.autosave-interval" => [["world" => ["autosave-interval" => 0]]];
+		yield "chunks.spawn-radius" => [["chunks" => ["spawn-radius" => PHP_INT_MAX]]];
 		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
+		yield "view-distances.low" => [["view-distances" => ["low" => 1]]];
+		yield "view-distances.high" => [["view-distances" => ["high" => 97]]];
+		yield "view-distances.text" => [["view-distances" => ["text" => "8"]]];
+		yield "view-distances.nested" => [["view-distances" => ["nested" => ["x" => 8]]]];
 		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
 		yield "hoppers.enabled" => [["hoppers" => ["enabled" => "yes"]]];
 		yield "hoppers.transfer-cooldown" => [["hoppers" => ["transfer-cooldown" => 0]]];
 		yield "hoppers.items-per-transfer" => [["hoppers" => ["items-per-transfer" => 65]]];
 		yield "hoppers.max-updates-per-tick" => [["hoppers" => ["max-updates-per-tick" => -1]]];
+	}
+
+	public function testViewDistancesAcceptTheirLimitsAndAnyWorldName() : void{
+		CoreConfig::validateServer(["view-distances" => []]);
+		CoreConfig::validateServer(["view-distances" => ["nether" => 2, "my.world" => 96, "mini games" => 8, "plugins/x" => 16]]);
+		$this->addToAssertionCount(1);
 	}
 
 	public function testHopperSettingsAcceptTheirLimits() : void{
@@ -270,7 +281,7 @@ final class CoreConfigTest extends TestCase{
 	public function testNetherNetMuxCannotReserveTheQueryPort() : void{
 		$nethernet = ["port-range" => [19132, 19132], "ice-udp-mux" => true];
 		CoreConfig::validateServer(["transport" => ["name" => "raknet", "nethernet" => $nethernet]]);
-		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]], ["server" => ["enable-query" => false]]);
+		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]], ["network" => ["enable-query" => false]]);
 		$this->expectExceptionMessage("already used by Query");
 		CoreConfig::validateServer(["transport" => ["nethernet" => $nethernet]]);
 	}
@@ -284,7 +295,7 @@ final class CoreConfigTest extends TestCase{
 
 	/** @return iterable<string, array{mixed}> */
 	public static function invalidAdvertiseAddresses() : iterable{
-		foreach(["203.0.113.7:19132", "example.com", "[2001:db8::7]", "0.0.0.0", "224.0.0.1", "255.255.255.255", "169.254.1.1", "::", "ff02::1", "fe80::1", "::ffff:203.0.113.7", ""] as $address){
+		foreach(["203.0.113.7:19132", "example.com", "[2001:db8::7]", "0.0.0.0", "224.0.0.1", "255.255.255.255", "169.254.1.1", "::", "0:0:0:0:0:0:0:0", "ff02::1", "fe80::1", "::ffff:203.0.113.7", "0:0:0:0:0:ffff:cb00:7107", ""] as $address){
 			yield "'$address'" => [[$address]];
 		}
 		yield "int" => [[7]];
@@ -314,6 +325,47 @@ final class CoreConfigTest extends TestCase{
 	public function testResourcePackPolicyRejectsAStringBoolean() : void{
 		$this->expectExceptionMessage("force_resources");
 		CoreConfig::validateResourcePacks(CoreConfig::parse("force_resources = 'false'"));
+	}
+
+	public function testResourcePackEncryptionAcceptsStableKeysAndSelectedPacks() : void{
+		CoreConfig::validateResourcePacks(CoreConfig::parse(CoreConfig::encode([
+			"resource_stack" => ["base.zip", "encrypted.zip"],
+			"encryption" => ["enabled" => true, "packs" => ["encrypted.zip"], "key" => str_repeat("a", 32)]
+		])));
+		CoreConfig::validateResourcePacks(CoreConfig::parse('[encryption]' . "\nkey-file = 'secret.key'\n"));
+		$this->addToAssertionCount(1);
+	}
+
+	public function testResourcePackEncryptionRejectsInvalidSettings() : void{
+		$key = str_repeat("a", 32);
+		foreach([
+			["encryption" => "enabled"],
+			["encryption" => ["enabled" => "true"]],
+			["encryption" => ["enable" => true]],
+			["encryption" => ["key" => 32]],
+			["encryption" => ["key-file" => 32]],
+			["encryption" => ["key" => null]],
+			["encryption" => ["key-file" => null]],
+			["encryption" => ["key-file" => "secret\nkey"]],
+			["encryption" => ["packs" => ["one" => "pack.zip"]]],
+			["encryption" => ["key" => str_repeat("a", 31)]],
+			["encryption" => ["key" => str_repeat("é", 16)]],
+			["encryption" => ["key" => $key, "key-file" => "secret.key"]],
+			["encryption" => ["key-file" => "../secret.key"]],
+			["encryption" => ["key-file" => "resource_packs.toml"]],
+			["encryption" => ["key-file" => ".quark-encryption"]],
+			["resource_stack" => ["pack.zip"], "encryption" => ["key-file" => "pack.zip"]],
+			["resource_stack" => ["pack.zip"], "encryption" => ["packs" => ["pack.zip", "pack.zip"]]],
+			["resource_stack" => ["pack.zip"], "encryption" => ["packs" => ["../pack.zip"]]],
+			["resource_stack" => [], "encryption" => ["packs" => ["pack.zip"]]],
+		] as $data){
+			try{
+				CoreConfig::validateResourcePacks($data);
+				self::fail("Accepted invalid resource pack encryption settings");
+			}catch(\InvalidArgumentException){
+			}
+		}
+		$this->addToAssertionCount(1);
 	}
 
 	public function testEncodeRejectsWhatTomlCannotHold() : void{

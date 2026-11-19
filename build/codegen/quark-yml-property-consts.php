@@ -41,7 +41,6 @@ use const SORT_STRING;
 require dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 $defaultConfig = CoreConfig::defaults();
-unset($defaultConfig["server"]);
 $constants = [
 	"ALIASES" => "aliases",
 	"TRANSPORT_NETHERNET_ADVERTISE_ADDRESSES" => "transport.nethernet.advertise-addresses",

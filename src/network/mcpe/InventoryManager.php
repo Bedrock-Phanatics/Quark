@@ -51,6 +51,7 @@ use quark\block\inventory\window\BrewingStandInventoryWindow;
 use quark\block\inventory\window\CartographyTableInventoryWindow;
 use quark\block\inventory\window\CraftingTableInventoryWindow;
 use quark\block\inventory\window\DispenserInventoryWindow;
+use quark\block\inventory\window\DropperInventoryWindow;
 use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\block\inventory\window\FurnaceInventoryWindow;
 use quark\block\inventory\window\HopperInventoryWindow;
@@ -441,6 +442,7 @@ class InventoryManager implements InventoryListener{
 				$window instanceof AnvilInventoryWindow => WindowTypes::ANVIL,
 				$window instanceof HopperInventoryWindow => WindowTypes::HOPPER,
 				$window instanceof DispenserInventoryWindow => WindowTypes::DISPENSER,
+				$window instanceof DropperInventoryWindow => WindowTypes::DROPPER,
 				$window instanceof CraftingTableInventoryWindow => WindowTypes::WORKBENCH,
 				$window instanceof StonecutterInventoryWindow => WindowTypes::STONECUTTER,
 				$window instanceof CartographyTableInventoryWindow => WindowTypes::CARTOGRAPHY,

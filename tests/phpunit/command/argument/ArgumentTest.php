@@ -31,6 +31,7 @@ use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
+use function strcasecmp;
 use function strtolower;
 use const INF;
 use const NAN;
@@ -169,6 +170,37 @@ final class ArgumentTest extends TestCase{
 		self::assertSame("Steve", $argument->parse("steve", $sender)->getName());
 		self::assertSame("Steve", $argument->parse("STEVE", $sender)->getName());
 		foreach(["Ste", "Steven", "@p", "@a", "@s", "@e[type=player]", "@"] as $input){
+			try{
+				$argument->parse($input, $sender);
+				self::fail("\"$input\" should not resolve to a player");
+			}catch(ArgumentParseException){
+				$this->addToAssertionCount(1);
+			}
+		}
+	}
+
+	public function testPartialLookupNeedsOneMatchingPlayer() : void{
+		$players = [];
+		foreach(["Steve", "Steven", "Alex"] as $name){
+			$player = TestCommandSender::closedPlayer(self::createStub(Player::class));
+			$player->method("getName")->willReturn($name);
+			$players[] = $player;
+		}
+		$server = self::createStub(Server::class);
+		$server->method("getOnlinePlayers")->willReturn($players);
+		$server->method("getPlayerExact")->willReturnCallback(function(string $name) use ($players) : ?Player{
+			foreach($players as $player){
+				if(strcasecmp($player->getName(), $name) === 0){
+					return $player;
+				}
+			}
+			return null;
+		});
+		$sender = new TestCommandSender($server, []);
+		$argument = new PlayerArgument("target", partial: true);
+		self::assertSame("Steve", $argument->parse("steve", $sender)->getName());
+		self::assertSame("Alex", $argument->parse("al", $sender)->getName());
+		foreach(["ste", "stev", "Bob"] as $input){
 			try{
 				$argument->parse($input, $sender);
 				self::fail("\"$input\" should not resolve to a player");

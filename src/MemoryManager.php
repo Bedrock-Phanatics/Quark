@@ -96,9 +96,9 @@ class MemoryManager{
 
 		$this->garbageCollectionPeriod = $config->getPropertyInt(Yml::MEMORY_GARBAGE_COLLECTION_PERIOD, self::DEFAULT_TICKS_PER_GC);
 
-		$this->lowMemChunkRadiusOverride = $config->getPropertyInt(Yml::MEMORY_MAX_CHUNKS_CHUNK_RADIUS, 4);
+		$this->lowMemChunkRadiusOverride = $config->getPropertyInt(Yml::MEMORY_LOW_MEMORY_VIEW_DISTANCE, 4);
 
-		$this->dumpWorkers = $config->getPropertyBool(Yml::MEMORY_MEMORY_DUMP_DUMP_ASYNC_WORKER, true);
+		$this->dumpWorkers = $config->getPropertyBool(Yml::MEMORY_DUMP_ASYNC_WORKERS, true);
 	}
 
 	public function isLowMemory() : bool{

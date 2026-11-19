@@ -39,7 +39,10 @@ use quark\utils\RegistrySource;
 use quark\world\World;
 use function is_int;
 use function mb_strtoupper;
+use function str_replace;
 use function strtolower;
+use function ucfirst;
+use function ucwords;
 
 /**
  * @internal
@@ -338,8 +341,105 @@ final class VanillaItemsInputs extends RegistrySource{
 
 		foreach(BoatType::cases() as $type){
 			//boat type is static, because different types of wood may have different properties
-			self::register(strtolower($type->name) . "_boat", fn(IID $id) => new Boat($id, $type->getDisplayName() . " Boat", $type));
+			$typeName = strtolower($type->name);
+			$vehicle = $type->getVehicleName();
+			$displayName = $type->getDisplayName() . " " . ucfirst($vehicle);
+			self::register($typeName . "_" . $vehicle, fn(IID $id) => new Boat($id, $displayName, $type));
+			self::register($typeName . "_chest_" . $vehicle, fn(IID $id) => new Boat($id, $displayName . " with Chest", $type, withChest: true));
 		}
+
+		self::registerArchaeologyAndTrialItems();
+		self::registerBannerPatterns();
+		self::registerMobItems();
+		self::registerTravelAndCombatItems();
+	}
+
+	private static function displayName(string $id) : string{
+		return ucwords(str_replace("_", " ", $id));
+	}
+
+	/**
+	 * @phpstan-return \Closure(IID, string) : Item
+	 */
+	private static function unstackable() : \Closure{
+		return static fn(IID $id, string $name) => new class($id, $name) extends Item{
+			public function getMaxStackSize() : int{ return 1; }
+		};
+	}
+
+	private function registerArchaeologyAndTrialItems() : void{
+		foreach([
+			"angler", "archer", "arms_up", "blade", "brewer", "burn", "danger", "explorer", "flow", "friend", "guster",
+			"heart", "heartbreak", "howl", "miner", "mourner", "plenty", "prize", "scrape", "sheaf", "shelter", "skull",
+			"snort"
+		] as $sherd){
+			$name = $sherd . "_pottery_sherd";
+			self::register($name, fn(IID $id) => new Item($id, self::displayName($name)));
+		}
+		self::register("brush", fn(IID $id) => new Brush($id, "Brush", [EnchantmentTags::BRUSH]));
+		//TODO: Implement unlocking vaults with trial keys.
+		self::register("trial_key", fn(IID $id) => new Item($id, "Trial Key"));
+		self::register("ominous_trial_key", fn(IID $id) => new Item($id, "Ominous Trial Key"));
+	}
+
+	private function registerBannerPatterns() : void{
+		$unstackable = self::unstackable();
+		//TODO: Implement applying banner patterns in the loom.
+		foreach(["bordure_indented", "creeper", "field_masoned", "flower", "flow", "globe", "guster", "mojang", "piglin", "skull"] as $pattern){
+			$name = $pattern . "_banner_pattern";
+			self::register($name, fn(IID $id) => $unstackable($id, self::displayName($name)));
+		}
+	}
+
+	private function registerMobItems() : void{
+		$unstackable = self::unstackable();
+		//TODO: Implement equipping horse armour, saddles and wolf armour on their mobs.
+		foreach(["leather", "iron", "golden", "diamond", "copper", "netherite"] as $material){
+			$name = $material . "_horse_armor";
+			self::register($name, fn(IID $id) => $unstackable($id, self::displayName($name)));
+		}
+		self::register("saddle", fn(IID $id) => $unstackable($id, "Saddle"));
+		self::register("wolf_armor", fn(IID $id) => new class($id, "Wolf Armor") extends Durable{
+			public function getMaxDurability() : int{ return 64; }
+
+			public function getMaxStackSize() : int{ return 1; }
+		});
+		self::register("armadillo_scute", fn(IID $id) => new Item($id, "Armadillo Scute"));
+		//TODO: Implement leashing mobs and tying leads to fences.
+		self::register("lead", fn(IID $id) => new Item($id, "Lead"));
+		self::register("carrot_on_a_stick", fn(IID $id) => new FoodOnAStick($id, "Carrot on a Stick", 26, [EnchantmentTags::CARROT_ON_STICK]));
+		self::register("warped_fungus_on_a_stick", fn(IID $id) => new FoodOnAStick($id, "Warped Fungus on a Stick", 100, [EnchantmentTags::CARROT_ON_STICK]));
+
+		//TODO: Implement emptying mob buckets, which places water and releases the mob.
+		foreach(["axolotl", "cod", "salmon", "pufferfish", "tropical_fish", "tadpole"] as $mob){
+			$name = $mob . "_bucket";
+			self::register($name, fn(IID $id) => $unstackable($id, "Bucket of " . self::displayName($mob)));
+		}
+		//TODO: Implement placing and picking up powder snow with a bucket.
+		self::register("powder_snow_bucket", fn(IID $id) => $unstackable($id, "Powder Snow Bucket"));
+	}
+
+	private function registerTravelAndCombatItems() : void{
+		$unstackable = self::unstackable();
+		//TODO: Implement placing minecarts on rails and their chest, hopper, TNT and command block variants.
+		foreach(["chest", "hopper", "tnt", "command_block"] as $type){
+			$name = $type . "_minecart";
+			self::register($name, fn(IID $id) => $unstackable($id, "Minecart with " . self::displayName($type)));
+		}
+		//TODO: Implement pointing lodestone compasses at their linked lodestone.
+		self::register("lodestone_compass", fn(IID $id) => $unstackable($id, "Lodestone Compass"));
+		self::register("empty_map", fn(IID $id) => new EmptyMap($id, "Empty Map"));
+		self::register("filled_map", fn(IID $id) => new FilledMap($id, "Map"));
+		//TODO: Implement throwing eyes of ender towards the nearest stronghold and placing them in end portal frames.
+		self::register("ender_eye", fn(IID $id) => new Item($id, "Eye of Ender"));
+		//TODO: Implement throwing wind charges and their burst knockback.
+		self::register("wind_charge", fn(IID $id) => new Item($id, "Wind Charge"));
+		//TODO: Implement placing armor stands once the armor stand entity exists.
+		self::register("armor_stand", fn(IID $id) => new class($id, "Armor Stand") extends Item{
+			public function getMaxStackSize() : int{ return 16; }
+		});
+		self::register("shield", fn(IID $id) => new Shield($id, "Shield", [EnchantmentTags::SHIELD]));
+		self::register("crossbow", fn(IID $id) => new Crossbow($id, "Crossbow", [EnchantmentTags::CROSSBOW]));
 	}
 
 	private function registerSpawnEggs() : void{
@@ -358,6 +458,23 @@ final class VanillaItemsInputs extends RegistrySource{
 				return new Villager(Location::fromObject($pos, $world, $yaw, $pitch));
 			}
 		});
+
+		//TODO: These mobs don't exist in Quark yet, so their eggs are plain items. Make each a SpawnEgg once its entity is added.
+		foreach([
+			"allay", "armadillo", "axolotl", "bat", "bee", "blaze", "bogged", "breeze", "camel_husk", "camel", "cat",
+			"cave_spider", "chicken", "cod", "copper_golem", "cow", "creaking", "creeper", "dolphin", "donkey", "drowned",
+			"elder_guardian", "ender_dragon", "enderman", "endermite", "evoker", "fox", "frog", "frostbite", "ghast",
+			"glow_squid", "goat", "guardian", "happy_ghast", "hoglin", "horse", "husk", "iron_golem", "llama", "magma_cube",
+			"mooshroom", "mule", "nautilus", "ocelot", "panda", "parched", "parrot", "phantom", "pig", "piglin_brute",
+			"piglin", "pillager", "polar_bear", "pufferfish", "rabbit", "ravager", "salmon", "sheep", "shulker", "silverfish",
+			"skeleton_horse", "skeleton", "slime", "sniffer", "snow_golem", "spider", "stray", "strider", "sulfur_cube",
+			"tadpole", "trader_llama", "tropical_fish", "turtle", "vex", "vindicator", "wandering_trader", "warden", "witch",
+			"wither_skeleton", "wither", "wolf", "zoglin", "zombie_horse", "zombie_nautilus", "zombie_pigman",
+			"zombie_villager",
+		] as $mob){
+			$name = $mob . "_spawn_egg";
+			self::register($name, fn(IID $id) => new Item($id, self::displayName($name)));
+		}
 	}
 
 	private function registerTierToolItems() : void{
@@ -394,6 +511,7 @@ final class VanillaItemsInputs extends RegistrySource{
 		self::registerDelayed("iron_chestplate", fn($name) : Armor => new Armor(self::makeIID($name), "Iron Chestplate", new ArmorTypeInfo(6, 241, ArmorInventory::SLOT_CHEST, material: ArmorMaterials::IRON()), [EnchantmentTags::CHESTPLATE]));
 		self::registerDelayed("leather_tunic", fn($name) : Armor => new Armor(self::makeIID($name), "Leather Tunic", new ArmorTypeInfo(3, 81, ArmorInventory::SLOT_CHEST, material: ArmorMaterials::LEATHER()), [EnchantmentTags::CHESTPLATE]));
 		self::registerDelayed("netherite_chestplate", fn($name) : Armor => new Armor(self::makeIID($name), "Netherite Chestplate", new ArmorTypeInfo(8, 593, ArmorInventory::SLOT_CHEST, 3, true, material: ArmorMaterials::NETHERITE()), [EnchantmentTags::CHESTPLATE]));
+		self::registerDelayed("elytra", fn($name) : Elytra => new Elytra(self::makeIID($name), "Elytra", new ArmorTypeInfo(0, 432, ArmorInventory::SLOT_CHEST, material: ArmorMaterials::ELYTRA()), [EnchantmentTags::ELYTRA]));
 
 		self::registerDelayed("chainmail_helmet", fn($name) : Armor => new Armor(self::makeIID($name), "Chainmail Helmet", new ArmorTypeInfo(2, 166, ArmorInventory::SLOT_HEAD, material: ArmorMaterials::CHAINMAIL()), [EnchantmentTags::HELMET]));
 		self::registerDelayed("copper_helmet", fn($name) : Armor => new Armor(self::makeIID($name), "Copper Helmet", new ArmorTypeInfo(2, 122, ArmorInventory::SLOT_HEAD, material: ArmorMaterials::COPPER()), [EnchantmentTags::HELMET]));

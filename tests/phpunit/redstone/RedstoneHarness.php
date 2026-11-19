@@ -135,6 +135,34 @@ final class RedstoneHarness{
 		}
 	}
 
+	/** Like tick(), but also ticks entities and flushes light the way World::doTick() does. */
+	public function tickWithEntities(int $ticks = 1) : void{
+		$advance = \Closure::bind(fn() : int => ++$this->tickCounter, $this->server, Server::class);
+		$update = \Closure::bind(function(int $tick) : void{
+			$this->runScheduledBlockUpdates($tick);
+			$this->runNeighbourBlockUpdates();
+			$this->deferringEntityMovement = true;
+			try{
+				foreach($this->updateEntities as $id => $entity){
+					if($entity->isClosed() || $entity->isFlaggedForDespawn() || !$entity->onUpdate($tick)){
+						unset($this->updateEntities[$id]);
+					}
+					if($entity->isFlaggedForDespawn()){
+						$entity->close();
+					}
+				}
+			}finally{
+				$this->deferringEntityMovement = false;
+			}
+			$this->flushEntityMovement();
+			$this->executeQueuedLightUpdates();
+		}, $this->world, World::class);
+		for($i = 0; $i < $ticks; ++$i){
+			$update($advance());
+			$this->manager->tick();
+		}
+	}
+
 	/** Runs world block updates and the redstone scheduler for the given number of game ticks. */
 	public function tick(int $ticks = 1) : void{
 		$advance = \Closure::bind(fn() : int => ++$this->tickCounter, $this->server, Server::class);

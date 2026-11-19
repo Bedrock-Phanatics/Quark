@@ -122,15 +122,23 @@ final class RedstoneBlockUtils{
 		return $inventoryContentsReader($inventory, $include_empty);
 	}
 
-	public static function moveBlockAndTile(World $world, Vector3 $source, Vector3 $destination, bool $update = true) : void{
-		$sourceX = (int) $source->x;
-		$sourceY = (int) $source->y;
-		$sourceZ = (int) $source->z;
-		$destinationX = (int) $destination->x;
-		$destinationY = (int) $destination->y;
-		$destinationZ = (int) $destination->z;
+	public static function moveBlockAndTile(World $world, Vector3 $source, Vector3 $destination, bool $update = true) : bool{
+		$sourceX = $source->getFloorX();
+		$sourceY = $source->getFloorY();
+		$sourceZ = $source->getFloorZ();
+		$destinationX = $destination->getFloorX();
+		$destinationY = $destination->getFloorY();
+		$destinationZ = $destination->getFloorZ();
+		if($sourceX === $destinationX && $sourceY === $destinationY && $sourceZ === $destinationZ){
+			return true;
+		}
 		$block = $world->getBlockAt($sourceX, $sourceY, $sourceZ);
 		$tileNbt = $world->getTileAt($sourceX, $sourceY, $sourceZ)?->saveNBT();
+		$metadata = $world->getMetadataIfUsed();
+		if($metadata !== null && !$metadata->canMoveBlocks([[$source, $destination]])){
+			return false;
+		}
+		$moved = $metadata?->takeBlock($sourceX, $sourceY, $sourceZ);
 		$world->setBlockAt($sourceX, $sourceY, $sourceZ, VanillaBlocks::AIR(), $update);
 		if($tileNbt !== null){
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
@@ -144,5 +152,9 @@ final class RedstoneBlockUtils{
 			$world->useBreakOn($destination);
 			$world->setBlockAt($destinationX, $destinationY, $destinationZ, $block, $update);
 		}
+		if($moved !== null && $metadata !== null){
+			$metadata->putBlock($destinationX, $destinationY, $destinationZ, $moved);
+		}
+		return true;
 	}
 }

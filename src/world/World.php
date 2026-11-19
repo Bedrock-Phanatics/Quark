@@ -117,6 +117,7 @@ use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\GlobalBlockStateHandlers;
+use quark\world\format\io\MetadataWorldProvider;
 use quark\world\format\io\WritableWorldProvider;
 use quark\world\format\SubChunk;
 use quark\world\generator\executor\AsyncGeneratorExecutor;
@@ -129,6 +130,7 @@ use quark\world\light\BlockLightUpdate;
 use quark\world\light\LightPopulationTask;
 use quark\world\light\NativeLight;
 use quark\world\light\SkyLightUpdate;
+use quark\world\metadata\WorldMetadata;
 use quark\world\particle\BlockBreakParticle;
 use quark\world\particle\Particle;
 use quark\world\sound\BlockPlaceSound;
@@ -146,6 +148,7 @@ use function array_merge;
 use function array_push;
 use function array_sum;
 use function assert;
+use function ceil;
 use function chr;
 use function cos;
 use function count;
@@ -244,6 +247,14 @@ class World implements ChunkManager{
 	 * @phpstan-var array<ChunkPosHash, array<int, Entity>>
 	 */
 	private array $entitiesByChunk = [];
+	/** @phpstan-var array<ChunkPosHash, int> falling block entities in each chunk of $entitiesByChunk */
+	private array $fallingBlockCounts = [];
+	/**
+	 * Falling blocks added during the running neighbour update pass that haven't moved, by chunk: their IDs, and the
+	 * highest start in each column. Null outside the pass.
+	 * @phpstan-var array<ChunkPosHash, array{0?: array<int, true>, 1?: array<int, int>}>|null
+	 */
+	private ?array $fallingStarts = null;
 
 	/**
 	 * @var Entity[] entity runtime ID => Entity
@@ -363,6 +374,16 @@ class World implements ChunkManager{
 	 */
 	private array $savedChunkStates = [];
 
+	/** Created on first use, so worlds nobody stores metadata in pay nothing for it. */
+	private ?WorldMetadata $metadata = null;
+	/**
+	 * Chunks that failed to load. Whatever metadata storage holds for them belongs to terrain that is gone, so the
+	 * chunk that replaces them deletes it.
+	 * @var true[]
+	 * @phpstan-var array<ChunkPosHash, true>
+	 */
+	private array $corruptedChunks = [];
+
 	/**
 	 * @var true[]
 	 * @phpstan-var array<ChunkPosHash, true>
@@ -433,6 +454,7 @@ class World implements ChunkManager{
 	private int $sleepTicks = 0;
 
 	private int $chunkTickRadius;
+	private int $viewDistanceLimit;
 	/** Chunks around players where entities tick every tick, 0 to tick everything. */
 	private int $activationChunkRadius = 0;
 	private int $inactiveTickInterval = 20;
@@ -605,6 +627,9 @@ class World implements ChunkManager{
 		$this->hasSkyLight = $this->dimension->skyLight;
 		$this->hasWeather = $this->dimension->weather;
 		$this->collisionRegion = new CollisionRegion(self::COLLISION_SECTION_LIMIT);
+		if($this->provider instanceof MetadataWorldProvider && ($metadataRecord = $this->provider->loadWorldMetadata()) !== null){
+			$this->metadata = new WorldMetadata($this, $this->provider, $metadataRecord);
+		}
 
 		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_level_preparing($this->displayName)));
 		$generator = GeneratorManager::getInstance()->getGenerator($this->provider->getWorldData()->getGenerator()) ??
@@ -663,9 +688,10 @@ class World implements ChunkManager{
 		$this->weatherCycle = $this->hasWeather && $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
-		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_TICK_RADIUS, 3)));
-		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNK_TICKING_BLOCKS_PER_SUBCHUNK_PER_TICK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
-		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNK_GENERATION_POPULATION_QUEUE_SIZE, 32);
+		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNKS_TICK_RADIUS, 3)));
+		$this->viewDistanceLimit = $this->server->getWorldViewDistanceLimit($this->folderName);
+		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNKS_RANDOM_TICKS_PER_SUBCHUNK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
+		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNKS_POPULATION_QUEUE_SIZE, 32);
 		$activationRange = max(0, min(self::MAX_ACTIVATION_RANGE, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0)));
 		$this->activationChunkRadius = intdiv($activationRange + Chunk::EDGE_LENGTH - 1, Chunk::EDGE_LENGTH);
 		$this->inactiveTickInterval = max(1, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_INACTIVE_TICK_INTERVAL, 20));
@@ -678,7 +704,7 @@ class World implements ChunkManager{
 	private function initRandomTickBlocksFromConfig(ServerConfigGroup $cfg) : void{
 		$dontTickBlocks = [];
 		$parser = StringToItemParser::getInstance();
-		foreach($cfg->getProperty(YmlServerProperties::CHUNK_TICKING_DISABLE_BLOCK_TICKING, []) as $name){
+		foreach($cfg->getProperty(YmlServerProperties::CHUNKS_DISABLED_RANDOM_TICK_BLOCKS, []) as $name){
 			$name = (string) $name;
 			$item = $parser->parse($name);
 			if($item !== null){
@@ -726,6 +752,30 @@ class World implements ChunkManager{
 	}
 
 	/**
+	 * Persistent plugin data for this world's blocks and chunks, see {@see WorldMetadata}.
+	 *
+	 * @throws WorldException if the world's format can't store metadata
+	 */
+	public function getMetadata() : WorldMetadata{
+		if($this->metadata === null){
+			if(!$this->provider instanceof MetadataWorldProvider){
+				throw new WorldException("World $this->folderName is stored in a format that can't store metadata");
+			}
+			$this->metadata = new WorldMetadata($this, $this->provider, null);
+		}
+		return $this->metadata;
+	}
+
+	/**
+	 * Returns the metadata only if something already uses it, for engine code that moves blocks.
+	 *
+	 * @internal
+	 */
+	public function getMetadataIfUsed() : ?WorldMetadata{
+		return $this->metadata;
+	}
+
+	/**
 	 * Returns the unique world identifier
 	 */
 	final public function getId() : int{
@@ -765,6 +815,7 @@ class World implements ChunkManager{
 			}
 		}
 		$this->knownUngeneratedChunks = [];
+		$this->corruptedChunks = [];
 		foreach($this->entitiesByChunk as $chunkHash => $entities){
 			self::getXZ($chunkHash, $chunkX, $chunkZ);
 
@@ -794,6 +845,7 @@ class World implements ChunkManager{
 			$this->logger->critical("Failed to close the world's storage: " . $e->getMessage());
 			$failure ??= $e;
 		}
+		$this->metadata?->close();
 		$this->blockCache = [];
 		$this->blockCacheSize = 0;
 		$this->collisionRegion->invalidateAll();
@@ -1472,6 +1524,14 @@ class World implements ChunkManager{
 	}
 
 	/**
+	 * Returns the largest view distance, in chunks, players may have in this world: the `view-distances` override for
+	 * this world if one is configured, capped by the server-wide maximum.
+	 */
+	public function getViewDistanceLimit() : int{
+		return $this->viewDistanceLimit;
+	}
+
+	/**
 	 * Returns the radius of chunks to be ticked around each player. This is referred to as "simulation distance" in the
 	 * Minecraft: Bedrock world options screen.
 	 */
@@ -1759,10 +1819,17 @@ class World implements ChunkManager{
 		}finally{
 			//whatever did get written is still worth keeping
 			try{
-				$this->provider->getWorldData()->save();
+				try{
+					$this->metadata?->save();
+				}finally{
+					$this->provider->getWorldData()->save();
+				}
 			}finally{
-				$this->provider->flush();
-				$pulse->stop($scope);
+				try{
+					$this->provider->flush();
+				}finally{
+					$pulse->stop($scope);
+				}
 			}
 		}
 
@@ -1813,11 +1880,24 @@ class World implements ChunkManager{
 				->setInt(Tile::TAG_Z, $pos->getFloorZ());
 		}
 		$state = self::chunkSaveState($chunk->isPopulated(), $entities, $tiles);
-		if($chunk->getTerrainDirtyFlags() === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state){
+		//the metadata record is only written when it changed: rewriting an absent one would leave a deletion behind
+		//in LevelDB for every chunk, slowing every later load
+		$flags = $chunk->getTerrainDirtyFlags();
+		$metadataMark = $this->metadata?->getChunkSaveMark($chunkHash);
+		$writeMetadata = $metadataMark !== null || ($this->provider instanceof MetadataWorldProvider && isset($this->corruptedChunks[$chunkHash]));
+		$metadataOnly = $flags === Chunk::DIRTY_FLAGS_NONE && ($this->savedChunkStates[$chunkHash] ?? null) === $state;
+		if($writeMetadata){
+			$flags = $metadataOnly ? Chunk::DIRTY_FLAG_METADATA_ONLY : $flags | Chunk::DIRTY_FLAG_METADATA;
+		}elseif($metadataOnly){
 			return;
 		}
-		$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData($chunk->getSubChunks(), $chunk->isPopulated(), $entities, $tiles), $chunk->getTerrainDirtyFlags());
+		$metadata = $writeMetadata ? $this->metadata?->encodeChunk($chunkHash) : null;
+		$this->provider->saveChunk($chunkX, $chunkZ, new ChunkData($chunk->getSubChunks(), $chunk->isPopulated(), $entities, $tiles, $metadata), $flags);
 		$this->savedChunkStates[$chunkHash] = $state;
+		unset($this->corruptedChunks[$chunkHash]);
+		if($metadataMark !== null){
+			$this->metadata?->markChunkSaved($chunkHash, $metadataMark);
+		}
 	}
 
 	public function saveChunks() : void{
@@ -1900,27 +1980,179 @@ class World implements ChunkManager{
 	}
 
 	private function runNeighbourBlockUpdates() : void{
+		$this->fallingStarts = [];
+		try{
+			$this->processNeighbourBlockUpdates();
+		}finally{
+			$this->fallingStarts = null;
+		}
+	}
+
+	private function processNeighbourBlockUpdates() : void{
 		while($this->neighbourBlockUpdateQueue->count() > 0){
-			$index = $this->neighbourBlockUpdateQueue->dequeue();
-			unset($this->neighbourBlockUpdateQueueIndex[$index]);
-			World::getBlockXYZ($index, $x, $y, $z);
-			if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
-				continue;
-			}
-
-			$block = $this->getBlockAt($x, $y, $z);
-
-			if(BlockUpdateEvent::hasHandlers()){
-				$ev = new BlockUpdateEvent($block);
-				$ev->call();
-				if($ev->isCancelled()){
+			/** @var array<int, true> $cells */
+			$cells = [];
+			/** @var array<ChunkPosHash, true> $entityChunks */
+			$entityChunks = [];
+			$minX = $minY = $minZ = PHP_INT_MAX;
+			$maxX = $maxY = $maxZ = PHP_INT_MIN;
+			while($this->neighbourBlockUpdateQueue->count() > 0){
+				$index = $this->neighbourBlockUpdateQueue->dequeue();
+				unset($this->neighbourBlockUpdateQueueIndex[$index]);
+				World::getBlockXYZ($index, $x, $y, $z);
+				if($this->deferIfUnloaded($x, $y, $z, 1, self::DEFERRED_NEIGHBOUR)){
 					continue;
 				}
+
+				$block = $this->getBlockAt($x, $y, $z);
+
+				if(BlockUpdateEvent::hasHandlers()){
+					$ev = new BlockUpdateEvent($block);
+					$ev->call();
+					if($ev->isCancelled()){
+						continue;
+					}
+				}
+				if(count($this->entitiesByChunk) > 0){
+					//same chunk reach as getNearbyEntities() for this cell
+					$maxChunkX = ($x + 3) >> Chunk::COORD_BIT_SIZE;
+					$maxChunkZ = ($z + 3) >> Chunk::COORD_BIT_SIZE;
+					for($chunkX = ($x - 2) >> Chunk::COORD_BIT_SIZE; $chunkX <= $maxChunkX; ++$chunkX){
+						for($chunkZ = ($z - 2) >> Chunk::COORD_BIT_SIZE; $chunkZ <= $maxChunkZ; ++$chunkZ){
+							if(isset($this->entitiesByChunk[$chunkHash = World::chunkHash($chunkX, $chunkZ)])){
+								$entityChunks[$chunkHash] = true;
+								$cells[$index] = true;
+							}
+						}
+					}
+					if(isset($cells[$index])){
+						$minX = min($minX, $x);
+						$minY = min($minY, $y);
+						$minZ = min($minZ, $z);
+						$maxX = max($maxX, $x);
+						$maxY = max($maxY, $y);
+						$maxZ = max($maxZ, $z);
+					}
+				}
+				$block->onNearbyBlockChange();
 			}
-			foreach($this->getNearbyEntities(AxisAlignedBB::one()->offset($x, $y, $z)) as $entity){
-				$entity->onNearbyBlockChange();
+			if(count($cells) > 0){
+				$this->notifyEntitiesInUpdatedCells($cells, $entityChunks, new AxisAlignedBB($minX, $minY, $minZ, $maxX + 1, $maxY + 1, $maxZ + 1));
 			}
-			$block->onNearbyBlockChange();
+		}
+	}
+
+	private function forgetFallingBlock(int $chunkHash, FallingBlock $entity) : void{
+		if(--$this->fallingBlockCounts[$chunkHash] === 0){
+			unset($this->fallingBlockCounts[$chunkHash]);
+		}
+		unset($this->fallingStarts[$chunkHash][0][$entity->getId()]);
+	}
+
+	/**
+	 * @internal Returns the Y a block leaving x,y,z should start falling from.
+	 *
+	 * With fast falling blocks on, a block that would drop through open air starts right above where it lands, or above
+	 * the highest falling block started below it in this column. That is only safe while every falling block in the
+	 * chunk was added in this pass and hasn't moved, so none can be overtaken; otherwise it starts at $y.
+	 */
+	public function startFallingBlock(int $x, int $y, int $z, bool $mayFallFast) : int{
+		if($this->fallingStarts === null || !FallingBlock::isFastFalling()){
+			return $y;
+		}
+		$chunkHash = World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE);
+		$localX = $x & Chunk::COORD_MASK;
+		$localZ = $z & Chunk::COORD_MASK;
+		$column = ($localX << Chunk::COORD_BIT_SIZE) | $localZ;
+		$below = $this->fallingStarts[$chunkHash][1][$column] ?? $this->minY - 1;
+		if(
+			!$mayFallFast ||
+			$below >= $y ||
+			count($this->fallingStarts[$chunkHash][0] ?? []) !== ($this->fallingBlockCounts[$chunkHash] ?? 0) ||
+			($chunk = $this->chunks[$chunkHash] ?? null) === null
+		){
+			return $y;
+		}
+		$air = VanillaBlocks::AIR()->getStateId();
+		$cursor = $y - 1;
+		while($cursor > $below && $cursor >= $this->minY && $chunk->getBlockStateId($localX, $cursor, $localZ) === $air){
+			--$cursor;
+		}
+		//falling out of the world isn't shortened
+		return $cursor >= $this->minY ? $cursor + 1 : $y;
+	}
+
+	/**
+	 * Entity notifications are only hints to recheck physics, so they're batched per pass. Querying entities for each
+	 * updated block was quadratic once a tower of falling blocks or a pile of drops shared a chunk.
+	 *
+	 * @param array<int, true>          $cells        block hashes of updated cells
+	 * @param array<ChunkPosHash, true> $entityChunks chunks whose entities may overlap them
+	 * @param AxisAlignedBB             $bounds       box around every cell, for a native first pass over the entities
+	 */
+	private function notifyEntitiesInUpdatedCells(array $cells, array $entityChunks, AxisAlignedBB $bounds) : void{
+		//matches the epsilon AxisAlignedBB::intersectsWith() uses against a full block
+		$epsilon = 0.00001;
+		$minY = $this->minY;
+		$maxY = $this->maxY - 1;
+		foreach($entityChunks as $chunkHash => $_){
+			$chunkEntities = $this->entitiesByChunk[$chunkHash] ?? [];
+			if(count($chunkEntities) === 0){
+				continue;
+			}
+			foreach(Spatial::overlapping($chunkEntities, $bounds) as $entity){
+				if($entity->isClosed()){
+					continue;
+				}
+				$bb = $entity->getBoundingBox();
+				$x0 = (int) floor($bb->minX);
+				if(($x0 + 1) - $bb->minX <= $epsilon){
+					++$x0;
+				}
+				$x1 = (int) floor($bb->maxX);
+				if($bb->maxX - $x1 <= $epsilon){
+					--$x1;
+				}
+				$y0 = (int) floor($bb->minY);
+				if(($y0 + 1) - $bb->minY <= $epsilon){
+					++$y0;
+				}
+				$y1 = (int) floor($bb->maxY);
+				if($bb->maxY - $y1 <= $epsilon){
+					--$y1;
+				}
+				$z0 = (int) floor($bb->minZ);
+				if(($z0 + 1) - $bb->minZ <= $epsilon){
+					++$z0;
+				}
+				$z1 = (int) floor($bb->maxZ);
+				if($bb->maxZ - $z1 <= $epsilon){
+					--$z1;
+				}
+				$y0 = max($y0, $minY);
+				$y1 = min($y1, $maxY);
+				if(($x1 - $x0 + 1) * ($y1 - $y0 + 1) * ($z1 - $z0 + 1) > count($cells)){
+					//a huge box has more cells than were updated
+					foreach($cells as $hash => $unused){
+						World::getBlockXYZ($hash, $x, $y, $z);
+						if($x >= $x0 && $x <= $x1 && $y >= $y0 && $y <= $y1 && $z >= $z0 && $z <= $z1){
+							$entity->onNearbyBlockChange();
+							break;
+						}
+					}
+					continue;
+				}
+				for($x = $x0; $x <= $x1; ++$x){
+					for($z = $z0; $z <= $z1; ++$z){
+						for($y = $y0; $y <= $y1; ++$y){
+							if(isset($cells[World::blockHash($x, $y, $z)])){
+								$entity->onNearbyBlockChange();
+								continue 4;
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -2655,6 +2887,7 @@ class World implements ChunkManager{
 		$localZ = $z & Chunk::COORD_MASK;
 		$previousStateId = $chunk->getBlockStateId($localX, $y, $localZ);
 		$chunk->setBlockStateId($localX, $y, $localZ, $stateId);
+		$this->metadata?->onBlockChanged($chunkHash, $x, $y, $z, $previousStateId, $stateId);
 		if(isset($this->randomTickBlocks[$stateId])){
 			unset($this->randomTickSubChunks[$chunkHash]);
 		}
@@ -3283,6 +3516,7 @@ class World implements ChunkManager{
 			if($deletedTiles > 0 || $transferredTiles > 0){
 				$this->logger->debug("Replacement of chunk $chunkX $chunkZ caused deletion of $deletedTiles obsolete/conflicted tiles, and transfer of $transferredTiles");
 			}
+			$this->metadata?->onChunkReplaced($chunkHash, $oldChunk, $chunk);
 		}
 
 		$this->chunks[$chunkHash] = $chunk;
@@ -3401,7 +3635,17 @@ class World implements ChunkManager{
 			throw new \LogicException("Entity " . $entity::class . " is not registered for a save ID in EntityFactory");
 		}
 		$pos = $entity->getPosition()->asVector3();
-		$this->entitiesByChunk[World::chunkHash($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE)][$entity->getId()] = $entity;
+		$chunkHash = World::chunkHash($pos->getFloorX() >> Chunk::COORD_BIT_SIZE, $pos->getFloorZ() >> Chunk::COORD_BIT_SIZE);
+		$this->entitiesByChunk[$chunkHash][$entity->getId()] = $entity;
+		if($entity instanceof FallingBlock){
+			$this->fallingBlockCounts[$chunkHash] = ($this->fallingBlockCounts[$chunkHash] ?? 0) + 1;
+			if($this->fallingStarts !== null){
+				$column = (($pos->getFloorX() & Chunk::COORD_MASK) << Chunk::COORD_BIT_SIZE) | ($pos->getFloorZ() & Chunk::COORD_MASK);
+				$this->fallingStarts[$chunkHash][0][$entity->getId()] = true;
+				//rounded up, so a block stacked above one loaded mid-fall can't overlap it
+				$this->fallingStarts[$chunkHash][1][$column] = max($this->fallingStarts[$chunkHash][1][$column] ?? $this->minY - 1, (int) ceil($pos->y));
+			}
+		}
 		$this->entityLastKnownPositions[$entity->getId()] = $pos;
 
 		if($entity instanceof Player){
@@ -3430,6 +3674,9 @@ class World implements ChunkManager{
 			}else{
 				unset($this->entitiesByChunk[$chunkHash][$entity->getId()]);
 			}
+			if($entity instanceof FallingBlock){
+				$this->forgetFallingBlock($chunkHash, $entity);
+			}
 		}
 		unset($this->entityLastKnownPositions[$entity->getId()]);
 
@@ -3452,6 +3699,10 @@ class World implements ChunkManager{
 		}
 		$oldPosition = $this->entityLastKnownPositions[$entity->getId()];
 		$newPosition = $entity->getPosition();
+		if($this->fallingStarts !== null && $entity instanceof FallingBlock){
+			//its recorded start no longer says where it is
+			unset($this->fallingStarts[World::chunkHash($oldPosition->getFloorX() >> Chunk::COORD_BIT_SIZE, $oldPosition->getFloorZ() >> Chunk::COORD_BIT_SIZE)][0][$entity->getId()]);
+		}
 
 		$oldChunkX = $oldPosition->getFloorX() >> Chunk::COORD_BIT_SIZE;
 		$oldChunkZ = $oldPosition->getFloorZ() >> Chunk::COORD_BIT_SIZE;
@@ -3466,11 +3717,15 @@ class World implements ChunkManager{
 				}
 			}
 			$oldChunkHash = World::chunkHash($oldChunkX, $oldChunkZ);
+			$fallingBlock = $entity instanceof FallingBlock;
 			if(isset($this->entitiesByChunk[$oldChunkHash][$entity->getId()])){
 				if(count($this->entitiesByChunk[$oldChunkHash]) === 1){
 					unset($this->entitiesByChunk[$oldChunkHash]);
 				}else{
 					unset($this->entitiesByChunk[$oldChunkHash][$entity->getId()]);
+				}
+				if($fallingBlock){
+					$this->forgetFallingBlock($oldChunkHash, $entity);
 				}
 			}
 
@@ -3488,6 +3743,9 @@ class World implements ChunkManager{
 
 			$newChunkHash = World::chunkHash($newChunkX, $newChunkZ);
 			$this->entitiesByChunk[$newChunkHash][$entity->getId()] = $entity;
+			if($fallingBlock){
+				$this->fallingBlockCounts[$newChunkHash] = ($this->fallingBlockCounts[$newChunkHash] ?? 0) + 1;
+			}
 		}
 		$this->entityLastKnownPositions[$entity->getId()] = $newPosition->asVector3();
 	}
@@ -3601,6 +3859,9 @@ class World implements ChunkManager{
 			$loadedChunkData = $this->provider->loadChunk($x, $z);
 		}catch(CorruptedChunkException $e){
 			$this->logger->critical("Failed to load chunk x=$x z=$z: " . $e->getMessage());
+			if($this->provider instanceof MetadataWorldProvider){
+				$this->corruptedChunks[$chunkHash] = true;
+			}
 		}
 
 		$this->pulse->syncChunkLoadData->stop($syncChunkLoadDataScope);
@@ -3620,6 +3881,9 @@ class World implements ChunkManager{
 			$this->logger->debug("Chunk $x $z has been upgraded, will be saved at the next autosave opportunity");
 		}
 		$this->chunks[$chunkHash] = $chunk;
+		if(($metadataRecord = $chunkData->getMetadata()) !== null && $this->provider instanceof MetadataWorldProvider){
+			$this->getMetadata()->onChunkLoaded($chunkHash, $metadataRecord);
+		}
 
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
@@ -3800,6 +4064,7 @@ class World implements ChunkManager{
 		}
 
 		unset($this->chunks[$chunkHash], $this->savedChunkStates[$chunkHash]);
+		$this->metadata?->onChunkUnloaded($chunkHash);
 		$this->blockCacheSize -= count($this->blockCache[$chunkHash] ?? []);
 		unset($this->blockCache[$chunkHash]);
 		$this->collisionRegion->invalidateChunk($x, $z);

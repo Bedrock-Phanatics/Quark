@@ -29,6 +29,7 @@ use quark\block\tile\dispenser\Dispenser as DispenserTile;
 use quark\block\utils\AnyFacing;
 use quark\block\utils\Container;
 use quark\block\utils\ContainerTrait;
+use quark\block\utils\PlacementFacing;
 use quark\block\utils\PoweredByRedstone;
 use quark\block\utils\PoweredByRedstoneTrait;
 use quark\block\utils\redstone\Powerable;
@@ -47,7 +48,6 @@ use quark\world\BlockTransaction;
 use quark\world\Position;
 use quark\world\redstone\RedstoneConfig;
 use quark\world\redstone\RedstoneManager;
-use function abs;
 
 class Dispenser extends Opaque implements Container, AnyFacing, Powerable, PoweredByRedstone{
 	use ContainerTrait;
@@ -72,19 +72,7 @@ class Dispenser extends Opaque implements Container, AnyFacing, Powerable, Power
 
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
-			if(abs($player->getPosition()->x - $this->position->x) < 2 && abs($player->getPosition()->z - $this->position->z) < 2){
-				$y = $player->getEyePos()->y;
-
-				if($y - $this->position->y > 2){
-					$this->facing = Facing::UP;
-				}elseif($this->position->y - $y > 0){
-					$this->facing = Facing::DOWN;
-				}else{
-					$this->facing = Facing::opposite($player->getHorizontalFacing());
-				}
-			}else{
-				$this->facing = Facing::opposite($player->getHorizontalFacing());
-			}
+			$this->facing = PlacementFacing::towardsPlayer($player, $this->position);
 		}
 
 		return parent::place($tx, $item, $blockReplace, $face, $clickVector, $player);

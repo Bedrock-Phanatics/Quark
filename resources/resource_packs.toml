@@ -2,5 +2,21 @@
 force_resources = false
 
 # List pack filenames in this folder. Earlier packs override later packs.
-# For an encrypted pack, place its key beside it, for example natural.zip.key.
+# Existing encrypted archives use a key beside the pack, for example natural.zip.key.
 resource_stack = []
+
+[encryption]
+# Enable native encryption of unencrypted packs before players can join.
+# Downloads are cached automatically and rebuilt when the pack or key changes.
+enabled = false
+# Empty means all eligible packs; otherwise list filenames from resource_stack.
+packs = []
+# Generate a random 32-character ASCII password at:
+# https://1password.com/password-generator/
+# The key must be exactly 32 bytes, not 32 Unicode characters.
+# Keep it stable so restarts can reuse encrypted downloads.
+# If both key sources are empty, Quark creates .encryption.key once. Back it up with your packs.
+key = ''
+# Optional local filename beside the packs, containing the key (a final newline is allowed).
+# Set either key or key-file, never both. Existing per-pack .key files take priority and bypass encryption.
+key-file = ''

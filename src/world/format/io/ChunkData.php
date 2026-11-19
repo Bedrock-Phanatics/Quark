@@ -41,7 +41,8 @@ final class ChunkData{
 		private array $subChunks,
 		private bool $populated,
 		private array $entityNBT,
-		private array $tileNBT
+		private array $tileNBT,
+		private ?string $metadata = null
 	){}
 
 	/**
@@ -63,4 +64,9 @@ final class ChunkData{
 	 * @phpstan-return list<CompoundTag>
 	 */
 	public function getTileNBT() : array{ return $this->tileNBT; }
+
+	/**
+	 * The chunk's encoded metadata record, opaque to providers. See {@see MetadataWorldProvider}.
+	 */
+	public function getMetadata() : ?string{ return $this->metadata; }
 }
