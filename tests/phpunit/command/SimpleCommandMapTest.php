@@ -129,7 +129,7 @@ final class SimpleCommandMapTest extends TestCase{
 		$this->calls[] = [$name, $label, $args];
 	}
 
-	private function plugin(bool &$enabled, ?\Throwable $onDisable = null, ?TaskScheduler $scheduler = null) : Plugin{
+	private function plugin(bool &$enabled, ?\Throwable $onDisable = null, ?TaskScheduler $scheduler = null, string $name = "Owner") : Plugin{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method("isEnabled")->willReturnCallback(function() use (&$enabled) : bool{
 			return $enabled;
@@ -140,8 +140,8 @@ final class SimpleCommandMapTest extends TestCase{
 				throw $onDisable;
 			}
 		});
-		$plugin->method("getDescription")->willReturn(new PluginDescription(["name" => "Owner", "version" => "1.0.0", "main" => "owner\\Main", "api" => ["6.0.0"]]));
-		$plugin->method("getScheduler")->willReturn($scheduler ?? new TaskScheduler("Owner"));
+		$plugin->method("getDescription")->willReturn(new PluginDescription(["name" => $name, "version" => "1.0.0", "main" => "owner\\Main", "api" => ["6.0.0"]]));
+		$plugin->method("getScheduler")->willReturn($scheduler ?? new TaskScheduler($name));
 		return $plugin;
 	}
 
@@ -381,6 +381,20 @@ final class SimpleCommandMapTest extends TestCase{
 		self::assertTrue($task->isCancelled());
 		self::assertFalse($scheduler->isQueued($task));
 		self::assertNotContains($listener, $listeners->getListenersByPriority(EventPriority::NORMAL));
+	}
+
+	public function testThrowingDisableDoesNotSkipOtherPluginsAtShutdown() : void{
+		$brokenEnabled = true;
+		$storageEnabled = true;
+		$plugins = [
+			"Broken" => $this->plugin($brokenEnabled, new \RuntimeException("onDisable failed"), name: "Broken"),
+			"Storage" => $this->plugin($storageEnabled, name: "Storage"),
+		];
+		$manager = new PluginManager($this->server, null);
+		new \ReflectionProperty(PluginManager::class, "enabledPlugins")->setValue($manager, $plugins);
+		$manager->disablePlugins();
+		self::assertFalse($brokenEnabled);
+		self::assertFalse($storageEnabled);
 	}
 
 	public function testCleanupFailuresDoNotMaskTheDisableException() : void{

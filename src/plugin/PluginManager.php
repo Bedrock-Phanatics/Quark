@@ -537,7 +537,12 @@ class PluginManager{
 					continue;
 				}
 
-				$this->disablePlugin($plugin);
+				try{
+					$this->disablePlugin($plugin);
+				}catch(\Throwable $e){
+					$this->server->getLogger()->critical("Plugin $name failed to shut down: " . $e->getMessage());
+					$this->server->getLogger()->logException($e);
+				}
 			}
 		}
 	}
@@ -545,7 +550,12 @@ class PluginManager{
 	public function disablePlugin(Plugin $plugin) : void{
 		if($plugin->isEnabled()){
 			$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_disable($plugin->getDescription()->getFullName())));
-			(new PluginDisableEvent($plugin))->call();
+			$failure = null;
+			try{
+				(new PluginDisableEvent($plugin))->call();
+			}catch(\Throwable $e){
+				$failure = $e;
+			}
 
 			unset($this->enabledPlugins[$plugin->getDescription()->getName()]);
 			foreach(Utils::stringifyKeys($this->pluginDependents) as $dependency => $dependentList){
@@ -559,8 +569,7 @@ class PluginManager{
 			}
 
 			$commandMap = $this->server->getCommandMap();
-			//every step runs even if onDisable() throws, the first failure is rethrown afterwards
-			$failure = null;
+			//every step runs even if a plugin throws, the first failure is rethrown afterwards
 			foreach([
 				fn() => PulseZones::getPluginLifecycleZone($plugin->getDescription()->getFullName(), "disable")->time(fn() => $plugin->onEnableStateChange(false)),
 				fn() => $plugin->getScheduler()->shutdown(),
