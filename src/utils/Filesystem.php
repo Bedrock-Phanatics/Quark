@@ -319,7 +319,7 @@ final class Filesystem{
 	 *
 	 * @throws \RuntimeException if the operation failed for any reason
 	 */
-	public static function safeFilePutContents(string $fileName, string $contents, int $flags = 0, $context = null) : void{
+	public static function safeFilePutContents(string $fileName, string $contents, int $flags = 0, $context = null, bool $sync = false) : void{
 		$directory = dirname($fileName);
 		if(!is_dir($directory)){
 			throw new \RuntimeException("Target directory path does not exist or is not a directory");
@@ -328,52 +328,36 @@ final class Filesystem{
 			throw new \RuntimeException("Target file path already exists and is not a file");
 		}
 
-		$counter = 0;
-		do{
-			//we don't care about overwriting any preexisting tmpfile but we can't write if a directory is already here
-			$temporaryFileName = $fileName . ".$counter.tmp";
-			$counter++;
-		}while(is_dir($temporaryFileName));
-
+		$temporaryFileName = $fileName . "." . bin2hex(random_bytes(8)) . ".tmp";
+		$renamed = false;
 		try{
-			ErrorToExceptionHandler::trap(fn() => $context !== null ?
+			$written = ErrorToExceptionHandler::trap(fn() => $context !== null ?
 				file_put_contents($temporaryFileName, $contents, $flags, $context) :
 				file_put_contents($temporaryFileName, $contents, $flags)
 			);
-		}catch(\ErrorException $filePutContentsException){
-			$context !== null ?
-				@unlink($temporaryFileName, $context) :
-				@unlink($temporaryFileName);
-			throw new \RuntimeException("Failed to write to temporary file $temporaryFileName: " . $filePutContentsException->getMessage(), 0, $filePutContentsException);
-		}
-
-		$renameTemporaryFileResult = $context !== null ?
-			@rename($temporaryFileName, $fileName, $context) :
-			@rename($temporaryFileName, $fileName);
-		if(!$renameTemporaryFileResult){
-			/*
-			 * The following code works around a bug in Windows where rename() will periodically decide to give us a
-			 * spurious "Access is denied (code: 5)" error. As far as I could determine, the fault comes from Windows
-			 * itself, but since I couldn't reliably reproduce the issue it's very hard to debug.
-			 *
-			 * The following code can be used to test. Usually it will fail anywhere before 100,000 iterations.
-			 *
-			 * for($i = 0; $i < 10_000_000; ++$i){
-			 *     file_put_contents('ops.txt.0.tmp', 'some data ' . $i, 0);
-			 *     if(!rename('ops.txt.0.tmp', 'ops.txt')){
-			 *         throw new \Error("something weird happened");
-			 *     }
-			 * }
-			 */
-			try{
-				ErrorToExceptionHandler::trap(fn() => $context !== null ?
-					copy($temporaryFileName, $fileName, $context) :
-					copy($temporaryFileName, $fileName)
-				);
-			}catch(\ErrorException $copyException){
-				throw new \RuntimeException("Failed to move temporary file contents into target file: " . $copyException->getMessage(), 0, $copyException);
+			if($written !== strlen($contents)){
+				throw new \RuntimeException("Incomplete write to temporary file $temporaryFileName");
 			}
-			@unlink($temporaryFileName);
+			if($sync){
+				$stream = ErrorToExceptionHandler::trapAndRemoveFalse(fn() => $context !== null ? fopen($temporaryFileName, "r+b", false, $context) : fopen($temporaryFileName, "r+b"));
+				try{
+					if(!@fsync($stream)){
+						throw new \RuntimeException("Failed to sync temporary file $temporaryFileName");
+					}
+				}finally{
+					fclose($stream);
+				}
+			}
+			$renamed = $context !== null ? @rename($temporaryFileName, $fileName, $context) : @rename($temporaryFileName, $fileName);
+			if(!$renamed){
+				throw new \RuntimeException("Failed to replace $fileName with $temporaryFileName");
+			}
+		}catch(\ErrorException $e){
+			throw new \RuntimeException("Failed to write to temporary file $temporaryFileName: " . $e->getMessage(), 0, $e);
+		}finally{
+			if(!$renamed){
+				$context !== null ? @unlink($temporaryFileName, $context) : @unlink($temporaryFileName);
+			}
 		}
 	}
 

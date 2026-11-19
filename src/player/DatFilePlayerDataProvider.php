@@ -145,7 +145,7 @@ final class DatFilePlayerDataProvider implements PlayerDataProvider{
 	public static function writeFile(string $path, string $nbt) : void{
 		$contents = Utils::assumeNotFalse(zlib_encode($nbt, ZLIB_ENCODING_GZIP), "zlib_encode() failed unexpectedly");
 		try{
-			Filesystem::safeFilePutContents($path, $contents);
+			Filesystem::safeFilePutContents($path, $contents, sync: true);
 		}catch(\RuntimeException $e){
 			throw new PlayerDataSaveException("Failed to write player data file: " . $e->getMessage(), 0, $e);
 		}
