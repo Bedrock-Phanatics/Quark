@@ -27,8 +27,16 @@ use Bedwire\Server as BedwireServer;
 use PHPUnit\Framework\TestCase;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use quark\network\mcpe\compression\Compressor;
+use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\EntityEventBroadcaster;
 use quark\network\mcpe\NetworkSession;
+use quark\network\mcpe\PacketBroadcaster;
+use quark\network\NetworkInterfaceStartException;
+use quark\player\GameMode;
 use quark\Server;
+use quark\ServerConfigGroup;
+use quark\utils\Config;
 use function array_fill_keys;
 use function array_keys;
 use function str_repeat;
@@ -166,8 +174,39 @@ final class BedwireInterfaceTest extends TestCase{
 		self::assertFalse($ran);
 	}
 
+	public function testBlockedSendLeavesFollowingCommandsQueuedAndExpiresStaleSessions() : void{
+		$session = $this->createMock(NetworkSession::class);
+		$interface = $this->deferredInterface($session);
+		$staleSession = $this->createMock(NetworkSession::class);
+		$staleSession->expects(self::once())->method("disconnectWithError")->with("Network send queue is stuck");
+		new \ReflectionProperty(BedwireInterface::class, "sessions")->setValue($interface, [self::SESSION => $session, 2 => $staleSession]);
+		$server = $this->createMock(Server::class);
+		$server->method("getTick")->willReturn(200);
+		new \ReflectionProperty(BedwireInterface::class, "server")->setValue($interface, $server);
+
+		$defer = new \ReflectionMethod(BedwireInterface::class, "defer");
+		$retry = function() use ($interface, $defer) : void{
+			$defer->invoke($interface, self::SESSION, 4, function() : void{});
+		};
+		$following = function() : void{ self::fail("Subsequent sends must wait for the blocked command"); };
+		$defer->invoke($interface, self::SESSION, 4, $retry);
+		$defer->invoke($interface, self::SESSION, 4, $following);
+		$defer->invoke($interface, 2, 4, $following);
+		new \ReflectionProperty(BedwireInterface::class, "deferredSince")->setValue($interface, [self::SESSION => 200, 2 => 99]);
+
+		new \ReflectionMethod(BedwireInterface::class, "flushDeferred")->invoke($interface);
+		/** @var array<int, list<array{int, \Closure() : void}>> $deferred */
+		$deferred = new \ReflectionProperty(BedwireInterface::class, "deferred")->getValue($interface);
+		self::assertSame([self::SESSION], array_keys($deferred));
+		self::assertCount(2, $deferred[self::SESSION]);
+		self::assertSame($following, $deferred[self::SESSION][1][1]);
+		self::assertSame(2056, new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->getValue($interface));
+	}
+
 	public function testShutdownReleasesSendsStillQueued() : void{
-		$interface = $this->deferredInterface($this->createMock(NetworkSession::class));
+		$session = $this->createMock(NetworkSession::class);
+		$session->expects(self::once())->method("onClientDisconnect")->with("Network shutting down");
+		$interface = $this->deferredInterface($session);
 		$defer = new \ReflectionMethod(BedwireInterface::class, "defer");
 		//keeps finding the ring full, like a send during a mass kick at shutdown
 		$retry = function() use (&$retry, $interface, $defer) : void{
@@ -180,6 +219,56 @@ final class BedwireInterfaceTest extends TestCase{
 		self::assertSame([], new \ReflectionProperty(BedwireInterface::class, "deferred")->getValue($interface));
 		self::assertSame(0, new \ReflectionProperty(BedwireInterface::class, "deferredBytes")->getValue($interface));
 		self::assertNull(new \ReflectionProperty(BedwireInterface::class, "bedwire")->getValue($interface));
+		self::assertSame([], new \ReflectionProperty(BedwireInterface::class, "sessions")->getValue($interface));
+		$interface->shutdown();
+	}
+
+	public function testFailedStartupReleasesNativeServer() : void{
+		$server = $this->createMock(Server::class);
+		$server->method("getMotd")->willReturn("test");
+		$server->method("getName")->willReturn("test");
+		$server->method("getGamemode")->willReturn(GameMode::SURVIVAL);
+		$server->method("getTickSleeper")->willThrowException(new \RuntimeException("Tick sleeper unavailable"));
+		$interface = new BedwireInterface($server, "127.0.0.1", 0, [
+			"authentication" => false,
+			"protocol_version" => ProtocolInfo::CURRENT_PROTOCOL,
+			"minecraft_version" => ProtocolInfo::MINECRAFT_VERSION_NETWORK
+		],
+			$this->createMock(Compressor::class),
+			$this->createMock(PacketBroadcaster::class),
+			$this->createMock(EntityEventBroadcaster::class),
+			$this->createMock(TypeConverter::class)
+		);
+		$this->expectException(NetworkInterfaceStartException::class);
+		$this->expectExceptionMessage("Tick sleeper unavailable");
+		try{
+			$interface->start();
+		}finally{
+			self::assertNull(new \ReflectionProperty(BedwireInterface::class, "bedwire")->getValue($interface));
+		}
+	}
+
+	public function testProxyOnlyUsesGlobalConnectionLimitsAndDisablesLanDiscovery() : void{
+		$config = self::createStub(Config::class);
+		$server = $this->createMock(Server::class);
+		$server->method("getConfigGroup")->willReturn(new ServerConfigGroup($config, $config));
+		$server->method("getDataPath")->willReturn(__DIR__);
+		$server->method("getIp")->willReturn("0.0.0.0");
+		$server->method("getMaxPlayers")->willReturn(50);
+		$server->method("isProxyOnly")->willReturnOnConsecutiveCalls(false, true);
+		$transport = new BedwireTransport($server);
+		$options = new \ReflectionMethod(BedwireTransport::class, "options");
+		/** @var array<string, mixed> $standalone */
+		$standalone = $options->invoke($transport);
+		self::assertArrayNotHasKey("max_negotiations_per_address", $standalone);
+		self::assertArrayNotHasKey("max_connections_per_address", $standalone);
+		self::assertSame(7551, $standalone["lan_port"]);
+		/** @var array<string, mixed> $proxied */
+		$proxied = $options->invoke($transport);
+		self::assertSame(0, $proxied["max_negotiations_per_address"]);
+		self::assertSame(0, $proxied["max_connections_per_address"]);
+		self::assertSame(0, $proxied["lan_port"]);
+		self::assertSame(116, $proxied["max_sessions"]);
 	}
 
 	public function testDisconnectsWhenOnePacketIsTooLarge() : void{
