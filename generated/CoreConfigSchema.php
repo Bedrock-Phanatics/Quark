@@ -42,6 +42,7 @@ return array (
     'trusted-proxy-keys' =>
     array (
     ),
+    'proxy-only' => false,
     'upnp-forwarding' => false,
     'compression' =>
     array (

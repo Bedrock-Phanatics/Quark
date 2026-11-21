@@ -121,6 +121,7 @@ final class YmlServerProperties{
 	public const NETWORK_ENABLE_QUERY = 'network.enable-query';
 	public const NETWORK_PORT = 'network.port';
 	public const NETWORK_PORT_V6 = 'network.port-v6';
+	public const NETWORK_PROXY_ONLY = 'network.proxy-only';
 	public const NETWORK_QUERY_PLUGINS = 'network.query-plugins';
 	public const NETWORK_TRUSTED_PROXY_KEYS = 'network.trusted-proxy-keys';
 	public const NETWORK_UPNP_FORWARDING = 'network.upnp-forwarding';

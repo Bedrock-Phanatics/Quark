@@ -84,6 +84,7 @@ final class BedwireTransport implements Transport{
 	 */
 	private function options() : array{
 		$config = $this->server->getConfigGroup();
+		$proxyOnly = $this->server->isProxyOnly();
 		$options = [
 			"protocol_version" => ProtocolInfo::CURRENT_PROTOCOL,
 			"minecraft_version" => ProtocolInfo::MINECRAFT_VERSION_NETWORK,
@@ -92,12 +93,17 @@ final class BedwireTransport implements Transport{
 			"max_sessions" => min(65535, $this->server->getMaxPlayers() * 2 + 16),
 			"authentication" => $this->server->getOnlineMode(),
 			"identity_file" => Path::makeAbsolute($config->getPropertyString(Yml::TRANSPORT_NETHERNET_KEY_FILE, "nethernet-identity.der"), $this->server->getDataPath()),
-			"lan_port" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_LAN_DISCOVERY, true) ? self::LAN_PORT : 0,
+			"lan_port" => !$proxyOnly && $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_LAN_DISCOVERY, true) ? self::LAN_PORT : 0,
 			"trusted_identity_keys" => $this->server->getTrustedProxyKeys(),
 			"ice_servers" => CoreConfig::validateNetherNetIceServers($config->getProperty(Yml::TRANSPORT_NETHERNET_ICE_SERVERS, [])),
 			"udp_mux" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX, false),
 			"unreliable_events" => $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_UNRELIABLE_EVENTS, false),
 		];
+		if($proxyOnly){
+			//Players share the proxy's source address. The global Bedwire limits still apply.
+			$options["max_negotiations_per_address"] = 0;
+			$options["max_connections_per_address"] = 0;
+		}
 		$bindAddress = $this->server->getIp();
 		if($bindAddress !== "0.0.0.0"){
 			$options["bind_address"] = $bindAddress;
@@ -111,7 +117,7 @@ final class BedwireTransport implements Transport{
 		if($portRange !== null){
 			[$options["port_range_begin"], $options["port_range_end"]] = CoreConfig::validateNetherNetPortRange($portRange);
 			//the query interface binds the server port, so the mux would have nowhere to listen
-			if($options["udp_mux"] && $options["port_range_begin"] === $this->server->getPort() && $options["port_range_end"] === $options["port_range_begin"] && $config->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
+			if($options["udp_mux"] && $options["port_range_begin"] === $this->server->getPort() && $options["port_range_end"] === $options["port_range_begin"] && !$proxyOnly && $config->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
 				throw new \InvalidArgumentException(Yml::TRANSPORT_NETHERNET_PORT_RANGE . " cannot be only the server port while " . ServerProperties::ENABLE_QUERY . " and " . Yml::TRANSPORT_NETHERNET_ICE_UDP_MUX . " are enabled, the query interface already uses it");
 			}
 		}

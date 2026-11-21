@@ -155,6 +155,7 @@ use Vow\Deferred;
 use Vow\Promise;
 use function array_fill;
 use function array_find;
+use function array_keys;
 use function array_slice;
 use function array_sum;
 use function base64_decode;
@@ -326,6 +327,7 @@ class Server{
 	private AuthKeyProvider $authKeyProvider;
 	/** @var list<string> DER-encoded public keys */
 	private array $trustedProxyKeys = [];
+	private bool $proxyOnly = false;
 
 	private Network $network;
 	private Compressor $networkCompressor;
@@ -432,6 +434,10 @@ class Server{
 	 */
 	public function getTrustedProxyKeys() : array{
 		return $this->trustedProxyKeys;
+	}
+
+	public function isProxyOnly() : bool{
+		return $this->proxyOnly;
 	}
 
 	public function isTrustedProxyKey(string $keyDer) : bool{
@@ -1340,6 +1346,10 @@ class Server{
 
 			try{
 				$this->trustedProxyKeys = self::parseTrustedProxyKeys($this->configGroup->getProperty(Yml::NETWORK_TRUSTED_PROXY_KEYS));
+				$this->proxyOnly = $this->configGroup->getPropertyBool(Yml::NETWORK_PROXY_ONLY, false);
+				if($this->proxyOnly && ($this->trustedProxyKeys === [] || !$this->onlineMode)){
+					throw new \InvalidArgumentException(Yml::NETWORK_PROXY_ONLY . " requires trusted-proxy-keys and xbox-auth");
+				}
 			}catch(\InvalidArgumentException $e){
 				$this->logger->emergency($e->getMessage());
 				$this->forceShutdownExit();
@@ -1712,6 +1722,11 @@ class Server{
 			$this->network->activateTransport($name);
 		}
 
+		if($this->proxyOnly && array_keys($this->network->getActiveTransports()) !== [BedwireTransport::NAME]){
+			$this->logger->emergency(Yml::NETWORK_PROXY_ONLY . " requires nethernet as the only game transport");
+			return false;
+		}
+
 		$typeConverter = TypeConverter::getInstance();
 		$packetBroadcaster = new StandardPacketBroadcaster($this);
 		try{
@@ -1725,7 +1740,7 @@ class Server{
 			return false;
 		}
 
-		if($this->configGroup->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
+		if(!$this->proxyOnly && $this->configGroup->getConfigBool(ServerProperties::ENABLE_QUERY, true)){
 			$this->startupPrepareQueryInterface($this->getIp(), $this->getPort(), false);
 			if($this->configGroup->getConfigBool(ServerProperties::ENABLE_IPV6, true)){
 				$this->startupPrepareQueryInterface($this->getIpV6(), $this->getPortV6(), true);
@@ -1737,7 +1752,7 @@ class Server{
 			$this->network->blockAddress($entry->getName(), -1);
 		}
 
-		if($this->configGroup->getPropertyBool(Yml::NETWORK_UPNP_FORWARDING, false)){
+		if(!$this->proxyOnly && $this->configGroup->getPropertyBool(Yml::NETWORK_UPNP_FORWARDING, false)){
 			$this->logger->warning($this->language->translate(KnownTranslationFactory::quark_server_upnp_deprecated()));
 			$this->network->registerInterface(new UPnPNetworkInterface($this->logger, Internet::getInternalIP(), $this->getPort()));
 		}

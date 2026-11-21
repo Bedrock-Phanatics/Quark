@@ -290,6 +290,11 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	}
 
 	private function openSession(int $sessionId, string $address, string $networkId, ?string $identityDigest, bool $issuerVerified) : void{
+		$identity = new BedwireIdentityKey($identityDigest);
+		if($this->server->isProxyOnly() && !$this->server->isTrustedProxy($identity)){
+			$this->disconnectNative($sessionId);
+			return;
+		}
 		[$ip, $port] = self::splitAddress($address);
 		if(isset($this->blockedAddresses[$ip])){
 			if($this->blockedAddresses[$ip] > time()){
@@ -310,7 +315,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			$ip,
 			$port,
 			//always set, so sessions skip Bedrock encryption, which NetherNet's DTLS already provides
-			new BedwireIdentityKey($identityDigest),
+			$identity,
 			true
 		);
 		$this->sessions[$sessionId] = $session;

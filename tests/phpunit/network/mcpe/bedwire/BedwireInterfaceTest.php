@@ -53,6 +53,19 @@ final class BedwireInterfaceTest extends TestCase{
 		return $interface;
 	}
 
+	public function testProxyOnlyRejectsARegularVerifiedTransportBeforeCreatingSession() : void{
+		$server = new \ReflectionClass(Server::class)->newInstanceWithoutConstructor();
+		new \ReflectionProperty(Server::class, "proxyOnly")->setValue($server, true);
+		new \ReflectionProperty(Server::class, "trustedProxyKeys")->setValue($server, ["proxy public key"]);
+		$interface = new \ReflectionClass(BedwireInterface::class)->newInstanceWithoutConstructor();
+		new \ReflectionProperty(BedwireInterface::class, "server")->setValue($interface, $server);
+		new \ReflectionProperty(BedwireInterface::class, "bedwire")->setValue($interface, $this->server);
+
+		new \ReflectionMethod(BedwireInterface::class, "openSession")->invoke($interface, self::SESSION, "127.0.0.1:19132", "1", str_repeat("x", 32), true);
+
+		self::assertSame([], new \ReflectionProperty(BedwireInterface::class, "sessions")->getValue($interface));
+	}
+
 	private static function packets(int $count, int $size) : string{
 		return str_repeat(VarInt::packUnsignedInt($size) . str_repeat("a", $size), $count);
 	}

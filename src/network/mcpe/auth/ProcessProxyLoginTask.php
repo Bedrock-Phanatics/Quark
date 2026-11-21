@@ -44,9 +44,9 @@ class ProcessProxyLoginTask extends AsyncTask{
 	 * @phpstan-param \Closure(bool $isAuthenticated, bool $authRequired, Translatable|string|null $error, ?string $clientPublicKey) : void $onCompletion
 	 */
 	public function __construct(
-		private string $chainJwt,
+		#[\SensitiveParameter] private string $chainJwt,
 		private string $proxyKeyDer,
-		private string $clientDataJwt,
+		#[\SensitiveParameter] private string $clientDataJwt,
 		private bool $xboxLive,
 		private bool $authRequired,
 		\Closure $onCompletion
@@ -59,7 +59,7 @@ class ProcessProxyLoginTask extends AsyncTask{
 	 *
 	 * @throws VerifyLoginException
 	 */
-	public static function verify(string $chainJwt, string $proxyKeyDer, string $clientDataJwt) : string{
+	public static function verify(#[\SensitiveParameter] string $chainJwt, string $proxyKeyDer, #[\SensitiveParameter] string $clientDataJwt) : string{
 		$claims = AuthJwtHelper::validateLegacyAuthToken($chainJwt, $proxyKeyDer);
 		//without an expiry a leaked chain would vouch for the player forever
 		if(!isset($claims->exp)){

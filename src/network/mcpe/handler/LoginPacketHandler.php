@@ -97,25 +97,21 @@ class LoginPacketHandler extends PacketHandler{
 		return Uuid::fromBytes($hash);
 	}
 
-	public function handleLogin(LoginPacket $packet) : bool{
+	public function handleLogin(#[\SensitiveParameter] LoginPacket $packet) : bool{
 		$clientDataJwt = $packet->clientDataJwt;
 		$authInfo = $this->parseAuthInfo($packet->authInfoJson);
-		$clientData = $this->parseClientData($clientDataJwt);
 
 		$proxyLogin = $this->parseProxyLogin($authInfo);
 		if($proxyLogin !== null){
-			[$chainJwt, $proxyKeyDer, $identity, $playerAddress] = $proxyLogin;
-			if($playerAddress !== null){
-				$this->session->setProxiedAddress(...$playerAddress);
-			}
-			$authRequired = $this->processLoginCommon($identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $clientData);
-			if($authRequired === null){
-				//plugin cancelled
-				return true;
-			}
-			$this->processProxyLogin($chainJwt, $proxyKeyDer, $clientDataJwt, $identity->XUID !== "", $authRequired);
+			$this->processProxyLogin($proxyLogin, $clientDataJwt);
+			return true;
+		}
+		if($this->server->isProxyOnly()){
+			throw new PacketHandlingException("A signed proxy login is required");
+		}
 
-		}elseif($authInfo->AuthenticationType === AuthenticationType::FULL->value){
+		$clientData = $this->parseClientData($clientDataJwt);
+		if($authInfo->AuthenticationType === AuthenticationType::FULL->value){
 			try{
 				[$headerArray, $claimsArray,] = JwtUtils::parse($authInfo->Token);
 			}catch(JwtException $e){
@@ -266,7 +262,7 @@ class LoginPacketHandler extends PacketHandler{
 	/**
 	 * @throws PacketHandlingException
 	 */
-	protected function parseAuthInfo(string $authInfo) : AuthenticationInfo{
+	protected function parseAuthInfo(#[\SensitiveParameter] string $authInfo) : AuthenticationInfo{
 		try{
 			$authInfoJson = json_decode($authInfo, associative: false, flags: JSON_THROW_ON_ERROR);
 		}catch(\JsonException $e){
@@ -334,7 +330,7 @@ class LoginPacketHandler extends PacketHandler{
 	 * @phpstan-return array{string, string, LegacyAuthIdentityData, array{string, int}|null}|null
 	 * @throws PacketHandlingException
 	 */
-	protected function parseProxyLogin(AuthenticationInfo $authInfo) : ?array{
+	protected function parseProxyLogin(#[\SensitiveParameter] AuthenticationInfo $authInfo) : ?array{
 		$transportKey = $this->session->getTransportIdentityKey();
 		if(!isset($authInfo->Certificate) || $transportKey === null || !$this->server->isTrustedProxy($transportKey)){
 			return null;
@@ -411,7 +407,7 @@ class LoginPacketHandler extends PacketHandler{
 	/**
 	 * @throws PacketHandlingException
 	 */
-	protected function parseClientData(string $clientDataJwt) : ClientData{
+	protected function parseClientData(#[\SensitiveParameter] string $clientDataJwt) : ClientData{
 		try{
 			[, $clientDataClaims, ] = JwtUtils::parse($clientDataJwt);
 		}catch(JwtException $e){
@@ -451,10 +447,43 @@ class LoginPacketHandler extends PacketHandler{
 		);
 	}
 
-	protected function processProxyLogin(string $chainJwt, string $proxyKeyDer, string $clientData, bool $xboxLive, bool $authRequired) : void{
+	/** @phpstan-param array{string, string, LegacyAuthIdentityData, array{string, int}|null} $proxyLogin */
+	private function processProxyLogin(#[\SensitiveParameter] array $proxyLogin, #[\SensitiveParameter] string $clientData) : void{
+		[$chainJwt, $proxyKeyDer, $identity, $playerAddress] = $proxyLogin;
+		if($this->server->isProxyOnly() && $identity->XUID === ""){
+			throw new PacketHandlingException("A signed Xbox identity is required");
+		}
 		$this->session->setHandler(null); //drop packets received during login verification
 
-		$this->server->getAsyncPool()->submitTask(new ProcessProxyLoginTask($chainJwt, $proxyKeyDer, $clientData, $xboxLive, $authRequired, $this->authCallback));
+		$this->server->getAsyncPool()->submitTask(new ProcessProxyLoginTask(
+			$chainJwt,
+			$proxyKeyDer,
+			$clientData,
+			$identity->XUID !== "",
+			$this->server->requiresAuthentication(),
+			function(bool $authenticated, bool $authRequired, Translatable|string|null $error, ?string $clientKey) use ($identity, $playerAddress, $clientData) : void{
+				if(!$this->session->isConnected()){
+					return;
+				}
+				if($error !== null){
+					($this->authCallback)(false, $authRequired, $error, null);
+					return;
+				}
+				try{
+					$verifiedClientData = $this->parseClientData($clientData);
+				}catch(PacketHandlingException){
+					($this->authCallback)(false, $authRequired, "Invalid forwarded client data", null);
+					return;
+				}
+				if($playerAddress !== null){
+					$this->session->setProxiedAddress(...$playerAddress);
+				}
+				$required = $this->processLoginCommon($identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $verifiedClientData);
+				if($required !== null){
+					($this->authCallback)($authenticated, $required, null, $clientKey);
+				}
+			}
+		));
 	}
 
 	protected function processSelfSignedLogin(string $token, string $clientPublicKey, string $clientData, bool $authRequired) : void{
