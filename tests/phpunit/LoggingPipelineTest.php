@@ -33,11 +33,14 @@ use function file_exists;
 use function file_put_contents;
 use function flock;
 use function fopen;
+use function fread;
 use function function_exists;
+use function fwrite;
 use function getenv;
 use function glob;
 use function hrtime;
 use function implode;
+use function is_resource;
 use function json_decode;
 use function mb_strwidth;
 use function min;
@@ -53,6 +56,7 @@ use function random_bytes;
 use function str_pad;
 use function str_repeat;
 use function stream_get_contents;
+use function stream_select;
 use function stream_set_blocking;
 use function stream_wrapper_register;
 use function stream_wrapper_unregister;
@@ -63,6 +67,7 @@ use function substr_count;
 use function sys_get_temp_dir;
 use function trim;
 use function unlink;
+use function unpack;
 use function usleep;
 use const JSON_THROW_ON_ERROR;
 use const LOCK_EX;
@@ -895,6 +900,61 @@ PHP;
 		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2), $file]);
 		self::assertSame(0, $exit, $output . $errors);
 		self::assertStringContainsString("recovery 2", Filesystem::fileGetContents($file));
+	}
+
+	public function testConsoleHelperSurvivesIdleSocketTimeout() : void{
+		$process = proc_open([PHP_BINARY, "-n", "-ddefault_socket_timeout=1", dirname(__DIR__, 2) . "/src/log/console-output.php"], [0 => ["socket"], 1 => ["pipe", "w"], 2 => ["pipe", "w"]], $pipes);
+		self::assertIsResource($process);
+		try{
+			$acknowledged = function() use ($pipes) : int{
+				$read = [$pipes[0]];
+				$write = $except = null;
+				if(stream_select($read, $write, $except, 5) !== 1){ return -1; }
+				$data = fread($pipes[0], 4);
+				$value = $data === false || strlen($data) !== 4 ? false : unpack("N", $data);
+				return $value === false ? -1 : $value[1];
+			};
+			fwrite($pipes[0], "before idle\n");
+			self::assertSame(12, $acknowledged());
+			usleep(2500000);
+			self::assertTrue(proc_get_status($process)["running"], "Console helper exited while idle");
+			fwrite($pipes[0], "after idle\n");
+			self::assertSame(11, $acknowledged());
+			fclose($pipes[0]);
+			self::assertSame("before idle\nafter idle\n", stream_get_contents($pipes[1]));
+		}finally{
+			if(proc_get_status($process)["running"]){ proc_terminate($process, 9); }
+			foreach($pipes as $pipe){ if(is_resource($pipe)){ fclose($pipe); } }
+			proc_close($process);
+		}
+	}
+
+	public function testHealthyConsoleRecoveryRestoresRestartBudget() : void{
+		if(PHP_OS_FAMILY === "Windows"){ self::markTestSkipped("Helper restarts are detected through socket EOF"); }
+		$code = <<<'PHP'
+require $argv[1] . "/vendor/autoload.php";
+$sink = new \quark\log\ConsoleSink(new \quark\log\TextFormatter("UTC", true));
+$process = new ReflectionProperty($sink, "process");
+$pending = new ReflectionProperty($sink, "pending");
+for($i = 0; $i < 4; ++$i){
+ $sink->write(\quark\log\Event::create("info", "healthy output $i", category: "output"));
+ $deadline = hrtime(true) + 2000000000;
+ do{ $sink->flush(); usleep(1000); }while($pending->getValue($sink) !== "" && hrtime(true) < $deadline);
+ if($pending->getValue($sink) !== ""){ exit(2); }
+ usleep(1100000);
+ $helper = $process->getValue($sink);
+ proc_terminate($helper, 9);
+ $deadline = hrtime(true) + 1000000000;
+ while(proc_get_status($helper)["running"] && hrtime(true) < $deadline){ usleep(1000); }
+}
+$sink->write(\quark\log\Event::create("info", "output after repeated recovery", category: "output"));
+$sink->close();
+PHP;
+		[$exit, $output, $errors] = ProcessTestHelper::run([PHP_BINARY, "-dopcache.enable_cli=0", "-r", $code, dirname(__DIR__, 2)], 20.0);
+		self::assertSame(0, $exit, $output . $errors);
+		foreach(["healthy output 0", "healthy output 3", "output after repeated recovery"] as $message){
+			self::assertSame(1, substr_count($output, $message), $output . $errors);
+		}
 	}
 
 	public function testHealthyConsoleOnlyErrorsAreNotDuplicated() : void{

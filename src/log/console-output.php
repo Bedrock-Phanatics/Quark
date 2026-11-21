@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+// Socket streams otherwise time out after default_socket_timeout, so an idle console would exit
+ini_set("default_socket_timeout", "-1");
+// Terminal signals reach the whole process group; the server decides when output ends by closing the socket
+if(function_exists("pcntl_signal")){
+	foreach([SIGINT, SIGHUP, SIGTERM, SIGQUIT] as $signal){ pcntl_signal($signal, SIG_IGN); }
+}
 $input = @fopen("php://stdin", "r+b");
 $output = @fopen("php://stdout", "wb");
 $fallback = @fopen("php://stderr", "wb");

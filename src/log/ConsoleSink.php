@@ -38,7 +38,9 @@ final class ConsoleSink implements Sink{
 	private string $pending = "";
 	private int $sent = 0;
 	private string $acknowledgements = "";
-	private bool $recovered = false;
+	private int $failures = 0;
+	private int $startedAt = 0;
+	private bool $progressed = false;
 	private bool $closed = false;
 	private int $queuedBytes = 0;
 	private int $confirmedBytes = 0;
@@ -48,14 +50,13 @@ final class ConsoleSink implements Sink{
 	private int $totalDropped = 0;
 
 	public function __construct(private Formatter $formatter, private ?string $emergencyFile = null, private bool $stderr = false){
-		$this->recovered = $stderr;
 		$this->start();
 	}
 
 	private function start() : void{
 		$stdout = @fopen("php://stdout", "wb");
 		$stderr = @fopen("php://stderr", "wb");
-		$output = $this->stderr && $stderr !== false ? $stderr : $stdout;
+		$output = ($this->stderr || $this->failures > 1) && $stderr !== false ? $stderr : $stdout;
 		if($output === false){ $output = $stderr; }
 		if($output === false){
 			throw new \RuntimeException("Cannot open console streams");
@@ -69,6 +70,8 @@ final class ConsoleSink implements Sink{
 		if($process === false){ throw new \RuntimeException("Cannot start console output process"); }
 		$this->process = $process;
 		$this->socket = $pipes[0];
+		$this->startedAt = hrtime(true);
+		$this->progressed = false;
 		if(!stream_set_blocking($this->socket, false)){ $this->stop(); throw new \RuntimeException("Cannot make console transport nonblocking"); }
 	}
 
@@ -111,9 +114,9 @@ final class ConsoleSink implements Sink{
 				return;
 			}catch(\RuntimeException $error){
 				$this->stop();
-				if($this->stderr){ throw $error; }
-				$this->stderr = $this->recovered;
-				$this->recovered = true;
+				// A helper that delivered output for a while earns a fresh restart budget; one that keeps failing does not
+				if($this->progressed && hrtime(true) - $this->startedAt >= 1000000000){ $this->failures = 0; }
+				if(++$this->failures > ($this->stderr ? 1 : 2)){ throw $error; }
 				$this->sent = 0;
 				$this->acknowledgements = "";
 			}
@@ -138,6 +141,7 @@ final class ConsoleSink implements Sink{
 			$this->pending = substr($this->pending, $acknowledged);
 			$this->sent -= $acknowledged;
 			$this->confirmedBytes += $acknowledged;
+			$this->progressed = true;
 			foreach(\quark\utils\Utils::promoteKeys($this->events) as $end => $_){
 				if($end > $this->confirmedBytes){ break; }
 				unset($this->events[$end]);
