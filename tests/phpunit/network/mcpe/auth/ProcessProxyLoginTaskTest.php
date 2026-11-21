@@ -27,8 +27,11 @@ use PHPUnit\Framework\TestCase;
 use quark\network\mcpe\bedwire\BedwireIdentityKey;
 use quark\network\mcpe\JwtUtils;
 use quark\network\TransportIdentityException;
+use quark\utils\Utils;
 use function base64_encode;
 use function hash;
+use function implode;
+use function ini_set;
 use function openssl_pkey_new;
 use function time;
 use const OPENSSL_KEYTYPE_EC;
@@ -101,6 +104,21 @@ class ProcessProxyLoginTaskTest extends TestCase{
 		[$chain, $keyDer, $clientData] = self::proxyLogin($proxy, expiry: null);
 		$this->expectException(VerifyLoginException::class);
 		ProcessProxyLoginTask::verify($chain, $keyDer, $clientData);
+	}
+
+	public function testFailedForwardingTraceOmitsTokenArguments() : void{
+		$previous = ini_set("zend.exception_ignore_args", "0");
+		$token = "fixture-forwarding-token";
+		try{
+			AuthJwtHelper::validateLegacyAuthToken($token, null);
+			self::fail("Expected an invalid token error");
+		}catch(VerifyLoginException $e){
+			self::assertStringNotContainsString($token, implode("\n", Utils::printableExceptionInfo($e)));
+		}finally{
+			if($previous !== false){
+				ini_set("zend.exception_ignore_args", $previous);
+			}
+		}
 	}
 
 	public function testTransportKeyMatchesProxyKey() : void{

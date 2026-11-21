@@ -176,12 +176,19 @@ final class PulseNetworkTest extends TestCase{
 		}catch(PacketHandlingException){}
 	}
 
-	public function testPacketDiagnosticsStayBoundedAcrossReceivePaths() : void{
+	/** @return array<string, array{bool}> */
+	public static function packetDiagnosticStateProvider() : array{
+		return ["before login" => [false], "after login" => [true]];
+	}
+
+	/** @dataProvider packetDiagnosticStateProvider */
+	public function testPacketDiagnosticsStayBoundedAcrossReceivePaths(bool $loggedIn) : void{
 		$messages = [];
 		$logger = $this->createMock(\Logger::class);
 		$logger->method("debug")->willReturnCallback(static function(string $message) use (&$messages) : void{ $messages[] = $message; });
 		$logger->method("log")->willReturnCallback(static function(mixed $level, string $message) use (&$messages) : void{ $messages[] = $message; });
 		$session = $this->session();
+		$this->set($session, "loggedIn", $loggedIn);
 		$this->set($session, "logger", new \PrefixedLogger($logger, "test"));
 		$padding = str_repeat("\x00", 2 * 1024 * 1024);
 		$capture = Pulse::start();
@@ -205,12 +212,20 @@ final class PulseNetworkTest extends TestCase{
 		Pulse::stop();
 		self::assertCount(7, $messages);
 		self::assertSame("[test] Still 2097152 bytes unread in RequestNetworkSettingsPacket", $messages[0]);
-		foreach(array_slice($messages, 1) as $message){
+		foreach(array_slice($messages, 1) as $index => $message){
 			self::assertLessThan(1600, strlen($message));
-			self::assertStringContainsString("bytes, base64:", $message);
+			if($loggedIn || $index >= 4){
+				self::assertStringContainsString("bytes, base64:", $message);
+			}else{
+				self::assertStringNotContainsString("base64:", $message);
+			}
 		}
-		self::assertStringContainsString("2097154 bytes, base64:", $messages[1]);
-		self::assertStringContainsString("bytes not shown", $messages[1]);
+		if($loggedIn){
+			self::assertStringContainsString("2097154 bytes, base64:", $messages[1]);
+			self::assertStringContainsString("bytes not shown", $messages[1]);
+		}else{
+			self::assertSame("[test] Unknown packet: 2097154 bytes", $messages[1]);
+		}
 		self::assertStringContainsString("Packet processing error:", $messages[2]);
 		self::assertSame(["packet.unknown", "packet.malformed", "decompression.malformed", "encryption.invalid", "transport.header"], array_column($this->network($capture)["events"], 4));
 		PulseReport::create([$capture->getCapture()]);

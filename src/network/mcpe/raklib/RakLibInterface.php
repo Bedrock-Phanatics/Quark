@@ -203,7 +203,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 		$this->sessions[$sessionId] = $session;
 	}
 
-	public function onPacketReceive(int $sessionId, string $packet) : void{
+	public function onPacketReceive(int $sessionId, #[\SensitiveParameter] string $packet) : void{
 		if(isset($this->sessions[$sessionId])){
 			if($packet === "" || $packet[0] !== self::MCPE_RAKNET_PACKET_ID){
 				$this->sessions[$sessionId]->recordNetworkSecurityEvent("transport.header", "drop_batch", observed: $packet === "" ? null : ord($packet[0]), limit: 254);

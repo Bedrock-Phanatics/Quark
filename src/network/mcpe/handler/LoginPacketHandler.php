@@ -251,6 +251,9 @@ class LoginPacketHandler extends PacketHandler{
 		}
 
 		$ev->call();
+		if(!$this->session->isConnected()){
+			return null;
+		}
 		if(!$ev->isAllowed()){
 			$this->session->disconnect($ev->getFinalDisconnectReason(), $ev->getFinalDisconnectScreenMessage());
 			return null;
@@ -471,14 +474,14 @@ class LoginPacketHandler extends PacketHandler{
 				}
 				try{
 					$verifiedClientData = $this->parseClientData($clientData);
+					if($playerAddress !== null){
+						$this->session->setProxiedAddress(...$playerAddress);
+					}
+					$required = $this->processLoginCommon($identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $verifiedClientData);
 				}catch(PacketHandlingException){
-					($this->authCallback)(false, $authRequired, "Invalid forwarded client data", null);
+					($this->authCallback)(false, $authRequired, "Invalid forwarded login", null);
 					return;
 				}
-				if($playerAddress !== null){
-					$this->session->setProxiedAddress(...$playerAddress);
-				}
-				$required = $this->processLoginCommon($identity->displayName, Uuid::fromString($identity->identity), $identity->XUID, $verifiedClientData);
 				if($required !== null){
 					($this->authCallback)($authenticated, $required, null, $clientKey);
 				}

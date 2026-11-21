@@ -30,6 +30,8 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
+use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\SetTimePacket;
 use pocketmine\network\mcpe\protocol\types\command\raw\CommandRawData;
@@ -40,20 +42,27 @@ use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\command\SimpleCommandMap;
 use quark\command\TestCommandSender;
+use quark\entity\Skin;
 use quark\lang\Language;
 use quark\network\mcpe\protocol\EncodedPacket;
+use quark\network\NetworkSessionManager;
 use quark\network\PacketHandlingException;
 use quark\permission\DefaultPermissions;
 use quark\permission\Permission;
 use quark\permission\PermissionManager;
 use quark\player\Player;
+use quark\player\XboxLivePlayerInfo;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
 use quark\Server;
+use quark\ServerConfigGroup;
 use quark\utils\ObjectSet;
+use quark\YmlServerProperties;
+use Ramsey\Uuid\Uuid;
 use Vow\CancelledException;
 use Vow\Deferred;
 use function array_map;
+use function str_repeat;
 use function strlen;
 
 final class NetworkSessionTest extends TestCase{
@@ -138,6 +147,21 @@ final class NetworkSessionTest extends TestCase{
 		self::assertSame(1, $disposed);
 	}
 
+	public function testOfflineDataLoadedWhileDisconnectingIsIgnored() : void{
+		$session = $this->session(static function() : void{});
+		$this->set($session, "disconnectGuard", true);
+
+		new \ReflectionMethod(NetworkSession::class, "onOfflinePlayerDataLoaded")->invoke(
+			$session,
+			CompoundTag::create(),
+			true,
+			static fn() : bool => self::fail("The XUID check ran for a closing session"),
+			"key"
+		);
+
+		self::assertNull(new \ReflectionProperty(NetworkSession::class, "cachedOfflinePlayerData")->getValue($session));
+	}
+
 	public function testOfflineDataLoadedAfterDisconnectIsIgnored() : void{
 		$sends = 0;
 		$session = $this->session(static function() use (&$sends) : void{
@@ -160,6 +184,43 @@ final class NetworkSessionTest extends TestCase{
 
 	private static function chunkRadius(int $radius) : string{
 		return EncodedPacket::encode(RequestChunkRadiusPacket::create($radius, 32));
+	}
+
+	public function testDiscardedLoginDiagnosticsHideThePacketContents() : void{
+		$session = $this->session(static function() : void{});
+		$packet = EncodedPacket::encode(LoginPacket::create(ProtocolInfo::CURRENT_PROTOCOL, "fixture auth", "fixture client data"));
+		$logger = $this->createMock(\Logger::class);
+		$logger->expects(self::once())->method("log")->with(
+			\LogLevel::DEBUG,
+			"[test] Discarded without decoding: LoginPacket (" . strlen($packet) . " bytes)"
+		);
+		$this->set($session, "logger", new \PrefixedLogger($logger, "test"));
+
+		$session->handleDecodedPackets([$packet]);
+	}
+
+	public function testReconnectIgnoresSessionsWaitingForDisposal() : void{
+		$old = $this->createMock(NetworkSession::class);
+		$old->method("isConnected")->willReturn(false);
+		$old->expects(self::never())->method("getPlayerInfo");
+		$session = $this->session(static function() : void{});
+		$manager = new NetworkSessionManager();
+		$manager->add($old);
+		$manager->add($session);
+		$this->set($session, "manager", $manager);
+		$this->set($session, "info", new XboxLivePlayerInfo("2535400000000000", "Steve", Uuid::uuid4(), new Skin("test", str_repeat("\0", 8192)), "en_US"));
+		$this->set($session, "transportIdentityKey", null);
+		$config = new \ReflectionClass(ServerConfigGroup::class)->newInstanceWithoutConstructor();
+		new \ReflectionProperty(ServerConfigGroup::class, "toml")->setValue($config, false);
+		new \ReflectionProperty(ServerConfigGroup::class, "propertyCache")->setValue($config, [YmlServerProperties::PLAYER_VERIFY_XUID => true]);
+		$server = $this->createMock(Server::class);
+		$server->method("getConfigGroup")->willReturn($config);
+		/** @var Deferred<CompoundTag|null> $data */
+		$data = new Deferred();
+		$server->expects(self::once())->method("getOfflinePlayerData")->with("Steve")->willReturn($data->promise);
+		$this->set($session, "server", $server);
+
+		new \ReflectionMethod(NetworkSession::class, "setAuthenticationStatus")->invoke($session, true, true, null, "key");
 	}
 
 	public function testNativelySplitPacketsSkipBatchLimits() : void{

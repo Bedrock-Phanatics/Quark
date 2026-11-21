@@ -57,7 +57,7 @@ final class AuthJwtHelper{
 	/**
 	 * @throws VerifyLoginException
 	 */
-	private static function validateAuthToken(string $jwt, string $signingKeyDer, ?string $issuer, string $audience, XboxAuthJwtBody|SelfSignedJwtBody $claims) : void{
+	private static function validateAuthToken(#[\SensitiveParameter] string $jwt, string $signingKeyDer, ?string $issuer, string $audience, XboxAuthJwtBody|SelfSignedJwtBody $claims) : void{
 		try{
 			if(!JwtUtils::verify($jwt, $signingKeyDer, ec: $claims instanceof SelfSignedJwtBody)){
 				throw new VerifyLoginException("Invalid JWT signature", KnownTranslationFactory::quark_disconnect_invalidSession_badSignature());
@@ -99,7 +99,7 @@ final class AuthJwtHelper{
 	/**
 	 * @throws VerifyLoginException if errors are encountered
 	 */
-	public static function validateSelfSignedAuthToken(string $jwt, string $signingKeyDer, string $audience) : SelfSignedJwtBody{
+	public static function validateSelfSignedAuthToken(#[\SensitiveParameter] string $jwt, string $signingKeyDer, string $audience) : SelfSignedJwtBody{
 		$claims = new SelfSignedJwtBody();
 		self::validateAuthToken($jwt, $signingKeyDer, null, $audience, $claims);
 		return $claims;
@@ -108,7 +108,7 @@ final class AuthJwtHelper{
 	/**
 	 * @throws VerifyLoginException if errors are encountered
 	 */
-	public static function validateOpenIdAuthToken(string $jwt, string $signingKeyDer, string $issuer, string $audience) : XboxAuthJwtBody{
+	public static function validateOpenIdAuthToken(#[\SensitiveParameter] string $jwt, string $signingKeyDer, string $issuer, string $audience) : XboxAuthJwtBody{
 		$claims = new XboxAuthJwtBody();
 		self::validateAuthToken($jwt, $signingKeyDer, $issuer, $audience, $claims);
 		return $claims;
@@ -118,7 +118,7 @@ final class AuthJwtHelper{
 	 * @deprecated
 	 * @throws VerifyLoginException if errors are encountered
 	 */
-	public static function validateLegacyAuthToken(string $jwt, ?string $expectedKeyDer) : LegacyAuthJwtBody{
+	public static function validateLegacyAuthToken(#[\SensitiveParameter] string $jwt, ?string $expectedKeyDer) : LegacyAuthJwtBody{
 		self::validateSelfSignedToken($jwt, $expectedKeyDer);
 
 		//TODO: this parses the JWT twice and throws away a bunch of parts, optimize this
@@ -145,7 +145,7 @@ final class AuthJwtHelper{
 	/**
 	 * Used for validating the info in clientDataJwt
 	 */
-	public static function validateSelfSignedToken(string $jwt, ?string $expectedKeyDer) : void{
+	public static function validateSelfSignedToken(#[\SensitiveParameter] string $jwt, ?string $expectedKeyDer) : void{
 		try{
 			[$headersArray, ] = JwtUtils::parse($jwt);
 		}catch(JwtException $e){

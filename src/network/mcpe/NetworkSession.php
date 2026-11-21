@@ -35,6 +35,7 @@ use pocketmine\network\mcpe\protocol\ClientboundCloseFormPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
@@ -500,7 +501,7 @@ class NetworkSession{
 	/**
 	 * @throws PacketHandlingException
 	 */
-	public function handleEncoded(string $payload) : void{
+	public function handleEncoded(#[\SensitiveParameter] string $payload) : void{
 		if(!$this->connected){
 			return;
 		}
@@ -529,7 +530,7 @@ class NetworkSession{
 					$payload = $this->cipher->decrypt($payload);
 				}catch(DecryptionException $e){
 					$this->recordNetworkSecurityEvent("encryption.invalid", "reject_batch");
-					$this->logger->debug("Encrypted packet: " . Utils::printablePacketBuffer($payload));
+					$this->logger->debug("Encrypted packet: " . $this->packetPreview($payload));
 					throw PacketHandlingException::wrap($e, "Packet decryption error");
 				}finally{
 					PulseZones::$playerNetworkReceiveDecrypt->stop($playerNetworkReceiveDecryptScope);
@@ -554,7 +555,7 @@ class NetworkSession{
 						$decompressed = $this->compressor->decompress($compressed);
 					}catch(DecompressionException $e){
 						$this->recordNetworkSecurityEvent($e->reason, "reject_batch", observed: $e->observed, limit: $e->limit);
-						$this->logger->debug("Failed to decompress packet: " . Utils::printablePacketBuffer($compressed));
+						$this->logger->debug("Failed to decompress packet: " . $this->packetPreview($compressed));
 						throw PacketHandlingException::wrap($e, "Compressed packet batch decode error");
 					}finally{
 						PulseZones::$playerNetworkReceiveDecompress->stop($playerNetworkReceiveDecompressScope);
@@ -639,7 +640,7 @@ class NetworkSession{
 						$network->count($window, PulseNetwork::DECODE_FAILED);
 					}
 					$this->recordRawPacketSecurityEvent($buffer, "packet.unknown");
-					$this->logger->debug("Unknown packet: " . Utils::printablePacketBuffer($buffer));
+					$this->logger->debug("Unknown packet: " . $this->packetPreview($buffer));
 					throw new PacketHandlingException("Unknown packet received");
 				}
 				try{
@@ -689,7 +690,12 @@ class NetworkSession{
 	}
 
 	private function unhandledPacketDebug(Packet $packet, string $buffer, string $label) : void{
-		$this->logger->debug($label . ": " . $packet->getName() . " (" . Utils::printablePacketBuffer($buffer) . ")");
+		$detail = $packet instanceof LoginPacket ? strlen($buffer) . " bytes" : $this->packetPreview($buffer);
+		$this->logger->debug($label . ": " . $packet->getName() . " (" . $detail . ")");
+	}
+
+	private function packetPreview(string $buffer) : string{
+		return $this->loggedIn ? Utils::printablePacketBuffer($buffer) : strlen($buffer) . " bytes";
 	}
 
 	/**
@@ -698,7 +704,7 @@ class NetworkSession{
 	 * @throws PacketHandlingException
 	 * @throws FilterNoisyPacketException
 	 */
-	public function handleDataPacket(string $buffer) : void{
+	public function handleDataPacket(#[\SensitiveParameter] string $buffer) : void{
 		try{
 			$packetId = EncodedPacket::idOf($buffer);
 		}catch(PacketDecodeException $e){
@@ -714,7 +720,7 @@ class NetworkSession{
 	 * @throws PacketHandlingException
 	 * @throws FilterNoisyPacketException
 	 */
-	private function handlePacket(Packet $packet, int $packetId, string $buffer, ?PulseNetwork $network, ?int $window, bool $recording) : void{
+	private function handlePacket(Packet $packet, int $packetId, #[\SensitiveParameter] string $buffer, ?PulseNetwork $network, ?int $window, bool $recording) : void{
 		if($network !== null && $window !== null){ $network->count($window, PulseNetwork::PACKETS); }
 		if(!$packet instanceof ServerboundPacket){
 			$this->recordNetworkSecurityEvent("packet.direction", "reject_batch", $packetId);
@@ -1297,7 +1303,7 @@ class NetworkSession{
 	}
 
 	private function setAuthenticationStatus(bool $authenticated, bool $authRequired, Translatable|string|null $error, ?string $clientPubKey) : void{
-		if(!$this->connected){
+		if(!$this->isConnected()){
 			return;
 		}
 		if($error === null){
@@ -1357,6 +1363,9 @@ class NetworkSession{
 			KnownTranslationFactory::quark_disconnect_error_authentication()
 		);
 		$ev->call();
+		if(!$this->isConnected()){
+			return;
+		}
 		if($ev->isCancelled()){
 			$this->disconnect($ev->getDisconnectReason(), $ev->getDisconnectScreenMessage());
 			return;
@@ -1378,7 +1387,7 @@ class NetworkSession{
 		};
 
 		foreach($this->manager->getSessions() as $existingSession){
-			if($existingSession === $this){
+			if($existingSession === $this || !$existingSession->isConnected()){
 				continue;
 			}
 			$info = $existingSession->getPlayerInfo();
@@ -1388,12 +1397,18 @@ class NetworkSession{
 				}
 				$ev = new PlayerDuplicateLoginEvent($this, $existingSession, KnownTranslationFactory::disconnectionScreen_loggedinOtherLocation(), null);
 				$ev->call();
+				if(!$this->isConnected()){
+					return;
+				}
 				if($ev->isCancelled()){
 					$this->disconnect($ev->getDisconnectReason(), $ev->getDisconnectScreenMessage());
 					return;
 				}
 
 				$existingSession->disconnect($ev->getDisconnectReason(), $ev->getDisconnectScreenMessage());
+				if(!$this->isConnected()){
+					return;
+				}
 			}
 		}
 
@@ -1414,7 +1429,7 @@ class NetworkSession{
 	 * @phpstan-param \Closure(string) : bool $kickForXUIDMismatch
 	 */
 	private function onOfflinePlayerDataLoaded(?CompoundTag $data, bool $checkXUID, \Closure $kickForXUIDMismatch, string $clientPubKey) : void{
-		if(!$this->connected){
+		if(!$this->isConnected()){
 			return;
 		}
 		$this->cachedOfflinePlayerData = $data;

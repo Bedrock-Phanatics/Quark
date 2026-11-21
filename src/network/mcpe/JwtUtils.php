@@ -76,7 +76,7 @@ final class JwtUtils{
 	 * @phpstan-return array{string, string, string}
 	 * @throws JwtException
 	 */
-	public static function split(string $jwt) : array{
+	public static function split(#[\SensitiveParameter] string $jwt) : array{
 		//limit of 4 allows us to detect too many parts without having to split the string up into a potentially large
 		//number of parts
 		$v = explode(".", $jwt, limit: 4);
@@ -94,7 +94,7 @@ final class JwtUtils{
 	 *
 	 * @throws JwtException
 	 */
-	public static function parse(string $token) : array{
+	public static function parse(#[\SensitiveParameter] string $token) : array{
 		$v = self::split($token);
 		$header = json_decode(self::b64UrlDecode($v[0]), true);
 		if(!is_array($header)){
@@ -124,7 +124,7 @@ final class JwtUtils{
 		return self::ASN1_INTEGER_TAG . chr(strlen($part)) . $part;
 	}
 
-	private static function rawSignatureToDer(string $rawSignature) : string{
+	private static function rawSignatureToDer(#[\SensitiveParameter] string $rawSignature) : string{
 		if(strlen($rawSignature) !== self::SIGNATURE_PART_LENGTH * 2){
 			throw new JwtException("JWT signature has unexpected length, expected 96, got " . strlen($rawSignature));
 		}
@@ -177,7 +177,7 @@ final class JwtUtils{
 	/**
 	 * @throws JwtException
 	 */
-	public static function verify(string $jwt, string $signingKeyDer, bool $ec) : bool{
+	public static function verify(#[\SensitiveParameter] string $jwt, string $signingKeyDer, bool $ec) : bool{
 		[$header, $body, $signature] = self::split($jwt);
 
 		$rawSignature = self::b64UrlDecode($signature);
@@ -221,7 +221,7 @@ final class JwtUtils{
 		return rtrim(strtr(base64_encode($str), '+/', '-_'), '=');
 	}
 
-	public static function b64UrlDecode(string $str) : string{
+	public static function b64UrlDecode(#[\SensitiveParameter] string $str) : string{
 		if(($len = strlen($str) % 4) !== 0){
 			$str .= str_repeat('=', 4 - $len);
 		}
