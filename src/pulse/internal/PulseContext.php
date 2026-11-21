@@ -271,10 +271,12 @@ final class PulseContext{
 		if(!$this->recording){
 			return;
 		}
+		// Scopes still running when the recording ends (the stop command's own) are cut short, not unbalanced
+		while($this->depth > 0){
+			$this->close($now);
+		}
 		if($this->tickStarted >= 0){
 			$this->finishTick($now);
-		}else{
-			$this->closeUnbalanced($now);
 		}
 		$this->ended = $now;
 		$this->resources?->sample($now, true);

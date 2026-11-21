@@ -109,13 +109,14 @@ final class PulseTest extends TestCase{
 		self::assertSame(1, $context->capture()["unbalanced_scopes"]);
 	}
 
-	public function testStopClosesUnbalancedScopesAndOldTokensAreIgnored() : void{
+	public function testStopTruncatesRunningScopesAndOldTokensAreIgnored() : void{
 		$context = new PulseContext();
 		$zone = $context->zone("zone")->getId();
 		$context->start("main", 100);
 		$old = $context->begin($zone, 100);
 		$context->stop(120);
-		self::assertSame(1, $context->capture()["unbalanced_scopes"]);
+		self::assertSame(0, $context->capture()["unbalanced_scopes"]);
+		self::assertSame([[1, $zone, 0, 1, 20, 20, 20]], $context->capture()["nodes"]);
 		self::assertSame(120, $context->capture()["ended_ns"]);
 		$context->start("main", 200);
 		$current = $context->begin($zone, 200);
@@ -123,6 +124,21 @@ final class PulseTest extends TestCase{
 		$context->end($zone, $current, 230);
 		self::assertSame([[1, $zone, 0, 1, 30, 30, 30]], $context->capture()["nodes"]);
 		self::assertSame(0, $context->capture()["unbalanced_scopes"]);
+	}
+
+	public function testStoppingInsideNestedCommandScopesRepairsNothing() : void{
+		$context = new PulseContext();
+		$tick = $context->zone("server.tick")->getId();
+		$command = $context->zone("server.command")->getId();
+		$context->start("main", 0);
+		$context->beginTick(0);
+		$context->begin($tick, 0);
+		$context->begin($command, 5);
+		$context->stop(10);
+		$capture = $context->capture();
+		self::assertSame(0, $capture["unbalanced_scopes"]);
+		self::assertSame(0, $capture["unbalanced_ticks"]);
+		self::assertSame(1, $capture["tick_count"]);
 	}
 
 	public function testDisabledAndFinallyPaths() : void{
