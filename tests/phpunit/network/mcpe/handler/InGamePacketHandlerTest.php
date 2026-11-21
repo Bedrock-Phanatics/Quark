@@ -32,6 +32,7 @@ use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
+use pocketmine\network\mcpe\protocol\ServerboundCursorItemDragPacket;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\InputMode;
@@ -194,6 +195,11 @@ final class InGamePacketHandlerTest extends TestCase{
 		$handler->handlePlayerAuthInput(self::authInput(blockActions: $actions));
 		/** @var list<Vector3> $synced */
 		return $synced;
+	}
+
+	public function testCursorDragStateIsDiscardedQuietly() : void{
+		$actions = PacketHandlerInspector::getHandlerActions(new \ReflectionClass(InGamePacketHandler::class)->newInstanceWithoutConstructor());
+		self::assertSame(PacketHandlerAction::DISCARD_SILENT, $actions[ServerboundCursorItemDragPacket::class]);
 	}
 
 	public function testCoalescesBlockSyncsOfOneAuthInput() : void{

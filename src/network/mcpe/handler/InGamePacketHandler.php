@@ -52,6 +52,7 @@ use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
+use pocketmine\network\mcpe\protocol\ServerboundCursorItemDragPacket;
 use pocketmine\network\mcpe\protocol\ServerboundDiagnosticsPacket;
 use pocketmine\network\mcpe\protocol\ServerboundLoadingScreenPacket;
 use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
@@ -132,6 +133,7 @@ use const JSON_THROW_ON_ERROR;
 #[SilentDiscard(SetActorMotionPacket::class, comment: "Not needed, erroneously sent by client when in a vehicle")]
 #[SilentDiscard(SpawnExperienceOrbPacket::class, comment: "XP drops should be server-calculated")]
 #[SilentDiscard(ServerboundDiagnosticsPacket::class, comment: "Not needed, noisy debug")]
+#[SilentDiscard(ServerboundCursorItemDragPacket::class, comment: "Drag state only, the slot changes arrive as item stack requests")]
 class InGamePacketHandler extends PacketHandler{
 	public const MAX_ITEM_STACK_REQUESTS = 80;
 	public const MAX_INVENTORY_TRANSACTION_ACTIONS = 50;
@@ -540,7 +542,6 @@ class InGamePacketHandler extends PacketHandler{
 					//This would be much easier if the client would just tell us which blocks it thinks changed...
 					$syncAdjacentFace = null;
 					if($data->getItemInHand()->getItemStack()->getBlockRuntimeId() === ItemTranslator::NO_BLOCK_RUNTIME_ID){
-						$this->session->getLogger()->debug("Placing held item might place multiple blocks client-side; doing full adjacent sync");
 						$syncAdjacentFace = $data->getFace();
 					}
 					$this->syncBlocksNearby($vBlockPos, $syncAdjacentFace);
@@ -754,7 +755,6 @@ class InGamePacketHandler extends PacketHandler{
 					//sends PREDICT_DESTROY_BLOCK, but also when it starts to break the block
 					//this seems like a bug in the client and would cause spurious left-click events if we allowed it to
 					//be delivered to the player
-					$this->session->getLogger()->debug("Ignoring PlayerAction $action on $pos because we were already destroying this block");
 					break;
 				}
 				if(!$this->player->attackBlock($pos, $face)){
