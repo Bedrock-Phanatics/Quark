@@ -98,6 +98,10 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 
 	private ?BedwireWakeupThread $wakeupThread = null;
 	private ?int $sleeperNotifierId = null;
+	//Packet and disconnect callbacks can re-enter the interface through plugins.
+	private bool $shuttingDown = false;
+	private bool $dispatchingEvents = false;
+	private bool $flushingDeferred = false;
 	private int $eventTick = -1;
 	private int $eventsProcessed = 0;
 
@@ -123,6 +127,9 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	){}
 
 	public function start() : void{
+		if($this->bedwire !== null || $this->shuttingDown){
+			throw new NetworkInterfaceStartException("Bedwire is already running or shutting down");
+		}
 		try{
 			$bedwire = $this->bedwire = new BedwireServer($this->ip, $this->port, $this->options);
 		}catch(BedwireException $e){
@@ -148,8 +155,11 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			$this->server->getLogger()->debug("Bedwire is listening on $this->ip:" . $bedwire->getPort());
 		}catch(\Throwable $e){
 			unset($bedwire);
-			$this->shutdown();
-			throw new NetworkInterfaceStartException("Failed to start Bedwire on $this->ip:$this->port: " . $e->getMessage(), 0, $e);
+			try{
+				$this->shutdown();
+			}finally{
+				throw new NetworkInterfaceStartException("Failed to start Bedwire on $this->ip:$this->port: " . $e->getMessage(), 0, $e);
+			}
 		}
 	}
 
@@ -187,7 +197,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 
 	public function tick() : void{
 		$bedwire = $this->bedwire;
-		if($bedwire === null){
+		if($bedwire === null || $this->shuttingDown || $this->dispatchingEvents || $this->flushingDeferred){
 			return;
 		}
 		if(!$bedwire->isRunning()){
@@ -198,6 +208,9 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			return;
 		}
 		$this->flushDeferred();
+		if($this->bedwire !== $bedwire){
+			return;
+		}
 		$this->flushPendingDisconnects($bedwire);
 
 		//bandwidth history rotates once a second, Pulse samples queue peaks every tick while it records
@@ -227,7 +240,7 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 
 	private function processEvents() : void{
 		$bedwire = $this->bedwire;
-		if($bedwire === null){
+		if($bedwire === null || $this->shuttingDown || $this->dispatchingEvents || $this->flushingDeferred){
 			return;
 		}
 		$tick = $this->server->getTick();
@@ -240,8 +253,20 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			return;
 		}
 		$events = $bedwire->poll($remaining);
+		if($events !== []){
+			$this->eventsProcessed += intdiv(count($events), 3);
+			$this->dispatchingEvents = true;
+			try{
+				$this->dispatchEvents($bedwire, $events);
+			}finally{
+				$this->dispatchingEvents = false;
+			}
+		}
+	}
+
+	/** @param mixed[] $events */
+	private function dispatchEvents(BedwireServer $bedwire, array $events) : void{
 		$count = count($events);
-		$this->eventsProcessed += intdiv($count, 3);
 		//consecutive packets of one session are handled as one batch, keeping their order
 		$batchSession = null;
 		$batch = [];
@@ -478,13 +503,25 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	 * Retries deferred sends in order, until the command ring fills up again.
 	 */
 	private function flushDeferred() : void{
-		if($this->deferred === []){
+		if($this->deferred === [] || $this->flushingDeferred){
 			return;
 		}
+		$this->flushingDeferred = true;
+		try{
+			$this->retryDeferred($this->bedwire);
+		}finally{
+			$this->flushingDeferred = false;
+		}
+	}
+
+	private function retryDeferred(?BedwireServer $bedwire) : void{
 		$tick = $this->server->getTick();
 		foreach($this->deferredSince as $sessionId => $since){
 			if($tick - $since > self::MAX_DEFERRED_TICKS){
 				$this->dropSession($sessionId, "Network send queue is stuck");
+				if($this->bedwire !== $bedwire){
+					return;
+				}
 			}
 		}
 		//sends can drop or queue for other sessions, so each queue is read fresh
@@ -498,21 +535,27 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 			$progressed = false;
 			foreach($queue as $i => [$bytes, $send]){
 				$this->deferredBytes -= $bytes;
+				$failure = null;
 				try{
 					$send();
 				}catch(\ValueError $e){
-					foreach(array_slice($queue, $i + 1) as [$unsent]){
-						$this->deferredBytes -= $unsent;
-					}
-					$this->dropSession($sessionId, "Failed to send packet: " . $e->getMessage());
-					continue 2;
+					$failure = $e;
 				}
-				if(!isset($this->sessions[$sessionId]) && !($this->pendingDisconnects[$sessionId] ?? false)){
-					//the send dropped the session, so the rest of its queue must not reach the native side
+				if($this->bedwire !== $bedwire){
+					return;
+				}
+				if($failure !== null || (!isset($this->sessions[$sessionId]) && !($this->pendingDisconnects[$sessionId] ?? false))){
 					foreach(array_slice($queue, $i + 1) as [$unsent]){
 						$this->deferredBytes -= $unsent;
 					}
-					$this->discardDeferred($sessionId);
+					if($failure !== null){
+						$this->dropSession($sessionId, "Failed to send packet: " . $failure->getMessage());
+						if($this->bedwire !== $bedwire){
+							return;
+						}
+					}else{
+						$this->discardDeferred($sessionId);
+					}
 					continue 2;
 				}
 				if(isset($this->deferred[$sessionId])){
@@ -600,45 +643,65 @@ final class BedwireInterface implements AdvancedNetworkInterface{
 	}
 
 	public function shutdown() : void{
-		if($this->sleeperNotifierId !== null){
-			$this->server->getTickSleeper()->removeNotifier($this->sleeperNotifierId);
-			$this->sleeperNotifierId = null;
-		}
 		$bedwire = $this->bedwire;
+		if($bedwire === null || $this->shuttingDown){
+			return;
+		}
+		$this->shuttingDown = true;
+		$error = null;
+		$notifierId = $this->sleeperNotifierId;
+		$this->sleeperNotifierId = null;
 		try{
-			if($bedwire !== null){
-				try{
-					//Give queued kick messages and disconnects a last chance to reach the command ring.
-					$this->flushDeferred();
-					$this->flushPendingDisconnects($bedwire);
-				}finally{
-					$bedwire->stop(2000);
-				}
+			if($notifierId !== null){
+				$this->server->getTickSleeper()->removeNotifier($notifierId);
 			}
-		}finally{
-			//Release references in queued sends so the native signal closes before we join the wakeup thread.
-			$this->deferred = [];
-			$this->deferredSince = [];
-			$this->deferredBytes = 0;
-			$this->pendingDisconnects = [];
-			$this->publishedStatus = "";
-			$this->bedwire = null;
-			unset($bedwire);
-			$thread = $this->wakeupThread;
-			$this->wakeupThread = null;
-			if($thread !== null){
+			//Give queued kick messages and disconnects a last chance to reach the command ring.
+			$this->flushDeferred();
+			$this->flushPendingDisconnects($bedwire);
+		}catch(\Throwable $e){
+			$error = $e;
+		}
+		try{
+			$bedwire->stop(2000);
+		}catch(\Throwable $e){
+			$error ??= $e;
+		}
+		//Release references in queued sends so the native signal closes before we join the wakeup thread.
+		$this->deferred = [];
+		$this->deferredSince = [];
+		$this->deferredBytes = 0;
+		$this->pendingDisconnects = [];
+		$this->publishedStatus = "";
+		$this->bytesSent = $this->bytesReceived = 0;
+		$this->eventTick = -1;
+		$this->bedwire = null;
+		unset($bedwire);
+		$thread = $this->wakeupThread;
+		$this->wakeupThread = null;
+		if($thread !== null){
+			try{
 				if($thread->isStarted()){
 					$thread->quit();
 				}else{
 					ThreadManager::getInstance()->remove($thread);
 				}
+			}catch(\Throwable $e){
+				$error ??= $e;
 			}
-			$sessions = $this->sessions;
-			$this->sessions = [];
-			$this->sessionIds = [];
-			foreach($sessions as $session){
+		}
+		$sessions = $this->sessions;
+		$this->sessions = [];
+		$this->sessionIds = [];
+		foreach($sessions as $session){
+			try{
 				$session->onClientDisconnect("Network shutting down");
+			}catch(\Throwable $e){
+				$error ??= $e;
 			}
+		}
+		$this->shuttingDown = false;
+		if($error !== null){
+			throw $error;
 		}
 	}
 

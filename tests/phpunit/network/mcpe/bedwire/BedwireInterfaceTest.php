@@ -174,6 +174,29 @@ final class BedwireInterfaceTest extends TestCase{
 		self::assertFalse($ran);
 	}
 
+	public function testDeferredFlushStopsWhenCallbackClosesTheInterface() : void{
+		$session = $this->createMock(NetworkSession::class);
+		$session->expects(self::once())->method("onClientDisconnect");
+		$interface = $this->deferredInterface($session);
+
+		self::assertSame(0, self::flushDeferred($interface, [self::SESSION => [
+			[100, $interface->shutdown(...)],
+			[200, function() : void{ self::fail("Shutdown must discard remaining sends"); }],
+		]]));
+	}
+
+	public function testShutdownClosesOtherSessionsIfOneDisconnectCallbackFails() : void{
+		$first = $this->createMock(NetworkSession::class);
+		$first->method("onClientDisconnect")->willThrowException(new \RuntimeException("Disconnect callback failed"));
+		$second = $this->createMock(NetworkSession::class);
+		$second->expects(self::once())->method("onClientDisconnect");
+		$interface = $this->deferredInterface($first);
+		new \ReflectionProperty(BedwireInterface::class, "sessions")->setValue($interface, [self::SESSION => $first, 2 => $second]);
+
+		$this->expectExceptionMessage("Disconnect callback failed");
+		$interface->shutdown();
+	}
+
 	public function testBlockedSendLeavesFollowingCommandsQueuedAndExpiresStaleSessions() : void{
 		$session = $this->createMock(NetworkSession::class);
 		$interface = $this->deferredInterface($session);
@@ -229,6 +252,7 @@ final class BedwireInterfaceTest extends TestCase{
 		$server->method("getName")->willReturn("test");
 		$server->method("getGamemode")->willReturn(GameMode::SURVIVAL);
 		$server->method("getTickSleeper")->willThrowException(new \RuntimeException("Tick sleeper unavailable"));
+		$server->method("getTick")->willThrowException(new \RuntimeException("Queue cleanup failed"));
 		$interface = new BedwireInterface($server, "127.0.0.1", 0, [
 			"authentication" => false,
 			"protocol_version" => ProtocolInfo::CURRENT_PROTOCOL,
@@ -239,6 +263,7 @@ final class BedwireInterfaceTest extends TestCase{
 			$this->createMock(EntityEventBroadcaster::class),
 			$this->createMock(TypeConverter::class)
 		);
+		new \ReflectionProperty(BedwireInterface::class, "deferred")->setValue($interface, [self::SESSION => [[1, function() : void{}]]]);
 		$this->expectException(NetworkInterfaceStartException::class);
 		$this->expectExceptionMessage("Tick sleeper unavailable");
 		try{
