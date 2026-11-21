@@ -1740,13 +1740,15 @@ class World implements ChunkManager{
 		}
 
 		$blockFactory = $this->blockStateRegistry;
+		$randomTickBlocks = $this->randomTickBlocks;
+		$samples = $this->tickedBlocksPerSubchunkPerTick;
 		foreach($scan[1] as $Y){
 			$blocks = $chunk->getSubChunk($Y)->getBlockLayer0();
 			if($blocks === null){
 				continue;
 			}
 			$k = 0;
-			for($i = 0; $i < $this->tickedBlocksPerSubchunkPerTick; ++$i){
+			for($i = 0; $i < $samples; ++$i){
 				if(($i % 5) === 0){
 					//60 bits will be used by 5 blocks (12 bits each)
 					$k = mt_rand(0, (1 << 60) - 1);
@@ -1758,7 +1760,7 @@ class World implements ChunkManager{
 
 				$state = $blocks->get($x, $y, $z);
 
-				if(isset($this->randomTickBlocks[$state])){
+				if(isset($randomTickBlocks[$state])){
 					$block = $blockFactory->fromStateId($state);
 					$block->position($this, $chunkX * Chunk::EDGE_LENGTH + $x, ($Y << SubChunk::COORD_BIT_SIZE) + $y, $chunkZ * Chunk::EDGE_LENGTH + $z);
 					$block->onRandomTick();
