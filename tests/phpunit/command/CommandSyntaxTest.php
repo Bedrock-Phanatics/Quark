@@ -73,7 +73,7 @@ final class CommandSyntaxTest extends TestCase{
 		}
 
 		$this->server = self::createStub(Server::class);
-		$this->map = new SimpleCommandMap($this->server);
+		$this->map = new SimpleCommandMap();
 		$this->server->method("getCommandMap")->willReturn($this->map);
 		$this->server->method("getPlayerExact")->willReturnCallback(fn(string $name) : ?Player => $this->players[strtolower($name)] ?? null);
 		$steve = TestCommandSender::closedPlayer(self::createStub(Player::class));
@@ -180,7 +180,7 @@ final class CommandSyntaxTest extends TestCase{
 			"eco PAY Steve 1" => ["pay", ["target" => "Steve", "amount" => 1]],
 		];
 		foreach([$this->ecoDefinitions(), array_reverse($this->ecoDefinitions())] as $definitions){
-			$this->map = new SimpleCommandMap($this->server);
+			$this->map = new SimpleCommandMap();
 			$command = $this->command();
 			foreach($definitions as $definition){
 				$definition($command);
@@ -518,7 +518,7 @@ final class CommandSyntaxTest extends TestCase{
 		}catch(\InvalidArgumentException){
 			$this->addToAssertionCount(1);
 		}
-		$foreign = new SimpleCommandMap($this->server);
+		$foreign = new SimpleCommandMap();
 		$before = $foreign->getCommands();
 		try{
 			$foreign->register("test", $command);

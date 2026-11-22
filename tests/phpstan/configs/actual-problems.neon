@@ -19,12 +19,6 @@ parameters:
 			path: ../../../src/Server.php
 
 		-
-			message: '#^Method quark\\Server\:\:getCommandAliases\(\) should return array\<string, list\<string\>\> but returns array\<string, array\<mixed\>\>\.$#'
-			identifier: return.type
-			count: 1
-			path: ../../../src/Server.php
-
-		-
 			message: '#^Parameter \#1 \$generatorName of closure expects string, mixed given\.$#'
 			identifier: argument.type
 			count: 1

@@ -46,7 +46,7 @@ final class CommandMetadataTypesTest extends TestCase{
 		if($manager->getPermission("test.root") === null){
 			$manager->addPermission(new Permission("test.root"));
 		}
-		$this->map = new SimpleCommandMap(self::createStub(Server::class));
+		$this->map = new SimpleCommandMap();
 	}
 
 	protected function tearDown() : void{

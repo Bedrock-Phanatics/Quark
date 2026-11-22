@@ -84,7 +84,7 @@ final class CommandMetadataAdapterTest extends TestCase{
 				$manager->addPermission(new Permission($name));
 			}
 		}
-		$this->map = new SimpleCommandMap(self::createStub(Server::class));
+		$this->map = new SimpleCommandMap();
 	}
 
 	protected function tearDown() : void{
@@ -251,7 +251,7 @@ final class CommandMetadataAdapterTest extends TestCase{
 			}
 		};
 		$takeover->setPermission("test.root");
-		$takeover->setDescription(KnownTranslationFactory::quark_command_userDefined_description());
+		$takeover->setDescription("User-defined custom command");
 		$this->map->register("test", $takeover);
 
 		$plugin = self::createStub(Plugin::class);
@@ -279,64 +279,6 @@ final class CommandMetadataAdapterTest extends TestCase{
 		self::assertSame(1000, strlen($legacyData->getDescription()));
 		self::assertEquals(self::data("legacy", $legacyData->getDescription(), 0, $rawText), $legacyData);
 		self::assertEquals(self::data("lg", "User-defined custom command", -1, $rawText), $takeoverData);
-	}
-
-	public function testAliasesAreOnlyAdvertisedWhenATargetSyntaxIsPermitted() : void{
-		$server = self::createStub(Server::class);
-		$server->method("getCommandAliases")->willReturn(["grant" => ["eco admin give \$1 \$2"], "send" => ["eco pay \$1 \$2"]]);
-		$map = new SimpleCommandMap($server);
-		$server->method("getCommandMap")->willReturn($map);
-		$map->register("test", $this->eco());
-		$map->registerServerAliases();
-
-		$names = function(array $permissions) use ($map, $server) : array{
-			$player = $this->player($permissions);
-			$player->method("getServer")->willReturn($server);
-			return array_map(fn(CommandRawData $data) => $data->getName(), CommandMetadataAdapter::createPacket($map->getCommands(), $player)->commandData);
-		};
-		self::assertSame(["eco", "send"], $names(["test.root"]));
-		self::assertSame(["eco", "grant", "send"], $names(["test.root", "test.admin"]));
-		self::assertSame([], $names(["test.admin"]));
-
-		$packet = function(array $permissions) use ($map, $server) : AvailableCommandsPacket{
-			$player = $this->player($permissions);
-			$player->method("getServer")->willReturn($server);
-			return CommandMetadataAdapter::createPacket($map->getCommands(), $player);
-		};
-		$send = $packet(["test.root"])->commandData[1];
-		self::assertSame("send", $send->getName());
-		self::assertEquals([self::parameter("args", self::TEXT, true)], $send->getOverloads()[0]->getParameters());
-	}
-
-	public function testServerAliasesReplaceTheCommandTheyShadow() : void{
-		$server = self::createStub(Server::class);
-		$server->method("getCommandAliases")->willReturn(["eco" => ["legacy \$1"]]);
-		$map = new SimpleCommandMap($server);
-		$server->method("getCommandMap")->willReturn($map);
-		$map->register("test", $this->eco());
-		$legacy = new class("legacy") extends Command{
-			public function execute(CommandSender $sender, string $commandLabel, array $args){
-				return true;
-			}
-		};
-		$legacy->setPermission("test.admin");
-		$map->register("test", $legacy);
-		$map->registerServerAliases();
-
-		$player = $this->player(["test.root", "test.admin"]);
-		$player->method("getServer")->willReturn($server);
-		$data = [];
-		foreach(CommandMetadataAdapter::createPacket($map->getCommands(), $player)->commandData as $command){
-			$data[$command->getName()] = $command;
-		}
-		self::assertEquals([self::parameter("args", self::TEXT, true)], $data["eco"]->getOverloads()[0]->getParameters());
-		self::assertCount(1, $data["eco"]->getOverloads());
-
-		//the shadowed command must not be advertised to someone who can't run the alias
-		$user = $this->player(["test.root"]);
-		$user->method("getServer")->willReturn($server);
-		$names = array_map(fn(CommandRawData $command) => $command->getName(), CommandMetadataAdapter::createPacket($map->getCommands(), $user)->commandData);
-		self::assertNotContains("eco", $names);
 	}
 
 	public function testPacketRoundTripsThroughTheProtocolSerializer() : void{

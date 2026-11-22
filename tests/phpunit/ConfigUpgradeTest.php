@@ -135,7 +135,6 @@ final class ConfigUpgradeTest extends TestCase{
 		foreach(CoreConfig::RENAMED_SETTINGS as $old => $new){
 			self::assertNull($config->getNested($old), $old);
 		}
-		self::assertSame(["halt" => ["stop"]], $config->getNested("aliases"));
 		self::assertSame(["nether" => 8, "mini games" => 6, "my.world" => 5], $config->getNested("view-distances"));
 		self::assertFalse(array_key_exists("plugins", $config->getAll()));
 		self::assertNull($config->getNested("transport.nethernet.mtu"));

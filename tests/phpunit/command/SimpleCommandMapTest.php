@@ -55,8 +55,6 @@ final class SimpleCommandMapTest extends TestCase{
 	 * @phpstan-var list<array{string, string, list<string>}>
 	 */
 	private array $calls = [];
-	/** @phpstan-var array<string, list<string>> */
-	private array $aliases = [];
 
 	protected function setUp() : void{
 		Pulse::reset();
@@ -69,7 +67,6 @@ final class SimpleCommandMapTest extends TestCase{
 			}
 		}
 		$this->server = self::createStub(Server::class);
-		$this->server->method("getCommandAliases")->willReturnCallback(fn() : array => $this->aliases);
 		$this->server->method("getLogger")->willReturn(new class extends AttachableThreadSafeLogger{
 			public function emergency($message){}
 			public function alert($message){}
@@ -82,7 +79,7 @@ final class SimpleCommandMapTest extends TestCase{
 			public function log($level, $message){}
 			public function logException(\Throwable $e, $trace = null){}
 		});
-		$this->map = new SimpleCommandMap($this->server);
+		$this->map = new SimpleCommandMap();
 		$this->server->method("getCommandMap")->willReturn($this->map);
 	}
 
@@ -165,28 +162,6 @@ final class SimpleCommandMapTest extends TestCase{
 
 			public function getOwningPlugin() : Plugin{
 				return $this->plugin;
-			}
-		};
-		$command->setPermission("test.root");
-		return $command;
-	}
-
-	/**
-	 * @phpstan-param (\Closure(CommandArgs) : void)|null $handler
-	 */
-	private function declarative(string $name, ?\Closure $handler = null) : Command{
-		$command = new class($name, $handler) extends Command{
-			/**
-			 * @phpstan-param (\Closure(CommandArgs) : void)|null $handler
-			 */
-			public function __construct(string $name, private ?\Closure $handler){
-				parent::__construct($name);
-			}
-
-			protected function run(CommandSender $sender, CommandArgs $args) : void{
-				if($this->handler !== null){
-					($this->handler)($args);
-				}
 			}
 		};
 		$command->setPermission("test.root");
@@ -451,25 +426,6 @@ final class SimpleCommandMapTest extends TestCase{
 		self::assertSame(["Unknown command: manifest. Use /help for a list of available commands."], $sender->messages);
 	}
 
-	public function testHelpListsTheAliasInsteadOfTheCommandItShadows() : void{
-		$original = new class("foo", "original description", null, ["f"]) extends Command{
-			public function execute(CommandSender $sender, string $commandLabel, array $args){
-				return true;
-			}
-		};
-		$original->setPermission("test.root");
-		$this->map->register("test", $original);
-		$this->map->register("test", $this->legacy("open"));
-		$this->server->method("getCommandMap")->willReturn($this->map);
-		$this->installAliases(["foo" => ["open \$1"]]);
-		$sender = $this->sender();
-
-		($this->help())->execute($sender, "help", []);
-		$output = implode("\n", $sender->messages);
-		self::assertStringContainsString("/foo: User-defined custom command", $output);
-		self::assertStringNotContainsString("original description", $output);
-	}
-
 	public function testPluginCanDisableItselfWhileExecuting() : void{
 		$enabled = true;
 		$plugin = $this->plugin($enabled);
@@ -484,140 +440,5 @@ final class SimpleCommandMapTest extends TestCase{
 		self::assertCount(1, $this->calls);
 		self::assertNull($this->map->getCommand("quit"));
 		self::assertFalse($this->map->dispatch($this->sender(), "quit"));
-	}
-
-	/**
-	 * @phpstan-param array<string, list<string>> $aliases
-	 */
-	private function installAliases(array $aliases) : void{
-		$this->aliases = $aliases;
-		$this->map->registerServerAliases();
-	}
-
-	public function testFormattedAliasesEnforceTargetPermissions() : void{
-		$this->map->register("test", $this->legacy("open"));
-		$this->map->register("test", $this->legacy("secret", "test.admin"));
-		$eco = $this->declarative("eco", function(CommandArgs $args) : void{
-			$this->recordLegacy("give", $args->label(), [$args->string("target"), (string) $args->int("amount")]);
-		});
-		$eco->syntax("admin give")->permission("test.admin")->registerArguments([new StringArgument("target"), new IntegerArgument("amount")]);
-		$this->map->register("test", $eco);
-		$this->installAliases([
-			"both" => ["open \$1", "secret \$1"],
-			"onlysecret" => ["secret"],
-			"grant" => ["eco admin give \$1 \$2"],
-		]);
-		$both = $this->map->getCommand("both");
-		self::assertInstanceOf(FormattedCommandAlias::class, $both);
-
-		$user = $this->sender();
-		self::assertTrue($both->testPermissionSilent($user));
-		self::assertFalse($this->map->getCommand("onlysecret")?->testPermissionSilent($user));
-		$this->map->dispatch($user, "both x");
-		self::assertSame([["open", "open", ["x"]]], $this->calls);
-		self::assertSame(["You don't have permission to use the command: secret"], $user->messages);
-
-		//calling execute() directly used to run every target without checking it
-		$this->calls = [];
-		$both->execute($user, "both", ["y"]);
-		self::assertSame([["open", "open", ["y"]]], $this->calls);
-
-		$user->messages = [];
-		$this->map->dispatch($user, "onlysecret");
-		$this->map->dispatch($user, "grant Steve 5");
-		$grant = $this->map->getCommand("grant");
-		self::assertInstanceOf(FormattedCommandAlias::class, $grant);
-		$grant->execute($user, "grant", ["Steve", "5"]);
-		self::assertSame([
-			"You don't have permission to use the command: onlysecret",
-			"You don't have permission to use the command: grant",
-			"You don't have permission to use the command: eco",
-		], $user->messages);
-		self::assertCount(1, $this->calls);
-
-		$admin = $this->sender(["test.root" => true, "test.admin" => true]);
-		$this->map->dispatch($admin, "grant Steve 5");
-		$this->map->dispatch($admin, "grant Steve five");
-		self::assertSame(["give", "eco", ["Steve", "5"]], $this->calls[1]);
-		self::assertSame(["Invalid value for <amount>: \"five\" is not a valid integer", "Usage: /eco admin give <target> <amount>"], $admin->messages);
-		self::assertCount(2, $this->calls);
-	}
-
-	public function testAliasVisibilityFollowsTheReachableSyntaxPermissions() : void{
-		$eco = $this->declarative("eco");
-		$eco->syntax("pay")->registerArguments([new StringArgument("target"), new IntegerArgument("amount")]);
-		$eco->syntax("admin give")->permission("test.admin")->registerArguments([new StringArgument("target"), new IntegerArgument("amount")]);
-		$eco->syntax("admin list")->permission("test.admin");
-		$this->map->register("test", $eco);
-		$this->installAliases([
-			"grant" => ["eco admin give \$1 \$2"],
-			"adminany" => ["eco admin \$1-"],
-			"paytwo" => ["eco pay \$1 2"],
-			"payonly" => ["eco pay"],
-			"ecoany" => ["eco \$1-"],
-		]);
-		$this->installAliases(["nested" => ["grant \$1 \$2"]]);
-		$this->installAliases(["outer" => ["nested \$1 \$2"], "mixed" => ["paytwo \$1", "grant \$1 \$2"]]);
-
-		$expected = static fn(bool $admin) : array => [
-			"grant" => $admin,
-			"adminany" => $admin,
-			"paytwo" => true,
-			"payonly" => false,
-			"ecoany" => true,
-			"nested" => $admin,
-			"outer" => $admin,
-			"mixed" => true,
-		];
-		$user = $this->sender();
-		$visibility = function() use ($user) : array{
-			$result = [];
-			foreach(["grant", "adminany", "paytwo", "payonly", "ecoany", "nested", "outer", "mixed"] as $name){
-				$result[$name] = $this->map->getCommand($name)?->testPermissionSilent($user);
-			}
-			return $result;
-		};
-		self::assertSame($expected(false), $visibility());
-		$user->setBasePermission("test.admin", true);
-		self::assertSame($expected(true), $visibility());
-		$user->unsetBasePermission("test.admin");
-		self::assertSame($expected(false), $visibility());
-
-		$this->map->dispatch($user, "outer Steve 5");
-		self::assertSame(["You don't have permission to use the command: outer"], $user->messages);
-	}
-
-	public function testRecursiveAliasesTerminate() : void{
-		$this->map->register("test", $this->legacy("open"));
-		$this->installAliases(["first" => ["open"]]);
-		$this->installAliases(["second" => ["first"], "first" => ["second", "open"]]);
-
-		$sender = $this->sender();
-		$second = $this->map->getCommand("second");
-		self::assertInstanceOf(FormattedCommandAlias::class, $second);
-		self::assertTrue($second->testPermissionSilent($sender));
-		self::assertFalse($second->testPermissionSilent($this->sender([])));
-
-		$this->map->dispatch($sender, "second");
-		self::assertSame(["Command alias \"second\" expands into itself"], $sender->messages);
-		self::assertSame([["open", "open", []]], $this->calls);
-
-	}
-
-	public function testAliasesToUnregisteredCommandsAreHiddenAndReportMissingTargets() : void{
-		$open = $this->legacy("open");
-		$this->map->register("test", $open);
-		$this->installAliases(["rest" => ["open \$1-"]]);
-		$alias = $this->map->getCommand("rest");
-		self::assertInstanceOf(FormattedCommandAlias::class, $alias);
-
-		$sender = $this->sender();
-		self::assertTrue($this->map->dispatch($sender, "rest a b"));
-		self::assertSame([["open", "open", ["a b"]]], $this->calls);
-
-		$this->map->unregister($open);
-		self::assertFalse($alias->testPermissionSilent($sender));
-		self::assertFalse($alias->execute($sender, "rest", []));
-		self::assertSame(["Unknown command: open. Use /help for a list of available commands."], $sender->messages);
 	}
 }

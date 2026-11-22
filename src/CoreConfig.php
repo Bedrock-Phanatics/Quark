@@ -750,18 +750,6 @@ final class CoreConfig{
 			}
 		}
 
-		if(array_key_exists("aliases", $data)){
-			$aliases = $data["aliases"];
-			if(!is_array($aliases) || $aliases !== [] && array_is_list($aliases)){
-				throw new \InvalidArgumentException("Invalid aliases: expected table");
-			}
-			foreach(Utils::promoteKeys($aliases) as $key => $value){
-				if(!is_string($value)){
-					self::validateStringList($value, "aliases.$key");
-				}
-			}
-		}
-
 		if(array_key_exists("worlds", $data)){
 			$entries = $data["worlds"];
 			if(!is_array($entries) || $entries !== [] && array_is_list($entries)){

@@ -141,7 +141,7 @@ final class PulseIntegrationTest extends TestCase{
 		$sender->method("sendMessage")->willReturnCallback(static function(Translatable|string $message) use ($messages) : void{
 			$messages[] = TextFormat::clean($message instanceof Translatable ? TestCommandSender::language()->translate($message) : $message);
 		});
-		$map = new SimpleCommandMap($server);
+		$map = new SimpleCommandMap();
 		$map->dispatchParsed($sender, "pulse", []);
 		self::assertStringContainsString("[Pulse] Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
@@ -343,7 +343,7 @@ final class PulseIntegrationTest extends TestCase{
 		$sender->method("getServer")->willReturn($server);
 		$sender->method("hasPermission")->willReturn(true);
 		$sender->expects(self::once())->method("sendMessage")->with(self::callback(static fn(string $m) : bool => TextFormat::clean($m) === "[Pulse] Waiting for 1 worker operations"));
-		(new SimpleCommandMap($server))->dispatchParsed($sender, "pulse", ["status"]);
+		(new SimpleCommandMap())->dispatchParsed($sender, "pulse", ["status"]);
 		try{ $recorder->start(); self::fail("Restart must wait for worker reset"); }catch(\LogicException){}
 		self::assertInstanceOf(PulseControlTask::class, $task);
 		$task->onCompletion();

@@ -251,7 +251,6 @@ final class CoreConfigTest extends TestCase{
 		yield "view-distances.high" => [["view-distances" => ["high" => 97]]];
 		yield "view-distances.text" => [["view-distances" => ["text" => "8"]]];
 		yield "view-distances.nested" => [["view-distances" => ["nested" => ["x" => 8]]]];
-		yield "aliases.home" => [["aliases" => ["home" => ["target" => "spawn"]]]];
 		yield "hoppers.enabled" => [["hoppers" => ["enabled" => "yes"]]];
 		yield "hoppers.transfer-cooldown" => [["hoppers" => ["transfer-cooldown" => 0]]];
 		yield "hoppers.items-per-transfer" => [["hoppers" => ["items-per-transfer" => 65]]];

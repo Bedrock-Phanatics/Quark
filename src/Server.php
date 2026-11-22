@@ -1152,31 +1152,6 @@ class Server{
 		return $this->operators;
 	}
 
-	/**
-	 * @return string[][]
-	 * @phpstan-return array<string, list<string>>
-	 */
-	public function getCommandAliases() : array{
-		$section = $this->configGroup->getProperty(Yml::ALIASES);
-		$result = [];
-		if(is_array($section)){
-			foreach(Utils::promoteKeys($section) as $key => $value){
-				//TODO: more validation needed here
-				//key might not be a string, value might not be list<string>
-				$commands = [];
-				if(is_array($value)){
-					$commands = $value;
-				}else{
-					$commands[] = (string) $value;
-				}
-
-				$result[(string) $key] = $commands;
-			}
-		}
-
-		return $result;
-	}
-
 	public static function getInstance() : Server{
 		if(self::$instance === null){
 			throw new \RuntimeException("Attempt to retrieve Server instance outside server thread");
@@ -1385,7 +1360,7 @@ class Server{
 
 			DefaultPermissions::registerCorePermissions();
 
-			$this->commandMap = new SimpleCommandMap($this);
+			$this->commandMap = new SimpleCommandMap();
 			$redstoneEnabled = $this->configGroup->getPropertyBool(Yml::REDSTONE_ENABLED, true);
 			$redstoneWorlds = $this->configGroup->getProperty(Yml::REDSTONE_WORLDS, []);
 			RedstoneConfig::configure(
@@ -1921,10 +1896,6 @@ class Server{
 					$allSuccess = false;
 				}
 			}
-		}
-
-		if($type === PluginEnableOrder::POSTWORLD){
-			$this->commandMap->registerServerAliases();
 		}
 
 		return $allSuccess;

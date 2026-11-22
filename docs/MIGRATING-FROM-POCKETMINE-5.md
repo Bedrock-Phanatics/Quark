@@ -237,7 +237,7 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 Quark upgrades older `config/server.toml` files automatically. Version 2 separates gameplay, networking, world defaults, compression, and performance settings. It combines chunk sending, ticking, and generation under `[chunks]`, flattens the memory dump, low-memory view-distance, and updater warning settings, and renames `migration.auto_on_startup` to `migration.auto-on-startup`.
 
-The upgrade preserves explicit values and unrelated settings; an explicit new key wins over its old spelling. Missing defaults are filled once, with version 0's historical sparse-file defaults preserved. Comments and formatting survive where the TOML can be patched in place, and subsequent startups leave the file unchanged. Global `[aliases]` entries are kept. The retired PHP NetherNet MTU/signaling settings are removed. Unsupported colocated plugin data still requires manual migration. Quark rejects invalid known values and unsupported config versions.
+The upgrade preserves explicit values and unrelated settings; an explicit new key wins over its old spelling. Missing defaults are filled once, with version 0's historical sparse-file defaults preserved. Comments and formatting survive where the TOML can be patched in place, and subsequent startups leave the file unchanged. The retired PHP NetherNet MTU/signaling settings are removed. Unsupported colocated plugin data still requires manual migration. Quark rejects invalid known values and unsupported config versions.
 
 Per-world view distance caps use a flat table keyed by world folder name:
 

@@ -236,10 +236,6 @@ warn-console = true
 # Opt in to moving legacy data; --migrate-legacy also enables it.
 auto-on-startup = false
 
-# Optional command aliases. An empty list removes an unqualified alias.
-# [aliases]
-# stop = []
-# abort = ['quark:stop']
 
 # Optional world overrides keyed by folder name. Difficulty: peaceful, easy, normal, or hard.
 # [worlds.example]

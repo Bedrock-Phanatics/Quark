@@ -360,9 +360,6 @@ final class KnownTranslationKeys{
 	public const POTION_WEAKNESS = "potion.weakness";
 	public const POTION_WITHER = "potion.wither";
 	public const QUARK_BLOCK_BED_INCOMPLETE = "quark.block.bed.incomplete";
-	public const QUARK_COMMAND_ALIAS_ILLEGAL = "quark.command.alias.illegal";
-	public const QUARK_COMMAND_ALIAS_NOTFOUND = "quark.command.alias.notFound";
-	public const QUARK_COMMAND_ALIAS_RECURSIVE = "quark.command.alias.recursive";
 	public const QUARK_COMMAND_BAN_IP_DESCRIPTION = "quark.command.ban.ip.description";
 	public const QUARK_COMMAND_BAN_PLAYER_DESCRIPTION = "quark.command.ban.player.description";
 	public const QUARK_COMMAND_BANLIST_DESCRIPTION = "quark.command.banlist.description";
@@ -374,7 +371,6 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_DUMPMEMORY_DESCRIPTION = "quark.command.dumpmemory.description";
 	public const QUARK_COMMAND_EFFECT_DESCRIPTION = "quark.command.effect.description";
 	public const QUARK_COMMAND_ENCHANT_DESCRIPTION = "quark.command.enchant.description";
-	public const QUARK_COMMAND_ERROR_ALIASRECURSIVE = "quark.command.error.aliasRecursive";
 	public const QUARK_COMMAND_ERROR_INVALIDARGUMENT = "quark.command.error.invalidArgument";
 	public const QUARK_COMMAND_ERROR_INVALIDBOOLEAN = "quark.command.error.invalidBoolean";
 	public const QUARK_COMMAND_ERROR_INVALIDENUM = "quark.command.error.invalidEnum";
@@ -463,7 +459,6 @@ final class KnownTranslationKeys{
 	public const QUARK_COMMAND_TRANSFERSERVER_USAGE = "quark.command.transferserver.usage";
 	public const QUARK_COMMAND_UNBAN_IP_DESCRIPTION = "quark.command.unban.ip.description";
 	public const QUARK_COMMAND_UNBAN_PLAYER_DESCRIPTION = "quark.command.unban.player.description";
-	public const QUARK_COMMAND_USERDEFINED_DESCRIPTION = "quark.command.userDefined.description";
 	public const QUARK_COMMAND_VERSION_DESCRIPTION = "quark.command.version.description";
 	public const QUARK_COMMAND_VERSION_MINECRAFTVERSION = "quark.command.version.minecraftVersion";
 	public const QUARK_COMMAND_VERSION_NOSUCHPLUGIN = "quark.command.version.noSuchPlugin";

@@ -44,8 +44,7 @@ final class ServerCommandLogTest extends TestCase{
 		PulseZones::init();
 		DefaultPermissions::registerCorePermissions();
 		$stub = self::createStub(Server::class);
-		$stub->method("getCommandAliases")->willReturn([]);
-		$this->map = new SimpleCommandMap($stub);
+		$this->map = new SimpleCommandMap();
 		$stub->method("getCommandMap")->willReturn($this->map);
 
 		CommandLogCapture::$events = [];

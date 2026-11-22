@@ -1576,26 +1576,6 @@ final class KnownTranslationFactory{
 		return new Translatable(KnownTranslationKeys::QUARK_BLOCK_BED_INCOMPLETE, []);
 	}
 
-	public static function quark_command_alias_illegal(Translatable|string $param0) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ALIAS_ILLEGAL, [
-			0 => $param0,
-		]);
-	}
-
-	public static function quark_command_alias_notFound(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ALIAS_NOTFOUND, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
-	public static function quark_command_alias_recursive(Translatable|string $param0, Translatable|string $param1) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ALIAS_RECURSIVE, [
-			0 => $param0,
-			1 => $param1,
-		]);
-	}
-
 	public static function quark_command_ban_ip_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_BAN_IP_DESCRIPTION, []);
 	}
@@ -1638,12 +1618,6 @@ final class KnownTranslationFactory{
 
 	public static function quark_command_enchant_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ENCHANT_DESCRIPTION, []);
-	}
-
-	public static function quark_command_error_aliasRecursive(Translatable|string $alias) : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_ERROR_ALIASRECURSIVE, [
-			"alias" => $alias,
-		]);
 	}
 
 	public static function quark_command_error_invalidArgument(Translatable|string $argument, Translatable|string $reason) : Translatable{
@@ -2103,10 +2077,6 @@ final class KnownTranslationFactory{
 
 	public static function quark_command_unban_player_description() : Translatable{
 		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_UNBAN_PLAYER_DESCRIPTION, []);
-	}
-
-	public static function quark_command_userDefined_description() : Translatable{
-		return new Translatable(KnownTranslationKeys::QUARK_COMMAND_USERDEFINED_DESCRIPTION, []);
 	}
 
 	public static function quark_command_version_description() : Translatable{

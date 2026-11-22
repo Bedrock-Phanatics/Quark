@@ -47,7 +47,7 @@ abstract class DefaultCommandTestCase extends TestCase{
 			return null;
 		});
 		$this->server->method("getOnlinePlayers")->willReturnCallback(fn() : array => $this->players);
-		$this->map = new SimpleCommandMap($this->server);
+		$this->map = new SimpleCommandMap();
 		$this->server->method("getCommandMap")->willReturn($this->map);
 	}
 

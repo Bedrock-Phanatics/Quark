@@ -35,7 +35,6 @@ final class YmlServerProperties{
 		//NOOP
 	}
 
-	public const ALIASES = 'aliases';
 	public const AUTO_UPDATER = 'auto-updater';
 	public const AUTO_UPDATER_ENABLED = 'auto-updater.enabled';
 	public const AUTO_UPDATER_HOST = 'auto-updater.host';

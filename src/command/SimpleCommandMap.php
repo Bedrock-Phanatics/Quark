@@ -114,7 +114,7 @@ class SimpleCommandMap implements CommandMap{
 	/** @phpstan-var array<string, SoftEnum> */
 	private array $dirtySoftEnums = [];
 
-	public function __construct(private Server $server){
+	public function __construct(){
 		$this->setDefaultCommands();
 	}
 
@@ -438,54 +438,5 @@ class SimpleCommandMap implements CommandMap{
 	 */
 	public function getCommands() : array{
 		return $this->knownCommands;
-	}
-
-	public function registerServerAliases() : void{
-		$values = $this->server->getCommandAliases();
-
-		foreach(Utils::stringifyKeys($values) as $alias => $commandStrings){
-			if(str_contains($alias, ":")){
-				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_illegal($alias)));
-				continue;
-			}
-
-			$targets = [];
-			$bad = [];
-			$recursive = [];
-
-			foreach($commandStrings as $commandString){
-				$args = CommandStringHelper::parseQuoteAware($commandString);
-				$commandName = array_shift($args) ?? "";
-				$command = $this->getCommand($commandName);
-
-				if($command === null){
-					$bad[] = $commandString;
-				}elseif(strcasecmp($commandName, $alias) === 0){
-					$recursive[] = $commandString;
-				}else{
-					$targets[] = $commandString;
-				}
-			}
-
-			if(count($recursive) > 0){
-				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_recursive($alias, implode(", ", $recursive))));
-				continue;
-			}
-
-			if(count($bad) > 0){
-				$this->server->getLogger()->warning($this->server->getLanguage()->translate(KnownTranslationFactory::quark_command_alias_notFound($alias, implode(", ", $bad))));
-				continue;
-			}
-
-			//These registered commands have absolute priority
-			$lowerAlias = strtolower($alias);
-			if(count($targets) > 0){
-				$this->knownCommands[$lowerAlias] = new FormattedCommandAlias($lowerAlias, $targets);
-			}else{
-				unset($this->knownCommands[$lowerAlias]);
-			}
-
-		}
-		$this->clientMetadataDirty = true;
 	}
 }

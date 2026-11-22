@@ -126,7 +126,7 @@ final class CommandMetadataAdapter{
 		$lname = strtolower($label);
 		$aliases = [];
 		foreach($command->getAliases() as $alias){
-			//server aliases can take over an alias after registration
+			//a later command can take over an alias
 			if(($commands[$alias] ?? null) === $command){
 				$aliases[] = $alias;
 			}

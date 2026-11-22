@@ -302,7 +302,7 @@ final class NetworkSessionTest extends TestCase{
 			PermissionManager::getInstance()->addPermission(new Permission("test.root"));
 		}
 		$server = self::createStub(Server::class);
-		$map = new SimpleCommandMap($server);
+		$map = new SimpleCommandMap();
 		$server->method("getCommandMap")->willReturn($map);
 		$command = new class("eco") extends Command{
 			protected function run(CommandSender $sender, CommandArgs $args) : void{}

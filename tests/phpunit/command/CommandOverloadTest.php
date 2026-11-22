@@ -55,7 +55,7 @@ final class CommandOverloadTest extends TestCase{
 			}
 		}
 		$this->server = self::createStub(Server::class);
-		$this->map = new SimpleCommandMap($this->server);
+		$this->map = new SimpleCommandMap();
 		$this->server->method("getCommandMap")->willReturn($this->map);
 		$this->server->method("getPlayerExact")->willReturnCallback(fn(string $name) : ?Player => $this->players[strtolower($name)] ?? null);
 		$steve = TestCommandSender::closedPlayer(self::createStub(Player::class));
@@ -126,7 +126,7 @@ final class CommandOverloadTest extends TestCase{
 			"x steve ~ ~ ~ 90 -45" => ["move Steve pos ~0,~0,~0|90,-45"],
 		];
 		foreach([$this->tpLikeDefinitions(), array_reverse($this->tpLikeDefinitions())] as $definitions){
-			$this->map = new SimpleCommandMap($this->server);
+			$this->map = new SimpleCommandMap();
 			$command = $this->command();
 			foreach($definitions as $definition){
 				$definition($command);

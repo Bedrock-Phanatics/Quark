@@ -149,10 +149,6 @@ Autocomplete shows a plain word unless you override `getKind()` and return an en
 
 The sender needs one of the command's permissions, and a syntax's own permission as well, checked before its arguments are parsed. Syntaxes the sender can't use are left out of usage replies and autocomplete, and a permission change refreshes the command list once per tick.
 
-## Server aliases
-
-Aliases in the `[aliases]` section of `config/server.toml` run their targets with each target's own permission checks. An alias is hidden from senders who can't use anything it reaches, and shows one raw text parameter in autocomplete. Greedy arguments of an alias target get the expanded tokens joined by spaces.
-
 ## Registration and plugins
 
 Declare everything in the constructor. `register()` throws on an invalid definition and leaves the map unchanged, and changing a definition while its command is registered throws.
