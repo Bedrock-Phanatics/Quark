@@ -9,8 +9,10 @@ use quark\permission\DefaultPermissions;
 use quark\world\World;
 use quark\world\WorldManager;
 use function array_filter;
+use function explode;
 use function implode;
 use function str_starts_with;
+use const PHP_INT_MAX;
 
 final class HelpAndWorldCommandsTest extends DefaultCommandTestCase{
 
@@ -18,7 +20,8 @@ final class HelpAndWorldCommandsTest extends DefaultCommandTestCase{
 		$console = $this->console();
 		$first = $this->dispatch("help", $console);
 		self::assertStringStartsWith("--- Showing help page 1 of ", $first[0]);
-		self::assertCount(8, $first, "one header and one page of commands");
+		self::assertCount(2, $first, "one header and one message with a page of commands");
+		self::assertCount(7, explode("\n", $first[1], limit: PHP_INT_MAX));
 
 		$second = $this->dispatch("help 2", $console);
 		self::assertStringStartsWith("--- Showing help page 2 of ", $second[0]);

@@ -60,11 +60,12 @@ class GarbageCollectorCommand extends VanillaCommand{
 
 		$cyclesCollected = $sender->getServer()->getMemoryManager()->triggerGarbageCollector();
 
-		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_header()->format(TextFormat::GREEN . "---- " . TextFormat::RESET, TextFormat::GREEN . " ----" . TextFormat::RESET));
-		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_chunks(TextFormat::RED . number_format($chunksCollected))->prefix(TextFormat::GOLD));
-		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_entities(TextFormat::RED . number_format($entitiesCollected))->prefix(TextFormat::GOLD));
-
-		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_cycles(TextFormat::RED . number_format($cyclesCollected))->prefix(TextFormat::GOLD));
-		$sender->sendMessage(KnownTranslationFactory::quark_command_gc_memoryFreed(TextFormat::RED . number_format(round((($memory - memory_get_usage()) / 1024) / 1024, 2), 2))->prefix(TextFormat::GOLD));
+		$this->sendMessages($sender, [
+			KnownTranslationFactory::quark_command_gc_header()->format(TextFormat::GREEN . "---- " . TextFormat::RESET, TextFormat::GREEN . " ----" . TextFormat::RESET),
+			KnownTranslationFactory::quark_command_gc_chunks(TextFormat::RED . number_format($chunksCollected))->prefix(TextFormat::GOLD),
+			KnownTranslationFactory::quark_command_gc_entities(TextFormat::RED . number_format($entitiesCollected))->prefix(TextFormat::GOLD),
+			KnownTranslationFactory::quark_command_gc_cycles(TextFormat::RED . number_format($cyclesCollected))->prefix(TextFormat::GOLD),
+			KnownTranslationFactory::quark_command_gc_memoryFreed(TextFormat::RED . number_format(round((($memory - memory_get_usage()) / 1024) / 1024, 2), 2))->prefix(TextFormat::GOLD)
+		]);
 	}
 }

@@ -46,6 +46,7 @@ use quark\utils\TextFormat;
 use Vow\Promise;
 use function array_fill;
 use function count;
+use function explode;
 use function extension_loaded;
 use function file_get_contents;
 use function glob;
@@ -57,6 +58,7 @@ use function str_repeat;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
+use const PHP_INT_MAX;
 
 final class PulseIntegrationTest extends TestCase{
 	protected function tearDown() : void{ Pulse::reset(); }
@@ -146,7 +148,8 @@ final class PulseIntegrationTest extends TestCase{
 		self::assertStringContainsString("[Pulse] Pulse is idle", $messages[0] ?? "");
 		$messages->exchangeArray([]);
 		$map->dispatchParsed($sender, "pulse", ["help"]);
-		self::assertCount(5, $messages);
+		self::assertCount(1, $messages);
+		self::assertCount(5, explode("\n", $messages[0] ?? "", limit: PHP_INT_MAX));
 		$map->dispatchParsed($sender, "pulse", ["start", "1m"]);
 		$session = $recorder->getSession();
 		self::assertNotNull($session);
@@ -156,10 +159,11 @@ final class PulseIntegrationTest extends TestCase{
 		$zone->stop($scope);
 		$messages->exchangeArray([]);
 		$map->dispatchParsed($sender, "pulse", ["top", "1"]);
-		self::assertCount(3, $messages);
-		self::assertStringContainsString("command.work BAD", $messages[2] ?? "");
-		self::assertStringNotContainsString("\n", $messages[2] ?? "");
-		self::assertStringNotContainsString("\x1b", $messages[2] ?? "");
+		self::assertCount(1, $messages);
+		$lines = explode("\n", $messages[0] ?? "", limit: PHP_INT_MAX);
+		self::assertCount(3, $lines);
+		self::assertStringContainsString("command.work BAD", $lines[2]);
+		self::assertStringNotContainsString("\x1b", $lines[2]);
 		$messages->exchangeArray([]);
 		$map->dispatchParsed($sender, "pulse", ["spikes", "1"]);
 		self::assertStringContainsString("No retained spikes yet", $messages[0] ?? "");

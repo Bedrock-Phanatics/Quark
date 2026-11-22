@@ -27,15 +27,31 @@ use quark\command\argument\RelativePosition;
 use quark\command\Command;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
+use quark\lang\Translatable;
 use quark\math\Vector3;
 use quark\player\Player;
 use quark\utils\TextFormat;
 use quark\world\World;
+use function implode;
 use function round;
 
 abstract class VanillaCommand extends Command{
 	public const MAX_COORD = 30000000;
 	public const MIN_COORD = -30000000;
+
+	/**
+	 * Sends the messages as one, translated in the sender's language.
+	 *
+	 * @param list<Translatable|string> $messages
+	 */
+	protected function sendMessages(CommandSender $sender, array $messages) : void{
+		$language = $sender->getLanguage();
+		$translated = [];
+		foreach($messages as $message){
+			$translated[] = $message instanceof Translatable ? $language->translate($message) : $message;
+		}
+		$sender->sendMessage(implode("\n", $translated));
+	}
 
 	/**
 	 * Checks the permission for acting on $target, replying to the sender when it is missing.

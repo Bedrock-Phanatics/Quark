@@ -47,10 +47,6 @@ class StatusCommand extends VanillaCommand{
 		$this->setPermission(DefaultPermissionNames::COMMAND_STATUS);
 	}
 
-	private static function send(CommandSender $sender, Translatable $message) : void{
-		$sender->sendMessage($message->prefix(TextFormat::GOLD));
-	}
-
 	private static function formatTPS(float $tps, float $usage, string $tpsColor) : Translatable{
 		return l10n::quark_command_status_tps_stat(strval($tps), strval($usage))->prefix($tpsColor);
 	}
@@ -68,10 +64,10 @@ class StatusCommand extends VanillaCommand{
 		$mUsage = Process::getAdvancedMemoryUsage();
 
 		$server = $sender->getServer();
-		$sender->sendMessage(l10n::quark_command_status_header()->format(
+		$messages = [l10n::quark_command_status_header()->format(
 			TextFormat::GREEN . "---- " . TextFormat::RESET,
 			TextFormat::GREEN . " ----" . TextFormat::RESET
-		));
+		)];
 
 		$time = (int) (microtime(true) - $server->getStartTime());
 
@@ -90,7 +86,7 @@ class StatusCommand extends VanillaCommand{
 			$message = l10n::quark_command_status_uptime_seconds($seconds);
 		}
 
-		self::send($sender, l10n::quark_command_status_uptime($message->prefix(TextFormat::RED)));
+		$messages[] = l10n::quark_command_status_uptime($message->prefix(TextFormat::RED))->prefix(TextFormat::GOLD);
 
 		$tpsColor = TextFormat::GREEN;
 		$tps = $server->getTicksPerSecond();
@@ -100,34 +96,36 @@ class StatusCommand extends VanillaCommand{
 			$tpsColor = TextFormat::GOLD;
 		}
 
-		self::send($sender, l10n::quark_command_status_tps_current(self::formatTPS($tps, $server->getTickUsage(), $tpsColor)));
-		self::send($sender, l10n::quark_command_status_tps_average(self::formatTPS($server->getTicksPerSecondAverage(), $server->getTickUsageAverage(), $tpsColor)));
+		$messages[] = l10n::quark_command_status_tps_current(self::formatTPS($tps, $server->getTickUsage(), $tpsColor))->prefix(TextFormat::GOLD);
+		$messages[] = l10n::quark_command_status_tps_average(self::formatTPS($server->getTicksPerSecondAverage(), $server->getTickUsageAverage(), $tpsColor))->prefix(TextFormat::GOLD);
 
 		$bandwidth = $server->getNetwork()->getBandwidthTracker();
-		self::send($sender, l10n::quark_command_status_network_upload(self::formatBandwidth($bandwidth->getSend()->getAverageBytes())));
-		self::send($sender, l10n::quark_command_status_network_download(self::formatBandwidth($bandwidth->getReceive()->getAverageBytes())));
+		$messages[] = l10n::quark_command_status_network_upload(self::formatBandwidth($bandwidth->getSend()->getAverageBytes()))->prefix(TextFormat::GOLD);
+		$messages[] = l10n::quark_command_status_network_download(self::formatBandwidth($bandwidth->getReceive()->getAverageBytes()))->prefix(TextFormat::GOLD);
 
-		self::send($sender, l10n::quark_command_status_threads(TextFormat::RED . Process::getThreadCount()));
+		$messages[] = l10n::quark_command_status_threads(TextFormat::RED . Process::getThreadCount())->prefix(TextFormat::GOLD);
 
-		self::send($sender, l10n::quark_command_status_memory_mainThread(self::formatMemory($mUsage[0])));
-		self::send($sender, l10n::quark_command_status_memory_total(self::formatMemory($mUsage[1])));
-		self::send($sender, l10n::quark_command_status_memory_virtual(self::formatMemory($mUsage[2])));
+		$messages[] = l10n::quark_command_status_memory_mainThread(self::formatMemory($mUsage[0]))->prefix(TextFormat::GOLD);
+		$messages[] = l10n::quark_command_status_memory_total(self::formatMemory($mUsage[1]))->prefix(TextFormat::GOLD);
+		$messages[] = l10n::quark_command_status_memory_virtual(self::formatMemory($mUsage[2]))->prefix(TextFormat::GOLD);
 
 		$globalLimit = $server->getMemoryManager()->getGlobalMemoryLimit();
 		if($globalLimit > 0){
-			self::send($sender, l10n::quark_command_status_memory_manager(self::formatMemory($globalLimit)));
+			$messages[] = l10n::quark_command_status_memory_manager(self::formatMemory($globalLimit))->prefix(TextFormat::GOLD);
 		}
 
 		foreach($server->getWorldManager()->getWorlds() as $world){
 			$worldName = $world->getFolderName() !== $world->getDisplayName() ? " (" . $world->getDisplayName() . ")" : "";
 			$timeColor = $world->getTickRateTime() > 40 ? TextFormat::RED : TextFormat::YELLOW;
-			self::send($sender, l10n::quark_command_status_world(
+			$messages[] = l10n::quark_command_status_world(
 				"\"{$world->getFolderName()}\"$worldName",
 				TextFormat::RED . number_format(count($world->getLoadedChunks())) . TextFormat::GREEN,
 				TextFormat::RED . number_format(count($world->getTickingChunks())) . TextFormat::GREEN,
 				TextFormat::RED . number_format(count($world->getEntities())) . TextFormat::GREEN,
 				l10n::quark_command_status_world_timeStat(strval(round($world->getTickRateTime(), 2)))->prefix($timeColor)
-			));
+			)->prefix(TextFormat::GOLD);
 		}
+
+		$this->sendMessages($sender, $messages);
 	}
 }

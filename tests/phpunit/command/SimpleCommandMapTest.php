@@ -26,7 +26,6 @@ namespace quark\command;
 use PHPUnit\Framework\MockObject\Stub;
 use PHPUnit\Framework\TestCase;
 use quark\command\argument\IntegerArgument;
-use quark\command\argument\StringArgument;
 use quark\command\utils\InvalidCommandSyntaxException;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;

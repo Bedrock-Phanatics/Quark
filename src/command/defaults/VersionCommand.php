@@ -28,7 +28,6 @@ use quark\command\argument\StringArgument;
 use quark\command\CommandArgs;
 use quark\command\CommandSender;
 use quark\lang\KnownTranslationFactory;
-use quark\lang\Translatable;
 use quark\permission\DefaultPermissionNames;
 use quark\plugin\Plugin;
 use quark\utils\TextFormat;
@@ -134,17 +133,5 @@ class VersionCommand extends VanillaCommand{
 		}
 
 		$this->sendMessages($sender, $messages);
-	}
-
-	/**
-	 * @param list<Translatable|string> $messages
-	 */
-	private function sendMessages(CommandSender $sender, array $messages) : void{
-		$language = $sender->getLanguage();
-		$translated = [];
-		foreach($messages as $message){
-			$translated[] = $message instanceof Translatable ? $language->translate($message) : $message;
-		}
-		$sender->sendMessage(implode("\n", $translated));
 	}
 }

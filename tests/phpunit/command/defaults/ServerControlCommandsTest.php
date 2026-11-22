@@ -32,6 +32,7 @@ use Vow\Deferred;
 use function explode;
 use function str_contains;
 use function str_starts_with;
+use const PHP_INT_MAX;
 
 final class ServerControlCommandsTest extends DefaultCommandTestCase{
 	private int $shutdowns = 0;
@@ -123,9 +124,11 @@ final class ServerControlCommandsTest extends DefaultCommandTestCase{
 		$messages = $this->dispatch("gc", $this->console());
 		self::assertSame(["gc", "unload", "cache"], $this->worldCalls);
 		self::assertSame(1, $this->collections);
-		self::assertCount(5, $messages);
-		self::assertStringContainsString("Garbage collection result", $messages[0]);
-		self::assertSame("Cycles: 10", $messages[3]);
+		self::assertCount(1, $messages);
+		$lines = explode("\n", $messages[0], limit: PHP_INT_MAX);
+		self::assertCount(5, $lines);
+		self::assertStringContainsString("Garbage collection result", $lines[0]);
+		self::assertSame("Cycles: 10", $lines[3]);
 	}
 
 	public function testDumpMemoryUsesGivenPathOrADefaultFolder() : void{

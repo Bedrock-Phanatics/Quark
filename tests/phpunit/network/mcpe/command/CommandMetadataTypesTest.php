@@ -30,7 +30,6 @@ use quark\permission\PermissionManager;
 use quark\player\Player;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
-use quark\Server;
 use function array_map;
 
 final class CommandMetadataTypesTest extends TestCase{

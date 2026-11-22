@@ -73,10 +73,14 @@ class HelpCommand extends VanillaCommand{
 		$pageNumber = max(1, min(count($commands), $pageNumber));
 		$sender->sendMessage(KnownTranslationFactory::commands_help_header((string) $pageNumber, (string) count($commands)));
 		$lang = $sender->getLanguage();
+		$lines = [];
 		foreach($commands[$pageNumber - 1] ?? [] as $command){
 			$description = $command->getDescription();
 			$descriptionString = $description instanceof Translatable ? $lang->translate($description) : $description;
-			$sender->sendMessage(TextFormat::DARK_GREEN . "/" . $command->getLabel() . ": " . TextFormat::RESET . $descriptionString);
+			$lines[] = TextFormat::DARK_GREEN . "/" . $command->getLabel() . ": " . TextFormat::RESET . $descriptionString;
+		}
+		if(count($lines) !== 0){
+			$sender->sendMessage(implode("\n", $lines));
 		}
 	}
 
@@ -90,11 +94,6 @@ class HelpCommand extends VanillaCommand{
 		$lang = $sender->getLanguage();
 		$description = $cmd->getDescription();
 		$descriptionString = $description instanceof Translatable ? $lang->translate($description) : $description;
-		$sender->sendMessage(KnownTranslationFactory::quark_command_help_specificCommand_header($cmd->getLabel())
-			->format(TextFormat::YELLOW . "--------- " . TextFormat::RESET, TextFormat::YELLOW . " ---------"));
-		$sender->sendMessage(KnownTranslationFactory::quark_command_help_specificCommand_description(TextFormat::RESET . $descriptionString)
-			->prefix(TextFormat::GOLD));
-
 		$usage = $cmd->getUsage();
 		$usageString = $usage instanceof Translatable ? $lang->translate($usage) : $usage;
 		//declared syntaxes describe themselves unless a usage was set
@@ -109,12 +108,17 @@ class HelpCommand extends VanillaCommand{
 				$usageString = implode("\n", $lines);
 			}
 		}
-		$sender->sendMessage(KnownTranslationFactory::quark_command_help_specificCommand_usage(TextFormat::RESET . implode("\n" . TextFormat::RESET, explode("\n", $usageString, limit: PHP_INT_MAX)))
-			->prefix(TextFormat::GOLD));
-
 		$aliases = $cmd->getAliases();
 		sort($aliases, SORT_NATURAL);
-		$sender->sendMessage(KnownTranslationFactory::quark_command_help_specificCommand_aliases(TextFormat::RESET . implode(", ", $aliases))
-			->prefix(TextFormat::GOLD));
+		$this->sendMessages($sender, [
+			KnownTranslationFactory::quark_command_help_specificCommand_header($cmd->getLabel())
+				->format(TextFormat::YELLOW . "--------- " . TextFormat::RESET, TextFormat::YELLOW . " ---------"),
+			KnownTranslationFactory::quark_command_help_specificCommand_description(TextFormat::RESET . $descriptionString)
+				->prefix(TextFormat::GOLD),
+			KnownTranslationFactory::quark_command_help_specificCommand_usage(TextFormat::RESET . implode("\n" . TextFormat::RESET, explode("\n", $usageString, limit: PHP_INT_MAX)))
+				->prefix(TextFormat::GOLD),
+			KnownTranslationFactory::quark_command_help_specificCommand_aliases(TextFormat::RESET . implode(", ", $aliases))
+				->prefix(TextFormat::GOLD)
+		]);
 	}
 }

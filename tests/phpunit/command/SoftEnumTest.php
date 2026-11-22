@@ -18,7 +18,6 @@ use quark\plugin\Plugin;
 use quark\plugin\PluginOwned;
 use quark\pulse\internal\PulseZones;
 use quark\pulse\Pulse;
-use quark\Server;
 use function array_map;
 use function range;
 use function str_repeat;

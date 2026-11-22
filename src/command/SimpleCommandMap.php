@@ -76,16 +76,12 @@ use quark\lang\KnownTranslationFactory;
 use quark\lang\Translatable;
 use quark\plugin\Plugin;
 use quark\plugin\PluginOwned;
-use quark\Server;
 use quark\utils\TextFormat;
 use quark\utils\Utils;
 use function array_shift;
 use function array_values;
 use function count;
-use function implode;
 use function spl_object_id;
-use function str_contains;
-use function strcasecmp;
 use function strtolower;
 use function trim;
 
