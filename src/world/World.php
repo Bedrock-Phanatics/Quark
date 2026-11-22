@@ -1613,12 +1613,11 @@ class World implements ChunkManager{
 		$lightningChance = $this->weather === Weather::THUNDER ? $this->lightningChance : 0;
 		$currentTick = $this->server->getTick();
 		foreach($this->validTickingChunks as $index => $_){
-			World::getXZ($index, $chunkX, $chunkZ);
-
 			if($lightningChance > 0 && mt_rand(1, $lightningChance) === 1){
+				World::getXZ($index, $chunkX, $chunkZ);
 				$this->strikeNaturalLightning($chunkX, $chunkZ);
 			}
-			$this->tickChunk($chunkX, $chunkZ, $index, $currentTick);
+			$this->tickChunk($index, $currentTick);
 		}
 	}
 
@@ -1722,13 +1721,13 @@ class World implements ChunkManager{
 		}
 	}
 
-	private function tickChunk(int $chunkX, int $chunkZ, int $chunkHash, int $currentTick) : void{
+	private function tickChunk(int $chunkHash, int $currentTick) : void{
 		$chunk = $this->chunks[$chunkHash] ?? null;
 		if($chunk === null){
 			//the chunk may have been unloaded during a previous chunk's update (e.g. during BlockGrowEvent)
 			return;
 		}
-		foreach($this->getChunkEntities($chunkX, $chunkZ) as $entity){
+		foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
 			$entity->onRandomUpdate();
 		}
 
@@ -1738,7 +1737,11 @@ class World implements ChunkManager{
 			$next = $currentTick + self::RANDOM_TICK_RESCAN_TICKS - (($currentTick - $chunkHash) & (self::RANDOM_TICK_RESCAN_TICKS - 1));
 			$scan = $this->randomTickSubChunks[$chunkHash] = [$next, $this->findRandomTickSubChunks($chunk)];
 		}
+		if(count($scan[1]) === 0){
+			return;
+		}
 
+		World::getXZ($chunkHash, $chunkX, $chunkZ);
 		$blockFactory = $this->blockStateRegistry;
 		$randomTickBlocks = $this->randomTickBlocks;
 		$samples = $this->tickedBlocksPerSubchunkPerTick;
