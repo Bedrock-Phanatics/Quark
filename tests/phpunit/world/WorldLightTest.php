@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
+use pocketmine\world\format\LightArray;
 use pocketmine\world\format\PalettedBlockArray;
 use quark\block\RuntimeBlockStateRegistry;
 use quark\block\VanillaBlocks;
@@ -34,6 +35,7 @@ use quark\world\light\BlockLightUpdate;
 use quark\world\light\SkyLightUpdate;
 use quark\world\utils\SubChunkExplorer;
 use function array_map;
+use function max;
 use function mt_rand;
 use function mt_srand;
 
@@ -95,6 +97,44 @@ final class WorldLightTest extends TestCase{
 			new SkyLightUpdate(new SubChunkExplorer($manager), $registry->lightFilter, $registry->blocksDirectSkyLight),
 			new BlockLightUpdate(new SubChunkExplorer($manager), $registry->lightFilter, $registry->light),
 		];
+	}
+
+	public function testFullLightMatchesSkyAndBlockLight() : void{
+		mt_srand(7);
+		$world = (new \ReflectionClass(World::class))->newInstanceWithoutConstructor();
+		$set = static fn(string $property, mixed $value) => (new \ReflectionProperty(World::class, $property))->setValue($world, $value);
+		$set("minY", World::Y_MIN);
+		$set("maxY", World::Y_MAX);
+		$chunks = [];
+		foreach([[0, 0, true], [1, 0, true], [0, 1, false]] as [$chunkX, $chunkZ, $lit]){
+			$chunk = new Chunk([], true);
+			$chunk->setLightPopulated($lit);
+			foreach($chunk->getSubChunks() as $subChunk){
+				$sky = LightArray::fill(mt_rand(0, 15));
+				$block = LightArray::fill(mt_rand(0, 15));
+				for($i = 0; $i < 512; ++$i){
+					$sky->set(mt_rand(0, 15), mt_rand(0, 15), mt_rand(0, 15), mt_rand(0, 15));
+					$block->set(mt_rand(0, 15), mt_rand(0, 15), mt_rand(0, 15), mt_rand(0, 15));
+				}
+				$subChunk->setBlockSkyLightArray($sky);
+				$subChunk->setBlockLightArray($block);
+			}
+			$chunks[World::chunkHash($chunkX, $chunkZ)] = $chunk;
+		}
+		$set("chunks", $chunks);
+
+		foreach([true, false] as $hasSkyLight){
+			$set("hasSkyLight", $hasSkyLight);
+			for($reduction = 0; $reduction <= 11; ++$reduction){
+				$set("skyLightReduction", $reduction);
+				for($i = 0; $i < 2000; ++$i){
+					$x = mt_rand(-8, 40);
+					$y = mt_rand(World::Y_MIN - 4, World::Y_MAX + 4);
+					$z = mt_rand(-8, 40);
+					self::assertSame(max($world->getRealBlockSkyLightAt($x, $y, $z), $world->getBlockLightAt($x, $y, $z)), $world->getFullLightAt($x, $y, $z), "$x $y $z");
+				}
+			}
+		}
 	}
 
 	public function testQueuedChangesMatchLightUpdates() : void{

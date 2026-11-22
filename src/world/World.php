@@ -2338,7 +2338,7 @@ class World implements ChunkManager{
 		if(!$this->isInWorld($x, $y, $z)){
 			return null;
 		}
-		return $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)?->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
+		return ($this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null)?->getBlockStateId($x & Chunk::COORD_MASK, $y, $z & Chunk::COORD_MASK);
 	}
 
 	/**
@@ -2527,12 +2527,20 @@ class World implements ChunkManager{
 	 * time of day.
 	 */
 	public function getFullLightAt(int $x, int $y, int $z) : int{
-		$skyLight = $this->getRealBlockSkyLightAt($x, $y, $z);
-		if($skyLight < 15){
-			return max($skyLight, $this->getBlockLightAt($x, $y, $z));
-		}else{
-			return $skyLight;
+		//same result as max(getRealBlockSkyLightAt(), getBlockLightAt()), with one chunk lookup for random ticks
+		if(!$this->isInWorld($x, $y, $z)){
+			return $this->hasSkyLight && $y >= $this->maxY ? max(15 - $this->skyLightReduction, 0) : 0;
 		}
+		$chunk = $this->chunks[World::chunkHash($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)] ?? null;
+		if($chunk === null || $chunk->isLightPopulated() !== true){
+			return 0;
+		}
+		$subChunk = $chunk->getSubChunk($y >> Chunk::COORD_BIT_SIZE);
+		$x &= SubChunk::COORD_MASK;
+		$y &= SubChunk::COORD_MASK;
+		$z &= SubChunk::COORD_MASK;
+		$skyLight = $this->hasSkyLight ? max($subChunk->getBlockSkyLightArray()->get($x, $y, $z) - $this->skyLightReduction, 0) : 0;
+		return $skyLight < 15 ? max($skyLight, $subChunk->getBlockLightArray()->get($x, $y, $z)) : $skyLight;
 	}
 
 	/**
