@@ -25,6 +25,7 @@ namespace quark\block\utils;
 
 use quark\block\Block;
 use quark\block\Farmland;
+use quark\block\RuntimeBlockStateRegistry;
 use function mt_rand;
 
 final class CropGrowthHelper{
@@ -60,7 +61,10 @@ final class CropGrowthHelper{
 		$baseY = $position->getFloorY();
 		$baseZ = $position->getFloorZ();
 
-		$farmland = $world->getBlockAt($baseX, $baseY - 1, $baseZ);
+		//state prototypes carry everything checked here, so skip building positioned blocks for every neighbour
+		$registry = RuntimeBlockStateRegistry::getInstance();
+		$states = $registry->getAllKnownStates();
+		$farmland = $states[$world->getBlockStateIdAt($baseX, $baseY - 1, $baseZ) ?? -1] ?? null;
 
 		if($farmland instanceof Farmland){
 			$result += $farmland->getWetness() > 0 ? self::ON_HYDRATED_FARMLAND_BONUS : self::ON_DRY_FARMLAND_BONUS;
@@ -75,7 +79,7 @@ final class CropGrowthHelper{
 				if($x === 0 && $z === 0){
 					continue;
 				}
-				$nextFarmland = $world->getBlockAt($baseX + $x, $baseY - 1, $baseZ + $z);
+				$nextFarmland = $states[$world->getBlockStateIdAt($baseX + $x, $baseY - 1, $baseZ + $z) ?? -1] ?? null;
 
 				if(!$nextFarmland instanceof Farmland){
 					continue;
@@ -84,8 +88,8 @@ final class CropGrowthHelper{
 				$result += $nextFarmland->getWetness() > 0 ? self::ADJACENT_HYDRATED_FARMLAND_BONUS : self::ADJACENT_DRY_FARMLAND_BONUS;
 
 				if(!$improperArrangement){
-					$nextCrop = $world->getBlockAt($baseX + $x, $baseY, $baseZ + $z);
-					if($nextCrop->hasSameTypeId($block)){
+					$nextCropId = $world->getBlockStateIdAt($baseX + $x, $baseY, $baseZ + $z);
+					if($nextCropId !== null && ($states[$nextCropId] ?? $registry->fromStateId($nextCropId))->hasSameTypeId($block)){
 						match(0){
 							$x => $zRow ? $improperArrangement = true : $xRow = true,
 							$z => $xRow ? $improperArrangement = true : $zRow = true,

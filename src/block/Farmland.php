@@ -170,6 +170,9 @@ class Farmland extends Transparent{
 		$startY = $this->position->getFloorY();
 		$startZ = $this->position->getFloorZ() - (int) (self::WATER_SEARCH_HORIZONTAL_LENGTH / 2);
 
+		//checking state prototypes avoids building up to 162 blocks, which would also flush the world's block cache
+		$states = RuntimeBlockStateRegistry::getInstance()->getAllKnownStates();
+
 		if($this->waterPositionIndex !== self::WATER_POSITION_INDEX_UNKNOWN){
 			$raw = $this->waterPositionIndex;
 			$x = $raw % self::WATER_SEARCH_HORIZONTAL_LENGTH;
@@ -178,7 +181,7 @@ class Farmland extends Transparent{
 			$raw = intdiv($raw, self::WATER_SEARCH_HORIZONTAL_LENGTH);
 			$y = $raw % self::WATER_SEARCH_VERTICAL_LENGTH;
 
-			if($world->getBlockAt($startX + $x, $startY + $y, $startZ + $z) instanceof Water){
+			if(($states[$world->getBlockStateIdAt($startX + $x, $startY + $y, $startZ + $z) ?? -1] ?? null) instanceof Water){
 				return true;
 			}
 		}
@@ -188,7 +191,7 @@ class Farmland extends Transparent{
 		for($y = 0; $y < self::WATER_SEARCH_VERTICAL_LENGTH; $y++){
 			for($x = 0; $x < self::WATER_SEARCH_HORIZONTAL_LENGTH; $x++){
 				for($z = 0; $z < self::WATER_SEARCH_HORIZONTAL_LENGTH; $z++){
-					if($world->getBlockAt($startX + $x, $startY + $y, $startZ + $z) instanceof Water){
+					if(($states[$world->getBlockStateIdAt($startX + $x, $startY + $y, $startZ + $z) ?? -1] ?? null) instanceof Water){
 						$this->waterPositionIndex = $x + ($z * self::WATER_SEARCH_HORIZONTAL_LENGTH) + ($y * self::WATER_SEARCH_HORIZONTAL_LENGTH ** 2);
 						return true;
 					}
