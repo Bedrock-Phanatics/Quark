@@ -89,14 +89,19 @@ final class WorldRandomTickTest extends TestCase{
 	public function testPlacingTickedBlocksKeepsTheScheduledRescan() : void{
 		$world = $this->harness->world;
 		$this->tickChunks();
-		$scans = new \ReflectionProperty(World::class, "randomTickSubChunks");
-		$before = $scans->getValue($world)[World::chunkHash(0, 0)];
+		$scan = static function() use ($world) : mixed{
+			$scans = (new \ReflectionProperty(World::class, "randomTickSubChunks"))->getValue($world);
+			self::assertIsArray($scans);
+			return $scans[World::chunkHash(0, 0)];
+		};
+		$before = $scan();
+		self::assertIsArray($before);
 
 		$world->setBlockAt(0, (self::SUBCHUNK << 4) + 1, 0, self::wetFarmland(), false);
 		$world->setBlockAt(1, (self::SUBCHUNK << 4) + 1, 0, self::wetFarmland(), false);
 		$world->setBlockAt(0, 1, 0, self::wetFarmland(), false);
 
-		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scans->getValue($world)[World::chunkHash(0, 0)]);
+		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scan());
 	}
 
 	public function testLayersChangedOutsideTheWorldAreRescanned() : void{
