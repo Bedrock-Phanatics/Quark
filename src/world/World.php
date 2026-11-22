@@ -156,6 +156,7 @@ use function floor;
 use function get_class;
 use function hash;
 use function implode;
+use function in_array;
 use function intdiv;
 use function is_a;
 use function max;
@@ -2893,8 +2894,15 @@ class World implements ChunkManager{
 		$previousStateId = $chunk->getBlockStateId($localX, $y, $localZ);
 		$chunk->setBlockStateId($localX, $y, $localZ, $stateId);
 		$this->metadata?->onBlockChanged($chunkHash, $x, $y, $z, $previousStateId, $stateId);
-		if(isset($this->randomTickBlocks[$stateId])){
-			unset($this->randomTickSubChunks[$chunkHash]);
+		if(isset($this->randomTickBlocks[$stateId], $this->randomTickSubChunks[$chunkHash])){
+			//growth and spread keep writing ticked states into subchunks already listed, so only add new ones
+			$scan = $this->randomTickSubChunks[$chunkHash];
+			$subChunkY = $y >> Chunk::COORD_BIT_SIZE;
+			if(!in_array($subChunkY, $scan[1], true)){
+				$scan[1][] = $subChunkY;
+				sort($scan[1]);
+				$this->randomTickSubChunks[$chunkHash] = $scan;
+			}
 		}
 		$block->writeStateToWorld();
 

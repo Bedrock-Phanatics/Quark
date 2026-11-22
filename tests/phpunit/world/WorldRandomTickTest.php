@@ -86,6 +86,19 @@ final class WorldRandomTickTest extends TestCase{
 		self::assertGreaterThan(0, $this->driedBlocks());
 	}
 
+	public function testPlacingTickedBlocksKeepsTheScheduledRescan() : void{
+		$world = $this->harness->world;
+		$this->tickChunks();
+		$scans = new \ReflectionProperty(World::class, "randomTickSubChunks");
+		$before = $scans->getValue($world)[World::chunkHash(0, 0)];
+
+		$world->setBlockAt(0, (self::SUBCHUNK << 4) + 1, 0, self::wetFarmland(), false);
+		$world->setBlockAt(1, (self::SUBCHUNK << 4) + 1, 0, self::wetFarmland(), false);
+		$world->setBlockAt(0, 1, 0, self::wetFarmland(), false);
+
+		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scans->getValue($world)[World::chunkHash(0, 0)]);
+	}
+
 	public function testLayersChangedOutsideTheWorldAreRescanned() : void{
 		$this->tickChunks();
 		$chunk = $this->harness->world->getChunk(0, 0) ?? throw new \AssertionError("Chunk is not loaded");
