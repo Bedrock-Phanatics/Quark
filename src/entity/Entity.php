@@ -1526,6 +1526,10 @@ abstract class Entity{
 			$this->setForceMovementUpdate();
 
 			$this->updateMovement(true);
+			if($from->getWorld() !== $this->getWorld()){
+				//the move despawned it from the old world's viewers, and nothing else spawns it to the new one's
+				$this->spawnToAll();
+			}
 
 			return true;
 		}
