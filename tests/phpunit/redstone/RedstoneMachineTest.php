@@ -109,7 +109,7 @@ final class RedstoneMachineTest extends TestCase{
 
 		self::assertFalse($this->h->world->useBreakOn(new Vector3(0, 1, -1), $item, $player));
 		self::assertInstanceOf(PistonArmCollision::class, $this->h->get(0, 1, -1));
-		self::assertSame(0, $item->getDamage());
+		self::assertTrue($item->equalsExact(VanillaItems::DIAMOND_PICKAXE()), "The tool takes no damage");
 	}
 
 	public function testPistonPushesAndStickyPistonPulls() : void{
