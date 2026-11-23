@@ -102,6 +102,18 @@ final class WorldRandomTickTest extends TestCase{
 		$world->setBlockAt(0, 1, 0, self::wetFarmland(), false);
 
 		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scan());
+
+		$world->setBlockAt(0, 1, 0, VanillaBlocks::AIR(), false);
+		$world->setBlockAt(0, (self::SUBCHUNK << 4) + 1, 0, VanillaBlocks::AIR(), false);
+		$world->setBlockAt(0, 40, 0, VanillaBlocks::STONE(), false);
+		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scan());
+
+		//palettes keep removed states until garbage collection
+		$world->getChunk(0, 0)?->collectGarbage();
+		$this->tickChunks(16);
+		$after = $scan();
+		self::assertIsArray($after);
+		self::assertSame([self::SUBCHUNK], $after[1]);
 	}
 
 	public function testLayersChangedOutsideTheWorldAreRescanned() : void{
