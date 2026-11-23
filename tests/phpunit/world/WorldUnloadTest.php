@@ -68,6 +68,7 @@ final class WorldUnloadTest extends TestCase{
 		return $world;
 	}
 
+	/** @phpstan-param \Closure(ChunkUnloadEvent) : void $handler */
 	private function listen(\Closure $handler) : void{
 		HandlerListManager::global()->getListFor(ChunkUnloadEvent::class)->register(new RegisteredListener(
 			$handler, EventPriority::NORMAL, $this->plugin, false, Pulse::zone("world.test")

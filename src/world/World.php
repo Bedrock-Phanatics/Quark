@@ -843,7 +843,7 @@ class World implements ChunkManager{
 				}
 				$entity->close();
 			}
-			if($leakedEntities !== 0){
+			if($leakedEntities !== 0 && !isset($this->chunks[$chunkHash])){
 				$this->logger->warning("$leakedEntities leaked entities found in ungenerated chunk $chunkX $chunkZ during unload, they won't be saved!");
 			}
 		}
@@ -4064,8 +4064,7 @@ class World implements ChunkManager{
 			if(ChunkUnloadEvent::hasHandlers()){
 				$ev = new ChunkUnloadEvent($this, $x, $z, $chunk);
 				$ev->call();
-				//an unsafe unload is forced (world unload), and keeping the chunk would lose its entities once they're closed
-				if($ev->isCancelled() && $safe){
+				if($ev->isCancelled()){
 					$this->pulse->doChunkUnload->stop($doChunkUnloadScope);
 
 					return false;
