@@ -35,6 +35,8 @@ use quark\block\inventory\window\CraftingTableInventoryWindow;
 use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\block\tile\Chest;
 use quark\block\VanillaBlocks;
+use quark\entity\Entity;
+use quark\entity\Location;
 use quark\event\EventPriority;
 use quark\event\HandlerListManager;
 use quark\event\inventory\InventoryCloseEvent;
@@ -551,18 +553,34 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertNull($window->getOption(0));
 	}
 
-	public function testAQuitPlayerCannotDieAfterItsSave() : void{
+	private function disconnectedPlayer(bool $spawned) : WindowTestPlayer{
 		$session = $this->createMock(NetworkSession::class);
 		$session->method("isConnected")->willReturn(false);
 		$player = new \ReflectionClass(WindowTestPlayer::class)->newInstanceWithoutConstructor();
 		$player->initialize($session, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
-		$player->getInventory()->setItem(0, VanillaItems::DIAMOND()->setCount(64));
+		$player->spawned = $spawned;
+		$world = new \ReflectionClass(World::class)->newInstanceWithoutConstructor();
+		(new \ReflectionProperty(Entity::class, "location"))->setValue($player, new Location(0, 64, 0, $world, 0, 0));
+		return $player;
+	}
+
+	public function testAQuitPlayerCannotDieAfterItsSave() : void{
+		$player = $this->disconnectedPlayer(false);
 
 		$player->kill();
 
 		self::assertTrue($player->isAlive());
-		self::assertSame([], $player->droppedItems);
-		self::assertSame(64, $player->getInventory()->getItem(0)->getCount());
+		self::assertFalse($player->died);
+	}
+
+	public function testAQuittingPlayerCanStillDieBeforeItsSave() : void{
+		//PlayerQuitEvent runs before the save, and combat-log plugins kill players there
+		$player = $this->disconnectedPlayer(true);
+
+		$player->kill();
+
+		self::assertFalse($player->isAlive());
+		self::assertTrue($player->died);
 	}
 }
 
@@ -586,8 +604,14 @@ final class WindowTestPlayer extends Player{
 		$this->addDefaultWindows();
 	}
 
+	public bool $died = false;
+
 	public function dropItem(Item $item) : void{
 		$this->droppedItems[] = clone $item;
+	}
+
+	protected function onDeath() : void{
+		$this->died = true;
 	}
 
 	public function __destruct(){}
