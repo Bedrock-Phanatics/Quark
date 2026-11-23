@@ -795,26 +795,42 @@ class World implements ChunkManager{
 			throw new \LogicException("Tried to close a world which is already closed");
 		}
 
+		//a failing callback or chunk must not cost the rest of the world its save, or leave the provider open
+		$failure = null;
 		foreach($this->unloadCallbacks as $callback){
-			$callback();
+			try{
+				$callback();
+			}catch(\Throwable $e){
+				$this->logger->logException($e);
+				$failure ??= $e;
+			}
 		}
 		$this->unloadCallbacks = [];
 
-		//a chunk that fails to save must not cost the rest of the world its save, or leave the provider open
-		$failure = null;
 		foreach($this->chunks as $chunkHash => $chunk){
 			self::getXZ($chunkHash, $chunkX, $chunkZ);
 			try{
 				$this->unloadChunk($chunkX, $chunkZ, false);
 			}catch(\Throwable $e){
 				if($failure === null){
-					$this->logger->critical("Failed to save chunk x=$chunkX z=$chunkZ while unloading: " . $e->getMessage());
+					$this->logger->critical("Failed to unload chunk x=$chunkX z=$chunkZ: " . $e->getMessage());
 				}
 				$failure ??= $e;
-				//the save is what failed, so the rest of the unload can still run
-				$this->unloadChunk($chunkX, $chunkZ, false, false);
+				try{
+					$this->unloadChunk($chunkX, $chunkZ, false, false);
+				}catch(\Throwable){
+					//a listener threw rather than the save, so the chunk stays loaded for the world save below
+				}
 			}
 		}
+
+		//saved before leftover entities are closed, so a chunk that failed to unload keeps its entities
+		try{
+			$this->save();
+		}catch(\Throwable $e){
+			$failure ??= $e;
+		}
+
 		$this->knownUngeneratedChunks = [];
 		$this->corruptedChunks = [];
 		foreach($this->entitiesByChunk as $chunkHash => $entities){
@@ -830,12 +846,6 @@ class World implements ChunkManager{
 			if($leakedEntities !== 0){
 				$this->logger->warning("$leakedEntities leaked entities found in ungenerated chunk $chunkX $chunkZ during unload, they won't be saved!");
 			}
-		}
-
-		try{
-			$this->save();
-		}catch(\Throwable $e){
-			$failure ??= $e;
 		}
 
 		$this->generatorExecutor->shutdown();
@@ -4054,7 +4064,8 @@ class World implements ChunkManager{
 			if(ChunkUnloadEvent::hasHandlers()){
 				$ev = new ChunkUnloadEvent($this, $x, $z, $chunk);
 				$ev->call();
-				if($ev->isCancelled()){
+				//an unsafe unload is forced (world unload), and keeping the chunk would lose its entities once they're closed
+				if($ev->isCancelled() && $safe){
 					$this->pulse->doChunkUnload->stop($doChunkUnloadScope);
 
 					return false;
