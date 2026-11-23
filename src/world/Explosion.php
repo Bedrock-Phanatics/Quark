@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace quark\world;
 
 use quark\block\Block;
+use quark\block\ItemFrame;
 use quark\block\Jukebox;
 use quark\block\Lectern;
 use quark\block\RuntimeBlockStateRegistry;
@@ -390,6 +391,7 @@ class Explosion{
 			$drops = match(true){
 				$block instanceof Jukebox => [$block->getRecord()],
 				$block instanceof Lectern => [$block->getBook()],
+				$block instanceof ItemFrame && Utils::getRandomFloat() <= $block->getItemDropChance() => [$block->getFramedItem()],
 				default => []
 			};
 		}

@@ -25,6 +25,7 @@ namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
 use quark\block\Block;
+use quark\block\ItemFrame;
 use quark\block\tile\Jukebox as TileJukebox;
 use quark\block\tile\Lectern as TileLectern;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
@@ -101,6 +102,21 @@ final class ExplosionContentsTest extends TestCase{
 			$records = array_filter(self::explode($h->world), fn(Item $item) => $item->equals(VanillaItems::RECORD_CAT()));
 
 			self::assertCount(1, $records, "seed $seed");
+		}
+	}
+
+	public function testExplodedItemFramesAlwaysDropTheirItem() : void{
+		for($seed = 0; $seed < 8; ++$seed){
+			mt_srand($seed);
+			$h = new RedstoneHarness(1);
+			$h->set(2, 1, 0, VanillaBlocks::ITEM_FRAME()->setFramedItem(VanillaItems::DIAMOND_SWORD()));
+			$frame = $h->get(2, 1, 0);
+			self::assertInstanceOf(ItemFrame::class, $frame);
+			self::assertNotNull($frame->getFramedItem());
+
+			$swords = array_filter(self::explode($h->world), fn(Item $item) => $item->equals(VanillaItems::DIAMOND_SWORD()));
+
+			self::assertCount(1, $swords, "seed $seed");
 		}
 	}
 
