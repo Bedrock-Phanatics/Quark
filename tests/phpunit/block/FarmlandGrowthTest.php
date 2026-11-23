@@ -25,6 +25,7 @@ namespace quark\block;
 
 use PHPUnit\Framework\TestCase;
 use quark\block\utils\CropGrowthHelper;
+use quark\item\VanillaItems;
 use quark\world\redstone\RedstoneHarness;
 use quark\world\World;
 use function count;
@@ -33,6 +34,31 @@ use function mt_srand;
 
 final class FarmlandGrowthTest extends TestCase{
 	private const Y = 64;
+
+	public function testCropMaturityUsesTheLastGrowthStage() : void{
+		foreach([
+			[VanillaBlocks::WHEAT(), 7],
+			[VanillaBlocks::CARROTS(), 7],
+			[VanillaBlocks::POTATOES(), 7],
+			[VanillaBlocks::BEETROOTS(), 7],
+			[VanillaBlocks::NETHER_WART(), 3],
+			[VanillaBlocks::MELON_STEM(), 7],
+			[VanillaBlocks::PUMPKIN_STEM(), 7],
+		] as [$crop, $maxAge]){
+			self::assertSame($maxAge, $crop->getMaxAge());
+			self::assertFalse($crop->setAge($maxAge - 1)->isMature());
+			self::assertTrue($crop->ticksRandomly());
+			self::assertTrue($crop->setAge($maxAge)->isMature());
+			self::assertSame($crop instanceof Stem, $crop->ticksRandomly());
+		}
+
+		$wheat = VanillaBlocks::WHEAT();
+		$tool = VanillaItems::AIR();
+		self::assertSame(VanillaItems::WHEAT_SEEDS()->getTypeId(), $wheat->getDropsForCompatibleTool($tool)[0]->getTypeId());
+		$wheat->setAge($wheat->getMaxAge());
+		$wheat->onRandomTick();
+		self::assertSame(VanillaItems::WHEAT()->getTypeId(), $wheat->getDropsForCompatibleTool($tool)[0]->getTypeId());
+	}
 
 	/** Random farmland, water and crops spanning chunk borders, the same for every seed. */
 	private static function world(int $seed) : World{

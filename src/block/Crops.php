@@ -23,9 +23,9 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\Ageable;
 use quark\block\utils\AgeableTrait;
 use quark\block\utils\BlockEventHelper;
+use quark\block\utils\Crop;
 use quark\block\utils\CropGrowthHelper;
 use quark\block\utils\StaticSupportTrait;
 use quark\item\Fertilizer;
@@ -35,11 +35,15 @@ use quark\math\Vector3;
 use quark\player\Player;
 use function mt_rand;
 
-abstract class Crops extends Flowable implements Ageable{
+abstract class Crops extends Flowable implements Crop{
 	use AgeableTrait;
 	use StaticSupportTrait;
 
 	public const MAX_AGE = 7;
+
+	public function isMature() : bool{
+		return $this->getAge() >= $this->getMaxAge();
+	}
 
 	private function canBeSupportedAt(Block $block) : bool{
 		return $block->getSide(Facing::DOWN)->getTypeId() === BlockTypeIds::FARMLAND;

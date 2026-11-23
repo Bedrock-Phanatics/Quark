@@ -294,8 +294,11 @@ final class CustomBlockTest extends TestCase{
 
 		$crop = $this->registry->create($this->id("crop"));
 		self::assertInstanceOf(CustomCrop::class, $crop);
+		self::assertFalse($crop->isMature());
 		self::assertCount(1, $crop->getDrops(VanillaItems::AIR()));
-		self::assertCount(2, $crop->setAge(CustomCrop::MAX_AGE)->getDrops(VanillaItems::AIR()));
+		$crop->setAge($crop->getMaxAge());
+		self::assertTrue($crop->isMature());
+		self::assertCount(2, $crop->getDrops(VanillaItems::AIR()));
 
 		$data = $this->serializer->serialize($this->registry->create($this->id("door"))->getStateId());
 		self::assertSame([$this->id("facing"), $this->id("hinge_right"), $this->id("open"), $this->id("upper")], self::sortedKeys($data->getStates()));

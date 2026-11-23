@@ -23,20 +23,24 @@ declare(strict_types=1);
 
 namespace quark\block;
 
-use quark\block\utils\Ageable;
 use quark\block\utils\AgeableTrait;
 use quark\block\utils\BlockEventHelper;
+use quark\block\utils\Crop;
 use quark\block\utils\FortuneDropHelper;
 use quark\block\utils\StaticSupportTrait;
 use quark\item\Item;
 use quark\math\Facing;
 use function mt_rand;
 
-class NetherWartPlant extends Flowable implements Ageable{
+class NetherWartPlant extends Flowable implements Crop{
 	use AgeableTrait;
 	use StaticSupportTrait;
 
 	public const MAX_AGE = 3;
+
+	public function isMature() : bool{
+		return $this->getAge() >= $this->getMaxAge();
+	}
 
 	private function canBeSupportedAt(Block $block) : bool{
 		return $block->getSide(Facing::DOWN)->getTypeId() === BlockTypeIds::SOUL_SAND;

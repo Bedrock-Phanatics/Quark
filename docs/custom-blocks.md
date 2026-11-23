@@ -47,6 +47,32 @@ Definitions are immutable, so keep the result of each call. Identifiers use lowe
 
 `cube`, `transparent`, `decorative` and `directional` accept `states()`, `lightLevel()`, `lightFilter()`, `friction()`, `flammable()`, `replaceable()`, `collision()` and `withFactory()`. Other presets use the behavior of their Quark class; subclass it with `fromFactory()` to change that.
 
+## Crop growth stages
+
+Use `quark\block\Crops` to match wheat, carrots, potatoes, beetroot, melon and pumpkin stems, and custom crops created with `BlockDefinition::crop()`. Use `quark\block\utils\Crop` to include nether wart in the same check. Plugins can also implement `Crop` on their own block classes that expose a mature growth stage.
+
+```php
+use quark\block\utils\Crop;
+
+$block = $world->getBlock($pos);
+if($block instanceof Crop && $block->isMature()){
+	// Apply harvest logic for this crop type.
+}
+```
+
+`isMature()` checks the growth stage. A mature stem can still produce fruit on a later tick. Harvest behavior depends on the block type, and natural growth can depend on light, nearby blocks, and random ticks. `Ageable` also covers blocks such as fire and ice, whose age serves a different purpose.
+
+`getAge()` reads the current stage. `getMaxAge()` gives the upper bound for that block, and `setAge()` accepts values from `0` through that bound. A crop from `BlockDefinition::crop()` uses the same methods for its `growth` state. This example advances a crop by one stage and writes it back to the world.
+
+```php
+use quark\block\utils\Crop;
+
+$block = $world->getBlock($pos);
+if($block instanceof Crop && $block->getAge() < $block->getMaxAge()){
+	$world->setBlock($pos, $block->setAge($block->getAge() + 1));
+}
+```
+
 ## States
 
 ```php
