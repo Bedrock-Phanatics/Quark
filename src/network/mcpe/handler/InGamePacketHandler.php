@@ -75,6 +75,7 @@ use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\utils\Limits;
 use quark\block\BaseSign;
+use quark\block\inventory\window\BlockInventoryWindow;
 use quark\block\Lectern;
 use quark\block\tile\Sign;
 use quark\block\utils\SignText;
@@ -662,6 +663,11 @@ class InGamePacketHandler extends PacketHandler{
 			//nResults = floor((n1Stacks + (n64Stacks * 64)) / nItemsRequiredFor1Craft)
 			//nTakeActionsTotal = floor(64 / nResults) + max(1, 64 % nResults) + ((nResults * nItemsRequiredFor1Craft) - (n64Stacks * 64))
 			throw new PacketHandlingException("Too many actions in ItemStackRequest");
+		}
+		$window = $this->player->getCurrentWindow();
+		if($window instanceof BlockInventoryWindow && !$window->isUsable()){
+			//nothing else closes a window whose block is out of reach or gone, so this request must not reach it
+			$this->player->removeCurrentWindow();
 		}
 		$executor = new ItemStackRequestExecutor($this->player, $this->inventoryManager, $request);
 		try{

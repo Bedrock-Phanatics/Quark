@@ -196,8 +196,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	 * is a useful heuristic to filter out oversized messages.
 	 */
 	private const MAX_CHAT_BYTE_LENGTH = self::MAX_CHAT_CHAR_LENGTH * 4;
-	private const MAX_REACH_DISTANCE_CREATIVE = 13;
-	private const MAX_REACH_DISTANCE_SURVIVAL = 7;
+	public const MAX_REACH_DISTANCE_CREATIVE = 13;
+	public const MAX_REACH_DISTANCE_SURVIVAL = 7;
 	private const MAX_REACH_DISTANCE_ENTITY_INTERACTION = 8;
 	private const RELEASED_CHUNK_UNLOAD_DELAY = 5.0;
 
