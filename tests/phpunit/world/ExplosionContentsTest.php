@@ -25,6 +25,7 @@ namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
 use quark\block\Block;
+use quark\block\FlowerPot;
 use quark\block\ItemFrame;
 use quark\block\tile\Jukebox as TileJukebox;
 use quark\block\tile\Lectern as TileLectern;
@@ -117,6 +118,21 @@ final class ExplosionContentsTest extends TestCase{
 			$swords = array_filter(self::explode($h->world), fn(Item $item) => $item->equals(VanillaItems::DIAMOND_SWORD()));
 
 			self::assertCount(1, $swords, "seed $seed");
+		}
+	}
+
+	public function testExplodedFlowerPotsAlwaysDropTheirPlant() : void{
+		for($seed = 0; $seed < 8; ++$seed){
+			mt_srand($seed);
+			$h = new RedstoneHarness(1);
+			$h->set(2, 1, 0, VanillaBlocks::FLOWER_POT()->setPlant(VanillaBlocks::CORNFLOWER()));
+			$pot = $h->get(2, 1, 0);
+			self::assertInstanceOf(FlowerPot::class, $pot);
+			self::assertNotNull($pot->getPlant());
+
+			$plants = array_filter(self::explode($h->world), fn(Item $item) => $item->equals(VanillaBlocks::CORNFLOWER()->asItem()));
+
+			self::assertCount(1, $plants, "seed $seed");
 		}
 	}
 
