@@ -3112,13 +3112,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 				try{
 					$transaction->execute();
 					$this->logger->debug("Successfully evacuated items from temporary inventories");
-				}catch(TransactionCancelledException){
-					$this->logger->debug("Plugin cancelled transaction evacuating items from temporary inventories; items will be destroyed");
-					foreach($windows as $window){
-						$window->getInventory()->clearAll();
-					}
-				}catch(TransactionValidationException $e){
-					$this->logger->debug("Rebuilding inventory cleanup after a plugin changed its inputs: " . $e->getMessage());
+				}catch(TransactionCancelledException|TransactionValidationException $e){
+					//the cleanup is forced, so a cancel can't destroy what fits; only overflow whose drop is refused is lost
+					$this->logger->debug("Rebuilding inventory cleanup after a plugin cancelled it or changed its inputs: " . $e->getMessage());
 					foreach($windows as $window){
 						$inventory = $window->getInventory();
 						$contents = $inventory->getContents();

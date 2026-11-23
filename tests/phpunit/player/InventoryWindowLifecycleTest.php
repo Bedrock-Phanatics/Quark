@@ -492,6 +492,42 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertCount(36, $this->player->getInventory()->getContents());
 	}
 
+	public function testCancelledCleanupStillReturnsItemsToTheInventory() : void{
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$window->getInventory()->setItem(4, VanillaItems::DIAMOND()->setCount(3));
+		$this->player->getCursorInventory()->setItem(0, VanillaItems::STICK());
+		HandlerListManager::global()->getListFor(InventoryTransactionEvent::class)->register(new RegisteredListener(
+			static function(InventoryTransactionEvent $event) : void{ $event->cancel(); },
+			EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+
+		$this->player->removeCurrentWindow();
+
+		self::assertSame([], $window->getInventory()->getContents());
+		self::assertSame([], $this->player->getCursorInventory()->getContents());
+		self::assertTrue($this->player->getInventory()->contains(VanillaItems::DIAMOND()->setCount(3)));
+		self::assertTrue($this->player->getInventory()->contains(VanillaItems::STICK()));
+	}
+
+	public function testRefusedOverflowDropOnlyLosesTheOverflow() : void{
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$this->player->getInventory()->setContents(array_fill(0, 35, VanillaItems::APPLE()->setCount(64)));
+		$this->player->getCursorInventory()->setItem(0, VanillaItems::STICK());
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND()->setCount(2));
+		HandlerListManager::global()->getListFor(PlayerDropItemEvent::class)->register(new RegisteredListener(
+			static function(PlayerDropItemEvent $event) : void{ $event->cancel(); },
+			EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+
+		$this->player->removeCurrentWindow();
+
+		self::assertSame([], $window->getInventory()->getContents());
+		self::assertSame([], $this->player->droppedItems);
+		self::assertTrue($this->player->getInventory()->getItem(35)->equalsExact(VanillaItems::STICK()));
+	}
+
 	public function testDisposingTheManagerDetachesItFromOpenInventories() : void{
 		$chest = new SimpleInventory(27);
 		$this->player->setCurrentWindow($this->chestWindow($chest));
