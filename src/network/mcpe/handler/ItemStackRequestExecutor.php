@@ -45,6 +45,8 @@ use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use quark\block\inventory\window\CraftingTableInventoryWindow;
 use quark\block\inventory\window\EnchantingTableInventoryWindow;
 use quark\crafting\ShapedRecipe;
+use quark\crafting\ShapelessRecipe;
+use quark\crafting\ShapelessRecipeType;
 use quark\inventory\Inventory;
 use quark\inventory\transaction\action\CreateItemAction;
 use quark\inventory\transaction\action\DestroyItemAction;
@@ -257,6 +259,10 @@ class ItemStackRequestExecutor{
 		$recipe = $craftingManager->getCraftingRecipeFromIndex($recipeIndex);
 		if($recipe === null){
 			throw new ItemStackRequestProcessException("No such crafting recipe index: $recipeIndex");
+		}
+		//stonecutter and cartography recipes share the index but must not be crafted in a crafting grid
+		if($recipe instanceof ShapelessRecipe && $recipe->getType() !== ShapelessRecipeType::CRAFTING){
+			throw new ItemStackRequestProcessException("Recipe index $recipeIndex is not a crafting grid recipe");
 		}
 		$gridWidth = $craftingGrid->getGridWidth();
 		if(
