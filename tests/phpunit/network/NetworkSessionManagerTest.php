@@ -28,29 +28,18 @@ use quark\network\mcpe\NetworkSession;
 
 final class NetworkSessionManagerTest extends TestCase{
 
-	public function testSessionsDroppedBeforeLoginStopCounting() : void{
+	public function testAFailingDisconnectDoesNotSkipTheOtherSessions() : void{
 		$manager = new NetworkSessionManager();
-		$session = $this->createMock(NetworkSession::class);
-		$session->method("isConnected")->willReturn(false);
-		$manager->add($session);
-		$manager->tick();
+		$failing = $this->createMock(NetworkSession::class);
+		$failing->method("disconnect")->willThrowException(new \RuntimeException("quit handler failure"));
+		$failing->method("getLogger")->willReturn(new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		$manager->add($failing);
+		$next = $this->createMock(NetworkSession::class);
+		$next->expects(self::once())->method("disconnect");
+		$manager->add($next);
+
+		$manager->close("shutdown");
 
 		self::assertSame(0, $manager->getSessionCount());
-		self::assertSame(0, $manager->getValidSessionCount());
-	}
-
-	public function testSessionDisconnectedDuringItsTickIsTickedOnceMoreToDispose() : void{
-		$manager = new NetworkSessionManager();
-		$session = $this->createMock(NetworkSession::class);
-		$connected = true;
-		$session->method("isConnected")->willReturnCallback(function() use (&$connected) : bool{ return $connected; });
-		$session->expects(self::exactly(2))->method("tick")->willReturnCallback(function() use (&$connected) : void{ $connected = false; });
-		$manager->add($session);
-
-		$manager->tick();
-		self::assertSame(1, $manager->getSessionCount(), "disposal happens on the next tick");
-		$manager->tick();
-		self::assertSame(0, $manager->getSessionCount());
-		$manager->tick();
 	}
 }

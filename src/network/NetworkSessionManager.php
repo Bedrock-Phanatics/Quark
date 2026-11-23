@@ -134,7 +134,12 @@ class NetworkSessionManager{
 	 */
 	public function close(Translatable|string $reason = "", Translatable|string|null $disconnectScreenMessage = null) : void{
 		foreach($this->sessions as $session){
-			$session->disconnect($reason, $disconnectScreenMessage);
+			//one failing quit must not skip saving everyone after it
+			try{
+				$session->disconnect($reason, $disconnectScreenMessage);
+			}catch(\Throwable $e){
+				$session->getLogger()->logException($e);
+			}
 		}
 		$this->sessions = [];
 		$this->pendingLoginSessions = [];
