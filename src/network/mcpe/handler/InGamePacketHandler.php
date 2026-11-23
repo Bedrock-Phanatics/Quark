@@ -318,13 +318,18 @@ class InGamePacketHandler extends PacketHandler{
 			if($useItemTransaction !== null){
 				$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction->getRequestId());
 				$this->inventoryManager->addRawPredictedSlotChanges($useItemTransaction->getTransactionData()->getActions());
-				if(!$this->handleUseItemTransaction($useItemTransaction->getTransactionData())){
-					$packetHandled = false;
-					$this->session->getLogger()->debug("Unhandled transaction in PlayerAuthInputPacket (type " . $useItemTransaction->getTransactionData()->getActionType() . ")");
-				}else{
-					$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+				try{
+					if(!$this->handleUseItemTransaction($useItemTransaction->getTransactionData())){
+						$packetHandled = false;
+						$this->session->getLogger()->debug("Unhandled transaction in PlayerAuthInputPacket (type " . $useItemTransaction->getTransactionData()->getActionType() . ")");
+					}else{
+						$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+					}
+				}catch(FilterNoisyPacketException){
+					//only the spam click is dropped; this packet's item stack request and block actions still need handling
+				}finally{
+					$this->inventoryManager->setCurrentItemStackRequestId(null);
 				}
-				$this->inventoryManager->setCurrentItemStackRequestId(null);
 			}
 
 			$itemStackRequest = $packet->getItemStackRequest();
