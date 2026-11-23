@@ -100,13 +100,23 @@ final class WorldRandomTickTest extends TestCase{
 		$world->setBlockAt(0, (self::SUBCHUNK << 4) + 1, 0, self::wetFarmland(), false);
 		$world->setBlockAt(1, (self::SUBCHUNK << 4) + 1, 0, self::wetFarmland(), false);
 		$world->setBlockAt(0, 1, 0, self::wetFarmland(), false);
+		$world->setBlockAt(0, World::Y_MIN + 1, 0, self::wetFarmland(), false);
 
-		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scan());
+		$listed = [World::Y_MIN >> 4, 0, self::SUBCHUNK];
+		self::assertSame([$before[0], $listed], $scan());
 
+		//the scheduled rescan finds the same subchunks
+		$this->tickChunks(16);
+		$rescanned = $scan();
+		self::assertIsArray($rescanned);
+		self::assertNotSame($before[0], $rescanned[0]);
+		self::assertSame($listed, $rescanned[1]);
+
+		$world->setBlockAt(0, World::Y_MIN + 1, 0, VanillaBlocks::AIR(), false);
 		$world->setBlockAt(0, 1, 0, VanillaBlocks::AIR(), false);
 		$world->setBlockAt(0, (self::SUBCHUNK << 4) + 1, 0, VanillaBlocks::AIR(), false);
 		$world->setBlockAt(0, 40, 0, VanillaBlocks::STONE(), false);
-		self::assertSame([$before[0], [0, self::SUBCHUNK]], $scan());
+		self::assertSame([$rescanned[0], $listed], $scan());
 
 		//palettes keep removed states until garbage collection
 		$world->getChunk(0, 0)?->collectGarbage();
