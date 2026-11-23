@@ -104,12 +104,8 @@ final class WorldUnloadTest extends TestCase{
 		$world = $this->world();
 		$world->addOnUnloadCallback(static fn() => throw new \RuntimeException("callback failure"));
 
-		try{
-			$world->onUnload();
-			self::fail("The callback failure should be rethrown");
-		}catch(\RuntimeException $e){
-			self::assertSame("callback failure", $e->getMessage());
-		}
+		//logged only, since the world still unloads and saves completely
+		$world->onUnload();
 
 		self::assertSame([World::chunkHash(0, 0) => 1], $this->savedEntities);
 		self::assertFalse($world->isLoaded());

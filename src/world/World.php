@@ -795,16 +795,16 @@ class World implements ChunkManager{
 			throw new \LogicException("Tried to close a world which is already closed");
 		}
 
-		//a failing callback or chunk must not cost the rest of the world its save, or leave the provider open
-		$failure = null;
+		//a failing callback or chunk must not cost the rest of the world its save, or leave the provider open.
+		//Callbacks belong to plugins and don't touch the save, so their failures are only logged.
 		foreach($this->unloadCallbacks as $callback){
 			try{
 				$callback();
 			}catch(\Throwable $e){
 				$this->logger->logException($e);
-				$failure ??= $e;
 			}
 		}
+		$failure = null;
 		$this->unloadCallbacks = [];
 
 		foreach($this->chunks as $chunkHash => $chunk){
@@ -828,6 +828,7 @@ class World implements ChunkManager{
 		try{
 			$this->save();
 		}catch(\Throwable $e){
+			$this->logger->critical("Failed to save the world while unloading: " . $e->getMessage());
 			$failure ??= $e;
 		}
 

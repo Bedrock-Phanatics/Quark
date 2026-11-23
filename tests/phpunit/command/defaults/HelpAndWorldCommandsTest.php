@@ -79,6 +79,21 @@ final class HelpAndWorldCommandsTest extends DefaultCommandTestCase{
 		self::assertSame(["Invalid value for <world>: World \"nether\" is not loaded", "Usage: /world unload <world>"], $this->dispatch("world unload nether", $console));
 	}
 
+	public function testWorldUnloadReportsAnIncompleteSave() : void{
+		$manager = $this->worlds();
+		$world = self::createStub(World::class);
+		$world->method("getPlayers")->willReturn([]);
+		$world->method("getFolderName")->willReturn("world");
+		$world->method("isLoaded")->willReturn(false);
+		$manager->method("getWorldByName")->willReturn($world);
+		$manager->method("unloadWorld")->willThrowException(new \RuntimeException("disk full"));
+
+		self::assertStringContainsString(
+			"Unloaded world \"world\", but it was not saved completely: disk full",
+			implode("\n", $this->dispatch("world unload world", $this->console()))
+		);
+	}
+
 	public function testWorldValidatesArgumentsBeforeTouchingAnything() : void{
 		$manager = $this->worlds();
 		$manager->expects(self::never())->method("generateWorld");

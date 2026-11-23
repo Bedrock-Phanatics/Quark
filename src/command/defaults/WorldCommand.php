@@ -121,7 +121,17 @@ final class WorldCommand extends VanillaCommand{
 	private function unload(CommandSender $sender, World $world) : void{
 		$name = $world->getFolderName();
 		$this->guard($sender, function() use ($sender, $world, $name) : void{
-			if($sender->getServer()->getWorldManager()->unloadWorld($world)){
+			try{
+				$unloaded = $sender->getServer()->getWorldManager()->unloadWorld($world);
+			}catch(\Throwable $e){
+				if($world->isLoaded()){
+					throw $e;
+				}
+				//the unload went through, only part of the save failed and the world already logged it
+				$sender->sendMessage(TextFormat::RED . "Unloaded world \"$name\", but it was not saved completely: " . $e->getMessage());
+				return;
+			}
+			if($unloaded){
 				Command::broadcastCommandMessage($sender, "Unloaded world \"$name\"");
 			}else{
 				$sender->sendMessage(TextFormat::RED . "Unloading \"$name\" was cancelled");
