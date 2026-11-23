@@ -30,6 +30,7 @@ use pmmp\encoding\VarInt;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
+use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\serializer\BitSet;
 use pocketmine\network\mcpe\protocol\ServerboundCursorItemDragPacket;
@@ -42,6 +43,7 @@ use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\inventory\TriggerType;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\ItemInteractionData;
@@ -50,6 +52,7 @@ use pocketmine\network\mcpe\protocol\types\PlayerAuthInputFlags;
 use pocketmine\network\mcpe\protocol\types\PlayerBlockAction;
 use pocketmine\network\mcpe\protocol\types\PlayMode;
 use pocketmine\utils\Limits;
+use quark\block\inventory\window\BlockInventoryWindow;
 use quark\entity\Entity;
 use quark\entity\Location;
 use quark\inventory\SimpleInventory;
@@ -285,6 +288,18 @@ final class InGamePacketHandlerTest extends TestCase{
 		$handler->handlePlayerAuthInput(self::authInput(itemInteraction: $click, blockActions: [
 			new PlayerBlockAction(PlayerAction::PREDICT_DESTROY_BLOCK, new BlockPosition(1, 2, 3), Facing::UP)
 		]));
+	}
+
+	public function testItemStackRequestsCloseUnusableBlockWindows() : void{
+		foreach([true, false] as $usable){
+			$window = $this->createMock(BlockInventoryWindow::class);
+			$window->method("isUsable")->willReturn($usable);
+			$player = $this->player();
+			$player->method("getCurrentWindow")->willReturn($window);
+			$player->expects($usable ? self::never() : self::once())->method("removeCurrentWindow");
+
+			$this->handlerFor($player)->handleItemStackRequest(ItemStackRequestPacket::create([new ItemStackRequest(1, [], [], 0)]));
+		}
 	}
 
 	public function testRejectsNonFiniteMovement() : void{
