@@ -678,6 +678,7 @@ abstract class Entity{
 		if($changedProperties !== []){
 			$this->sendData(null, $changedProperties);
 			$this->networkProperties->clearDirtyProperties();
+			unset(self::$spawnPackets[$this->id]);
 		}
 
 		$hasUpdate = false;
@@ -846,6 +847,8 @@ abstract class Entity{
 	 * @phpstan-param list<MoveActorAbsolutePacket|SetActorMotionPacket> $packets
 	 */
 	private function sendMovementPackets(array $packets, bool $immediate) : void{
+		//players spawning this entity later in the tick would otherwise get a spawn packet from before the move
+		unset(self::$spawnPackets[$this->id]);
 		if(count($this->hasSpawned) === 0){
 			return;
 		}

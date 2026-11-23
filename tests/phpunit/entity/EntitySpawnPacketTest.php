@@ -80,5 +80,10 @@ final class EntitySpawnPacketTest extends TestCase{
 		self::assertSame(2, $state->built);
 		self::assertCount(3, $state->sent);
 		self::assertNotSame($state->sent[0], $state->sent[2]);
+
+		//players spawning it after a move in the same tick must see the new position
+		(new \ReflectionMethod(Entity::class, "sendMovementPackets"))->invoke($entity, [], false);
+		$send->invoke($entity, $player);
+		self::assertSame(3, $state->built);
 	}
 }
