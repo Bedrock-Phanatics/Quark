@@ -24,13 +24,20 @@ declare(strict_types=1);
 namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
+use quark\block\Block;
 use quark\block\tile\Jukebox as TileJukebox;
 use quark\block\tile\Lectern as TileLectern;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
 use quark\block\VanillaBlocks;
 use quark\entity\object\ItemEntity;
+use quark\event\block\BlockExplodeEvent;
+use quark\event\EventPriority;
+use quark\event\HandlerListManager;
 use quark\item\Item;
 use quark\item\VanillaItems;
+use quark\plugin\Plugin;
+use quark\plugin\PluginManager;
+use quark\Server;
 use quark\world\redstone\RedstoneHarness;
 use function array_filter;
 use function array_map;
@@ -39,9 +46,14 @@ use function mt_srand;
 
 final class ExplosionContentsTest extends TestCase{
 
+	protected function tearDown() : void{
+		HandlerListManager::global()->unregisterAll();
+		mt_srand();
+	}
+
 	/** @return list<Item> */
-	private static function explode(World $world) : array{
-		$explosion = new Explosion(new Position(0.5, 1.5, 0.5, $world), 4.0);
+	private static function explode(World $world, ?Block $what = null) : array{
+		$explosion = new Explosion(new Position(0.5, 1.5, 0.5, $world), 4.0, $what);
 		self::assertTrue($explosion->explodeA());
 		self::assertTrue($explosion->explodeB());
 		$items = array_filter($world->getEntities(), fn($entity) => $entity instanceof ItemEntity && !$entity->isFlaggedForDespawn());
@@ -63,6 +75,18 @@ final class ExplosionContentsTest extends TestCase{
 			self::assertCount(1, $boxes, "seed $seed");
 			self::assertSame(1, $boxes[0]->getNamedTag()->getListTag("Items")?->count(), "seed $seed");
 		}
+	}
+
+	public function testZeroYieldStillDropsNothing() : void{
+		$plugin = self::createStub(Plugin::class);
+		$plugin->method('isEnabled')->willReturn(true);
+		(new PluginManager($this->createMock(Server::class), null))->registerEvent(BlockExplodeEvent::class, static function(BlockExplodeEvent $event) : void{
+			$event->setYield(0.0);
+		}, EventPriority::NORMAL, $plugin);
+		$h = new RedstoneHarness(1);
+		$h->set(2, 1, 0, VanillaBlocks::SHULKER_BOX());
+
+		self::assertSame([], self::explode($h->world, $h->get(0, 1, 0)));
 	}
 
 	public function testExplodedJukeboxesAlwaysDropTheirRecord() : void{

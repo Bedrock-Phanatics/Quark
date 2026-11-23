@@ -376,6 +376,10 @@ class Explosion{
 	}
 
 	private function dropBlock(Block $block, float $yield) : void{
+		if($yield <= 0.0){
+			//a plugin asked for no drops at all
+			return;
+		}
 		if($block instanceof ShulkerBox || mt_rand(0, 100) < $yield){
 			$air = VanillaItems::AIR();
 			$drops = $block->getBreakInfo()->isExplosionHarvestable() ?
