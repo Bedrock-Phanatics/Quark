@@ -550,6 +550,20 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		}
 		self::assertNull($window->getOption(0));
 	}
+
+	public function testAQuitPlayerCannotDieAfterItsSave() : void{
+		$session = $this->createMock(NetworkSession::class);
+		$session->method("isConnected")->willReturn(false);
+		$player = new \ReflectionClass(WindowTestPlayer::class)->newInstanceWithoutConstructor();
+		$player->initialize($session, new \PrefixedLogger($this->createMock(\Logger::class), "test"));
+		$player->getInventory()->setItem(0, VanillaItems::DIAMOND()->setCount(64));
+
+		$player->kill();
+
+		self::assertTrue($player->isAlive());
+		self::assertSame([], $player->droppedItems);
+		self::assertSame(64, $player->getInventory()->getItem(0)->getCount());
+	}
 }
 
 /**

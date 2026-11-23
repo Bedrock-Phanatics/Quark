@@ -2919,6 +2919,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		$this->hungerManager->exhaust(0.1, EntityExhaustEvent::CAUSE_DAMAGE);
 	}
 
+	public function kill() : void{
+		// A quit player lingers in the world until its despawn, but its inventory is already saved, so death drops would duplicate it.
+		if(!$this->spawned && !$this->isConnected()){
+			return;
+		}
+		parent::kill();
+	}
+
 	public function attack(EntityDamageEvent $source) : void{
 		if(!$this->isAlive()){
 			return;
