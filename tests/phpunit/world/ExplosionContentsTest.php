@@ -25,6 +25,7 @@ namespace quark\world;
 
 use PHPUnit\Framework\TestCase;
 use quark\block\tile\Jukebox as TileJukebox;
+use quark\block\tile\Lectern as TileLectern;
 use quark\block\tile\ShulkerBox as TileShulkerBox;
 use quark\block\VanillaBlocks;
 use quark\entity\object\ItemEntity;
@@ -76,6 +77,21 @@ final class ExplosionContentsTest extends TestCase{
 			$records = array_filter(self::explode($h->world), fn(Item $item) => $item->equals(VanillaItems::RECORD_CAT()));
 
 			self::assertCount(1, $records, "seed $seed");
+		}
+	}
+
+	public function testExplodedLecternsAlwaysDropTheirBook() : void{
+		for($seed = 0; $seed < 8; ++$seed){
+			mt_srand($seed);
+			$h = new RedstoneHarness(1);
+			$h->set(2, 1, 0, VanillaBlocks::LECTERN());
+			$tile = $h->world->getTileAt(2, 1, 0);
+			self::assertInstanceOf(TileLectern::class, $tile);
+			$tile->setBook(VanillaItems::WRITABLE_BOOK());
+
+			$books = array_filter(self::explode($h->world), fn(Item $item) => $item->equals(VanillaItems::WRITABLE_BOOK()));
+
+			self::assertCount(1, $books, "seed $seed");
 		}
 	}
 }
