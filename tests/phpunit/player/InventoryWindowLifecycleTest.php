@@ -543,6 +543,32 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertTrue($this->player->getInventory()->getItem(35)->equalsExact(VanillaItems::STICK()));
 	}
 
+	public function testCleanupDropsAreOfferedOnce() : void{
+		//a plugin that cancels a drop may keep the item itself, so asking twice would duplicate it
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$this->player->getInventory()->setContents(array_fill(0, 36, VanillaItems::APPLE()->setCount(64)));
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND()->setCount(2));
+		$window->getInventory()->setItem(1, VanillaItems::EMERALD()->setCount(3));
+		$asked = [];
+		HandlerListManager::global()->getListFor(PlayerDropItemEvent::class)->register(new RegisteredListener(
+			static function(PlayerDropItemEvent $event) use (&$asked) : void{
+				$asked[] = $event->getItem()->getVanillaName();
+				if($event->getItem()->equals(VanillaItems::EMERALD())){
+					$event->cancel();
+				}
+			},
+			EventPriority::NORMAL, $this->plugin, true, Pulse::zone("inventory.test")
+		));
+
+		$this->player->removeCurrentWindow();
+
+		self::assertSame(["Diamond", "Emerald"], $asked);
+		self::assertCount(1, $this->player->droppedItems);
+		self::assertTrue($this->player->droppedItems[0]->equalsExact(VanillaItems::DIAMOND()->setCount(2)));
+		self::assertSame([], $window->getInventory()->getContents());
+	}
+
 	public function testDisposingTheManagerDetachesItFromOpenInventories() : void{
 		$chest = new SimpleInventory(27);
 		$this->player->setCurrentWindow($this->chestWindow($chest));

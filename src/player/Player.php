@@ -3093,13 +3093,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 			}
 
 			$builder = new TransactionBuilder();
+			$dropActions = [];
 			foreach($windows as $window){
 				$contents = $window->getInventory()->getContents();
 
 				if(count($contents) > 0){
 					$drops = $builder->getActionBuilder($mainWindow)->addItem(...$contents);
 					foreach($drops as $drop){
-						$builder->addAction(new DropItemAction($drop));
+						$builder->addAction($dropActions[] = self::cleanupDropAction($drop));
 					}
 
 					$builder->getActionBuilder($window)->clearAll();
@@ -3135,7 +3136,15 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 						$contents = $inventory->getContents();
 						$inventory->clearAll();
 						foreach($mainWindow->getInventory()->addItem(...$contents) as $drop){
-							$action = new DropItemAction($drop);
+							$action = null;
+							foreach($dropActions as $k => $dropAction){
+								if($dropAction->getTargetItem()->equalsExact($drop)){
+									$action = $dropAction;
+									unset($dropActions[$k]);
+									break;
+								}
+							}
+							$action ??= self::cleanupDropAction($drop);
 							if($action->onPreExecute($this)){
 								$action->execute($this);
 							}
@@ -3146,6 +3155,20 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}finally{
 			$this->evacuatingInventories = false;
 		}
+	}
+
+	/**
+	 * A drop that asks its plugins only once, so a cleanup rebuilt after a refused drop can't offer the same items
+	 * again: a plugin that keeps the items of drops it cancels would get them twice.
+	 */
+	private static function cleanupDropAction(Item $item) : DropItemAction{
+		return new class($item) extends DropItemAction{
+			private ?bool $allowed = null;
+
+			public function onPreExecute(Player $source) : bool{
+				return $this->allowed ??= parent::onPreExecute($source);
+			}
+		};
 	}
 
 	/**
