@@ -24,7 +24,10 @@ declare(strict_types=1);
 namespace quark\world;
 
 use quark\block\Block;
+use quark\block\Jukebox;
+use quark\block\Lectern;
 use quark\block\RuntimeBlockStateRegistry;
+use quark\block\ShulkerBox;
 use quark\block\TNT;
 use quark\block\utils\redstone\PowerSource;
 use quark\block\utils\SupportType;
@@ -373,12 +376,21 @@ class Explosion{
 	}
 
 	private function dropBlock(Block $block, float $yield) : void{
-		if(mt_rand(0, 100) < $yield){
+		if($block instanceof ShulkerBox || mt_rand(0, 100) < $yield){
 			$air = VanillaItems::AIR();
 			$drops = $block->getBreakInfo()->isExplosionHarvestable() ?
 				$block->getDropsForCompatibleTool($air) :
 				$block->getDrops($air);
-			foreach($drops as $drop){
+		}else{
+			//these keep their contents only in their drops, so a failed roll must not destroy them too
+			$drops = match(true){
+				$block instanceof Jukebox => [$block->getRecord()],
+				$block instanceof Lectern => [$block->getBook()],
+				default => []
+			};
+		}
+		foreach($drops as $drop){
+			if($drop !== null){
 				$this->world->dropItem($block->getPosition()->add(0.5, 0.5, 0.5), $drop);
 			}
 		}
