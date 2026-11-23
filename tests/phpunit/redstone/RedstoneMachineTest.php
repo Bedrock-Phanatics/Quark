@@ -30,6 +30,8 @@ use quark\block\tile\dispenser\DispensableItem;
 use quark\block\tile\dispenser\DispensableItemManager;
 use quark\block\tile\dispenser\Dispenser as DispenserTile;
 use quark\block\VanillaBlocks;
+use quark\command\TestCommandSender;
+use quark\event\block\BlockBreakEvent;
 use quark\event\block\BlockTeleportEvent;
 use quark\event\block\PistonPullBlockEvent;
 use quark\event\block\PistonPushBlockEvent;
@@ -91,6 +93,23 @@ final class RedstoneMachineTest extends TestCase{
 
 	private function isStone(int $x, int $y, int $z) : bool{
 		return $this->h->get($x, $y, $z)->hasSameTypeId(VanillaBlocks::STONE());
+	}
+
+	public function testBreakingAnArmWhoseBaseRefusesToBreakReportsFailure() : void{
+		$this->pushStone(false);
+		$plugin = self::createStub(Plugin::class);
+		$plugin->method('isEnabled')->willReturn(true);
+		(new PluginManager($this->createMock(Server::class), null))->registerEvent(BlockBreakEvent::class, static function(BlockBreakEvent $event) : void{
+			if($event->getBlock() instanceof Piston){
+				$event->cancel();
+			}
+		}, EventPriority::NORMAL, $plugin);
+		$item = VanillaItems::DIAMOND_PICKAXE();
+		$player = TestCommandSender::closedPlayer($this->createMock(Player::class));
+
+		self::assertFalse($this->h->world->useBreakOn(new Vector3(0, 1, -1), $item, $player));
+		self::assertInstanceOf(PistonArmCollision::class, $this->h->get(0, 1, -1));
+		self::assertSame(0, $item->getDamage());
 	}
 
 	public function testPistonPushesAndStickyPistonPulls() : void{

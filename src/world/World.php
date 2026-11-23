@@ -3072,8 +3072,13 @@ class World implements ChunkManager{
 			return false;
 		}
 
+		$broken = false;
 		foreach($affectedBlocks as $t){
-			$this->destroyBlockInternal($t, $item, $player, $createParticles, $returnedItems);
+			$broken = $this->destroyBlockInternal($t, $item, $player, $createParticles, $returnedItems) || $broken;
+		}
+		if(!$broken){
+			//e.g. a piston arm whose base refused to break; the caller resyncs the client's prediction
+			return false;
 		}
 
 		$item->onDestroyBlock($target, $returnedItems);
@@ -3097,17 +3102,20 @@ class World implements ChunkManager{
 	/**
 	 * @param Item[] &$returnedItems
 	 */
-	private function destroyBlockInternal(Block $target, Item $item, ?Player $player, bool $createParticles, array &$returnedItems) : void{
+	private function destroyBlockInternal(Block $target, Item $item, ?Player $player, bool $createParticles, array &$returnedItems) : bool{
 		if($createParticles){
 			$this->addParticle($target->getPosition()->add(0.5, 0.5, 0.5), new BlockBreakParticle($target));
 		}
 
-		$target->onBreak($item, $player, $returnedItems);
+		if(!$target->onBreak($item, $player, $returnedItems)){
+			return false;
+		}
 
 		$tile = $this->getTile($target->getPosition());
 		if($tile !== null){
 			$tile->onBlockDestroyed();
 		}
+		return true;
 	}
 
 	/**
