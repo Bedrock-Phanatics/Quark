@@ -265,6 +265,28 @@ final class InGamePacketHandlerTest extends TestCase{
 		}
 	}
 
+	public function testSpamClickOnlyDropsTheClick() : void{
+		$player = $this->player();
+		$player->method("getLocation")->willReturn(new Location(0, 0, 0, null, 0, 0));
+		$player->expects(self::once())->method("interactBlock");
+		$player->expects(self::once())->method("breakBlock")->willReturn(true);
+		$inventoryManager = $this->createMock(InventoryManager::class);
+		//the spam click's predictions are resolved too, not left to match a later change
+		$inventoryManager->expects(self::exactly(2))->method("syncMismatchedPredictedSlotChanges");
+		$handler = new InGamePacketHandler($player, $this->createMock(NetworkSession::class), $inventoryManager);
+
+		$item = ItemStackWrapper::legacy(ItemStack::null());
+		$zero = new Vector3(0, 0, 0);
+		$click = new ItemInteractionData(0, null, UseItemTransactionData::new(
+			[], UseItemTransactionData::ACTION_CLICK_BLOCK, TriggerType::PLAYER_INPUT,
+			new BlockPosition(1, 2, 3), Facing::UP, 0, HandSlot::MAINHAND, $item, $zero, $zero, 0, PredictedResult::FAILURE, 0
+		));
+		$handler->handlePlayerAuthInput(self::authInput(itemInteraction: $click));
+		$handler->handlePlayerAuthInput(self::authInput(itemInteraction: $click, blockActions: [
+			new PlayerBlockAction(PlayerAction::PREDICT_DESTROY_BLOCK, new BlockPosition(1, 2, 3), Facing::UP)
+		]));
+	}
+
 	public function testRejectsNonFiniteMovement() : void{
 		$player = $this->player();
 		$player->expects(self::never())->method("handleMovement");

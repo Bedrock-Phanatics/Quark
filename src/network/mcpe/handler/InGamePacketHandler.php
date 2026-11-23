@@ -327,7 +327,9 @@ class InGamePacketHandler extends PacketHandler{
 						$this->inventoryManager->syncMismatchedPredictedSlotChanges();
 					}
 				}catch(FilterNoisyPacketException){
-					//only the spam click is dropped; this packet's item stack request and block actions still need handling
+					//only the spam click is dropped; this packet's item stack request and block actions still need handling.
+					//Its predictions must not linger, or a later real change to those slots would be taken as already predicted.
+					$this->inventoryManager->syncMismatchedPredictedSlotChanges();
 				}finally{
 					$this->inventoryManager->setCurrentItemStackRequestId(null);
 				}
