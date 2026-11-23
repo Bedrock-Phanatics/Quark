@@ -492,7 +492,7 @@ final class InventoryWindowLifecycleTest extends TestCase{
 		self::assertCount(36, $this->player->getInventory()->getContents());
 	}
 
-	public function testCancelledCleanupStillReturnsItemsToTheInventory() : void{
+	public function testCancelledCleanupDestroysTheItems() : void{
 		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
 		$this->player->setCurrentWindow($window);
 		$window->getInventory()->setItem(4, VanillaItems::DIAMOND()->setCount(3));
@@ -504,10 +504,25 @@ final class InventoryWindowLifecycleTest extends TestCase{
 
 		$this->player->removeCurrentWindow();
 
+		//menus put display items in these windows and cancel the cleanup so the player never gets them
 		self::assertSame([], $window->getInventory()->getContents());
 		self::assertSame([], $this->player->getCursorInventory()->getContents());
-		self::assertTrue($this->player->getInventory()->contains(VanillaItems::DIAMOND()->setCount(3)));
-		self::assertTrue($this->player->getInventory()->contains(VanillaItems::STICK()));
+		self::assertSame([], $this->player->getInventory()->getContents());
+		self::assertSame([], $this->player->droppedItems);
+	}
+
+	public function testSpectatorCleanupKeepsWhatFits() : void{
+		$window = new CraftingTableInventoryWindow($this->player, new Position(0, 64, 0, null));
+		$this->player->setCurrentWindow($window);
+		$this->player->getInventory()->setContents(array_fill(0, 35, VanillaItems::APPLE()->setCount(64)));
+		$this->player->getCursorInventory()->setItem(0, VanillaItems::STICK());
+		$window->getInventory()->setItem(0, VanillaItems::DIAMOND()->setCount(2));
+		(new \ReflectionProperty(Player::class, "gamemode"))->setValue($this->player, GameMode::SPECTATOR);
+
+		$this->player->removeCurrentWindow();
+
+		self::assertSame([], $window->getInventory()->getContents());
+		self::assertTrue($this->player->getInventory()->getItem(35)->equalsExact(VanillaItems::STICK()));
 	}
 
 	public function testRefusedOverflowDropOnlyLosesTheOverflow() : void{

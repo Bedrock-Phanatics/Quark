@@ -3108,13 +3108,28 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 			$actions = $builder->generateActions();
 			if(count($actions) !== 0){
-				$transaction = new InventoryTransaction($this, $actions);
+				$transaction = new class($this, $actions) extends InventoryTransaction{
+					public bool $eventCancelled = false;
+
+					protected function callExecuteEvent() : bool{
+						$this->eventCancelled = !parent::callExecuteEvent();
+						return !$this->eventCancelled;
+					}
+				};
 				try{
 					$transaction->execute();
 					$this->logger->debug("Successfully evacuated items from temporary inventories");
 				}catch(TransactionCancelledException|TransactionValidationException $e){
-					//the cleanup is forced, so a cancel can't destroy what fits; only overflow whose drop is refused is lost
-					$this->logger->debug("Rebuilding inventory cleanup after a plugin cancelled it or changed its inputs: " . $e->getMessage());
+					if($transaction->eventCancelled){
+						//menus rely on this to keep their display items from reaching the player
+						$this->logger->debug("Plugin cancelled transaction evacuating items from temporary inventories; items will be destroyed");
+						foreach($windows as $window){
+							$window->getInventory()->clearAll();
+						}
+						return;
+					}
+					//a refused overflow drop must not cost the items that fit
+					$this->logger->debug("Rebuilding inventory cleanup after a refused drop or a plugin changed its inputs: " . $e->getMessage());
 					foreach($windows as $window){
 						$inventory = $window->getInventory();
 						$contents = $inventory->getContents();
