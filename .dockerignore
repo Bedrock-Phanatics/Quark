@@ -6,9 +6,10 @@ test_data
 docker/test_data
 *.phar
 *.log
-worlds
-players
-plugin_data
-crashdumps
-memory_dumps
-resource_packs
+config
+data
+diagnostics
+logs
+backups
+runtime
+resource-packs

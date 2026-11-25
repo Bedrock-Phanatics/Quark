@@ -54,7 +54,7 @@ final class CampfireTest extends TestCase{
 	private function onCook(\Closure $listener) : void{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method("isEnabled")->willReturn(true);
-		(new PluginManager($this->harness->world->getServer(), null))->registerEvent(CampfireCookEvent::class, $listener, EventPriority::NORMAL, $plugin);
+		(new PluginManager($this->harness->world->getServer()))->registerEvent(CampfireCookEvent::class, $listener, EventPriority::NORMAL, $plugin);
 	}
 
 	private function placeCampfire(int $x = 2, int $z = 2) : BlockCampfire{

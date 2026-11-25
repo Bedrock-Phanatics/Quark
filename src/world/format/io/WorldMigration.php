@@ -43,7 +43,6 @@ use function fopen;
 use function fsync;
 use function is_dir;
 use function is_link;
-use function mkdir;
 use function phpversion;
 use function preg_match;
 use function random_bytes;
@@ -241,7 +240,12 @@ final class WorldMigration{
 	 */
 	private static function moveToBackups(string $original, string $name, string $from, string $backupDir) : string{
 		$suffix = "$from-" . date("Y-m-d_H-i-s");
-		if(is_dir($backupDir) || @mkdir($backupDir, 0777, true) || is_dir($backupDir)){
+		try{
+			Filesystem::ensureDirectory($backupDir);
+		}catch(\RuntimeException){
+			$backupDir = null;
+		}
+		if($backupDir !== null){
 			$backup = self::unusedPath(Path::join($backupDir, "$name-$suffix"));
 			if(@rename($original, $backup)){
 				self::syncDirectory($backupDir);

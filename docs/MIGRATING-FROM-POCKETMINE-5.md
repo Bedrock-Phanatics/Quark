@@ -220,7 +220,7 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 - `PluginBase::getResource()` has been removed because it returned a handle that had to be closed with `fclose()`. Use `file_get_contents($this->getResourcePath($name))` or `fopen()` on the same path instead.
 - `ResourceProvider` and `DiskResourceProvider` have been removed, and the `Plugin` constructor no longer takes a resource provider.
 - `getResourceFolder()` and `getResourcePath()` return the plugin's read-only `resources` folder and a file inside it.
-- `PluginBase::saveDefaultConfig()` is no longer public. `getConfig()` and `reloadConfig()` already write the default config on first use, so remove the call.
+- Bundle defaults in `resources/config.toml`. `getConfig()` and `reloadConfig()` write the default on first use. Use `getConfigFolder()` for additional configuration and `getDataFolder()` for persistent data and resources saved by `saveResource()`.
 - `saveResource()` returns `false` for directories and for names that resolve outside the resources or data folder.
 
 ### Compression
@@ -233,11 +233,9 @@ Player data storage is asynchronous so a provider backed by SQL or a remote serv
 
 - `AsyncTask::publishProgress()` and `onProgressUpdate()` have been removed. Share progress from the task through a `ThreadSafeArray` and read it from a repeating scheduler task, or split the work into smaller tasks.
 
-## Configuration Migration
+## Configuration
 
-Quark upgrades older `config/server.toml` files automatically. Version 2 separates gameplay, networking, world defaults, compression, and performance settings. It combines chunk sending, ticking, and generation under `[chunks]`, flattens the memory dump, low-memory view-distance, and updater warning settings, and renames `migration.auto_on_startup` to `migration.auto-on-startup`.
-
-The upgrade preserves explicit values and unrelated settings; an explicit new key wins over its old spelling. Missing defaults are filled once, with version 0's historical sparse-file defaults preserved. Comments and formatting survive where the TOML can be patched in place, and subsequent startups leave the file unchanged. The retired PHP NetherNet MTU/signaling settings are removed. Unsupported colocated plugin data still requires manual migration. Quark rejects invalid known values and unsupported config versions.
+Review the [server directory layout and settings templates](../README.md#configuration) and set up `config/server.toml` for your server.
 
 Per-world view distance caps use a flat table keyed by world folder name:
 
@@ -250,15 +248,13 @@ nether = 8
 "mini games" = 6
 ```
 
-`server.view-distance` stays the global maximum, and a world entry (2 to 96) can only lower it; a larger value is capped with a warning. Unlisted worlds use the global maximum. The player's requested distance is kept separately and the lowest of the request, the global maximum, the world cap, and the low-memory limit applies. The template ships the table commented out, and upgrades neither add nor change it.
+`server.view-distance` stays the global maximum, and a world entry (2 to 96) can only lower it; a larger value is capped with a warning. Unlisted worlds use the global maximum. The player's requested distance is kept separately and the lowest of the request, the global maximum, the world cap, and the low-memory limit applies. The template ships the table commented out.
 
-Resource pack settings live in `resource-packs/resource_packs.toml`. Older TOML files receive missing defaults without replacing configured values. Under `[encryption]`, set `enabled = true`; `packs = []` encrypts all eligible packs, or list filenames from `resource_stack`. Use either a stable 32-byte printable ASCII `key` or a local `key-file` beside the packs, never both. With neither set, Quark securely creates `resource-packs/.encryption.key` once. Back up this key and keep it stable across restarts. The template links to the 1Password password generator; 32 Unicode characters may exceed 32 bytes.
+Resource pack settings live in `config/resource-packs.toml`. Under `[encryption]`, set `enabled = true`; `packs = []` encrypts all eligible packs, or list filenames from `resource_stack`. Use either a stable 32-byte printable ASCII `key` or a local `key-file` beside the packs, never both. With neither set, Quark securely creates `resource-packs/.encryption.key` once. Back up this key and keep it stable across restarts. The template links to the 1Password password generator; 32 Unicode characters may exceed 32 bytes.
 
 Original archives remain untouched. Prepared downloads are reused from `.quark-encryption` while source bytes, key and encryption format remain unchanged; corrupt cache files are rebuilt. Existing encrypted packs and their `<filename>.key` files retain their keys and bypass native encryption. Plugin resource-pack offers remain supported. Encryption deters casual extraction: the client receives the key. Native encryption limits archives to 65,535 entries, 1 GiB per file and 2 GiB expanded total, with at most 1,000:1 expansion and one unambiguous manifest root.
 
 To check a client release, use a pack with a visible texture change, enable encryption, clear its entry under Minecraft's Settings → Storage → Cached Data, then join and accept the download. Confirm the texture renders, reconnect, restart Quark, and reconnect again; unchanged sources should reuse the cached archive. Repeat with mixed encrypted/plain packs, subpacks if used, and any plugin-modified offers. After changing assets, bump the manifest version so clients download the update.
-
-Use `--migration-dry-run` to preview a legacy filesystem migration, then start with `--migrate-legacy` or set `[migration] auto_on_startup = true` in `config/migration.ini` before conversion. Quark snapshots the original YAML and properties files in `backups/`. Review the generated files. [Server template](../resources/server.toml) · [Plugin template](../resources/plugins.toml)
 
 ### New Configuration Options
 
@@ -273,14 +269,12 @@ Use `--migration-dry-run` to preview a legacy filesystem migration, then start w
 - `tnt-limits.*`
 - `block-physics.fast-falling-blocks` (off by default): falling blocks over open air start right above their landing spot. Landing, fall damage, `EntityBlockChangeEvent` and drops are unchanged, but the fall is not visible and `EntitySpawnEvent` sees the lower position. Blocks with their own `tickFalling()`, such as concrete powder, and falls into the void are never shortened. No config upgrade is needed; files without the key keep vanilla behaviour.
 
-Legacy YAML files with conflicting values stop migration. Resolve the reported configuration key and rerun `--migrate-legacy`. For TOML upgrades, new keys take precedence over legacy keys; old command-line property names remain accepted.
-
 ## Migration Checklist
 
 1. Back up worlds, player data, plugins, and configurations.
 2. Update plugin namespaces, metadata, and Composer dependencies.
 3. Review form, event, inventory, TNT, damage, redstone, armor, and compression compatibility.
 4. Install the required PHP runtime and native extensions.
-5. Migrate legacy configurations and review both TOML files.
+5. Apply the desired settings to the generated TOML files.
 6. Test plugins and production world copies under representative load.
 7. Check logs for missing classes, compatibility issues, TNT rejections, and redstone limits before deployment.

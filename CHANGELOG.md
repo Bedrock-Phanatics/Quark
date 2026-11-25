@@ -91,6 +91,9 @@ See [Migrating from PocketMine-MP 5.47](docs/MIGRATING-FROM-POCKETMINE-5.md) for
 
 ## Configuration
 
+- Moved plugin configuration to `config/plugins/<name>/` and consolidated plugin loading rules under `[plugins]` in `config/server.toml`.
+- Moved resource pack settings to `config/resource-packs.toml` and removed the filesystem layout marker and migration commands.
+
 Added or expanded settings for:
 
 - Network compression algorithm, batch threshold, compression level, asynchronous compression, and asynchronous threshold.

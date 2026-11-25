@@ -58,7 +58,7 @@ return array (
     'name' => 'nethernet',
     'nethernet' =>
     array (
-      'key-file' => 'nethernet-identity.der',
+      'key-file' => 'data/nethernet-identity.der',
       'lan-discovery' => true,
       'ice-udp-mux' => false,
       'ice-servers' =>
@@ -200,8 +200,11 @@ return array (
     'host' => '',
     'warn-console' => true,
   ),
-  'migration' =>
+  'plugins' =>
   array (
-    'auto-on-startup' => false,
+    'mode' => 'blacklist',
+    'names' =>
+    array (
+    ),
   ),
 );

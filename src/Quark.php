@@ -51,30 +51,24 @@ namespace quark {
 	use function ini_get;
 	use function ini_set;
 	use function is_array;
-	use function is_bool;
-use function is_dir;
-use function is_file;
-use function is_link;
-use function is_string;
-use function mkdir;
-use function opcache_get_status;
-use function parse_ini_file;
-use function php_ini_loaded_file;
-use function php_sapi_name;
-use function phpversion;
-use function printf;
-use function realpath;
-use function usleep;
-use function version_compare;
-use function xdebug_info;
-use const DIRECTORY_SEPARATOR;
-use const INI_SCANNER_TYPED;
-use const PHP_BINARY;
-use const PHP_EOL;
-use const PHP_INT_SIZE;
-use const PHP_VERSION;
-use const PHP_ZTS;
-use const ZEND_DEBUG_BUILD;
+	use function is_file;
+	use function is_string;
+	use function opcache_get_status;
+	use function php_ini_loaded_file;
+	use function php_sapi_name;
+	use function phpversion;
+	use function printf;
+	use function realpath;
+	use function usleep;
+	use function version_compare;
+	use function xdebug_info;
+	use const DIRECTORY_SEPARATOR;
+	use const PHP_BINARY;
+	use const PHP_EOL;
+	use const PHP_INT_SIZE;
+	use const PHP_VERSION;
+	use const PHP_ZTS;
+	use const ZEND_DEBUG_BUILD;
 
 	require_once __DIR__ . '/VersionInfo.php';
 
@@ -323,21 +317,20 @@ JIT_WARNING
 		$dataPath = getopt_string(BootstrapOptions::DATA) ?? $cwd;
 		$pluginPath = getopt_string(BootstrapOptions::PLUGINS) ?? $dataPath . DIRECTORY_SEPARATOR . "plugins";
 
-		if(!@mkdir($dataPath, 0777, true) && !is_dir($dataPath)){
-			critical_error("Unable to create/access data directory at $dataPath. Check that the target location is accessible by the current user.");
+		$opts = getopt("", [BootstrapOptions::NO_WIZARD, BootstrapOptions::ENABLE_ANSI, BootstrapOptions::DISABLE_ANSI, BootstrapOptions::NO_LOG_FILE]);
+		$fileLogging = !isset($opts[BootstrapOptions::NO_LOG_FILE]);
+		try{
+			$dataPath = Path::makeAbsolute($dataPath, $cwd);
+			Filesystem::ensureDirectory($dataPath);
+			$dataPath = Utils::assumeNotFalse(realpath($dataPath)) . DIRECTORY_SEPARATOR;
+			$paths = new FilesystemPaths($dataPath, Path::makeAbsolute($pluginPath, $cwd));
+			Filesystem::ensureDirectory($paths->runtime());
+		}catch(\RuntimeException $e){
+			critical_error($e->getMessage());
 			exit(1);
 		}
-		for($part = Path::makeAbsolute($dataPath, $cwd); $part !== dirname($part); $part = dirname($part)){
-			if(is_link($part)){
-				critical_error("Filesystem root cannot use a symbolic link: $part");
-				exit(1);
-			}
-		}
-		//this has to be done after we're sure the data path exists
-		$dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
-		$paths = new FilesystemPaths($dataPath, $pluginPath);
 
-		$lockFilePath = Path::join($dataPath, 'server.lock');
+		$lockFilePath = $paths->serverLock();
 		try{
 			$pid = Filesystem::createLockFile($lockFilePath);
 		}catch(\InvalidArgumentException $e){
@@ -351,59 +344,19 @@ JIT_WARNING
 			exit(1);
 		}
 
-		if(is_link($paths->runtime()) || (!@mkdir($paths->runtime(), 0777, true) && !is_dir($paths->runtime()))){
-			critical_error("Unable to create a safe runtime directory at " . $paths->runtime());
-			Filesystem::releaseLockFile($lockFilePath);
-			exit(1);
-		}
-		$runtimeLockFilePath = $paths->serverLock();
 		try{
-			$pid = Filesystem::createLockFile($runtimeLockFilePath);
-		}catch(\InvalidArgumentException $e){
+			$paths->initialize($fileLogging);
+		}catch(\RuntimeException $e){
 			critical_error($e->getMessage());
 			Filesystem::releaseLockFile($lockFilePath);
 			exit(1);
 		}
-		if($pid !== null){
-			critical_error("Another " . VersionInfo::NAME . " instance" . ($pid > 0 ? " (PID $pid)" : "") . " is already using $runtimeLockFilePath.");
-			Filesystem::releaseLockFile($lockFilePath);
-			exit(1);
-		}
-		Filesystem::releaseLockFile($lockFilePath);
-		$lockFilePath = $runtimeLockFilePath;
-
-		$migrationOptions = getopt("", [BootstrapOptions::MIGRATE_LEGACY, BootstrapOptions::MIGRATION_DRY_RUN]);
-		try{
-			$migrationConfig = Path::join($paths->config(), "migration.ini");
-			if(is_link($paths->config()) || is_link($migrationConfig)){
-				throw new \RuntimeException("Migration configuration cannot be a symbolic link: $migrationConfig");
-			}
-			$settings = is_file($paths->serverToml()) ? CoreConfig::load($paths->serverToml()) : (is_file($migrationConfig) ? parse_ini_file($migrationConfig, true, INI_SCANNER_TYPED) : []);
-			$migration = is_array($settings) ? ($settings["migration"] ?? []) : false;
-			$autoMigration = is_array($migration) ? (array_key_exists("auto-on-startup", $migration) ? $migration["auto-on-startup"] : ($migration["auto_on_startup"] ?? false)) : null;
-			if(!is_bool($autoMigration)){
-				throw new \RuntimeException("Invalid migration.auto-on-startup: expected boolean");
-			}
-			$result = (new FilesystemMigration($paths))->prepare(isset($migrationOptions[BootstrapOptions::MIGRATE_LEGACY]) || $autoMigration, isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN]));
-			if(isset($migrationOptions[BootstrapOptions::MIGRATION_DRY_RUN])){
-				echo $result . PHP_EOL;
-				Filesystem::releaseLockFile($lockFilePath);
-				exit(0);
-			}
-		}catch(\Throwable $e){
-			critical_error($e->getMessage());
-			Filesystem::releaseLockFile($lockFilePath);
-			exit(1);
-		}
-		$pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
-		$paths = new FilesystemPaths($dataPath, $pluginPath);
-		Filesystem::addCleanedPath($pluginPath, Filesystem::CLEAN_PATH_PLUGINS_PREFIX);
+		Filesystem::addCleanedPath($paths->plugins . DIRECTORY_SEPARATOR, Filesystem::CLEAN_PATH_PLUGINS_PREFIX);
 
 		//Logger has a dependency on timezone
 		Timezone::init();
 
-		$opts = getopt("", [BootstrapOptions::NO_WIZARD, BootstrapOptions::ENABLE_ANSI, BootstrapOptions::DISABLE_ANSI, BootstrapOptions::NO_LOG_FILE]);
-		$logFile = isset($opts[BootstrapOptions::NO_LOG_FILE]) ? null : Path::join($paths->logs(), "server.log");
+		$logFile = $fileLogging ? Path::join($paths->logs(), "server.log") : null;
 
 		if(isset($opts[BootstrapOptions::DISABLE_ANSI])){
 			Terminal::init(false);
@@ -437,7 +390,7 @@ JIT_WARNING
 		$autoloader = new ThreadSafeClassLoader();
 		$autoloader->register(false);
 
-		new Server($autoloader, $logger, $dataPath, $pluginPath, $configGroup);
+		new Server($autoloader, $logger, $paths, $configGroup);
 
 		$logger->info("Stopping other threads");
 

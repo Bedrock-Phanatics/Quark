@@ -30,14 +30,12 @@ use Symfony\Component\Filesystem\Path;
 use function array_keys;
 use function assert;
 use function chmod;
-use function copy;
 use function count;
 use function file_exists;
 use function in_array;
 use function is_dir;
 use function is_file;
 use function is_link;
-use function mkdir;
 use function rtrim;
 use function strlen;
 use function strpbrk;
@@ -69,32 +67,15 @@ class ResourcePackManager{
 	/**
 	 * @param string $path Path to resource-packs directory.
 	 */
-	public function __construct(string $path, \Logger $logger){
+	public function __construct(string $path, string $resourcePacksToml, \Logger $logger){
 		$this->path = $path;
 
-		if(is_link($this->path)){
-			throw new \InvalidArgumentException("Resource packs path $path must not be a symbolic link");
-		}
-		if(!file_exists($this->path)){
-			$logger->debug("Resource packs path $path does not exist, creating directory");
-			if(!mkdir($this->path)){
-				throw new \InvalidArgumentException("Cannot create resource packs path $path");
-			}
-		}elseif(!is_dir($this->path)){
-			throw new \InvalidArgumentException("Resource packs path $path exists and is not a directory");
-		}
-
-		$resourcePacksToml = Path::join($this->path, "resource_packs.toml");
-		if(!file_exists($resourcePacksToml)){
-			//startup migration converts it, so one left over means that didn't run and its settings would be lost
-			if(file_exists(Path::join($this->path, "resource_packs.yml"))){
-				throw new \InvalidArgumentException("Resource pack configuration resource_packs.yml must be converted to resource_packs.toml");
-			}
-			if(is_link($resourcePacksToml) || !copy(Path::join(\quark\RESOURCE_PATH, "resource_packs.toml"), $resourcePacksToml)){
-				throw new \InvalidArgumentException("Cannot create resource pack configuration $resourcePacksToml");
-			}
-		}elseif(is_link($resourcePacksToml)){
+		Filesystem::ensureDirectory($this->path);
+		if(is_link($resourcePacksToml)){
 			throw new \InvalidArgumentException("Resource pack configuration must not be a symbolic link: $resourcePacksToml");
+		}
+		if(!file_exists($resourcePacksToml)){
+			Filesystem::atomicWrite($resourcePacksToml, Filesystem::fileGetContents(Path::join(\quark\RESOURCE_PATH, "resource-packs.toml")));
 		}
 
 		$resourcePacksConfig = CoreConfig::load($resourcePacksToml);

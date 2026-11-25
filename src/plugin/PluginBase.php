@@ -27,7 +27,6 @@ use quark\command\Command;
 use quark\command\CommandExecutor;
 use quark\command\CommandSender;
 use quark\command\PluginCommand;
-use quark\ConfigurationMigration;
 use quark\lang\KnownTranslationFactory;
 use quark\scheduler\TaskScheduler;
 use quark\Server;
@@ -41,6 +40,7 @@ use function dirname;
 use function file_exists;
 use function is_dir;
 use function is_file;
+use function is_link;
 use function mkdir;
 use function rtrim;
 use function str_contains;
@@ -67,6 +67,7 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		private Server $server,
 		private PluginDescription $description,
 		private string $dataFolder,
+		private string $configFolder,
 		private string $file
 	){
 		$this->dataFolder = rtrim($dataFolder, "/" . DIRECTORY_SEPARATOR) . "/";
@@ -74,7 +75,8 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		$this->file = rtrim($file, "/" . DIRECTORY_SEPARATOR) . "/";
 		$this->resourceFolder = Path::join($this->file, "resources") . "/";
 
-		$this->configFile = Path::join($this->dataFolder, $this->description->isYamlManifest() ? "config.yml" : "config.toml");
+		$this->configFolder = rtrim($configFolder, "/" . DIRECTORY_SEPARATOR) . "/";
+		$this->configFile = Path::join($this->configFolder, "config.toml");
 
 		$prefix = $this->description->getPrefix();
 		$this->logger = new PluginLogger($server->getLogger(), $prefix !== "" ? $prefix : $this->getName());
@@ -135,6 +137,11 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 
 	final public function getDataFolder() : string{
 		return $this->dataFolder;
+	}
+
+	final public function getConfigFolder() : string{
+		Filesystem::ensureDirectory($this->configFolder);
+		return $this->configFolder;
 	}
 
 	final public function getDescription() : PluginDescription{
@@ -290,35 +297,18 @@ abstract class PluginBase implements Plugin, CommandExecutor{
 		$this->getConfig()->save();
 	}
 
-	private function saveDefaultConfig() : bool{
-		if(file_exists($this->configFile)){
-			return false;
-		}
-		if($this->description->isYamlManifest()){
-			return $this->saveResource("config.yml", false);
-		}
-		//a config.yml left from before the plugin moved to TOML keeps its values, and a bundled one is converted
-		if(ConfigurationMigration::convertYamlFile(Path::join($this->dataFolder, "config.yml"), $this->configFile, $this->server->getFilesystemPaths()->backups())){
-			$this->logger->notice("Converted config.yml to config.toml, the original is in backups");
-			return true;
-		}
-		if($this->saveResource("config.toml", false)){
-			return true;
-		}
-		$bundled = Path::join($this->resourceFolder, "config.yml");
-		if(!file_exists($bundled)){
-			return false;
-		}
-		if(!file_exists($this->dataFolder)){
-			mkdir($this->dataFolder, 0755, true);
-		}
-		Filesystem::atomicWrite($this->configFile, ConfigurationMigration::yamlToToml(Filesystem::fileGetContents($bundled), $bundled));
-		return true;
-	}
-
 	public function reloadConfig() : void{
-		$this->saveDefaultConfig();
-		$this->config = new Config($this->configFile);
+		$this->getConfigFolder();
+		if(is_link($this->configFile)){
+			throw new \RuntimeException("Plugin configuration must not be a symbolic link: $this->configFile");
+		}
+		if(!file_exists($this->configFile)){
+			$default = $this->getResourcePath("config.toml");
+			if(is_file($default)){
+				Filesystem::atomicWrite($this->configFile, Filesystem::fileGetContents($default));
+			}
+		}
+		$this->config = new Config($this->configFile, Config::TOML);
 	}
 
 	final public function getServer() : Server{

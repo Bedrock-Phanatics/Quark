@@ -29,8 +29,6 @@ use function array_key_exists;
 use function array_keys;
 use function array_map;
 use function is_array;
-use function is_float;
-use function is_int;
 use function is_string;
 use function trim;
 
@@ -75,20 +73,20 @@ class PluginGraylist{
 	 * @param mixed[] $array
 	 */
 	public static function fromArray(array $array) : PluginGraylist{
-		$mode = $array["mode"] ?? null;
+		$mode = $array["mode"] ?? "blacklist";
 		if($mode !== "whitelist" && $mode !== "blacklist"){
-			throw new \InvalidArgumentException("Invalid mode in plugins.toml: expected 'whitelist' or 'blacklist'");
+			throw new \InvalidArgumentException("Invalid plugins.mode: expected 'whitelist' or 'blacklist'");
 		}
 		$plugins = [];
-		if(array_key_exists("plugins", $array)){
-			if(!is_array($array["plugins"]) || !array_is_list($array["plugins"])){
-				throw new \InvalidArgumentException("Invalid plugins in plugins.toml: expected a list of plugin names");
+		if(array_key_exists("names", $array)){
+			if(!is_array($array["names"]) || !array_is_list($array["names"])){
+				throw new \InvalidArgumentException("Invalid plugins.names: expected a list of plugin names");
 			}
-			foreach($array["plugins"] as $index => $name){
-				if((!is_string($name) && !is_int($name) && !is_float($name)) || trim((string) $name) === ""){
-					throw new \InvalidArgumentException("Invalid plugins entry $index in plugins.toml: expected a plugin name");
+			foreach($array["names"] as $index => $name){
+				if(!is_string($name) || trim($name) === ""){
+					throw new \InvalidArgumentException("Invalid plugins.names entry $index: expected a plugin name");
 				}
-				$plugins[] = (string) $name;
+				$plugins[] = $name;
 			}
 		}
 		return new PluginGraylist($plugins, $mode === "whitelist");
@@ -101,7 +99,7 @@ class PluginGraylist{
 	public function toArray() : array{
 		return [
 			"mode" => $this->isWhitelist ? 'whitelist' : 'blacklist',
-			"plugins" => $this->plugins
+			"names" => $this->getPlugins()
 		];
 	}
 }

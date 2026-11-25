@@ -197,7 +197,7 @@ class PluginDescription{
 	}
 
 	/**
-	 * Returns whether the plugin ships the deprecated plugin.yml, which also keeps its default config in config.yml.
+	 * Returns whether the plugin ships the deprecated plugin.yml.
 	 */
 	public function isYamlManifest() : bool{
 		return $this->yamlManifest;

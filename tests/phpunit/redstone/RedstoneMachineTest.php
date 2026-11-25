@@ -75,7 +75,7 @@ final class RedstoneMachineTest extends TestCase{
 	private function cancelAll(string $event) : void{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method('isEnabled')->willReturn(true);
-		(new PluginManager($this->createMock(Server::class), null))->registerEvent($event, static function(Event $event) : void{
+		(new PluginManager($this->createMock(Server::class)))->registerEvent($event, static function(Event $event) : void{
 			if($event instanceof PistonPushBlockEvent || $event instanceof PistonPullBlockEvent || $event instanceof BlockTeleportEvent){
 				$event->cancel();
 			}
@@ -99,7 +99,7 @@ final class RedstoneMachineTest extends TestCase{
 		$this->pushStone(false);
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method('isEnabled')->willReturn(true);
-		(new PluginManager($this->createMock(Server::class), null))->registerEvent(BlockBreakEvent::class, static function(BlockBreakEvent $event) : void{
+		(new PluginManager($this->createMock(Server::class)))->registerEvent(BlockBreakEvent::class, static function(BlockBreakEvent $event) : void{
 			if($event->getBlock() instanceof Piston){
 				$event->cancel();
 			}

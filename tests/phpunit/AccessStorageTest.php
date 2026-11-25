@@ -24,7 +24,7 @@ final class AccessStorageTest extends TestCase{
 	protected function setUp() : void{
 		$this->root = sys_get_temp_dir() . "/quark-access-" . bin2hex(random_bytes(8));
 		mkdir($this->root);
-		$this->storage = new AccessStorage($this->root . "/access.sqlite", true);
+		$this->storage = AccessStorage::open($this->root . "/access.sqlite");
 	}
 
 	protected function tearDown() : void{

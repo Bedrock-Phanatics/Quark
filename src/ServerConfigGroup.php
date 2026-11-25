@@ -24,7 +24,9 @@ declare(strict_types=1);
 namespace quark;
 
 use quark\utils\Config;
+use quark\utils\Filesystem;
 use quark\utils\Utils;
+use Symfony\Component\Filesystem\Path;
 use function array_key_exists;
 use function array_pad;
 use function array_replace_recursive;
@@ -38,6 +40,7 @@ use function is_array;
 use function is_bool;
 use function is_float;
 use function is_int;
+use function is_link;
 use function is_numeric;
 use function is_scalar;
 use function is_string;
@@ -62,26 +65,29 @@ final class ServerConfigGroup{
 	/** @var array<string, mixed> */
 	private array $configOverrides = [];
 
-	public static function load(string $path) : self{
-		if(!file_exists($path)){
-			ConfigurationMigration::createServer($path);
-		}
-		$config = new Config($path, Config::TOML);
-		return new self($config, $config, true);
+	public static function createDefault(string $path) : void{
+		Filesystem::atomicWrite($path, Filesystem::fileGetContents(Path::join(RESOURCE_PATH, "server.toml")));
 	}
 
-	public function __construct(
-		private Config $quarkYml,
-		private Config $serverProperties,
-		private bool $toml = false
-	){
+	public static function load(string $path) : self{
+		if(is_link($path)){
+			throw new \RuntimeException("Server configuration must not be a symbolic link: $path");
+		}
+		if(!file_exists($path)){
+			self::createDefault($path);
+		}
+		$config = new Config($path, Config::TOML);
+		return new self($config);
+	}
+
+	public function __construct(private Config $config){
 		$arguments = $_SERVER["argv"] ?? [];
 		if(is_array($arguments)){
 			foreach($arguments as $argument){
 				if(is_string($argument) && str_starts_with($argument, "--")){
 					[$key, $value] = array_pad(explode("=", substr($argument, 2), 2), 2, false);
 					$key = (string) $key;
-					if($this->toml && str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
+					if(str_starts_with($key, "server.") && !str_contains(substr($key, 7), ".")){
 						$key = substr($key, 7);
 					}
 					unset($this->overrides[$key]);
@@ -89,10 +95,8 @@ final class ServerConfigGroup{
 				}
 			}
 		}
-		if($this->toml){
-			$this->applyOverrides();
-			CoreConfig::validateServer($this->serverProperties->getAll(), $this->configOverrides);
-		}
+		$this->applyOverrides();
+		CoreConfig::validateServer($this->config->getAll(), $this->configOverrides);
 	}
 
 	private function applyOverrides() : void{
@@ -153,14 +157,12 @@ final class ServerConfigGroup{
 	}
 
 	public function getProperty(string $variable, mixed $defaultValue = null) : mixed{
-		if($this->toml){
-			$variable = CoreConfig::RENAMED_SETTINGS[$variable] ?? $variable;
-		}
+		$variable = CoreConfig::RENAMED_SETTINGS[$variable] ?? $variable;
 		if(!array_key_exists($variable, $this->propertyCache)){
 			if(isset($this->overrides[$variable])){
 				$this->propertyCache[$variable] = $this->overrides[$variable];
 			}else{
-				$this->propertyCache[$variable] = $this->quarkYml->getNested($variable, $this->toml ? CoreConfig::defaultValue($variable) : null);
+				$this->propertyCache[$variable] = $this->config->getNested($variable, CoreConfig::defaultValue($variable));
 			}
 		}
 
@@ -219,35 +221,23 @@ final class ServerConfigGroup{
 	}
 
 	public function setConfigBool(string $variable, bool $value) : void{
-		$this->setConfigValue($variable, $this->toml ? $value : ($value ? "1" : "0"));
+		$this->setConfigValue($variable, $value);
 	}
 
 	private function getConfigValue(string $variable, mixed $defaultValue) : mixed{
-		if($this->toml){
-			return $this->getProperty(CoreConfig::RENAMED_SETTINGS["server.$variable"] ?? "server.$variable", $defaultValue);
-		}
-		return $this->overrides[$variable] ?? $this->serverProperties->get($variable, $defaultValue);
+		return $this->getProperty("server.$variable", $defaultValue);
 	}
 
 	private function setConfigValue(string $variable, string|int|bool $value) : void{
-		if($this->toml){
-			$path = CoreConfig::RENAMED_SETTINGS["server.$variable"] ?? "server.$variable";
-			$this->serverProperties->setNested($path, $value);
-		}else{
-			$this->serverProperties->set($variable, $value);
-		}
+		$path = CoreConfig::RENAMED_SETTINGS["server.$variable"] ?? "server.$variable";
+		$this->config->setNested($path, $value);
 		$this->propertyCache = [];
 	}
 
 	public function save() : void{
-		if($this->serverProperties->hasChanged()){
-			if($this->toml){
-				CoreConfig::validateServer($this->serverProperties->getAll(), $this->configOverrides);
-			}
-			$this->serverProperties->save();
-		}
-		if($this->quarkYml !== $this->serverProperties && $this->quarkYml->hasChanged()){
-			$this->quarkYml->save();
+		if($this->config->hasChanged()){
+			CoreConfig::validateServer($this->config->getAll(), $this->configOverrides);
+			$this->config->save();
 		}
 	}
 }

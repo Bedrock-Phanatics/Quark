@@ -63,12 +63,12 @@ try{
 			if($mode === "cold" && is_dir($root . "/.quark-encryption")){
 				Filesystem::recursiveUnlink($root . "/.quark-encryption");
 			}
-			file_put_contents($root . "/resource_packs.toml", 'resource_stack = ["sample.zip"]' . "\n[encryption]\nenabled = " . ($mode === "disabled" ? "false" : "true") . "\n");
-			CoreConfig::forget($root . "/resource_packs.toml");
+			file_put_contents($root . "/resource-packs.toml", 'resource_stack = ["sample.zip"]' . "\n[encryption]\nenabled = " . ($mode === "disabled" ? "false" : "true") . "\n");
+			CoreConfig::forget($root . "/resource-packs.toml");
 			$before = memory_get_usage(true);
 			memory_reset_peak_usage();
 			$start = hrtime(true);
-			$manager = new ResourcePackManager($root, $logger);
+			$manager = new ResourcePackManager($root, $root . "/resource-packs.toml", $logger);
 			$measurements[$mode]["startup_ms"][] = (hrtime(true) - $start) / 1e6;
 			$measurements[$mode]["startup_peak_delta_mib"][] = (memory_get_peak_usage(true) - $before) / 1048576;
 			$measurements[$mode]["startup_peak_mib"][] = memory_get_peak_usage(true) / 1048576;

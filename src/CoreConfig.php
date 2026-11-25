@@ -114,7 +114,6 @@ final class CoreConfig{
 		"memory.memory-dump.dump-async-worker" => "memory.dump-async-workers",
 		"memory.max-chunks.chunk-radius" => "memory.low-memory-view-distance",
 		"auto-updater.on-update.warn-console" => "auto-updater.warn-console",
-		"migration.auto_on_startup" => "migration.auto-on-startup",
 	];
 
 	/** @var array<string, array<string, mixed>> */
@@ -710,8 +709,8 @@ final class CoreConfig{
 	private static function validateServerValues(array $data) : void{
 		if(array_key_exists("config-version", $data)){
 			$version = $data["config-version"];
-			if(!is_int($version) || $version < 0 || $version > self::SERVER_VERSION){
-				throw new \InvalidArgumentException("Unsupported config-version in config/server.toml: expected an integer from 0 to " . self::SERVER_VERSION);
+			if($version !== self::SERVER_VERSION){
+				throw new \InvalidArgumentException("Unsupported config-version in config/server.toml: expected " . self::SERVER_VERSION);
 			}
 		}
 		$defaults = self::defaults();
@@ -733,9 +732,9 @@ final class CoreConfig{
 		if(is_array($logging) && $logging !== []){
 			new log\LoggingConfig($logging);
 		}
-		$plugins = $data["plugins"] ?? [];
-		if(is_array($plugins) && array_key_exists("legacy-data-dir", $plugins) && $plugins["legacy-data-dir"] !== false){
-			throw new \InvalidArgumentException("Colocated plugin data needs a migration handler; migrate it to data/plugins and remove plugins.legacy-data-dir");
+
+		if(isset($data["plugins"]) && is_array($data["plugins"])){
+			PluginGraylist::fromArray($data["plugins"]);
 		}
 
 		if(array_key_exists("view-distances", $data)){
@@ -946,18 +945,13 @@ final class CoreConfig{
 		}
 	}
 
-	/** @param array<string, mixed> $data */
-	public static function validatePlugins(array $data) : void{
-		PluginGraylist::fromArray($data);
-	}
-
 	/**
 	 * @param array<string, mixed> $data
 	 * @phpstan-assert array{force_resources?: bool, resource_stack?: list<string>, encryption?: array{enabled?: bool, packs?: list<string>, key?: string, key-file?: string}} $data
 	 */
 	public static function validateResourcePacks(#[\SensitiveParameter] array $data) : void{
 		if(array_key_exists("force_resources", $data) && !is_bool($data["force_resources"])){
-			throw new \InvalidArgumentException("Invalid force_resources in resource_packs.toml: expected boolean");
+			throw new \InvalidArgumentException("Invalid force_resources in resource-packs.toml: expected boolean");
 		}
 		$stack = array_key_exists("resource_stack", $data) ? $data["resource_stack"] : [];
 		self::validateStringList($stack, "resource_stack");
@@ -966,7 +960,7 @@ final class CoreConfig{
 		}
 		$encryption = $data["encryption"];
 		if(!is_array($encryption) || $encryption !== [] && array_is_list($encryption)){
-			throw new \InvalidArgumentException("Invalid encryption in resource_packs.toml: expected table");
+			throw new \InvalidArgumentException("Invalid encryption in resource-packs.toml: expected table");
 		}
 		foreach(array_keys($encryption) as $name){
 			if(!in_array($name, ["enabled", "packs", "key", "key-file"], true)){
@@ -987,7 +981,7 @@ final class CoreConfig{
 		if($key !== "" && (strlen($key) !== 32 || preg_match('/^[\x20-\x7e]{32}$/D', $key) !== 1)){
 			throw new \InvalidArgumentException("Invalid encryption.key: expected exactly 32 printable ASCII bytes");
 		}
-		if($keyFile !== "" && ($keyFile === "." || $keyFile === ".." || strpbrk($keyFile, "/\\:") !== false || preg_match('/[\x00-\x1f\x7f]/', $keyFile) === 1 || in_array($keyFile, ["resource_packs.toml", "resource_packs.yml", ".quark-encryption"], true))){
+		if($keyFile !== "" && ($keyFile === "." || $keyFile === ".." || strpbrk($keyFile, "/\\:") !== false || preg_match('/[\x00-\x1f\x7f]/', $keyFile) === 1 || in_array($keyFile, [".quark-encryption", ".encryption.key"], true))){
 			throw new \InvalidArgumentException("Invalid encryption.key-file: expected a safe filename in the resource-packs directory");
 		}
 		if($keyFile !== "" && in_array($keyFile, $stack, true)){

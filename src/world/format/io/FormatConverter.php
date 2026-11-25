@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\world\format\io;
 
+use quark\utils\Filesystem;
 use quark\world\DimensionRegistry;
 use quark\world\format\Chunk;
 use quark\world\generator\GeneratorManager;
@@ -36,7 +37,6 @@ use function floor;
 use function flush;
 use function is_link;
 use function microtime;
-use function mkdir;
 use function random_bytes;
 use function rename;
 use function round;
@@ -56,9 +56,7 @@ class FormatConverter{
 	){
 		$this->logger = new \quark\log\SourceLogger($logger, "World Converter: " . $this->oldProvider->getWorldData()->getName());
 
-		if(!file_exists($backupPath)){
-			@mkdir($backupPath, 0777, true);
-		}
+		Filesystem::ensureDirectory($backupPath);
 		$nextSuffix = "";
 		do{
 			$this->backupPath = Path::join($backupPath, basename($this->oldProvider->getPath()) . $nextSuffix);

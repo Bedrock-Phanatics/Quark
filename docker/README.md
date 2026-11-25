@@ -35,14 +35,14 @@ port-range = [30000, 30100]
 advertise-addresses = ['203.0.113.7'] # Replace with your public IP.
 ```
 
-Publish `-p 30000-30100:30000-30100/udp` in addition to `-p 19132:19132/tcp` and `-p 19132:19132/udp`, and forward those TCP/UDP ports on any upstream router or firewall. Pterodactyl must allocate the entire UDP range and expose the TCP signaling port. ICE ports must have identical internal and external numbers. Without a range, NetherNet may choose arbitrary UDP ports. Keep `nethernet-identity.der` in the persistent data volume so the server identity survives restarts.
+Publish `-p 30000-30100:30000-30100/udp` in addition to `-p 19132:19132/tcp` and `-p 19132:19132/udp`, and forward those TCP/UDP ports on any upstream router or firewall. Pterodactyl must allocate the entire UDP range and expose the TCP signaling port. ICE ports must have identical internal and external numbers. Without a range, NetherNet may choose arbitrary UDP ports. Keep `data/nethernet-identity.der` in the persistent data volume so the server identity survives restarts.
 
 STUN discovers NAT mappings; TURN can relay connections when direct access fails. Configure supported server URLs with `transport.nethernet.ice-servers`. Neither service is configured by default. LAN discovery uses UDP 7551 and local broadcasts; ordinary bridged containers usually do not receive those broadcasts. Disable `lan-discovery` when it is unnecessary. UDP multiplexing remains off by default because vanilla compatibility is unverified.
 
 `[network] port` selects the IPv4 signaling/Query or RakNet port. `port-v6` selects the IPv6 RakNet/Query port; publish that UDP port too when enabled. For RakNet-only deployments (`[transport] name = 'raknet'`), Docker can translate the external game port with `<external>:19132/udp`; NetherNet ICE ranges must remain mapped unchanged.
 
 ## Editing the server data
-The server data (e.g. `config/server.toml`, `data/worlds/`, and `data/plugins/`) will be stored in the host `data` folder you created above.
+The server data (e.g. `config/server.toml`, `config/resource-packs.toml`, `config/plugins/`, `data/worlds/`, and `data/plugins/`) will be stored in the host `data` folder you created above.
 
 **Note: If you add new files (e.g. a world), don't forget to change the ownership of the file/folder to `1000:1000`**:
 ```

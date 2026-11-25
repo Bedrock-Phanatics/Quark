@@ -104,8 +104,6 @@ final class YmlServerProperties{
 	public const MEMORY_LOW_MEMORY_VIEW_DISTANCE = 'memory.low-memory-view-distance';
 	public const MEMORY_MAIN_HARD_LIMIT = 'memory.main-hard-limit';
 	public const MEMORY_MAIN_LIMIT = 'memory.main-limit';
-	public const MIGRATION = 'migration';
-	public const MIGRATION_AUTO_ON_STARTUP = 'migration.auto-on-startup';
 	public const NETWORK = 'network';
 	public const NETWORK_BIND_ADDRESS = 'network.bind-address';
 	public const NETWORK_BIND_ADDRESS_V6 = 'network.bind-address-v6';
@@ -130,6 +128,9 @@ final class YmlServerProperties{
 	public const PLAYER = 'player';
 	public const PLAYER_SAVE_DATA = 'player.save-data';
 	public const PLAYER_VERIFY_XUID = 'player.verify-xuid';
+	public const PLUGINS = 'plugins';
+	public const PLUGINS_MODE = 'plugins.mode';
+	public const PLUGINS_NAMES = 'plugins.names';
 	public const REDSTONE = 'redstone';
 	public const REDSTONE_DISPENSERS_ENABLED = 'redstone.dispensers-enabled';
 	public const REDSTONE_ENABLED = 'redstone.enabled';

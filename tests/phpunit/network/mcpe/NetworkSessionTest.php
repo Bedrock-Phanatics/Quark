@@ -211,7 +211,6 @@ final class NetworkSessionTest extends TestCase{
 		$this->set($session, "info", new XboxLivePlayerInfo("2535400000000000", "Steve", Uuid::uuid4(), new Skin("test", str_repeat("\0", 8192)), "en_US"));
 		$this->set($session, "transportIdentityKey", null);
 		$config = new \ReflectionClass(ServerConfigGroup::class)->newInstanceWithoutConstructor();
-		new \ReflectionProperty(ServerConfigGroup::class, "toml")->setValue($config, false);
 		new \ReflectionProperty(ServerConfigGroup::class, "propertyCache")->setValue($config, [YmlServerProperties::PLAYER_VERIFY_XUID => true]);
 		$server = $this->createMock(Server::class);
 		$server->method("getConfigGroup")->willReturn($config);

@@ -46,14 +46,12 @@ use function inflate_init;
 use function intdiv;
 use function is_array;
 use function is_bool;
-use function is_dir;
 use function is_int;
 use function is_string;
 use function json_decode;
 use function json_encode;
 use function microtime;
 use function min;
-use function mkdir;
 use function php_uname;
 use function preg_match;
 use function random_bytes;
@@ -193,9 +191,7 @@ final class PulseReport{
 	public static function writeEncoded(string $directory, string $json) : string{
 		if(strlen($json) > self::MAX_BYTES){ throw new \LengthException("Pulse report exceeds the size limit"); }
 		$gzip = self::compress($json);
-		if(!@mkdir($directory, 0777, true) && !is_dir($directory)){
-			throw new \RuntimeException("Failed to create Pulse report directory");
-		}
+		Filesystem::ensureDirectory($directory);
 		$file = Path::join($directory, "pulse_" . date("Y-m-d_H.i.s") . "_" . bin2hex(random_bytes(8)) . ".qpulse");
 		Filesystem::safeFilePutContents($file, $gzip);
 		return $file;

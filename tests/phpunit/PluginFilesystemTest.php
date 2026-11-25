@@ -20,7 +20,6 @@ use function bin2hex;
 use function dirname;
 use function file_get_contents;
 use function file_put_contents;
-use function glob;
 use function is_dir;
 use function is_link;
 use function iterator_to_array;
@@ -88,7 +87,7 @@ final class PluginFilesystemTest extends TestCase{
 		$language = $this->createMock(Language::class);
 		$language->method("translate")->willReturn("plugin status");
 		$server->method("getLanguage")->willReturn($language);
-		$manager = new PluginManager($server, $this->paths->pluginData(), $graylist);
+		$manager = new PluginManager($server, $graylist);
 		$manager->registerInterface(new ScriptPluginLoader());
 		return $manager;
 	}
@@ -104,13 +103,16 @@ final class PluginFilesystemTest extends TestCase{
 		$alpha = $plugins["Alpha"];
 		self::assertInstanceOf(PluginBase::class, $alpha);
 		self::assertSame($this->paths->pluginData() . "/Alpha/", $alpha->getDataFolder());
+		self::assertDirectoryDoesNotExist($this->paths->pluginConfig());
+		self::assertSame($this->paths->pluginConfig() . "/Alpha/", $alpha->getConfigFolder());
 		$alpha->getConfig()->set("saved", "yes");
 		$alpha->saveConfig();
 		self::assertTrue($manager->enablePlugin($alpha));
 		self::assertTrue($alpha->isEnabled());
 		$manager->disablePlugin($alpha);
 		self::assertFalse($alpha->isEnabled());
-		self::assertFileExists($this->paths->pluginData() . "/Alpha/config.toml");
+		self::assertFileExists($this->paths->pluginConfig() . "/Alpha/config.toml");
+		self::assertFileDoesNotExist($this->paths->pluginData() . "/Alpha/config.toml");
 		$manager->clearPlugins();
 		$manager->registerInterface(new ScriptPluginLoader());
 		$reloaded = $manager->loadPlugins($this->paths->plugins, $errors);
@@ -212,28 +214,6 @@ final class PluginFilesystemTest extends TestCase{
 		new PluginDescription($manifest . "[permissions.\"a.b\"]\ndefault = true\n[permissions.a.b]\ndefault = false\n");
 	}
 
-	public function testPluginConfigYamlConvertsToToml() : void{
-		$this->script("alpha.php", "Alpha");
-		mkdir($this->paths->pluginData() . "/Alpha");
-		$yaml = "# edited by the owner\nmotd: Welcome\nlimits:\n  players: 20\n  ratio: 0.5\nworlds:\n  - lobby\n  - arena\nunset: ~\n";
-		file_put_contents($this->paths->pluginData() . "/Alpha/config.yml", $yaml);
-		$errors = 0;
-		$alpha = $this->manager()->loadPlugins($this->paths->plugins, $errors)["Alpha"];
-		self::assertInstanceOf(PluginBase::class, $alpha);
-		$config = $alpha->getConfig();
-		self::assertSame("Welcome", $config->get("motd"));
-		self::assertSame(["players" => 20, "ratio" => 0.5], $config->get("limits"));
-		self::assertSame(["lobby", "arena"], $config->get("worlds"));
-		self::assertArrayHasKey("unset", $config->getAll());
-		self::assertNull($config->getAll()["unset"]);
-		self::assertFileExists($this->paths->pluginData() . "/Alpha/config.toml");
-		self::assertFileDoesNotExist($this->paths->pluginData() . "/Alpha/config.yml");
-		$snapshots = glob($this->paths->backups() . "/yaml-*/config.yml");
-		self::assertIsArray($snapshots);
-		self::assertCount(1, $snapshots);
-		self::assertSame($yaml, file_get_contents($snapshots[0]));
-	}
-
 	public function testPharManifestsAndBundledConfigs() : void{
 		$classLoader = new ThreadSafeClassLoader();
 		$classLoader->register(true);
@@ -249,12 +229,12 @@ final class PluginFilesystemTest extends TestCase{
 		$prefix = "PharManifest" . bin2hex(random_bytes(4));
 		$build("{$prefix}Legacy", [
 			"plugin.yml" => "name: Legacy\nmain: {$prefix}Legacy\\Main\nsrc-namespace-prefix: {$prefix}Legacy\nversion: 1.0.0\napi: 6.0.0\n",
-			"resources/config.yml" => "# legacy default\ngreeting: hi\n"
+			"resources/config.toml" => "# packaged default\ngreeting = 'hi'\n"
 		]);
 		$build("{$prefix}Modern", [
 			"plugin.toml" => "name = \"Modern\"\nmain = \"{$prefix}Modern\\\\Main\"\nsrc-namespace-prefix = \"{$prefix}Modern\"\nversion = \"2.0.0\"\napi = \"6.0.0\"\n",
 			"plugin.yml" => "name: Modern\nmain: {$prefix}Modern\\Main\nsrc-namespace-prefix: {$prefix}Modern\nversion: 1.0.0\napi: 6.0.0\n",
-			"resources/config.yml" => "greeting: hello\n"
+			"resources/config.toml" => "greeting = 'hello'\n"
 		]);
 		$manager = $this->manager();
 		$manager->registerInterface(new PharPluginLoader($classLoader));
@@ -267,10 +247,10 @@ final class PluginFilesystemTest extends TestCase{
 		self::assertSame("2.0.0", $modern->getDescription()->getVersion(), "plugin.toml wins over plugin.yml");
 		self::assertTrue($legacy->getDescription()->isYamlManifest());
 		self::assertSame("hi", $legacy->getConfig()->get("greeting"));
-		self::assertSame("# legacy default\ngreeting: hi\n", file_get_contents($this->paths->pluginData() . "/Legacy/config.yml"));
+		self::assertSame("# packaged default\ngreeting = 'hi'\n", file_get_contents($legacy->getConfigFolder() . "config.toml"));
 		self::assertFileDoesNotExist($this->paths->pluginData() . "/Legacy/config.toml");
 		self::assertSame("hello", $modern->getConfig()->get("greeting"));
-		self::assertFileExists($this->paths->pluginData() . "/Modern/config.toml");
+		self::assertFileExists($modern->getConfigFolder() . "config.toml");
 		self::assertFileDoesNotExist($this->paths->pluginData() . "/Modern/config.yml");
 	}
 

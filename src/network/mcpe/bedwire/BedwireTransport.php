@@ -92,7 +92,7 @@ final class BedwireTransport implements Transport{
 			//room for players still joining or being kicked, the player limit itself is enforced at login
 			"max_sessions" => min(65535, $this->server->getMaxPlayers() * 2 + 16),
 			"authentication" => $this->server->getOnlineMode(),
-			"identity_file" => Path::makeAbsolute($config->getPropertyString(Yml::TRANSPORT_NETHERNET_KEY_FILE, "nethernet-identity.der"), $this->server->getDataPath()),
+			"identity_file" => Path::makeAbsolute($config->getPropertyString(Yml::TRANSPORT_NETHERNET_KEY_FILE, "data/nethernet-identity.der"), $this->server->getDataPath()),
 			"lan_port" => !$proxyOnly && $config->getPropertyBool(Yml::TRANSPORT_NETHERNET_LAN_DISCOVERY, true) ? self::LAN_PORT : 0,
 			"trusted_identity_keys" => $this->server->getTrustedProxyKeys(),
 			"ice_servers" => CoreConfig::validateNetherNetIceServers($config->getProperty(Yml::TRANSPORT_NETHERNET_ICE_SERVERS, [])),

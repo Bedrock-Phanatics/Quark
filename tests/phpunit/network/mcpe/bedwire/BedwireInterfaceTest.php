@@ -276,7 +276,7 @@ final class BedwireInterfaceTest extends TestCase{
 	public function testProxyOnlyUsesGlobalConnectionLimitsAndDisablesLanDiscovery() : void{
 		$config = self::createStub(Config::class);
 		$server = $this->createMock(Server::class);
-		$server->method("getConfigGroup")->willReturn(new ServerConfigGroup($config, $config));
+		$server->method("getConfigGroup")->willReturn(new ServerConfigGroup($config));
 		$server->method("getDataPath")->willReturn(__DIR__);
 		$server->method("getIp")->willReturn("0.0.0.0");
 		$server->method("getMaxPlayers")->willReturn(50);

@@ -21,7 +21,6 @@ use function pathinfo;
 use function rename;
 use function strlen;
 use function substr;
-use function touch;
 use const PATHINFO_EXTENSION;
 use const PATHINFO_FILENAME;
 
@@ -33,22 +32,17 @@ final class FileSink implements Sink{
 	private int $archiveIndex = 0;
 
 	public function __construct(private string $file, private ?string $archive, private int $maxSize, private int $retention, private Formatter $formatter){
-		self::prepare($file, $archive);
+		if($archive !== null && (is_link($archive) || file_exists($archive) && !is_dir($archive))){
+			throw new \RuntimeException("Invalid log archive directory: $archive");
+		}
 		$this->open();
 		if($archive !== null && $this->size >= $maxSize){ $this->rotate(); }
 	}
 
-	public static function prepare(string $file, ?string $archive) : void{
-		if(is_link($file) || file_exists($file) && !is_file($file) || !@touch($file)){
-			throw new \RuntimeException("Unable to create log file: $file");
-		}
-		if($archive !== null && (is_link($archive) || !is_dir($archive) && !@mkdir($archive))){
-			throw new \RuntimeException("Unable to create archive directory: $archive");
-		}
-	}
-
 	private function open() : void{
-		if(is_link($this->file)){ throw new \RuntimeException("Refusing log symlink: $this->file"); }
+		if(is_link($this->file) || file_exists($this->file) && !is_file($this->file)){
+			throw new \RuntimeException("Invalid log file path: $this->file");
+		}
 		$stream = @fopen($this->file, "ab");
 		if($stream === false){ throw new \RuntimeException("Cannot open log file: $this->file"); }
 		$stat = fstat($stream);

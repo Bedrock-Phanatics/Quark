@@ -13,6 +13,8 @@ class DataTest extends \quark\plugin\PluginBase {
 		if(file_put_contents($this->getDataFolder() . "/create-data", "successful") !== strlen("successful")){
 			throw new \RuntimeException("Failed to create plugin data");
 		}
+		$this->getConfig()->set("ready", true);
+		$this->saveConfig();
 		$this->getLogger()->notice("Test passed: create-data was written");
 	}
 }

@@ -38,8 +38,6 @@ This improves how quickly hits feel visible to players; it does not reduce Minec
 
 See the complete [Quark 6.0.0 changelog](CHANGELOG.md) and [PocketMine-MP 5.47 migration guide](docs/MIGRATING-FROM-POCKETMINE-5.md).
 
-Existing installations can inspect required changes with `--migration-dry-run` and migrate with `--migrate-legacy` before starting Quark 6.
-
 ## Requirements
 
 - A 64-bit operating system
@@ -69,18 +67,31 @@ Start Quark:
 php Quark-v6.phar
 ```
 
-On first launch, review `config/server.toml` and `config/plugins.toml` before exposing the server publicly.
+On first launch, review `config/server.toml` before exposing the server publicly.
 
 ## Configuration
 
-Edit `config/server.toml` for server settings and `config/plugins.toml` for plugin loading rules. Resource pack settings live in `resource-packs/resource_packs.toml`. Restart Quark after editing these files. [Server template](resources/server.toml) · [Plugin template](resources/plugins.toml) · [Resource pack template](resources/resource_packs.toml)
+Quark generates its configuration on first launch. Paths are relative to the installation directory selected by `--data`, which defaults to the working directory. Restart the server after editing its configuration.
+
+| Path | Contents |
+| --- | --- |
+| `config/server.toml` | Server settings, including plugin loading rules under `[plugins]` |
+| `config/resource-packs.toml` | Resource pack stack and encryption policy |
+| `config/plugins/<name>/` | Plugin configuration, created when the plugin requests it |
+| `plugins/` | Plugin packages and scripts. Use `--plugins` to set a different load directory |
+| `data/` | Worlds, player saves, access database, and persistent plugin data under `data/plugins/<name>/` |
+| `resource-packs/` | Resource pack archives and their encryption keys |
+| `logs/` | Server log and rotated archives |
+| `diagnostics/` | Crash reports and profiles, created on demand |
+| `backups/` | World conversion backups, created on demand |
+| `runtime/` | Server lock |
+
+[Server settings template](resources/server.toml) ? [Resource pack settings template](resources/resource-packs.toml)
 
 For a private Bifrost backend, set `network.proxy-only = true`, keep Xbox authentication enabled, and list
 Bifrost's public signing keys in `network.trusted-proxy-keys`. Select NetherNet as the sole game transport.
 Quark requires a trusted connection and signed forwarding in this mode. Keep Quark's TCP signaling and UDP
 ICE ports reachable only from the proxy. Standalone servers can keep the default `proxy-only = false`.
-
-Quark upgrades older `server.toml` files at startup. It adds missing defaults during the upgrade and preserves custom values and comments where the TOML can be edited in place. Startup reports invalid known values or unsupported config versions. Run `--migration-dry-run` to preview upgrades. The legacy filesystem migration has a separate opt-in. [Migration guide](docs/MIGRATING-FROM-POCKETMINE-5.md#configuration-migration)
 
 `memory.garbage-collection.php-automatic` defaults to `true` and controls PHP's automatic cycle collector on the main thread and Quark's async workers. Reference counting remains active with either value. Quark's adaptive collection (`threshold`) and periodic main-thread collection (`period`) each use `0` to disable their own trigger. Explicit collection, including `/gc` and low-memory cleanup, remains available. Disabling automatic cycle collection can increase memory use. Test the change under a realistic workload.
 

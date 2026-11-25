@@ -27,7 +27,6 @@ declare(strict_types=1);
  */
 namespace quark\wizard;
 
-use quark\ConfigurationMigration;
 use quark\FilesystemPaths;
 use quark\lang\KnownTranslationFactory;
 use quark\lang\Language;
@@ -36,6 +35,7 @@ use quark\lang\Translatable;
 use quark\permission\AccessStorage;
 use quark\player\GameMode;
 use quark\Server;
+use quark\ServerConfigGroup;
 use quark\utils\Config;
 use quark\utils\Internet;
 use quark\utils\InternetException;
@@ -96,7 +96,7 @@ class SetupWizard{
 
 		//This has to happen here to prevent user avoiding agreeing to license
 		if(!is_file($this->paths->serverToml())){
-			ConfigurationMigration::createServer($this->paths->serverToml());
+			ServerConfigGroup::createDefault($this->paths->serverToml());
 		}
 		$config = new Config($this->paths->serverToml(), Config::TOML);
 		$config->setNested("server.language", $lang);

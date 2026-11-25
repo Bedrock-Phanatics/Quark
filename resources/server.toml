@@ -66,7 +66,7 @@ name = 'nethernet'
 
 [transport.nethernet]
 # Persist this identity file across restarts. Relative paths start at the data directory.
-key-file = 'nethernet-identity.der'
+key-file = 'data/nethernet-identity.der'
 # Local-network discovery uses UDP 7551; broadcasts do not cross most container networks.
 lan-discovery = true
 # Share one ICE UDP socket. Vanilla client compatibility is still unverified.
@@ -232,9 +232,11 @@ preferred-channel = 'stable'
 host = ''
 warn-console = true
 
-[migration]
-# Opt in to moving legacy data; --migrate-legacy also enables it.
-auto-on-startup = false
+[plugins]
+# Plugin loading rules. blacklist loads all plugins except those listed.
+# whitelist loads only the listed plugins.
+mode = 'blacklist'
+names = []
 
 
 # Optional world overrides keyed by folder name. Difficulty: peaceful, easy, normal, or hard.

@@ -6,18 +6,40 @@ namespace quark\permission;
 
 use PDO;
 use quark\utils\Utils;
+use function bin2hex;
 use function file_exists;
 use function is_array;
 use function is_file;
 use function is_link;
 use function is_string;
+use function random_bytes;
+use function rename;
 use function strtolower;
+use function unlink;
 
 final class AccessStorage{
 	public const VERSION = 1;
 
 	private ?PDO $db;
 	private bool $wal = false;
+
+	/** @internal The server must hold its installation lock. */
+	public static function open(string $path) : self{
+		if(!file_exists($path) && !is_link($path)){
+			$temporary = $path . "." . bin2hex(random_bytes(8)) . ".tmp";
+			try{
+				$storage = new self($temporary, true, false);
+				$storage->close();
+				if(!@rename($temporary, $path)){
+					throw new \RuntimeException("Cannot publish access database: $path");
+				}
+			}catch(\Throwable $e){
+				@unlink($temporary);
+				throw $e;
+			}
+		}
+		return new self($path);
+	}
 
 	public function __construct(private string $path, bool $create = false, bool $useWal = true){
 		if(is_link($path) || !$create && !is_file($path) || $create && file_exists($path)){

@@ -50,7 +50,7 @@ final class MemoryManagementTest extends TestCase{
 				"garbage-collection" => ["threshold" => 0, "period" => 0, "php-automatic" => gc_enabled()],
 			]);
 			$server = self::createStub(Server::class);
-			$server->method("getConfigGroup")->willReturn(new ServerConfigGroup($config, $config));
+			$server->method("getConfigGroup")->willReturn(new ServerConfigGroup($config));
 			$server->method("getLogger")->willReturn(self::createStub(AttachableThreadSafeLogger::class));
 			PulseZones::init();
 			$manager = $this->getMockBuilder(MemoryManager::class)->setConstructorArgs([$server])->onlyMethods(["trigger"])->getMock();

@@ -81,7 +81,7 @@ final class ViewDistanceTest extends TestCase{
 	private function listen(\Closure $handler) : void{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method("isEnabled")->willReturn(true);
-		(new PluginManager($this->createMock(Server::class), null))->registerEvent(PlayerViewDistanceChangeEvent::class, $handler, EventPriority::NORMAL, $plugin);
+		(new PluginManager($this->createMock(Server::class)))->registerEvent(PlayerViewDistanceChangeEvent::class, $handler, EventPriority::NORMAL, $plugin);
 	}
 
 	protected function tearDown() : void{
@@ -96,11 +96,12 @@ final class ViewDistanceTest extends TestCase{
 		$path = tempnam(sys_get_temp_dir(), "quark-vd-");
 		self::assertNotFalse($path);
 		$this->files[] = $path;
-		$config = new Config($path, Config::PROPERTIES);
+		$config = new Config($path, Config::TOML);
+		$group = new ServerConfigGroup($config);
 		foreach(Utils::stringifyKeys($values) as $key => $value){
 			$config->set($key, $value);
 		}
-		return new ServerConfigGroup($config, $config);
+		return $group;
 	}
 
 	private function world(int $limit) : World{

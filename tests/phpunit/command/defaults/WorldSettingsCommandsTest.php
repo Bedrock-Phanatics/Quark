@@ -45,9 +45,9 @@ final class WorldSettingsCommandsTest extends DefaultCommandTestCase{
 
 	protected function setUp() : void{
 		parent::setUp();
-		$this->path = sys_get_temp_dir() . "/quark-settings-" . bin2hex(random_bytes(6)) . ".properties";
-		$file = new Config($this->path, Config::PROPERTIES);
-		$this->config = new ServerConfigGroup($file, $file);
+		$this->path = sys_get_temp_dir() . "/quark-settings-" . bin2hex(random_bytes(6)) . ".toml";
+		$file = new Config($this->path, Config::TOML);
+		$this->config = new ServerConfigGroup($file);
 		$this->server->method("getConfigGroup")->willReturn($this->config);
 		$this->server->method("isHardcore")->willReturnCallback(fn() : bool => $this->hardcore);
 
@@ -102,7 +102,7 @@ final class WorldSettingsCommandsTest extends DefaultCommandTestCase{
 		self::assertSame(["Usage: /difficulty <difficulty>"], $this->dispatch("difficulty", $console));
 		self::assertStringContainsString("\"impossible\" is not valid", $this->dispatch("difficulty impossible", $console)[0]);
 		self::assertSame([], $this->worldDifficulties);
-		self::assertSame(-1, $this->config->getConfigInt(ServerProperties::DIFFICULTY, -1));
+		self::assertSame(2, $this->config->getConfigInt(ServerProperties::DIFFICULTY));
 	}
 
 	public function testDefaultGamemodeAcceptsEveryAlias() : void{
@@ -130,7 +130,7 @@ final class WorldSettingsCommandsTest extends DefaultCommandTestCase{
 		}
 		self::assertSame(["Usage: /defaultgamemode <gamemode>"], $this->dispatch("defaultgamemode", $console));
 		self::assertStringContainsString("\"godmode\" is not valid", $this->dispatch("defaultgamemode godmode", $console)[0]);
-		self::assertSame("", $this->config->getConfigString(ServerProperties::GAME_MODE));
+		self::assertSame("SURVIVAL", $this->config->getConfigString(ServerProperties::GAME_MODE));
 	}
 
 	public function testCommandsRequirePermission() : void{
@@ -138,7 +138,7 @@ final class WorldSettingsCommandsTest extends DefaultCommandTestCase{
 		self::assertStringContainsString("permission", $this->dispatch("difficulty hard", $denied)[0]);
 		self::assertStringContainsString("permission", $this->dispatch("defaultgamemode creative", $denied)[0]);
 		self::assertSame([], $this->worldDifficulties);
-		self::assertSame("", $this->config->getConfigString(ServerProperties::GAME_MODE));
+		self::assertSame("SURVIVAL", $this->config->getConfigString(ServerProperties::GAME_MODE));
 
 		$admin = $this->player("Admin", [DefaultPermissionNames::COMMAND_DIFFICULTY]);
 		self::assertSame(["Set game difficulty to 3"], $this->dispatch("difficulty hard", $admin));

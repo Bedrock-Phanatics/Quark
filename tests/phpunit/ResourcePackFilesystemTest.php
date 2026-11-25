@@ -14,6 +14,7 @@ use function file_put_contents;
 use function fopen;
 use function ftruncate;
 use function hash_file;
+use function iterator_to_array;
 use function json_encode;
 use function memory_get_peak_usage;
 use function memory_get_usage;
@@ -81,9 +82,9 @@ final class ResourcePackFilesystemTest extends TestCase{
 			"modules" => [["type" => "resources", "uuid" => "799255a2-4ff9-4a37-ad9c-8ed09cfa5fff", "version" => [1, 0, 0]]]
 		], JSON_THROW_ON_ERROR)));
 		self::assertTrue($archive->close());
-		file_put_contents($packs . "/resource_packs.toml", "force_resources = true\nresource_stack = [\"Example.mcpack\"]\n");
+		file_put_contents($this->path . "/resource-packs.toml", "force_resources = true\nresource_stack = [\"Example.mcpack\"]\n");
 		file_put_contents($packs . "/Example.mcpack.key", "12345678901234567890123456789012");
-		$manager = new ResourcePackManager($packs, $this->createMock(\Logger::class));
+		$manager = new ResourcePackManager($packs, $this->path . "/resource-packs.toml", $this->createMock(\Logger::class));
 		self::assertSame($packs . DIRECTORY_SEPARATOR, $manager->getPath());
 		self::assertTrue($manager->resourcePacksRequired());
 		self::assertSame([$uuid], $manager->getPackIdList());
@@ -92,21 +93,13 @@ final class ResourcePackFilesystemTest extends TestCase{
 		self::assertSame(hash_file("sha256", $packs . "/Example.mcpack", true), $manager->getPackById($uuid)?->getSha256());
 	}
 
-	public function testCreatesDefaultTomlAndRefusesUnconvertedYaml() : void{
-		mkdir($this->path . "/resource-packs");
+	public function testCreatesDefaultTomlOutsideThePacksDirectory() : void{
 		$packs = $this->path . "/resource-packs";
-		$manager = new ResourcePackManager($packs, $this->createMock(\Logger::class));
+		$config = $this->path . "/resource-packs.toml";
+		$manager = new ResourcePackManager($packs, $config, $this->createMock(\Logger::class));
 		self::assertFalse($manager->resourcePacksRequired());
-		self::assertSame([], CoreConfig::load($packs . "/resource_packs.toml")["resource_stack"]);
-
-		unlink($packs . "/resource_packs.toml");
-		file_put_contents($packs . "/resource_packs.yml", "force_resources: true\n");
-		$this->expectExceptionMessage("must be converted");
-		try{
-			new ResourcePackManager($packs, $this->createMock(\Logger::class));
-		}finally{
-			self::assertFileDoesNotExist($packs . "/resource_packs.toml");
-		}
+		self::assertSame([], CoreConfig::load($config)["resource_stack"]);
+		self::assertSame([], iterator_to_array(new \FilesystemIterator($packs)));
 	}
 
 	public function testLargePackUsesBoundedMemoryAndStreamsChunks() : void{
@@ -130,10 +123,10 @@ final class ResourcePackFilesystemTest extends TestCase{
 	public function testRejectsTraversalAndInvalidManifest() : void{
 		mkdir($this->path . "/resource-packs");
 		$packs = $this->path . "/resource-packs";
-		file_put_contents($packs . "/resource_packs.toml", "resource_stack = [\"../outside.zip\"]\n");
+		file_put_contents($this->path . "/resource-packs.toml", "resource_stack = [\"../outside.zip\"]\n");
 		$logger = $this->createMock(\Logger::class);
 		$logger->expects(self::once())->method("critical")->with(self::stringContains("must be a filename"));
-		$manager = new ResourcePackManager($packs, $logger);
+		$manager = new ResourcePackManager($packs, $this->path . "/resource-packs.toml", $logger);
 		self::assertSame([], $manager->getPackIdList());
 		$archive = new \ZipArchive();
 		self::assertTrue($archive->open($packs . "/bad.zip", \ZipArchive::CREATE));

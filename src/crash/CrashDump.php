@@ -166,9 +166,6 @@ class CrashDump{
 			if(($serverToml = @file_get_contents($this->server->getFilesystemPaths()->serverToml())) !== false){
 				$this->data->serverToml = preg_replace("#^(rcon\\.password\\s*=).*$#m", "$1 '******'", $serverToml) ?? throw new AssumptionFailedError("Pattern is valid");
 			}
-			if(($pluginsToml = @file_get_contents($this->server->getFilesystemPaths()->pluginsToml())) !== false){
-				$this->data->pluginsToml = $pluginsToml;
-			}
 		}
 		$extensions = [];
 		foreach(get_loaded_extensions() as $ext){

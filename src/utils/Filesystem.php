@@ -87,6 +87,17 @@ final class Filesystem{
 		//NOOP
 	}
 
+	public static function ensureDirectory(string $path) : void{
+		for($part = $path; $part !== dirname($part); $part = dirname($part)){
+			if(is_link($part)){
+				throw new \RuntimeException("Directory path contains a symbolic link: $part");
+			}
+		}
+		if(!is_dir($path) && !@mkdir($path, 0777, true) && !is_dir($path)){
+			throw new \RuntimeException("Cannot create directory: $path");
+		}
+	}
+
 	public static function retainNewestFiles(string $directory, string $prefix, string $suffix, int $limit, ?string $keep = null) : void{
 		if($limit === 0){
 			return;

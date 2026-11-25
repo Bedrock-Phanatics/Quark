@@ -83,7 +83,7 @@ final class PulseWorkerTest extends TestCase{
 		$properties = self::createMock(Config::class);
 		$properties->method("hasChanged")->willReturn(true);
 		$properties->expects(self::once())->method("save")->willReturnCallback(static function() use (&$events) : void{ $events[] = "properties"; });
-		$config = new ServerConfigGroup(self::createStub(Config::class), $properties);
+		$config = new ServerConfigGroup($properties);
 		$exportPool = self::createMock(AsyncPool::class);
 		$guards = [];
 		$exportPool->expects(self::once())->method("shutdown")->willReturnCallback(static function() use (&$events, &$guards) : void{

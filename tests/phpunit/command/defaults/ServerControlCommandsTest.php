@@ -138,7 +138,7 @@ final class ServerControlCommandsTest extends DefaultCommandTestCase{
 		self::assertSame([], $this->dispatch("dumpmemory /tmp/dump", $console));
 		self::assertSame([], $this->dispatch("dumpmemory", $console));
 		self::assertSame("/tmp/dump", $this->dumps[0]);
-		self::assertTrue(str_starts_with($this->dumps[1], "/srv/quark/") && str_contains($this->dumps[1], "memory_dumps"), $this->dumps[1]);
+		self::assertTrue(str_starts_with($this->dumps[1], "/srv/quark/") && str_contains($this->dumps[1], "memory-dumps"), $this->dumps[1]);
 	}
 
 	public function testDumpMemoryRejectsExtraArguments() : void{

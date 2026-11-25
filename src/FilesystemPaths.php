@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace quark;
 
+use quark\utils\Filesystem;
 use Symfony\Component\Filesystem\Path;
 
 /**
@@ -19,11 +20,9 @@ final class FilesystemPaths{
 		$diagnostics = Path::join($root, "diagnostics");
 		$this->paths = [
 			"config" => $config,
+			"pluginConfig" => Path::join($config, "plugins"),
+			"resourcePacksToml" => Path::join($config, "resource-packs.toml"),
 			"serverToml" => Path::join($config, "server.toml"),
-			"pluginsToml" => Path::join($config, "plugins.toml"),
-			"serverProperties" => Path::join($config, "server.properties"),
-			"quarkYml" => Path::join($config, "quark.yml"),
-			"pluginList" => Path::join($config, "plugin_list.yml"),
 			"players" => Path::join($data, "players"),
 			"worlds" => Path::join($data, "worlds"),
 			"pluginData" => Path::join($data, "plugins"),
@@ -34,21 +33,23 @@ final class FilesystemPaths{
 			"profiles" => Path::join($diagnostics, "profiles"),
 			"backups" => Path::join($root, "backups"),
 			"runtime" => Path::join($root, "runtime"),
-			"runtimeCache" => Path::join($root, "runtime", "cache"),
-			"runtimeTmp" => Path::join($root, "runtime", "tmp"),
-			"serverLock" => Path::join($root, "runtime", "server.lock"),
-			"layoutFile" => Path::join($root, ".quark-layout.json"),
-			"migrationJournal" => Path::join($root, ".quark-migration.json"),
-			"migrationLock" => Path::join($root, ".quark-migration.lock")
+			"serverLock" => Path::join($root, "runtime", "server.lock")
 		];
 	}
 
+	public function initialize(bool $fileLogging) : void{
+		foreach([$this->config(), $this->plugins, $this->players(), $this->worlds()] as $directory){
+			Filesystem::ensureDirectory($directory);
+		}
+		if($fileLogging){
+			Filesystem::ensureDirectory($this->logs());
+		}
+	}
+
+	public function pluginConfig() : string{ return $this->paths["pluginConfig"]; }
+	public function resourcePacksToml() : string{ return $this->paths["resourcePacksToml"]; }
 	public function config() : string{ return $this->paths["config"]; }
 	public function serverToml() : string{ return $this->paths["serverToml"]; }
-	public function pluginsToml() : string{ return $this->paths["pluginsToml"]; }
-	public function serverProperties() : string{ return $this->paths["serverProperties"]; }
-	public function quarkYml() : string{ return $this->paths["quarkYml"]; }
-	public function pluginList() : string{ return $this->paths["pluginList"]; }
 	public function players() : string{ return $this->paths["players"]; }
 	public function worlds() : string{ return $this->paths["worlds"]; }
 	public function pluginData() : string{ return $this->paths["pluginData"]; }
@@ -59,10 +60,5 @@ final class FilesystemPaths{
 	public function profiles() : string{ return $this->paths["profiles"]; }
 	public function backups() : string{ return $this->paths["backups"]; }
 	public function runtime() : string{ return $this->paths["runtime"]; }
-	public function runtimeCache() : string{ return $this->paths["runtimeCache"]; }
-	public function runtimeTmp() : string{ return $this->paths["runtimeTmp"]; }
 	public function serverLock() : string{ return $this->paths["serverLock"]; }
-	public function layoutFile() : string{ return $this->paths["layoutFile"]; }
-	public function migrationJournal() : string{ return $this->paths["migrationJournal"]; }
-	public function migrationLock() : string{ return $this->paths["migrationLock"]; }
 }

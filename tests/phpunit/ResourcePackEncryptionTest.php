@@ -391,7 +391,7 @@ final class ResourcePackEncryptionTest extends TestCase{
 	}
 
 	private function manager() : ResourcePackManager{
-		return new ResourcePackManager($this->packs, $this->createMock(\Logger::class));
+		return new ResourcePackManager($this->packs, $this->configPath(), $this->createMock(\Logger::class));
 	}
 
 	/**
@@ -409,7 +409,7 @@ final class ResourcePackEncryptionTest extends TestCase{
 	}
 
 	private function configPath() : string{
-		return Path::join($this->packs, "resource_packs.toml");
+		return Path::join($this->packs, "resource-packs.toml");
 	}
 
 	private function cacheDirectory() : string{

@@ -43,6 +43,6 @@ class DumpMemoryCommand extends VanillaCommand{
 	}
 
 	protected function run(CommandSender $sender, CommandArgs $args) : void{
-		$sender->getServer()->getMemoryManager()->dumpServerMemory($args->string("path", Path::join($sender->getServer()->getFilesystemPaths()->profiles(), "memory_dumps", date("D_M_j-H.i.s-T_Y"))), 48, 80);
+		$sender->getServer()->getMemoryManager()->dumpServerMemory($args->string("path", Path::join($sender->getServer()->getFilesystemPaths()->profiles(), "memory-dumps", date("D_M_j-H.i.s-T_Y"))), 48, 80);
 	}
 }

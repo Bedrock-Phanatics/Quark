@@ -66,8 +66,6 @@ final class CrashDumpData implements \JsonSerializable{
 
 	public string $serverToml = "";
 
-	public string $pluginsToml = "";
-
 	/**
 	 * @var string[]
 	 * @phpstan-var array<string, string>
@@ -85,9 +83,8 @@ final class CrashDumpData implements \JsonSerializable{
 	 */
 	public function jsonSerialize() : array{
 		$result = (array) $this;
-		unset($result["serverToml"], $result["pluginsToml"]);
+		unset($result["serverToml"]);
 		$result["server.toml"] = $this->serverToml;
-		$result["plugins.toml"] = $this->pluginsToml;
 		return $result;
 	}
 }

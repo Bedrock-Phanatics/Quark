@@ -54,7 +54,7 @@ final class EventTest extends TestCase{
 		$this->mockPlugin = self::createStub(Plugin::class);
 		$this->mockPlugin->method('isEnabled')->willReturn(true);
 
-		$this->pluginManager = new PluginManager($mockServer, null);
+		$this->pluginManager = new PluginManager($mockServer);
 	}
 
 	public static function tearDownAfterClass() : void{

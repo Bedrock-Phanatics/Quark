@@ -136,7 +136,7 @@ final class HopperTest extends TestCase{
 	private function listen(string $event, \Closure $handler) : void{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method('isEnabled')->willReturn(true);
-		(new PluginManager($this->createMock(Server::class), null))->registerEvent($event, $handler, EventPriority::NORMAL, $plugin);
+		(new PluginManager($this->createMock(Server::class)))->registerEvent($event, $handler, EventPriority::NORMAL, $plugin);
 	}
 
 	public function testPushesOneItemPerCooldownIntoChest() : void{

@@ -23,12 +23,12 @@ declare(strict_types=1);
 
 namespace quark;
 
+use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function arsort;
 use function count;
 use function fclose;
-use function file_exists;
 use function file_put_contents;
 use function fopen;
 use function fwrite;
@@ -46,7 +46,6 @@ use function is_object;
 use function is_resource;
 use function is_string;
 use function json_encode;
-use function mkdir;
 use function print_r;
 use function spl_object_hash;
 use function strlen;
@@ -72,9 +71,7 @@ final class MemoryDump{
 		gc_disable();
 
 		try{
-			if(!file_exists($outputFolder)){
-				mkdir($outputFolder, 0777, true);
-			}
+			Filesystem::ensureDirectory($outputFolder);
 
 			$obData = Utils::assumeNotFalse(fopen(Path::join($outputFolder, "objects.js"), "wb+"));
 			try{

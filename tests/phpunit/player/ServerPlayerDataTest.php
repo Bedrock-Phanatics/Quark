@@ -77,7 +77,7 @@ final class ServerPlayerDataTest extends TestCase{
 			public function logException(\Throwable $e, $trace = null){}
 		});
 		$config = new Config(Path::join($this->path, "config.json"), Config::JSON);
-		$reflection->getProperty("configGroup")->setValue($this->server, new ServerConfigGroup($config, $config));
+		$reflection->getProperty("configGroup")->setValue($this->server, new ServerConfigGroup($config));
 		$reflection->getProperty("language")->setValue($this->server, self::createStub(Language::class));
 
 		$networkReflection = new \ReflectionClass(Network::class);

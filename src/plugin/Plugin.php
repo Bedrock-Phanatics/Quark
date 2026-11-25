@@ -34,7 +34,7 @@ use quark\Server;
  */
 interface Plugin{
 
-	public function __construct(PluginLoader $loader, Server $server, PluginDescription $description, string $dataFolder, string $file);
+	public function __construct(PluginLoader $loader, Server $server, PluginDescription $description, string $dataFolder, string $configFolder, string $file);
 
 	public function isEnabled() : bool;
 
@@ -48,10 +48,15 @@ interface Plugin{
 	public function onEnableStateChange(bool $enabled) : void;
 
 	/**
-	 * Gets the plugin's data folder to save files and configuration.
+	 * Gets the plugin's data folder for persistent data.
 	 * This directory name has a trailing slash.
 	 */
 	public function getDataFolder() : string;
+
+	/**
+	 * Creates and returns the plugin's configuration folder with a trailing slash.
+	 */
+	public function getConfigFolder() : string;
 
 	public function getDescription() : PluginDescription;
 

@@ -15,6 +15,9 @@ class DataTest extends \quark\plugin\PluginBase {
 			$this->getLogger()->critical("create-data is not successful");
 			exit(1);
 		}
+		if($this->getConfig()->get("ready") !== true){
+			throw new \RuntimeException("Failed to load plugin config");
+		}
 		$this->getLogger()->notice("Test passed: create-data is successful");
 	}
 }

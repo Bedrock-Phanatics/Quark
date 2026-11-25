@@ -24,5 +24,9 @@ run_server
 run_server -v "$TEST_ROOT/data:/data" -v "$PWD/docker/testsuite/create-data:/plugins:ro"
 grep -F 'Test passed: create-data was written' "$TEST_ROOT/server.log"
 test "$(cat "$TEST_ROOT/data/data/plugins/data-test/create-data")" = successful
+test -f "$TEST_ROOT/data/config/plugins/data-test/config.toml"
+test -f "$TEST_ROOT/data/config/server.toml"
+test -f "$TEST_ROOT/data/config/resource-packs.toml"
+test ! -e "$TEST_ROOT/data/data/plugins/data-test/config.toml"
 run_server -v "$TEST_ROOT/data:/data" -v "$PWD/docker/testsuite/verify-data:/plugins:ro"
 grep -F 'Test passed: create-data is successful' "$TEST_ROOT/server.log"

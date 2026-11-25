@@ -39,6 +39,7 @@ use quark\permission\PermissionParser;
 use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\utils\AssumptionFailedError;
+use quark\utils\Filesystem;
 use quark\utils\Utils;
 use Symfony\Component\Filesystem\Path;
 use function array_diff_key;
@@ -48,7 +49,6 @@ use function array_merge;
 use function class_exists;
 use function count;
 use function dirname;
-use function file_exists;
 use function get_class;
 use function implode;
 use function is_a;
@@ -59,7 +59,6 @@ use function is_link;
 use function is_string;
 use function is_subclass_of;
 use function iterator_to_array;
-use function mkdir;
 use function realpath;
 use function sort;
 use function sprintf;
@@ -98,20 +97,8 @@ class PluginManager{
 
 	public function __construct(
 		private Server $server,
-		private ?string $pluginDataDirectory,
 		private ?PluginGraylist $graylist = null
-	){
-		if($this->pluginDataDirectory !== null){
-			for($part = $this->pluginDataDirectory; $part !== dirname($part); $part = dirname($part)){
-				if(is_link($part)){
-					throw new \RuntimeException("Plugin data path contains a symbolic link: $part");
-				}
-			}
-			if(!is_dir($this->pluginDataDirectory) && !@mkdir($this->pluginDataDirectory, 0777, true) && !is_dir($this->pluginDataDirectory)){
-				throw new \RuntimeException("Cannot create plugin data directory: $this->pluginDataDirectory");
-			}
-		}
-	}
+	){}
 
 	public function getPlugin(string $name) : ?Plugin{
 		if(isset($this->plugins[$name])){
@@ -133,26 +120,13 @@ class PluginManager{
 		return $this->plugins;
 	}
 
-	private function getDataDirectory(string $pluginPath, string $pluginName) : string{
-		return Path::join($this->pluginDataDirectory ?? dirname($pluginPath), $pluginName);
-	}
-
 	private function internalLoadPlugin(string $path, PluginLoader $loader, PluginDescription $description) : ?Plugin{
 		$language = $this->server->getLanguage();
 		$this->server->getLogger()->info($this->server->getLanguage()->translate(KnownTranslationFactory::quark_plugin_load($description->getFullName())));
 
-		$dataFolder = $this->getDataDirectory($path, $description->getName());
-		if(is_link($dataFolder) || file_exists($dataFolder) && !is_dir($dataFolder)){
-			$this->server->getLogger()->critical($language->translate(KnownTranslationFactory::quark_plugin_loadError(
-				$description->getName(),
-				KnownTranslationFactory::quark_plugin_badDataFolder($dataFolder)
-			)));
-			return null;
-		}
-		if(!is_dir($dataFolder) && !@mkdir($dataFolder, 0777, true) && !is_dir($dataFolder)){
-			$this->server->getLogger()->critical("Cannot create plugin data directory: $dataFolder");
-			return null;
-		}
+		$paths = $this->server->getFilesystemPaths();
+		$dataFolder = Path::join($paths->pluginData(), $description->getName());
+		$configFolder = Path::join($paths->pluginConfig(), $description->getName());
 
 		$prefixed = $loader->getAccessProtocol() . $path;
 		$loader->loadPlugin($prefixed, $description);
@@ -193,6 +167,15 @@ class PluginManager{
 				}
 			}
 		}
+		try{
+			Filesystem::ensureDirectory($dataFolder);
+		}catch(\RuntimeException $e){
+			$this->server->getLogger()->critical($language->translate(KnownTranslationFactory::quark_plugin_loadError(
+				$description->getName(),
+				$e->getMessage()
+			)));
+			return null;
+		}
 		$opRoot = $permManager->getPermission(DefaultPermissions::ROOT_OPERATOR);
 		$everyoneRoot = $permManager->getPermission(DefaultPermissions::ROOT_USER);
 		foreach(Utils::stringifyKeys($description->getPermissions()) as $default => $perms){
@@ -225,7 +208,7 @@ class PluginManager{
 		 * @var Plugin $plugin
 		 * @see Plugin::__construct()
 		 */
-		$plugin = new $mainClass($loader, $this->server, $description, $dataFolder, $prefixed);
+		$plugin = new $mainClass($loader, $this->server, $description, $dataFolder, $configFolder, $prefixed);
 		$this->plugins[$plugin->getDescription()->getName()] = $plugin;
 
 		return $plugin;

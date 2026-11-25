@@ -162,7 +162,6 @@ use function base64_decode;
 use function bin2hex;
 use function chr;
 use function cli_set_process_title;
-use function copy;
 use function count;
 use function date;
 use function explode;
@@ -179,7 +178,6 @@ use function implode;
 use function in_array;
 use function ini_set;
 use function is_array;
-use function is_dir;
 use function is_int;
 use function is_link;
 use function is_numeric;
@@ -189,11 +187,9 @@ use function ltrim;
 use function max;
 use function microtime;
 use function min;
-use function mkdir;
 use function ob_end_flush;
 use function preg_replace;
 use function random_bytes;
-use function realpath;
 use function register_shutdown_function;
 use function rename;
 use function round;
@@ -1162,8 +1158,7 @@ class Server{
 	public function __construct(
 		private ThreadSafeClassLoader $autoloader,
 		private AttachableThreadSafeLogger $logger,
-		string $dataPath,
-		string $pluginPath,
+		FilesystemPaths $paths,
 		?ServerConfigGroup $configGroup = null
 	){
 		if(self::$instance !== null){
@@ -1191,9 +1186,9 @@ class Server{
 		});
 
 		try{
-			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
-			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
-			$this->paths = new FilesystemPaths($this->dataPath, $this->pluginPath);
+			$this->dataPath = $paths->root;
+			$this->pluginPath = $paths->plugins . DIRECTORY_SEPARATOR;
+			$this->paths = $paths;
 
 			$this->logger->info("Loading server configuration");
 			$this->configGroup = $configGroup ?? ServerConfigGroup::load($this->paths->serverToml());
@@ -1300,7 +1295,7 @@ class Server{
 
 			$this->doTitleTick = $this->configGroup->getPropertyBool(Yml::CONSOLE_TITLE_TICK, true) && Terminal::hasFormattingCodes();
 
-			$this->accessStorage = new AccessStorage($this->paths->accessDatabase());
+			$this->accessStorage = AccessStorage::open($this->paths->accessDatabase());
 			$this->operators = new Config($this->paths->accessDatabase(), Config::ENUM, [], $this->accessStorage, "op");
 			$this->whitelist = new Config($this->paths->accessDatabase(), Config::ENUM, [], $this->accessStorage, "allow");
 			$this->banByName = new BanList($this->accessStorage, "player");
@@ -1398,24 +1393,12 @@ class Server{
 
 			$this->craftingManager = CraftingManagerFromDataHelper::make(BedrockDataFiles::RECIPES);
 
-			$this->resourceManager = new ResourcePackManager($this->paths->resourcePacks(), $this->logger);
+			$this->resourceManager = new ResourcePackManager($this->paths->resourcePacks(), $this->paths->resourcePacksToml(), $this->logger);
 
-			$pluginGraylist = null;
-			$graylistFile = $this->paths->pluginsToml();
-			if(!file_exists($graylistFile)){
-				if(!copy(Path::join(\quark\RESOURCE_PATH, 'plugins.toml'), $graylistFile)){
-					throw new \RuntimeException("Cannot create $graylistFile");
-				}
-			}
-			try{
-				$array = CoreConfig::load($graylistFile);
-				$pluginGraylist = PluginGraylist::fromArray($array);
-		}catch(\Throwable $e){
-				$this->logger->emergency("Failed to load $graylistFile: " . $e->getMessage());
-				$this->forceShutdownExit();
-				return;
-			}
-			$this->pluginManager = new PluginManager($this, $this->paths->pluginData(), $pluginGraylist);
+			$this->pluginManager = new PluginManager($this, PluginGraylist::fromArray([
+				"mode" => $this->configGroup->getProperty("plugins.mode"),
+				"names" => $this->configGroup->getProperty("plugins.names")
+			]));
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
@@ -2110,7 +2093,9 @@ class Server{
 
 	private function writeCrashDumpFile(CrashDump $dump) : string{
 		$crashFolder = $this->paths->crashes();
-		if(is_link($crashFolder) || !is_dir($crashFolder) && !@mkdir($crashFolder, 0777, true)){
+		try{
+			Filesystem::ensureDirectory($crashFolder);
+		}catch(\RuntimeException){
 			throw new \RuntimeException("Unable to create crash report directory: $crashFolder");
 		}
 		$crashDumpPath = Path::join($crashFolder, "crash_" . date("Y-m-d_H.i.s_T", (int) $dump->getData()->time) . "_" . bin2hex(random_bytes(8)) . ".txt");

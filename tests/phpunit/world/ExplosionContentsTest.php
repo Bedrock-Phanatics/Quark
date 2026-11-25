@@ -82,7 +82,7 @@ final class ExplosionContentsTest extends TestCase{
 	public function testZeroYieldStillDropsNothing() : void{
 		$plugin = self::createStub(Plugin::class);
 		$plugin->method('isEnabled')->willReturn(true);
-		(new PluginManager($this->createMock(Server::class), null))->registerEvent(BlockExplodeEvent::class, static function(BlockExplodeEvent $event) : void{
+		(new PluginManager($this->createMock(Server::class)))->registerEvent(BlockExplodeEvent::class, static function(BlockExplodeEvent $event) : void{
 			$event->setYield(0.0);
 		}, EventPriority::NORMAL, $plugin);
 		$h = new RedstoneHarness(1);

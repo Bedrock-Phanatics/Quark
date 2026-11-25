@@ -51,9 +51,9 @@ final class WhitelistCommandTest extends DefaultCommandTestCase{
 
 	protected function setUp() : void{
 		parent::setUp();
-		$this->path = sys_get_temp_dir() . "/quark-whitelist-" . bin2hex(random_bytes(6)) . ".properties";
-		$file = new Config($this->path, Config::PROPERTIES);
-		$this->config = new ServerConfigGroup($file, $file);
+		$this->path = sys_get_temp_dir() . "/quark-whitelist-" . bin2hex(random_bytes(6)) . ".toml";
+		$file = new Config($this->path, Config::TOML);
+		$this->config = new ServerConfigGroup($file);
 
 		$this->server->method("getConfigGroup")->willReturn($this->config);
 		$this->server->method("hasWhitelist")->willReturnCallback(fn() : bool => $this->config->getConfigBool(ServerProperties::WHITELIST));

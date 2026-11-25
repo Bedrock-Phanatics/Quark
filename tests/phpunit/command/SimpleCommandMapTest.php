@@ -305,7 +305,7 @@ final class SimpleCommandMapTest extends TestCase{
 	public function testPluginDisableUnregistersDeclarativeCommandsEvenWhenDisableThrows() : void{
 		$enabled = true;
 		$plugin = $this->plugin($enabled, new \RuntimeException("onDisable failed"));
-		$manager = new PluginManager($this->server, null);
+		$manager = new PluginManager($this->server);
 
 		$declarative = $this->owned($plugin, "owned");
 		$declarative->registerArgument(new IntegerArgument("n", optional: true));
@@ -338,7 +338,7 @@ final class SimpleCommandMapTest extends TestCase{
 	public function testThrowingDisableStillStopsTasksAndListeners() : void{
 		$enabled = true;
 		$plugin = $this->plugin($enabled, new \RuntimeException("onDisable failed"));
-		$manager = new PluginManager($this->server, null);
+		$manager = new PluginManager($this->server);
 		$scheduler = $plugin->getScheduler();
 		$scheduler->setEnabled(true);
 		$task = $scheduler->scheduleDelayedTask(new ClosureTask(function() : void{}), 100);
@@ -364,7 +364,7 @@ final class SimpleCommandMapTest extends TestCase{
 			"Broken" => $this->plugin($brokenEnabled, new \RuntimeException("onDisable failed"), name: "Broken"),
 			"Storage" => $this->plugin($storageEnabled, name: "Storage"),
 		];
-		$manager = new PluginManager($this->server, null);
+		$manager = new PluginManager($this->server);
 		new \ReflectionProperty(PluginManager::class, "enabledPlugins")->setValue($manager, $plugins);
 		$manager->disablePlugins();
 		self::assertFalse($brokenEnabled);
@@ -376,7 +376,7 @@ final class SimpleCommandMapTest extends TestCase{
 		$scheduler = self::createStub(TaskScheduler::class);
 		$scheduler->method("shutdown")->willThrowException(new \LogicException("scheduler failed"));
 		$plugin = $this->plugin($enabled, new \RuntimeException("onDisable failed"), $scheduler);
-		$manager = new PluginManager($this->server, null);
+		$manager = new PluginManager($this->server);
 		$command = $this->owned($plugin, "owned");
 		$this->map->register("owner", $command);
 
@@ -428,7 +428,7 @@ final class SimpleCommandMapTest extends TestCase{
 	public function testPluginCanDisableItselfWhileExecuting() : void{
 		$enabled = true;
 		$plugin = $this->plugin($enabled);
-		$manager = new PluginManager($this->server, null);
+		$manager = new PluginManager($this->server);
 		$command = $this->owned($plugin, "quit", function(CommandArgs $args) use ($manager, $plugin) : void{
 			$manager->disablePlugin($plugin);
 			$this->recordLegacy("quit", $args->label(), []);

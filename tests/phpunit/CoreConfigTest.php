@@ -17,7 +17,6 @@ use function file_put_contents;
 use function is_array;
 use function json_encode;
 use function ksort;
-use function mkdir;
 use function random_bytes;
 use function range;
 use function str_repeat;
@@ -157,46 +156,13 @@ final class CoreConfigTest extends TestCase{
 		}
 	}
 
-	public function testYamlConversionRejectsMultipleDocumentsAndRecursiveAliases() : void{
-		foreach(["value: 1\n---\nvalue: 2\n", "loop: &loop\n  child: *loop\n"] as $yaml){
-			try{
-				ConfigurationMigration::yamlToToml($yaml, "config.yml");
-				self::fail("Unsafe YAML was converted");
-			}catch(\RuntimeException $e){
-				self::assertStringContainsString("config.yml", $e->getMessage());
-			}
-		}
-	}
-
-	public function testYamlConversionPreservesAConfigCreatedDuringRendering() : void{
-		$directory = sys_get_temp_dir() . "/quark-config-" . bin2hex(random_bytes(6));
-		mkdir($directory);
-		$yaml = $directory . "/config.yml";
-		$toml = $directory . "/config.toml";
-		file_put_contents($yaml, "value: 1\n");
-		try{
-			$this->expectExceptionMessage("Configuration changed before replacement");
-			ConfigurationMigration::convertYamlFile($yaml, $toml, $directory . "/backups", static function(array $data) use ($toml) : string{
-				file_put_contents($toml, "value = 2\n");
-				return CoreConfig::encode($data);
-			});
-		}finally{
-			try{
-				self::assertSame("value: 1\n", Filesystem::fileGetContents($yaml));
-				self::assertSame("value = 2\n", Filesystem::fileGetContents($toml));
-			}finally{
-				Filesystem::recursiveUnlink($directory);
-			}
-		}
-	}
-
 	public function testServerConfigSaveKeepsComments() : void{
 		$path = sys_get_temp_dir() . "/quark-config-" . bin2hex(random_bytes(6)) . ".toml";
 		$template = Filesystem::fileGetContents(RESOURCE_PATH . "/server.toml");
 		file_put_contents($path, $template);
 		try{
 			$config = new Config($path, Config::TOML);
-			$group = new ServerConfigGroup($config, $config, true);
+			$group = new ServerConfigGroup($config);
 			$group->setConfigBool(ServerProperties::WHITELIST, true);
 			$group->save();
 			$saved = Filesystem::fileGetContents($path);
@@ -234,6 +200,8 @@ final class CoreConfigTest extends TestCase{
 
 	/** @return iterable<string, array{array<string, mixed>}> */
 	public static function invalidServerSettings() : iterable{
+		yield "plugins.mode" => [["plugins" => ["mode" => "allow"]]];
+		yield "plugins.names" => [["plugins" => ["names" => ["first" => "Example"]]]];
 		yield "config-version" => [["config-version" => CoreConfig::SERVER_VERSION + 1]];
 		yield "network.xbox-auth" => [["network" => ["xbox-auth" => "false"]]];
 		yield "server.max-players" => [["server" => ["max-players" => 0x100000000]]];
@@ -318,7 +286,7 @@ final class CoreConfigTest extends TestCase{
 
 	public function testPluginGraylistRejectsAPluginTable() : void{
 		$this->expectExceptionMessage("expected a list of plugin names");
-		PluginGraylist::fromArray(["mode" => "whitelist", "plugins" => ["first" => "Example"]]);
+		PluginGraylist::fromArray(["mode" => "whitelist", "names" => ["first" => "Example"]]);
 	}
 
 	public function testResourcePackPolicyRejectsAStringBoolean() : void{
@@ -351,7 +319,7 @@ final class CoreConfigTest extends TestCase{
 			["encryption" => ["key" => str_repeat("é", 16)]],
 			["encryption" => ["key" => $key, "key-file" => "secret.key"]],
 			["encryption" => ["key-file" => "../secret.key"]],
-			["encryption" => ["key-file" => "resource_packs.toml"]],
+			["encryption" => ["key-file" => ".encryption.key"]],
 			["encryption" => ["key-file" => ".quark-encryption"]],
 			["resource_stack" => ["pack.zip"], "encryption" => ["key-file" => "pack.zip"]],
 			["resource_stack" => ["pack.zip"], "encryption" => ["packs" => ["pack.zip", "pack.zip"]]],
