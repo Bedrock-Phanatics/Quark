@@ -123,6 +123,7 @@ use quark\lang\Translatable;
 use quark\math\collision\CollisionDataException;
 use quark\math\Vector3;
 use quark\network\mcpe\NetworkSession;
+use quark\npcdialogue\NpcDialogueSession;
 use quark\permission\DefaultPermissionNames;
 use quark\permission\DefaultPermissions;
 use quark\permission\PermissibleBase;
@@ -2572,6 +2573,10 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	public function closeAllForms() : void{
 		$this->forms = [];
 		$this->getNetworkSession()->onCloseAllForms();
+	}
+
+	public function getNpcDialogue() : ?NpcDialogueSession{
+		return $this->networkSession?->getNpcDialogueControllerIfCreated()?->getActive();
 	}
 
 	/**

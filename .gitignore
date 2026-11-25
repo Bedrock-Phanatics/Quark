@@ -32,6 +32,7 @@ tests/phpunit/network/mcpe/*
 !tests/phpunit/network/mcpe/command/
 !tests/phpunit/pulse/
 !tests/phpunit/form/
+!tests/phpunit/npcdialogue/
 !tests/phpunit/scoreboard/
 !tests/phpunit/item/
 tests/phpunit/item/*

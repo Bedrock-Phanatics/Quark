@@ -102,6 +102,7 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 		$entityId = $entity->getId();
 		foreach($recipients as $session){
 			$session->getPlayer()?->getCameraIfCreated()?->onEntityRemoved($entityId);
+			$session->getNpcDialogueControllerIfCreated()?->onActorRemoved($entityId);
 		}
 		$this->sendDataPacket($recipients, RemoveActorPacket::create($entityId));
 	}

@@ -559,6 +559,7 @@ class PluginManager{
 				function() use ($plugin) : void{
 					foreach($this->server->getOnlinePlayers() as $player){
 						try{
+							$player->getNetworkSession()->getNpcDialogueControllerIfCreated()?->cancelForOwner($plugin);
 							$player->getCameraIfCreated()?->cancelForOwner($plugin);
 						}catch(\Throwable $e){
 							$this->server->getLogger()->logException($e);

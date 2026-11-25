@@ -46,6 +46,7 @@ use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
+use pocketmine\network\mcpe\protocol\NpcRequestPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
@@ -1058,6 +1059,11 @@ class InGamePacketHandler extends PacketHandler{
 
 		$this->player->getInventory()->setItem($packet->inventorySlot, $event->getNewBook());
 
+		return true;
+	}
+
+	public function handleNpcRequest(NpcRequestPacket $packet) : bool{
+		$this->session->getNpcDialogueControllerIfCreated()?->handleResponse($packet);
 		return true;
 	}
 

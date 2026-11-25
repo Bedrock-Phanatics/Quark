@@ -172,6 +172,7 @@ class NetworkSession{
 	 */
 	private const array MAX_PACKET_BYTES = [
 		ProtocolInfo::CLIENT_CAMERA_AIM_ASSIST_PACKET => 512,
+		ProtocolInfo::NPC_REQUEST_PACKET => 2048,
 		ProtocolInfo::BLOCK_ACTOR_DATA_PACKET => 16 * 1024,
 		ProtocolInfo::PLAYER_AUTH_INPUT_PACKET => 128 * 1024,
 		ProtocolInfo::ITEM_STACK_REQUEST_PACKET => 256 * 1024,
@@ -232,6 +233,7 @@ class NetworkSession{
 	private array $ackPromisesByReceiptId = [];
 
 	private ?InventoryManager $invManager = null;
+	private ?NpcDialogueController $npcDialogue = null;
 
 	/**
 	 * @var \Closure[]|ObjectSet
@@ -906,6 +908,42 @@ class NetworkSession{
 	}
 
 	/**
+	 * Queues a packet group as a unit. Send hooks can veto the group.
+	 * @internal
+	 * @param list<ClientboundPacket> $packets
+	 * @param \Closure(): bool        $condition
+	 */
+	public function sendDataPacketGroup(array $packets, \Closure $condition) : bool{
+		if(!$this->isConnected()){
+			return false;
+		}
+		$this->checkSendable($packets);
+		$buffers = [];
+		if(DataPacketSendEvent::hasHandlers()){
+			$encoded = EncodedPacket::ofMany($packets);
+			$event = new DataPacketSendEvent([$this], $encoded);
+			$event->call();
+			if($event->isCancelled() || $event->getPackets() !== $encoded){
+				return false;
+			}
+			foreach($encoded as $packet){
+				$buffers[] = $packet->getBytes();
+			}
+		}else{
+			foreach($packets as $packet){
+				$buffers[] = self::encodePacket($packet);
+			}
+		}
+		if(!$this->isConnected() || !$condition()){
+			return false;
+		}
+		foreach($buffers as $buffer){
+			$this->sendBuffer[] = $buffer;
+		}
+		return true;
+	}
+
+	/**
 	 * Resolves once the client acknowledges the packet, or once it's queued on transports without receipts.
 	 * Cancelled if the packet is dropped by a plugin or the session closes first.
 	 *
@@ -1184,6 +1222,7 @@ class NetworkSession{
 			//held through teardown so a failing final flush cannot disconnect again
 			$this->disconnectGuard = true;
 			try{
+				$this->npcDialogue?->reset();
 				$func();
 				$this->flushGamePacketQueue();
 			}finally{
@@ -1525,6 +1564,7 @@ class NetworkSession{
 	}
 
 	public function onServerDeath(Translatable|string $deathMessage) : void{
+		$this->npcDialogue?->reset();
 		if($this->handler instanceof InGamePacketHandler){ //TODO: this is a bad fix for pre-spawn death, this shouldn't be reachable at all at this stage :(
 			$this->setHandler(new DeathPacketHandler($this->player, $this, $this->invManager ?? throw new AssumptionFailedError(), $deathMessage));
 		}
@@ -1726,6 +1766,16 @@ class NetworkSession{
 		$this->sendDataPacket(ClientboundCloseFormPacket::create());
 	}
 
+	/** @internal */
+	public function getNpcDialogueController() : NpcDialogueController{
+		return $this->npcDialogue ??= new NpcDialogueController($this);
+	}
+
+	/** @internal */
+	public function getNpcDialogueControllerIfCreated() : ?NpcDialogueController{
+		return $this->npcDialogue;
+	}
+
 	/**
 	 * @phpstan-param \Closure() : void $onCompletion
 	 */
@@ -1779,6 +1829,7 @@ class NetworkSession{
 	}
 
 	public function onEnterWorld() : void{
+		$this->npcDialogue?->reset();
 		$player = $this->player;
 		if($player !== null){
 			$this->syncDimension();

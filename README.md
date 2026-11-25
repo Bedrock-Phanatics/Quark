@@ -28,6 +28,7 @@ Quark is built for servers where tick stability and responsive combat matter equ
 - Adaptive garbage collection and memory controls.
 - Hardened inventory transactions and damage handling.
 - [Per-player scoreboard API](docs/scoreboard.md) with named rows, batched updates, and hide/show support.
+- [Native NPC dialogue API](docs/npc-dialogue.md) with reusable pages, branching buttons, and custom portraits.
 - Quark-owned PHP namespace, root Composer package, configuration, tooling, and release artifact.
 
 ### Faster combat feedback
