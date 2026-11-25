@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "40322969c022b8a24dc25dd494c32501",
+    "content-hash": "fe69abbd0b169379cb6dd7f888f11d7b",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -922,16 +922,16 @@
         },
         {
             "name": "trixnew/vow",
-            "version": "dev-main",
+            "version": "v1.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/TrixNEW/Vow.git",
-                "reference": "357d638264175a3c25d3d368c962010f643d2f31"
+                "reference": "200560c381de1e06a6c4d2a6fa8f52393e2e1312"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/TrixNEW/Vow/zipball/357d638264175a3c25d3d368c962010f643d2f31",
-                "reference": "357d638264175a3c25d3d368c962010f643d2f31",
+                "url": "https://api.github.com/repos/TrixNEW/Vow/zipball/200560c381de1e06a6c4d2a6fa8f52393e2e1312",
+                "reference": "200560c381de1e06a6c4d2a6fa8f52393e2e1312",
                 "shasum": ""
             },
             "require": {
@@ -942,7 +942,6 @@
                 "phpstan/phpstan-strict-rules": "^2.0",
                 "phpunit/phpunit": "^12.0"
             },
-            "default-branch": true,
             "type": "library",
             "autoload": {
                 "psr-4": {
@@ -978,10 +977,10 @@
                 "promise"
             ],
             "support": {
-                "source": "https://github.com/TrixNEW/Vow/tree/main",
+                "source": "https://github.com/TrixNEW/Vow/tree/v1.0.2",
                 "issues": "https://github.com/TrixNEW/Vow/issues"
             },
-            "time": "2026-11-07T21:47:34+00:00"
+            "time": "2026-11-08T20:15:07+00:00"
         }
     ],
     "packages-dev": [
@@ -2802,8 +2801,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "axolotl-pm/bedrock-protocol": 20,
-        "pocketmine/callback-validator": 20,
-        "trixnew/vow": 20
+        "pocketmine/callback-validator": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
@@ -2844,5 +2842,5 @@
     "platform-overrides": {
         "php": "8.4.0"
     },
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.11.0"
 }
