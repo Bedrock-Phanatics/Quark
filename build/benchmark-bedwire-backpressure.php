@@ -15,13 +15,11 @@ const SAMPLES = 9;
 
 $interfaceClass = new ReflectionClass(BedwireInterface::class);
 $session = new ReflectionClass(NetworkSession::class)->newInstanceWithoutConstructor();
-$server = new class extends Server{
-	public function __construct(){}
-	public function getTick() : int{ return 0; }
-};
+$server = new ReflectionClass(Server::class)->newInstanceWithoutConstructor();
 $defer = $interfaceClass->getMethod('defer');
 $flush = $interfaceClass->getMethod('flushDeferred');
 $samples = [];
+$attempts = 0;
 
 for($sample = -1; $sample < SAMPLES; ++$sample){
 	$interface = $interfaceClass->newInstanceWithoutConstructor();
@@ -46,6 +44,7 @@ for($sample = -1; $sample < SAMPLES; ++$sample){
 	if($sample >= 0){
 		$samples[] = $elapsed;
 	}
+	/** @var array<int, list<mixed>> $queue */
 	$queue = $interfaceClass->getProperty('deferred')->getValue($interface);
 	if(count($queue[1]) !== COMMANDS){
 		throw new RuntimeException('Deferred commands were lost');

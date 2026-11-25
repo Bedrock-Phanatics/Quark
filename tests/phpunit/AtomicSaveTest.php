@@ -70,6 +70,7 @@ final class AtomicSaveStream{
 	public static int $renameAttempts;
 	private string $path;
 
+	/** @return array<string, int>|false */
 	public function url_stat(string $path, int $flags) : array|false{
 		return match(true){
 			$path === "quarksave://storage" => ["mode" => 0040000],
