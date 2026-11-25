@@ -97,7 +97,13 @@ final class BlockStateData{
 		}
 
 		$allKeys = $nbt->getValue();
-		unset($allKeys[self::TAG_NAME], $allKeys[self::TAG_STATES], $allKeys[self::TAG_VERSION], $allKeys[VersionInfo::TAG_WORLD_DATA_VERSION]);
+		unset(
+			$allKeys[self::TAG_NAME],
+			$allKeys[self::TAG_STATES],
+			$allKeys[self::TAG_VERSION],
+			$allKeys[VersionInfo::TAG_WORLD_DATA_VERSION],
+			$allKeys[VersionInfo::TAG_LEGACY_WORLD_DATA_VERSION]
+		);
 		if(count($allKeys) !== 0){
 			throw new BlockStateDeserializeException("Unexpected extra keys: " . implode(", ", array_keys($allKeys)));
 		}

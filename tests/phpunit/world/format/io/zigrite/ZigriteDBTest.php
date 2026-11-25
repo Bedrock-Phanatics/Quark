@@ -36,6 +36,7 @@ use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\WorldInUseException;
 use quark\world\format\io\FastChunkSerializer;
 use quark\world\format\io\leveldb\LevelDB;
+use quark\world\format\io\leveldb\LevelDBTest;
 use quark\world\format\io\LoadedChunkData;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
@@ -188,6 +189,15 @@ final class ZigriteDBTest extends TestCase{
 			$provider->close();
 		}
 		self::assertSame(substr($bytes, 0, -3), file_get_contents($segment), "the damaged region is left as it was");
+	}
+
+	public function testDataVersionTagsLoad() : void{
+		$provider = $this->open();
+		try{
+			LevelDBTest::assertDataVersionTagsLoad($provider);
+		}finally{
+			$provider->close();
+		}
 	}
 
 	public function testLoadsMatchLevelDB() : void{

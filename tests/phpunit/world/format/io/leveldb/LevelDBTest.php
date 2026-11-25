@@ -23,19 +23,24 @@ declare(strict_types=1);
 
 namespace quark\world\format\io\leveldb;
 
+use Bedwire\Nbt as NativeNbt;
 use PHPUnit\Framework\TestCase;
+use pmmp\encoding\LE;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\nbt\TreeRoot;
 use pocketmine\world\format\PalettedBlockArray;
 use quark\block\utils\DyeColor;
 use quark\block\VanillaBlocks;
 use quark\data\bedrock\BiomeIds;
 use quark\utils\Filesystem;
+use quark\VersionInfo;
 use quark\world\format\Chunk;
 use quark\world\format\io\ChunkData;
 use quark\world\format\io\exception\CorruptedChunkException;
 use quark\world\format\io\exception\WorldInUseException;
+use quark\world\format\io\GlobalBlockStateHandlers;
 use quark\world\format\SubChunk;
 use quark\world\WorldCreationOptions;
 use Symfony\Component\Filesystem\Path;
@@ -43,10 +48,64 @@ use function bin2hex;
 use function chr;
 use function count;
 use function random_bytes;
+use function str_repeat;
 use function substr;
 use function sys_get_temp_dir;
 
 final class LevelDBTest extends TestCase{
+
+	/**
+	 * Loads subchunks whose palettes carry each data version tag ever written, as PocketMine-MP, Quark 6.0 and vanilla
+	 * save them, then checks they come back as the same blocks and are saved again under the PocketMine-MP tag.
+	 */
+	public static function assertDataVersionTagsLoad(BedrockWorldProvider $provider) : void{
+		$serializer = GlobalBlockStateHandlers::getSerializer();
+		$stone = VanillaBlocks::STONE()->getStateId();
+		$dirt = VanillaBlocks::DIRT()->getStateId();
+		$key = ChunkDataKey::SUBCHUNK . "\x00";
+		$air = VanillaBlocks::AIR()->getStateId();
+		$base = new ChunkData((new Chunk([0 => new SubChunk($air, new PalettedBlockArray($air), null, new PalettedBlockArray(BiomeIds::PLAINS))], true))->getSubChunks(), true, [], []);
+
+		foreach([null, VersionInfo::TAG_WORLD_DATA_VERSION, VersionInfo::TAG_LEGACY_WORLD_DATA_VERSION] as $tag){
+			$provider->saveChunk(0, 0, $base, Chunk::DIRTY_FLAGS_ALL);
+			$palette = "";
+			foreach([$dirt, $stone] as $state){
+				$nbt = $serializer->serialize($state)->toVanillaNbt();
+				if($tag !== null){
+					$nbt->setLong($tag, VersionInfo::WORLD_DATA_VERSION);
+				}
+				$palette .= NativeNbt::write(new TreeRoot($nbt), NativeNbt::BEDROCK);
+			}
+			//one bit per block: only (0, 0, 0) points at the second palette entry
+			$words = "\x01" . str_repeat("\x00", 511);
+			$subChunk = chr(SubChunkVersion::PALETTED_MULTI) . "\x01\x02" . $words . LE::packUnsignedInt(2) . $palette;
+			(fn() => $this->writeChunkRecords(0, 0, [$key => $subChunk]))->call($provider);
+
+			$label = $tag ?? "no tag";
+			$loaded = $provider->loadChunk(0, 0)?->getData() ?? self::fail("chunk with $label is missing");
+			self::assertSame($stone, $loaded->getSubChunks()[0]->getBlockStateId(0, 0, 0), $label);
+			self::assertSame($dirt, $loaded->getSubChunks()[0]->getBlockStateId(1, 0, 0), $label);
+
+			$provider->saveChunk(0, 0, $loaded, Chunk::DIRTY_FLAGS_ALL);
+			$saved = (fn() => $this->readChunkRecords(0, 0))->call($provider)[$key];
+			self::assertStringContainsString(VersionInfo::TAG_WORLD_DATA_VERSION, $saved, $label);
+			self::assertStringNotContainsString(VersionInfo::TAG_LEGACY_WORLD_DATA_VERSION, $saved, $label);
+
+			$reloaded = $provider->loadChunk(0, 0)?->getData() ?? self::fail("resaved chunk with $label is missing");
+			self::assertSame($stone, $reloaded->getSubChunks()[0]->getBlockStateId(0, 0, 0), $label);
+			self::assertSame($dirt, $reloaded->getSubChunks()[0]->getBlockStateId(1, 0, 0), $label);
+		}
+	}
+
+	public function testDataVersionTagsLoad() : void{
+		$provider = $this->open();
+		try{
+			self::assertDataVersionTagsLoad($provider);
+		}finally{
+			$provider->close();
+		}
+	}
+
 	private string $path;
 
 	public function setUp() : void{

@@ -48,9 +48,14 @@ final class VersionInfo{
 	 */
 	public const int WORLD_DATA_VERSION = 1;
 	/**
-	 * Name of the NBT tag used to store the world data version.
+	 * Name of the NBT tag used to store the world data version. It's shared with PocketMine-MP, which rejects
+	 * blockstates carrying tags it doesn't know, so it must not be renamed.
 	 */
-	public const string TAG_WORLD_DATA_VERSION = "QUARKDataVersion"; //TAG_Long
+	public const string TAG_WORLD_DATA_VERSION = "PMMPDataVersion"; //TAG_Long
+	/**
+	 * Name the world data version was saved under by Quark 6 releases before the tag was restored. Read-only.
+	 */
+	public const string TAG_LEGACY_WORLD_DATA_VERSION = "QUARKDataVersion"; //TAG_Long
 
 	private function __construct(){
 		//NOOP
