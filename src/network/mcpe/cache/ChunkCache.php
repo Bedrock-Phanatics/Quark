@@ -101,6 +101,11 @@ class ChunkCache implements ChunkListener{
 	private int $hits = 0;
 	private int $misses = 0;
 
+	/** @internal */
+	public function hasReadyBatch(int $chunkHash) : bool{
+		return is_string($this->caches[$chunkHash] ?? null);
+	}
+
 	/**
 	 * @phpstan-param DimensionIds::* $dimensionId
 	 */

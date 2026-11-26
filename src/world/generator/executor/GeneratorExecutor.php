@@ -29,7 +29,7 @@ interface GeneratorExecutor{
 	/**
 	 * @param Chunk[]|null[] $adjacentChunks
 	 * @phpstan-param array<int, Chunk|null> $adjacentChunks
-	 * @phpstan-param \Closure(Chunk $centerChunk, array<int, Chunk> $adjacentChunks) : void $onCompletion
+	 * @phpstan-param \Closure(Chunk|\Throwable $result, array<int, Chunk> $adjacentChunks) : void $onCompletion
 	 */
 	public function populate(int $chunkX, int $chunkZ, ?Chunk $centerChunk, array $adjacentChunks, \Closure $onCompletion) : void;
 

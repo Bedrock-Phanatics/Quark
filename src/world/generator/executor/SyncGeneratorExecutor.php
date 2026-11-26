@@ -26,6 +26,7 @@ namespace quark\world\generator\executor;
 use quark\world\format\Chunk;
 use quark\world\generator\Generator;
 use quark\world\generator\PopulationUtils;
+use function array_filter;
 
 final class SyncGeneratorExecutor implements GeneratorExecutor{
 
@@ -42,17 +43,29 @@ final class SyncGeneratorExecutor implements GeneratorExecutor{
 	}
 
 	public function populate(int $chunkX, int $chunkZ, ?Chunk $centerChunk, array $adjacentChunks, \Closure $onCompletion) : void{
-		[$centerChunk, $adjacentChunks] = PopulationUtils::populateChunkWithAdjacents(
-			$this->worldMinY,
-			$this->worldMaxY,
-			$this->generator,
-			$chunkX,
-			$chunkZ,
-			$centerChunk,
-			$adjacentChunks
-		);
+		foreach($adjacentChunks as $hash => $chunk){
+			if($chunk !== null){
+				$copy = $chunk->cloneTerrain();
+				$copy->clearTerrainDirtyFlags();
+				$adjacentChunks[$hash] = $copy;
+			}
+		}
+		try{
+			[$centerChunk, $adjacentChunks] = PopulationUtils::populateChunkWithAdjacents(
+				$this->worldMinY,
+				$this->worldMaxY,
+				$this->generator,
+				$chunkX,
+				$chunkZ,
+				$centerChunk?->cloneTerrain(),
+				$adjacentChunks
+			);
+		}catch(\Throwable $error){
+			$onCompletion($error, []);
+			return;
+		}
 
-		$onCompletion($centerChunk, $adjacentChunks);
+		$onCompletion($centerChunk, array_filter($adjacentChunks, static fn(Chunk $chunk) : bool => $chunk->isTerrainDirty()));
 	}
 
 	public function shutdown() : void{

@@ -292,6 +292,8 @@ class Server{
 
 	/** Counts the ticks since the server start */
 	private int $tickCounter = 0;
+	private int $spawnChunkBudgetTick = -1;
+	private int $spawnChunkBudgetUsed = 0;
 	private float $nextTick = 0;
 	/** @var float[] */
 	private array $tickAverage;
@@ -613,6 +615,25 @@ class Server{
 
 	public function getTick() : int{
 		return $this->tickCounter;
+	}
+
+	/** @internal Shares new terrain work across loading sessions. */
+	public function takeSpawnChunkBudget(int $limit, bool $cached) : bool{
+		if($this->currentUse >= 1.0 || microtime(true) >= $this->nextTick + self::TARGET_SECONDS_PER_TICK){
+			return false;
+		}
+		if($cached){
+			return true;
+		}
+		if($this->spawnChunkBudgetTick !== $this->tickCounter){
+			$this->spawnChunkBudgetTick = $this->tickCounter;
+			$this->spawnChunkBudgetUsed = 0;
+		}
+		if($this->spawnChunkBudgetUsed >= $limit){
+			return false;
+		}
+		++$this->spawnChunkBudgetUsed;
+		return true;
 	}
 
 	/**

@@ -36,6 +36,11 @@ use quark\world\format\io\exception\UnsupportedWorldFormatException;
 use quark\world\format\io\leveldb\LevelDB;
 use quark\world\format\io\WritableWorldProvider;
 use quark\world\format\io\zigrite\ZigriteDB;
+use quark\world\generator\executor\GeneratorExecutorSetupParameters;
+use quark\world\generator\executor\SyncGeneratorExecutor;
+use quark\world\generator\executor\ThreadLocalGeneratorContext;
+use quark\world\generator\Flat;
+use quark\world\generator\PopulationTask;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use function array_key_last;
@@ -223,6 +228,48 @@ final class DimensionTest extends TestCase{
 		self::assertFalse($nether->isInWorld(0, -1, 0));
 	}
 
+	public function testPopulationDoesNotReplaceUnchangedNeighbours() : void{
+		$executor = new SyncGeneratorExecutor(new GeneratorExecutorSetupParameters(0, 128, 0, Flat::class, ""));
+		$neighbour = new Chunk([], true);
+		self::assertTrue($neighbour->isTerrainDirty());
+		$executor->populate(0, 0, null, [World::chunkHash(1, 0) => $neighbour, World::chunkHash(-1, 0) => null],
+			static function(Chunk|\Throwable $result, array $adjacent) : void{
+				self::assertInstanceOf(Chunk::class, $result);
+				self::assertTrue($result->isPopulated());
+				self::assertSame([World::chunkHash(-1, 0)], array_keys($adjacent));
+			}
+		);
+		self::assertTrue($neighbour->isTerrainDirty(), "Existing save flags survive population");
+	}
+
+	public function testFailedPopulationDoesNotModifyLoadedTerrain() : void{
+		$executor = new SyncGeneratorExecutor(new GeneratorExecutorSetupParameters(0, 128, 0, FailingPopulationGenerator::class, ""));
+		$center = new Chunk([], false);
+		$before = $center->getBlockStateId(0, 0, 0);
+		$executor->populate(0, 0, $center, [], static function(Chunk|\Throwable $result, array $adjacent) : void{
+			self::assertInstanceOf(\RuntimeException::class, $result);
+			self::assertSame([], $adjacent);
+		});
+		self::assertSame($before, $center->getBlockStateId(0, 0, 0));
+		self::assertFalse($center->isPopulated());
+	}
+
+	public function testWorkerPopulationReportsGeneratorFailure() : void{
+		$contextId = 1;
+		ThreadLocalGeneratorContext::register(new ThreadLocalGeneratorContext(new FailingPopulationGenerator(0, ""), 0, 128), $contextId);
+		try{
+			$task = new PopulationTask($contextId, 0, 0, null, [], static function(Chunk|\Throwable $result, array $adjacent) : void{
+				self::assertInstanceOf(\RuntimeException::class, $result);
+				self::assertStringContainsString("Test generation failure", $result->getMessage());
+				self::assertSame([], $adjacent);
+			});
+			$task->onRun();
+			$task->onCompletion();
+		}finally{
+			ThreadLocalGeneratorContext::unregister($contextId);
+		}
+	}
+
 	public function testDimensionWithoutWeatherStaysClear() : void{
 		$world = self::world(DimensionRegistry::getInstance()->get(Dimension::NETHER) ?? self::fail());
 		self::assertFalse($world->setWeather(Weather::RAIN, 100));
@@ -247,5 +294,12 @@ final class DimensionTest extends TestCase{
 		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, $this->createMock(\Logger::class));
 		$player->expects(self::once())->method("setSpawn")->with(self::callback(fn(?Vector3 $pos) => $pos !== null && $pos->equals(new Vector3(0, 64, 0))));
 		self::assertTrue($anchor->onInteract(VanillaItems::AIR(), 0, Vector3::zero(), $player));
+	}
+}
+
+final class FailingPopulationGenerator extends Flat{
+	public function populateChunk(ChunkManager $world, int $chunkX, int $chunkZ) : void{
+		$world->getChunk($chunkX, $chunkZ)?->setBlockStateId(0, 0, 0, VanillaBlocks::STONE()->getStateId());
+		throw new \RuntimeException("Test generation failure");
 	}
 }

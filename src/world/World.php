@@ -4141,7 +4141,7 @@ class World implements ChunkManager{
 	 * Requests a safe spawn position near the given position, or near the world's spawn position if not provided.
 	 * Terrain near the position will be loaded or generated as needed.
 	 *
-	 * @return Promise Resolved to a Position object, or cancelled if the world is unloaded.
+	 * @return Promise Resolves to the spawn position, rejects on generation failure, or cancels on unload.
 	 * @phpstan-return Promise<Position>
 	 */
 	public function requestSafeSpawn(?Vector3 $spawn = null) : Promise{
@@ -4529,10 +4529,16 @@ class World implements ChunkManager{
 			return $deferred->promise;
 		}
 
-		$temporaryChunkLoader = new ChunkLoader();
-		$this->registerChunkLoader($temporaryChunkLoader, $chunkX, $chunkZ);
-		$chunk = $this->loadChunk($chunkX, $chunkZ);
-		$this->unregisterChunkLoader($temporaryChunkLoader, $chunkX, $chunkZ);
+		$chunk = $this->chunks[$chunkHash] ?? null;
+		if($chunk === null && !isset($this->knownUngeneratedChunks[$chunkHash])){
+			$temporaryChunkLoader = new ChunkLoader();
+			$this->registerChunkLoader($temporaryChunkLoader, $chunkX, $chunkZ, false);
+			try{
+				$chunk = $this->loadChunk($chunkX, $chunkZ);
+			}finally{
+				$this->unregisterChunkLoader($temporaryChunkLoader, $chunkX, $chunkZ);
+			}
+		}
 		if($chunk === null || !$chunk->isPopulated()){
 			return null;
 		}
@@ -4623,7 +4629,7 @@ class World implements ChunkManager{
 				$chunkZ,
 				$centerChunk,
 				$adjacentChunks,
-				function(Chunk $centerChunk, array $adjacentChunks) use ($chunkPopulationLockId, $chunkX, $chunkZ, $temporaryChunkLoader) : void{
+				function(Chunk|\Throwable $centerChunk, array $adjacentChunks) use ($chunkPopulationLockId, $chunkX, $chunkZ, $temporaryChunkLoader) : void{
 					if(!$this->isLoaded()){
 						return;
 					}
@@ -4642,7 +4648,7 @@ class World implements ChunkManager{
 	 * @param Chunk[] $adjacentChunks chunkHash => chunk
 	 * @phpstan-param array<int, Chunk> $adjacentChunks
 	 */
-	private function generateChunkCallback(ChunkLockId $chunkLockId, int $x, int $z, Chunk $chunk, array $adjacentChunks, ChunkLoader $temporaryChunkLoader) : void{
+	private function generateChunkCallback(ChunkLockId $chunkLockId, int $x, int $z, Chunk|\Throwable $chunk, array $adjacentChunks, ChunkLoader $temporaryChunkLoader) : void{
 		$pulse = $this->pulse->chunkPopulationCompletion;
 		$scope = $pulse->start();
 
@@ -4663,6 +4669,11 @@ class World implements ChunkManager{
 		if(!$this->activeChunkPopulationTasks[$index]){
 			$this->logger->debug("Discarding orphaned population result for chunk x=$x,z=$z");
 			unset($this->activeChunkPopulationTasks[$index]);
+		}elseif($chunk instanceof \Throwable){
+			$this->logger->error("Failed to populate chunk x=$x,z=$z: " . $chunk->getMessage());
+			$deferred = $this->chunkPopulationRequestMap[$index] ?? null;
+			unset($this->activeChunkPopulationTasks[$index], $this->chunkPopulationRequestMap[$index]);
+			$deferred?->reject($chunk);
 		}else{
 			if($dirtyChunks === 0){
 				$oldChunk = $this->loadChunk($x, $z);
@@ -4713,6 +4724,8 @@ class World implements ChunkManager{
 				$this->addChunkHashToPopulationRequestQueue($index);
 			}
 
+		}
+		if($this->isLoaded()){
 			$this->drainPopulationRequestQueue();
 		}
 		$pulse->stop($scope);

@@ -490,10 +490,11 @@ class WorldManager{
 				$safeSpawn = null;
 			}
 			foreach($world->getPlayers() as $player){
-				if($safeSpawn === null){
-					$player->disconnect("Forced default world unload");
-				}else{
+				if($safeSpawn !== null){
 					$player->teleport($safeSpawn);
+				}
+				if($player->isConnected() && $player->getWorld() === $world){
+					$player->disconnect("World unloaded");
 				}
 			}
 		}
@@ -655,7 +656,6 @@ class WorldManager{
 			$total = count($selected);
 			foreach($selected as $index){
 				World::getXZ($index, $chunkX, $chunkZ);
-				//cancellation only means the world was unloaded
 				$world->orderChunkPopulation($chunkX, $chunkZ, null)->observe(
 					static function() use ($world, &$done, $total) : void{
 						$oldProgress = (int) floor(($done / $total) * 100);
@@ -663,7 +663,8 @@ class WorldManager{
 						if(intdiv($oldProgress, 10) !== intdiv($newProgress, 10) || $done === $total || $done === 1){
 							$world->getLogger()->info($world->getServer()->getLanguage()->translate(KnownTranslationFactory::quark_level_spawnTerrainGenerationProgress(strval($done), strval($total), strval($newProgress))));
 						}
-					}
+					},
+					static function() : void{} // Generation failures are logged by the world.
 				);
 			}
 		}

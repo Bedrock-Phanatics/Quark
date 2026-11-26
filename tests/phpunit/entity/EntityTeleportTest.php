@@ -36,6 +36,17 @@ use quark\world\World;
 use function spl_object_id;
 
 final class EntityTeleportTest extends TestCase{
+	public function testTeleportToAnUnloadedWorldLeavesTheEntityInPlace() : void{
+		$from = (new RedstoneHarness(0))->world;
+		$to = $this->createMock(World::class);
+		$to->method("isLoaded")->willReturnOnConsecutiveCalls(true, false);
+		$destination = new Position(10, 1, 10, $to);
+		$entity = new ItemEntity(new Location(0.5, 1, 0.5, $from, 0, 0), VanillaItems::STICK());
+
+		self::assertFalse($entity->teleport($destination));
+		self::assertSame($from, $entity->getWorld());
+		self::assertSame(0.5, $entity->getPosition()->x);
+	}
 
 	public function testEntityTeleportedToAnotherWorldIsSpawnedToItsViewers() : void{
 		$from = (new RedstoneHarness(0))->world;

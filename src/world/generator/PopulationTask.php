@@ -37,9 +37,10 @@ use function igbinary_unserialize;
  *
  * Some plugins instantiate this task to regenerate chunks, so its namespace is retained.
  *
- * @phpstan-type OnCompletion \Closure(Chunk $centerChunk, array<int, Chunk> $adjacentChunks) : void
+ * @phpstan-type OnCompletion \Closure(Chunk|\Throwable $result, array<int, Chunk> $adjacentChunks) : void
  */
 class PopulationTask extends AsyncTask{
+	private ?string $populationError = null;
 	private const TLS_KEY_ON_COMPLETION = "onCompletion";
 
 	private ?string $chunk;
@@ -94,15 +95,20 @@ class PopulationTask extends AsyncTask{
 			$serialChunks
 		);
 
-		[$chunk, $chunks] = PopulationUtils::populateChunkWithAdjacents(
-			$context->getWorldMinY(),
-			$context->getWorldMaxY(),
-			$context->getGenerator(),
-			$this->chunkX,
-			$this->chunkZ,
-			$chunk,
-			$chunks
-		);
+		try{
+			[$chunk, $chunks] = PopulationUtils::populateChunkWithAdjacents(
+				$context->getWorldMinY(),
+				$context->getWorldMaxY(),
+				$context->getGenerator(),
+				$this->chunkX,
+				$this->chunkZ,
+				$chunk,
+				$chunks
+			);
+		}catch(\Throwable $error){
+			$this->populationError = $error::class . ": " . $error->getMessage();
+			return;
+		}
 
 		$this->chunk = FastChunkSerializer::serializeTerrain($chunk);
 
@@ -119,6 +125,10 @@ class PopulationTask extends AsyncTask{
 		 * @phpstan-var OnCompletion $onCompletion
 		 */
 		$onCompletion = $this->fetchLocal(self::TLS_KEY_ON_COMPLETION);
+		if($this->populationError !== null){
+			$onCompletion(new \RuntimeException($this->populationError), []);
+			return;
+		}
 
 		$chunk = $this->chunk !== null ?
 			FastChunkSerializer::deserializeTerrain($this->chunk) :

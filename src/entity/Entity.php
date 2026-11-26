@@ -1499,6 +1499,9 @@ abstract class Entity{
 	 */
 	public function teleport(Vector3 $pos, ?float $yaw = null, ?float $pitch = null) : bool{
 		Utils::checkVector3NotInfOrNaN($pos);
+		if($this->closed || ($pos instanceof Position && !$pos->isValid())){
+			return false;
+		}
 		if($pos instanceof Location){
 			$yaw = $yaw ?? $pos->yaw;
 			$pitch = $pitch ?? $pos->pitch;
@@ -1511,14 +1514,18 @@ abstract class Entity{
 		}
 
 		$from = $this->location->asPosition();
-		$to = Position::fromObject($pos, $pos instanceof Position ? $pos->getWorld() : $this->getWorld());
+		$fromWorld = $from->getWorld();
+		$to = Position::fromObject($pos, $pos instanceof Position ? $pos->getWorld() : $fromWorld);
 		$ev = new EntityTeleportEvent($this, $from, $to);
 		$ev->call();
 		if($ev->isCancelled()){
 			return false;
 		}
-		$this->ySize = 0;
 		$pos = $ev->getTo();
+		if($this->isClosed() || !$pos->isValid()){
+			return false;
+		}
+		$this->ySize = 0;
 
 		$this->setMotion(new Vector3(0, 0, 0));
 		if($this->setPositionAndRotation($pos, $yaw ?? $this->location->yaw, $pitch ?? $this->location->pitch)){
@@ -1526,7 +1533,7 @@ abstract class Entity{
 			$this->setForceMovementUpdate();
 
 			$this->updateMovement(true);
-			if($from->getWorld() !== $this->getWorld()){
+			if($fromWorld !== $this->getWorld()){
 				//the move despawned it from the old world's viewers, and nothing else spawns it to the new one's
 				$this->spawnToAll();
 			}

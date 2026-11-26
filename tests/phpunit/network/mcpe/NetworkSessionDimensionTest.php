@@ -59,6 +59,7 @@ use quark\Server;
 use quark\world\Dimension;
 use quark\world\DimensionRegistry;
 use quark\world\Position;
+use quark\world\Weather;
 use quark\world\World;
 
 final class NetworkSessionDimensionTest extends TestCase{
@@ -74,6 +75,9 @@ final class NetworkSessionDimensionTest extends TestCase{
 	private function world(string $dimension) : World{
 		$world = $this->createMock(World::class);
 		$world->method("getDimension")->willReturn(DimensionRegistry::getInstance()->get($dimension) ?? self::fail());
+		$world->method("isLoaded")->willReturn(true);
+		$world->method("getSpawnLocation")->willReturn(new Position(0, 64, 0, $world));
+		$world->method("getWeather")->willReturn(Weather::CLEAR);
 		return $world;
 	}
 
@@ -90,7 +94,8 @@ final class NetworkSessionDimensionTest extends TestCase{
 			++$this->dimensionChanges;
 		});
 
-		$session = $this->getMockBuilder(NetworkSession::class)->disableOriginalConstructor()->onlyMethods(["sendDataPacket"])->getMock();
+		$session = $this->getMockBuilder(NetworkSession::class)
+			->disableOriginalConstructor()->onlyMethods(["sendDataPacket", "syncMovement", "disconnectWithError"])->getMock();
 		$session->method("sendDataPacket")->willReturnCallback(function(ClientboundPacket|EncodedPacket $packet) : bool{
 			$this->sent[] = $packet;
 			return true;
@@ -115,7 +120,7 @@ final class NetworkSessionDimensionTest extends TestCase{
 
 	private function enter(string $dimension) : void{
 		$this->world = $this->world($dimension);
-		(new \ReflectionMethod(NetworkSession::class, "syncDimension"))->invoke($this->session);
+		$this->session->onEnterWorld();
 	}
 
 	/**
@@ -163,18 +168,28 @@ final class NetworkSessionDimensionTest extends TestCase{
 		$this->session->onLoadingScreenClosed(7);
 		self::assertTrue($this->session->isChangingDimension());
 		$this->session->onLoadingScreenClosed(null);
+		self::assertTrue($this->session->isChangingDimension(), "An uncorrelated close cannot end a pending terrain load");
+		$this->session->notifyTerrainReady();
+		$this->session->onLoadingScreenClosed(null);
 		self::assertFalse($this->session->isChangingDimension(), "Clients that don't echo the ID still finish");
 	}
 
 	public function testChangesWhileLoadingAreCaughtUp() : void{
 		$this->enter(Dimension::NETHER);
+		self::assertSame([[DimensionIds::NETHER, 1]], $this->changes());
 		$this->enter(Dimension::THE_END);
 		$this->enter(Dimension::OVERWORLD);
-		self::assertSame([[DimensionIds::NETHER, 1]], $this->changes(), "Only one change may be in flight");
+		self::assertFalse($this->session->isCurrentDimension());
+		$superseded = $this->takeSent();
+		self::assertCount(1, $superseded, "Only the first screen can be released until its close arrives");
+		self::assertInstanceOf(PlayStatusPacket::class, $superseded[0]);
+		$this->session->onLoadingScreenClosed(2);
+		self::assertFalse($this->session->isCurrentDimension());
 
 		$this->session->onLoadingScreenClosed(1);
 		self::assertSame([[DimensionIds::OVERWORLD, 2]], $this->changes());
-		self::assertSame(2, $this->dimensionChanges, "Chunks sent for the wrong dimension are resent");
+		self::assertSame(2, $this->dimensionChanges);
+		self::assertTrue($this->session->isCurrentDimension());
 		self::assertTrue($this->session->isChangingDimension());
 
 		$this->session->onLoadingScreenClosed(2);
@@ -216,7 +231,7 @@ final class NetworkSessionDimensionTest extends TestCase{
 	public function testGivesUpOnAClientThatNeverFinishes() : void{
 		$expire = new \ReflectionMethod(NetworkSession::class, "expireDimensionChange");
 		$this->enter(Dimension::NETHER);
-		$this->tick = 1_000_000;
+		$this->tick = 599;
 		$expire->invoke($this->session);
 		self::assertTrue($this->session->isChangingDimension(), "The terrain is still on its way");
 
@@ -230,9 +245,41 @@ final class NetworkSessionDimensionTest extends TestCase{
 
 		$this->enter(Dimension::OVERWORLD);
 		$this->changes();
-		$this->tick += 10_000;
+		$this->tick += 599;
 		$expire->invoke($this->session);
 		self::assertTrue($this->session->isChangingDimension(), "A new change gets a fresh deadline");
+	}
+
+	public function testStalledTerrainDisconnectsOnlyAfterProgressStops() : void{
+		self::assertInstanceOf(MockObject::class, $this->session);
+		$this->session->expects(self::once())->method("disconnectWithError")->with("Dimension change timed out");
+		$expire = new \ReflectionMethod(NetworkSession::class, "expireDimensionChange");
+		$this->enter(Dimension::NETHER);
+		$this->tick = 599;
+		$this->session->onDimensionTerrainProgress();
+		$this->tick = 600;
+		$expire->invoke($this->session);
+		$this->tick = 1199;
+		$expire->invoke($this->session);
+	}
+
+	public function testSpawnBurstIsSharedAndStopsOnOverload() : void{
+		$server = (new \ReflectionClass(Server::class))->newInstanceWithoutConstructor();
+		$tick = new \ReflectionProperty(Server::class, "tickCounter");
+		$tick->setValue($server, 50);
+		$nextTick = new \ReflectionProperty(Server::class, "nextTick");
+		$nextTick->setValue($server, \PHP_FLOAT_MAX);
+		self::assertTrue($server->takeSpawnChunkBudget(2, false));
+		self::assertTrue($server->takeSpawnChunkBudget(2, false));
+		self::assertFalse($server->takeSpawnChunkBudget(2, false));
+		self::assertTrue($server->takeSpawnChunkBudget(2, true));
+		$tick->setValue($server, 51);
+		self::assertTrue($server->takeSpawnChunkBudget(2, false));
+		$nextTick->setValue($server, 0.0);
+		self::assertFalse($server->takeSpawnChunkBudget(2, true));
+		$nextTick->setValue($server, \PHP_FLOAT_MAX);
+		(new \ReflectionProperty(Server::class, "currentUse"))->setValue($server, 1.0);
+		self::assertFalse($server->takeSpawnChunkBudget(2, true));
 	}
 
 	public function testDisconnectedSessionSendsNothing() : void{

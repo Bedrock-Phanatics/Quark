@@ -29,11 +29,16 @@ use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\types\CompressionAlgorithm;
 use quark\block\VanillaBlocks;
+use quark\entity\Entity;
 use quark\network\mcpe\compression\NativeCompressor;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\serializer\ChunkSerializerTest;
+use quark\player\Player;
+use quark\player\UsedChunkStatus;
 use quark\Server;
+use quark\world\Dimension;
 use quark\world\DimensionRegistry;
 use quark\world\format\Chunk;
 use quark\world\World;
@@ -59,6 +64,8 @@ final class ChunkCacheTest extends TestCase{
 	/** @phpstan-var (\Closure() : void)|null */
 	private ?\Closure $unloadWorld = null;
 	private ChunkCache $cache;
+	private World $world;
+	private NativeCompressor $compressor;
 
 	protected function setUp() : void{
 		$this->chunk = new Chunk([], false);
@@ -84,7 +91,9 @@ final class ChunkCacheTest extends TestCase{
 			$this->unloadWorld = $callback;
 		});
 		$world->pulse = new WorldPulse($world);
-		$this->cache = ChunkCache::getInstance($world, new NativeCompressor(CompressionAlgorithm::ZLIB));
+		$this->world = $world;
+		$this->compressor = new NativeCompressor(CompressionAlgorithm::ZLIB);
+		$this->cache = ChunkCache::getInstance($world, $this->compressor);
 	}
 
 	protected function tearDown() : void{
@@ -223,6 +232,60 @@ final class ChunkCacheTest extends TestCase{
 		self::assertSame(0, $this->cache->calculateCacheSize());
 		self::assertSame($pending, $this->cache->request(self::X + 1, self::Z));
 		self::assertCount(2, $this->syncModes);
+	}
+
+	public function testCancelledSendDoesNotCompleteWhenTheSameChunkIsRequestedAgain() : void{
+		$this->asyncCompression = true;
+		$player = $this->createMock(Player::class);
+		(new \ReflectionProperty(Entity::class, "closed"))->setValue($player, true);
+		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, $this->createMock(\Logger::class));
+		$player->method("getWorld")->willReturn($this->world);
+		$player->method("getUsedChunkStatus")->willReturn(UsedChunkStatus::REQUESTED_SENDING);
+
+		$session = $this->getMockBuilder(NetworkSession::class)
+			->disableOriginalConstructor()->onlyMethods(["queueCompressed"])->getMock();
+		$session->expects(self::once())->method("queueCompressed")->with("chunk batch");
+		(new \ReflectionProperty(NetworkSession::class, "player"))->setValue($session, $player);
+		(new \ReflectionProperty(NetworkSession::class, "compressor"))->setValue($session, $this->compressor);
+		$owner = new \stdClass();
+		$ownerRef = \WeakReference::create($owner);
+		$session->startUsingChunk(self::X, self::Z, static function() use ($owner) : void{ self::fail("Cancelled send still holds " . $owner::class); });
+		unset($owner);
+		$session->stopUsingChunk(self::X, self::Z);
+		self::assertNull($ownerRef->get());
+		$completed = false;
+		$session->startUsingChunk(self::X, self::Z, static function() use (&$completed) : void{ $completed = true; });
+		self::assertCount(1, $this->compressing);
+		$this->compressing[0]->resolve("chunk batch");
+		self::assertTrue($completed);
+	}
+
+	public function testIdenticalCoordinatesInDifferentWorldsUseTheCorrectDimension() : void{
+		$nether = DimensionRegistry::getInstance()->get(Dimension::NETHER) ?? self::fail();
+		$world = $this->createMock(World::class);
+		$world->method("getDimension")->willReturn($nether);
+		$world->method("getChunk")->willReturn($this->chunk);
+		$world->method("getServer")->willReturn($this->world->getServer());
+		$world->pulse = new WorldPulse($world);
+		$unload = null;
+		$world->method("addOnUnloadCallback")->willReturnCallback(static function(\Closure $callback) use (&$unload) : void{
+			$unload = $callback;
+		});
+		$cache = ChunkCache::getInstance($world, $this->compressor);
+		try{
+			self::assertNotSame($this->cache, $cache);
+			$overworldBatch = $this->cache->request(self::X, self::Z);
+			$netherBatch = $cache->request(self::X, self::Z);
+			self::assertIsString($netherBatch);
+			self::assertNotSame($overworldBatch, $netherBatch);
+			$reader = new ByteBufferReader(substr($netherBatch, 1));
+			$packet = EncodedPacket::fromBytes($reader->readByteArray(VarInt::readUnsignedInt($reader)))->getPacket();
+			self::assertInstanceOf(LevelChunkPacket::class, $packet);
+			self::assertSame($nether->networkId, $packet->getDimensionId());
+		}finally{
+			/** @var (\Closure(): void)|null $unload */
+			$unload?->__invoke();
+		}
 	}
 
 	public function testRequestingAnUnloadedChunkFails() : void{

@@ -227,6 +227,12 @@ class NetworkSession{
 	private ?int $dimensionChangeId = null;
 	private int $lastLoadingScreenId = 0;
 	private int $dimensionChangeDeadline = PHP_INT_MAX;
+	private bool $dimensionTerrainReady = false;
+	private bool $sendingDimensionChange = false;
+
+	/** @var array<int, array{int, \Closure(): void}> */
+	private array $pendingChunkSends = [];
+	private int $nextChunkSendId = 0;
 
 	private int $nextAckReceiptId = 0;
 	/** @phpstan-var array<int, list<Deferred<null>>> */
@@ -1245,6 +1251,7 @@ class NetworkSession{
 				}
 				//queued batches would never be sent, so let go of them and their buffers now
 				$this->compressedQueue = new \SplQueue();
+				$this->pendingChunkSends = [];
 				$this->ackPromisesByReceiptId = [];
 				$this->sendBufferAckPromises = [];
 				self::cancelAll($pending, "Session closed");
@@ -1541,11 +1548,7 @@ class NetworkSession{
 
 	public function notifyTerrainReady() : void{
 		if($this->player !== null && $this->player->spawned){
-			if($this->dimensionChangeId !== null){
-				$this->logger->debug("Destination terrain sent, letting the client leave the dimension loading screen");
-				$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
-				$this->dimensionChangeDeadline = $this->server->getTick() + self::DIMENSION_CHANGE_TIMEOUT_TICKS;
-			}
+			$this->finishDimensionTerrain();
 			return;
 		}
 		$this->logger->debug("Sending spawn notification, waiting for spawn response");
@@ -1560,7 +1563,12 @@ class NetworkSession{
 		$this->forceAsyncCompression = false;
 		$this->setHandler(new InGamePacketHandler($this->player, $this, $this->invManager));
 		$this->manager->markJoined($this);
-		$this->syncDimension();
+		if(!$this->isCurrentDimension()){
+			$this->onEnterWorld();
+			if($this->player !== null){
+				$this->syncMovement($this->player->getPosition(), mode: MovePlayerPacket::MODE_TELEPORT);
+			}
+		}
 	}
 
 	public function onServerDeath(Translatable|string $deathMessage) : void{
@@ -1580,7 +1588,7 @@ class NetworkSession{
 	}
 
 	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL) : void{
-		if($this->player !== null){
+		if($this->player !== null && !$this->sendingDimensionChange && $this->isCurrentDimension()){
 			$location = $this->player->getLocation();
 			$yaw = $yaw ?? $location->getYaw();
 			$pitch = $pitch ?? $location->getPitch();
@@ -1783,7 +1791,9 @@ class NetworkSession{
 		$syncChunkSendScope = $world->pulse->syncChunkSend->start();
 		try{
 			$this->queueCompressed($chunkPacket);
-			$onCompletion();
+			if($this->connected){
+				$onCompletion();
+			}
 		}finally{
 			$world->pulse->syncChunkSend->stop($syncChunkSendScope);
 		}
@@ -1795,102 +1805,165 @@ class NetworkSession{
 	 * @phpstan-param \Closure() : void $onCompletion
 	 */
 	public function startUsingChunk(int $chunkX, int $chunkZ, \Closure $onCompletion) : void{
-		$world = $this->player->getLocation()->getWorld();
+		$player = $this->player;
+		if($player === null || !$this->isCurrentDimension()){
+			return;
+		}
+		$world = $player->getWorld();
 		$promiseOrPacket = ChunkCache::getInstance($world, $this->compressor)->request($chunkX, $chunkZ);
 		if(is_string($promiseOrPacket)){
 			$this->sendChunkPacket($promiseOrPacket, $onCompletion, $world);
 			return;
 		}
-		//cancellation means the chunk was unloaded, which the player already handles as a forced unload
-		$promiseOrPacket->observe(
-			function(string $chunkPacket) use ($world, $onCompletion, $chunkX, $chunkZ) : void{
-				if(!$this->isConnected()){
-					return;
-				}
-				$currentWorld = $this->player->getLocation()->getWorld();
-				if($world !== $currentWorld || ($status = $this->player->getUsedChunkStatus($chunkX, $chunkZ)) === null){
-					$this->logger->debug("Tried to send no-longer-active chunk $chunkX $chunkZ in world " . $world->getFolderName());
-					return;
-				}
-				if($status !== UsedChunkStatus::REQUESTED_SENDING){
-					//TODO: make this an error
-					//this could be triggered due to the shitty way that chunk resends are handled
-					//right now - not because of the spammy re-requesting, but because the chunk status reverts
-					//to NEEDED if they want to be resent.
-					return;
-				}
-				$this->sendChunkPacket($chunkPacket, $onCompletion, $world);
+
+		$hash = World::chunkHash($chunkX, $chunkZ);
+		$id = ++$this->nextChunkSendId;
+		$this->pendingChunkSends[$hash] = [$id, $onCompletion];
+		$sessionRef = \WeakReference::create($this);
+		$settle = static function(string|\Throwable $result) use ($sessionRef, $hash, $id, $world, $chunkX, $chunkZ) : void{
+			$session = $sessionRef->get();
+			$pending = $session?->pendingChunkSends[$hash] ?? null;
+			if($pending === null || $pending[0] !== $id){
+				return;
 			}
-		);
+			unset($session->pendingChunkSends[$hash]);
+			$player = $session->player;
+			if(!$session->connected || $player === null || $world !== $player->getWorld() || !$session->isCurrentDimension() ||
+				$player->getUsedChunkStatus($chunkX, $chunkZ) !== UsedChunkStatus::REQUESTED_SENDING){
+				return;
+			}
+			if(is_string($result)){
+				$session->sendChunkPacket($result, $pending[1], $world);
+			}else{
+				$player->onChunkRequestFailure($hash, $result);
+			}
+		};
+		$promiseOrPacket->observe($settle, $settle);
 	}
 
 	public function stopUsingChunk(int $chunkX, int $chunkZ) : void{
+		unset($this->pendingChunkSends[World::chunkHash($chunkX, $chunkZ)]);
+	}
 
+	/** @internal */
+	public function isCurrentDimension() : bool{
+		$player = $this->player;
+		return $player !== null && (!$player->spawned || $player->getWorld()->getDimension()->networkId === $this->clientDimension);
+	}
+
+	/** @internal */
+	public function hasPendingPacketBatches() : bool{
+		return !$this->compressedQueue->isEmpty();
+	}
+
+	/** @internal */
+	public function hasCachedChunk(World $world, int $chunkHash) : bool{
+		return ChunkCache::getInstance($world, $this->compressor)->hasReadyBatch($chunkHash);
 	}
 
 	public function onEnterWorld() : void{
 		$this->npcDialogue?->reset();
-		$player = $this->player;
-		if($player !== null){
-			$this->syncDimension();
-			$world = $player->getWorld();
-			$this->syncWorldTime($world->getTime());
-			$this->syncWorldDifficulty($world->getDifficulty());
-			$this->syncWorldSpawnPoint($world->getSpawnLocation());
-			$this->syncWorldWeather($world->getWeather());
+		if(!$this->connected || $this->sendingDimensionChange){
+			return;
 		}
+		if($this->dimensionChangeId !== null && !$this->isCurrentDimension()){
+			//The previous screen must close before we can send the latest destination to the client.
+			$this->finishDimensionTerrain();
+			return;
+		}
+		$this->syncDimension();
+		$this->syncCurrentWorld();
 	}
 
-	/**
-	 * Moves the client to the dimension of the player's world. The client gets stuck if it is sent another change
-	 * while it is still loading one, so a change made meanwhile is caught up once the loading screen closes.
-	 */
+	private function syncCurrentWorld() : void{
+		if($this->player === null || !$this->isCurrentDimension()){
+			return;
+		}
+		$world = $this->player->getWorld();
+		$this->syncWorldTime($world->getTime());
+		$this->syncWorldDifficulty($world->getDifficulty());
+		$this->syncWorldSpawnPoint($world->getSpawnLocation());
+		$this->syncWorldWeather($world->getWeather());
+	}
+
 	private function syncDimension() : void{
 		$player = $this->player;
-		if($player === null || !$this->connected || !$player->spawned || $this->dimensionChangeId !== null){
+		if($player === null || !$this->connected || !$player->spawned || $this->dimensionChangeId !== null || $this->isCurrentDimension()){
 			return;
 		}
 		$dimension = $player->getWorld()->getDimension()->networkId;
-		if($dimension === $this->clientDimension){
-			return;
-		}
 		$this->clientDimension = $dimension;
 		$this->lastLoadingScreenId = ($this->lastLoadingScreenId + 1) & 0xffffffff;
 		$this->dimensionChangeId = $this->lastLoadingScreenId;
-		$this->dimensionChangeDeadline = PHP_INT_MAX;
+		$this->dimensionTerrainReady = false;
+		$this->onDimensionTerrainProgress();
 		$this->logger->debug("Changing client dimension to $dimension");
-		$this->sendDataPacket(ChangeDimensionPacket::create($dimension, $player->getOffsetPosition($player->getPosition()), false, $this->dimensionChangeId));
-		//the client drops its chunks and entities, and leaves the loading screen once the new terrain has arrived
-		$player->onClientDimensionChange();
+		$change = ChangeDimensionPacket::create($dimension, $player->getOffsetPosition($player->getPosition()), false, $this->dimensionChangeId);
+		$this->sendingDimensionChange = true;
+		try{
+			$player->onClientDimensionChange();
+			$sent = $this->sendDataPacket($change);
+		}finally{
+			$this->sendingDimensionChange = false;
+		}
+		if(!$sent){
+			$this->disconnectWithError("Failed to send the dimension change");
+			return;
+		}
+		if(!$this->isCurrentDimension()){
+			$this->finishDimensionTerrain();
+		}
 	}
 
-	/**
-	 * Whether the client is on the loading screen of a dimension change. Its input is meaningless until it finishes.
-	 */
+	/** @internal */
+	public function onDimensionTerrainProgress() : void{
+		if($this->dimensionChangeId !== null && !$this->dimensionTerrainReady){
+			$this->dimensionChangeDeadline = $this->server->getTick() + self::DIMENSION_CHANGE_TIMEOUT_TICKS;
+		}
+	}
+
+	private function finishDimensionTerrain() : void{
+		if($this->dimensionChangeId === null || $this->dimensionTerrainReady){
+			return;
+		}
+		$this->onDimensionTerrainProgress();
+		$this->dimensionTerrainReady = true;
+		if(!$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN), true)){
+			$this->disconnectWithError("Failed to close the dimension loading screen");
+		}
+	}
+
 	public function isChangingDimension() : bool{
 		return $this->dimensionChangeId !== null;
 	}
 
-	/**
-	 * @internal
-	 */
+	/** @internal */
 	public function onLoadingScreenClosed(?int $loadingScreenId) : void{
-		if($this->dimensionChangeId === null || ($loadingScreenId !== null && $loadingScreenId !== $this->dimensionChangeId)){
+		if($this->dimensionChangeId === null || $this->sendingDimensionChange ||
+			($loadingScreenId === null ? !$this->dimensionTerrainReady : $loadingScreenId !== $this->dimensionChangeId)){
 			return;
 		}
 		$this->logger->debug("Client finished changing dimension");
 		$this->dimensionChangeId = null;
-		$this->syncDimension();
+		if(!$this->isCurrentDimension() && $this->player !== null){
+			$this->syncDimension();
+			$this->syncCurrentWorld();
+			if($this->player !== null){
+				$this->syncMovement($this->player->getPosition(), mode: MovePlayerPacket::MODE_TELEPORT);
+			}
+		}
 	}
 
-	/**
-	 * A client that never reports its loading screen closing would otherwise have its input ignored forever.
-	 */
 	private function expireDimensionChange() : void{
-		if($this->dimensionChangeId !== null && $this->server->getTick() >= $this->dimensionChangeDeadline){
-			$this->logger->debug("Client did not finish changing dimension in time");
-			$this->onLoadingScreenClosed(null);
+		if($this->dimensionChangeId === null || $this->server->getTick() < $this->dimensionChangeDeadline){
+			return;
 		}
+		if(!$this->dimensionTerrainReady || !$this->isCurrentDimension()){
+			$this->disconnectWithError("Dimension change timed out");
+			return;
+		}
+		$this->logger->debug("Client did not report closing the dimension loading screen");
+		$this->onLoadingScreenClosed(null);
 	}
 
 	public function syncWorldWeather(Weather $weather) : void{

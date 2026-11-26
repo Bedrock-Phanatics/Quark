@@ -333,6 +333,13 @@ class Chunk{
 		$this->heightMap = clone $this->heightMap;
 	}
 
+	/** @internal */
+	public function cloneTerrain() : self{
+		$copy = clone $this;
+		$copy->tiles = [];
+		return $copy;
+	}
+
 	/**
 	 * Hashes the given chunk block coordinates into a single integer.
 	 *
