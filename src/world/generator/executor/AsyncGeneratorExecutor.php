@@ -85,7 +85,8 @@ final class AsyncGeneratorExecutor implements GeneratorExecutor{
 			$chunkZ,
 			$centerChunk,
 			$adjacentChunks,
-			$onCompletion
+			$onCompletion,
+			static fn(\Throwable $error) => $onCompletion($error, [])
 		);
 		$workerId = $this->workerPool->selectWorker();
 		if(!isset($this->workerPool->getRunningWorkers()[$workerId]) && isset($this->generatorRegisteredWorkers[$workerId])){

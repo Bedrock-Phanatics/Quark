@@ -114,7 +114,6 @@ use quark\permission\DefaultPermissions;
 use quark\player\GameMode;
 use quark\player\Player;
 use quark\player\PlayerInfo;
-use quark\player\UsedChunkStatus;
 use quark\player\XboxLivePlayerInfo;
 use quark\pulse\internal\PulseNetwork;
 use quark\pulse\internal\PulseNetworkWork;
@@ -228,6 +227,7 @@ class NetworkSession{
 	private int $lastLoadingScreenId = 0;
 	private int $dimensionChangeDeadline = PHP_INT_MAX;
 	private bool $dimensionTerrainReady = false;
+	private bool $dimensionScreenClosed = false;
 	private bool $sendingDimensionChange = false;
 
 	/** @var array<int, array{int, \Closure(): void}> */
@@ -1784,61 +1784,78 @@ class NetworkSession{
 		return $this->npcDialogue;
 	}
 
-	/**
-	 * @phpstan-param \Closure() : void $onCompletion
-	 */
-	private function sendChunkPacket(string $chunkPacket, \Closure $onCompletion, World $world) : void{
-		$syncChunkSendScope = $world->pulse->syncChunkSend->start();
+	private function isPendingChunkSend(int $hash, int $id) : bool{
+		return ($this->pendingChunkSends[$hash][0] ?? null) === $id;
+	}
+
+	private function finishChunkSend(string|\Throwable $result, World $world, int $hash, int $id) : void{
+		if(!$this->isPendingChunkSend($hash, $id)){
+			return;
+		}
+		$player = $this->player;
+		if(!$this->isConnected() || $player === null || $player->getWorld() !== $world || !$this->isCurrentDimension()){
+			unset($this->pendingChunkSends[$hash]);
+			return;
+		}
+		if($result instanceof \Throwable){
+			unset($this->pendingChunkSends[$hash]);
+			$player->onChunkRequestFailure($hash, $result);
+			return;
+		}
+
+		$scope = $world->pulse->syncChunkSend->start();
 		try{
-			$this->queueCompressed($chunkPacket);
-			if($this->connected){
-				$onCompletion();
+			// Native sends can invoke receipt callbacks that make this subscription obsolete.
+			$this->flushGamePacketQueue();
+			if(!$this->isPendingChunkSend($hash, $id)){
+				return;
+			}
+			if($this->isConnected()){
+				$this->queueCompressedNoGamePacketFlush($result);
+			}
+			$pending = $this->pendingChunkSends[$hash] ?? null;
+			if($pending !== null && $pending[0] === $id){
+				unset($this->pendingChunkSends[$hash]);
+				if($this->isConnected()){
+					($pending[1])();
+				}
 			}
 		}finally{
-			$world->pulse->syncChunkSend->stop($syncChunkSendScope);
+			$world->pulse->syncChunkSend->stop($scope);
 		}
 	}
 
 	/**
 	 * Instructs the networksession to start using the chunk at the given coordinates. This may occur asynchronously.
-	 * @param \Closure $onCompletion To be called when chunk sending has completed.
 	 * @phpstan-param \Closure() : void $onCompletion
 	 */
 	public function startUsingChunk(int $chunkX, int $chunkZ, \Closure $onCompletion) : void{
 		$player = $this->player;
-		if($player === null || !$this->isCurrentDimension()){
+		if($player === null || !$this->isConnected() || !$this->isCurrentDimension()){
 			return;
 		}
 		$world = $player->getWorld();
-		$promiseOrPacket = ChunkCache::getInstance($world, $this->compressor)->request($chunkX, $chunkZ);
-		if(is_string($promiseOrPacket)){
-			$this->sendChunkPacket($promiseOrPacket, $onCompletion, $world);
-			return;
-		}
-
 		$hash = World::chunkHash($chunkX, $chunkZ);
 		$id = ++$this->nextChunkSendId;
 		$this->pendingChunkSends[$hash] = [$id, $onCompletion];
+		try{
+			$batch = ChunkCache::getInstance($world, $this->compressor)->request($chunkX, $chunkZ);
+		}catch(\Throwable $error){
+			if($this->isPendingChunkSend($hash, $id)){
+				unset($this->pendingChunkSends[$hash]);
+			}
+			throw $error;
+		}
+		if(is_string($batch)){
+			$this->finishChunkSend($batch, $world, $hash, $id);
+			return;
+		}
+
 		$sessionRef = \WeakReference::create($this);
-		$settle = static function(string|\Throwable $result) use ($sessionRef, $hash, $id, $world, $chunkX, $chunkZ) : void{
-			$session = $sessionRef->get();
-			$pending = $session?->pendingChunkSends[$hash] ?? null;
-			if($pending === null || $pending[0] !== $id){
-				return;
-			}
-			unset($session->pendingChunkSends[$hash]);
-			$player = $session->player;
-			if(!$session->connected || $player === null || $world !== $player->getWorld() || !$session->isCurrentDimension() ||
-				$player->getUsedChunkStatus($chunkX, $chunkZ) !== UsedChunkStatus::REQUESTED_SENDING){
-				return;
-			}
-			if(is_string($result)){
-				$session->sendChunkPacket($result, $pending[1], $world);
-			}else{
-				$player->onChunkRequestFailure($hash, $result);
-			}
+		$settle = static function(string|\Throwable $result) use ($sessionRef, $hash, $id, $world) : void{
+			$sessionRef->get()?->finishChunkSend($result, $world, $hash, $id);
 		};
-		$promiseOrPacket->observe($settle, $settle);
+		$batch->observe($settle, $settle);
 	}
 
 	public function stopUsingChunk(int $chunkX, int $chunkZ) : void{
@@ -1896,6 +1913,7 @@ class NetworkSession{
 		$this->lastLoadingScreenId = ($this->lastLoadingScreenId + 1) & 0xffffffff;
 		$this->dimensionChangeId = $this->lastLoadingScreenId;
 		$this->dimensionTerrainReady = false;
+		$this->dimensionScreenClosed = false;
 		$this->onDimensionTerrainProgress();
 		$this->logger->debug("Changing client dimension to $dimension");
 		$change = ChangeDimensionPacket::create($dimension, $player->getOffsetPosition($player->getPosition()), false, $this->dimensionChangeId);
@@ -1930,6 +1948,8 @@ class NetworkSession{
 		$this->dimensionTerrainReady = true;
 		if(!$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN), true)){
 			$this->disconnectWithError("Failed to close the dimension loading screen");
+		}elseif($this->dimensionScreenClosed){
+			$this->onLoadingScreenClosed($this->dimensionChangeId);
 		}
 	}
 
@@ -1940,7 +1960,13 @@ class NetworkSession{
 	/** @internal */
 	public function onLoadingScreenClosed(?int $loadingScreenId) : void{
 		if($this->dimensionChangeId === null || $this->sendingDimensionChange ||
-			($loadingScreenId === null ? !$this->dimensionTerrainReady : $loadingScreenId !== $this->dimensionChangeId)){
+			($loadingScreenId !== null && $loadingScreenId !== $this->dimensionChangeId)){
+			return;
+		}
+		if(!$this->dimensionTerrainReady){
+			if($loadingScreenId !== null){
+				$this->dimensionScreenClosed = true;
+			}
 			return;
 		}
 		$this->logger->debug("Client finished changing dimension");

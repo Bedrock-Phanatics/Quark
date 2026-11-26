@@ -225,19 +225,7 @@ class InGamePacketHandler extends PacketHandler{
 	public function handlePlayerAuthInput(PlayerAuthInputPacket $packet) : bool{
 		self::validateAuthInput($packet);
 		if($this->session->isChangingDimension()){
-			//sent before the client left or from its loading screen, so its actions would land in the wrong world.
-			//They are rejected the way failed ones are, so the client drops its predictions.
-			$useItemTransaction = $packet->getItemInteractionData();
-			if($useItemTransaction !== null){
-				$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction->getRequestId());
-				$this->inventoryManager->addRawPredictedSlotChanges($useItemTransaction->getTransactionData()->getActions());
-				$this->inventoryManager->syncMismatchedPredictedSlotChanges();
-				$this->inventoryManager->setCurrentItemStackRequestId(null);
-			}
-			$itemStackRequest = $packet->getItemStackRequest();
-			if($itemStackRequest !== null){
-				$this->session->sendDataPacket(ItemStackResponsePacket::create([new ItemStackResponse(ItemStackResponse::RESULT_ERROR, $itemStackRequest->getRequestId(), null)]));
-			}
+			$this->rejectAuthInputActions($packet);
 			return true;
 		}
 		$rawPos = $packet->getPosition();
@@ -246,6 +234,22 @@ class InGamePacketHandler extends PacketHandler{
 		if(!is_finite($rawPos->x) || !is_finite($rawPos->y) || !is_finite($rawPos->z) || !is_finite($rawYaw) || !is_finite($packet->getHeadYaw()) || !is_finite($rawPitch)){
 			$this->session->getLogger()->debug("Invalid movement received, contains NAN/INF components");
 			return false;
+		}
+
+		$hasMoved = $this->lastPlayerAuthInputPosition === null || !$this->lastPlayerAuthInputPosition->equals($rawPos);
+		$newPos = $rawPos->subtract(0, 1.62, 0)->round(4);
+
+		if($this->forceMoveSync){
+			$curPos = $this->player->getLocation();
+
+			if($newPos->distanceSquared($curPos) > 1){  //Tolerate up to 1 block to avoid problems with client-sided physics when spawning in blocks
+				$this->session->getLogger()->debug("Got outdated pre-teleport movement, received " . $newPos . ", expected " . $curPos);
+				$this->rejectAuthInputActions($packet);
+				return true;
+			}
+
+			// Once we get a movement within a reasonable distance, treat it as a teleport ACK and remove position lock
+			$this->forceMoveSync = false;
 		}
 
 		if($rawYaw !== $this->lastPlayerAuthInputYaw || $rawPitch !== $this->lastPlayerAuthInputPitch){
@@ -259,22 +263,6 @@ class InGamePacketHandler extends PacketHandler{
 			}
 
 			$this->player->setRotation($yaw, $pitch);
-		}
-
-		$hasMoved = $this->lastPlayerAuthInputPosition === null || !$this->lastPlayerAuthInputPosition->equals($rawPos);
-		$newPos = $rawPos->subtract(0, 1.62, 0)->round(4);
-
-		if($this->forceMoveSync && $hasMoved){
-			$curPos = $this->player->getLocation();
-
-			if($newPos->distanceSquared($curPos) > 1){  //Tolerate up to 1 block to avoid problems with client-sided physics when spawning in blocks
-				$this->session->getLogger()->debug("Got outdated pre-teleport movement, received " . $newPos . ", expected " . $curPos);
-				//Still getting movements from before teleport, ignore them
-				return true;
-			}
-
-			// Once we get a movement within a reasonable distance, treat it as a teleport ACK and remove position lock
-			$this->forceMoveSync = false;
 		}
 
 		$inputFlags = $packet->getInputFlags();
@@ -306,7 +294,7 @@ class InGamePacketHandler extends PacketHandler{
 			}
 		}
 
-		if(!$this->forceMoveSync && $hasMoved){
+		if($hasMoved){
 			$this->lastPlayerAuthInputPosition = $rawPos;
 			//TODO: this packet has WAYYYYY more useful information that we're not using
 			$this->player->handleMovement($newPos);
@@ -363,6 +351,20 @@ class InGamePacketHandler extends PacketHandler{
 		return $packetHandled;
 	}
 
+	private function rejectAuthInputActions(PlayerAuthInputPacket $packet) : void{
+		$useItemTransaction = $packet->getItemInteractionData();
+		if($useItemTransaction !== null){
+			$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction->getRequestId());
+			$this->inventoryManager->addRawPredictedSlotChanges($useItemTransaction->getTransactionData()->getActions());
+			$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+			$this->inventoryManager->setCurrentItemStackRequestId(null);
+		}
+		$itemStackRequest = $packet->getItemStackRequest();
+		if($itemStackRequest !== null){
+			$this->session->sendDataPacket(ItemStackResponsePacket::create([new ItemStackResponse(ItemStackResponse::RESULT_ERROR, $itemStackRequest->getRequestId(), null)]));
+		}
+	}
+
 	public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{
 		$result = true;
 
@@ -374,7 +376,9 @@ class InGamePacketHandler extends PacketHandler{
 		$this->inventoryManager->setCurrentItemStackRequestId($packet->requestId);
 		$this->inventoryManager->addRawPredictedSlotChanges($packet->trData->getActions());
 
-		if($packet->trData instanceof NormalTransactionData){
+		if($this->session->isChangingDimension()){
+			$this->inventoryManager->requestSyncAll();
+		}elseif($packet->trData instanceof NormalTransactionData){
 			$result = $this->handleNormalTransaction($packet->trData, $packet->requestId);
 		}elseif($packet->trData instanceof MismatchTransactionData){
 			$this->session->getLogger()->debug("Mismatch transaction received");
@@ -667,6 +671,9 @@ class InGamePacketHandler extends PacketHandler{
 			//nTakeActionsTotal = floor(64 / nResults) + max(1, 64 % nResults) + ((nResults * nItemsRequiredFor1Craft) - (n64Stacks * 64))
 			throw new PacketHandlingException("Too many actions in ItemStackRequest");
 		}
+		if($this->session->isChangingDimension()){
+			return null;
+		}
 		$window = $this->player->getCurrentWindow();
 		if($window instanceof BlockInventoryWindow && !$window->isUsable()){
 			//nothing else closes a window whose block is out of reach or gone, so this request must not reach it
@@ -739,11 +746,12 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	public function handleBlockPickRequest(BlockPickRequestPacket $packet) : bool{
-		return $this->player->pickBlock(new Vector3($packet->blockPosition->getX(), $packet->blockPosition->getY(), $packet->blockPosition->getZ()), $packet->addUserData);
+		return $this->session->isChangingDimension() ||
+			$this->player->pickBlock(new Vector3($packet->blockPosition->getX(), $packet->blockPosition->getY(), $packet->blockPosition->getZ()), $packet->addUserData);
 	}
 
 	public function handleActorPickRequest(ActorPickRequestPacket $packet) : bool{
-		return $this->player->pickEntity($packet->actorUniqueId);
+		return $this->session->isChangingDimension() || $this->player->pickEntity($packet->actorUniqueId);
 	}
 
 	public function handleServerboundLoadingScreen(ServerboundLoadingScreenPacket $packet) : bool{
@@ -758,6 +766,9 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	private function handlePlayerActionFromData(int $action, BlockPosition $blockPosition, int $face) : bool{
+		if($this->session->isChangingDimension()){
+			return true;
+		}
 		$pos = new Vector3($blockPosition->getX(), $blockPosition->getY(), $blockPosition->getZ());
 
 		switch($action){
@@ -872,6 +883,9 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	public function handleBlockActorData(BlockActorDataPacket $packet) : bool{
+		if($this->session->isChangingDimension()){
+			return true;
+		}
 		$pos = new Vector3($packet->blockPosition->getX(), $packet->blockPosition->getY(), $packet->blockPosition->getZ());
 		if($pos->distanceSquared($this->player->getLocation()) > 10000){
 			return false;
@@ -1096,6 +1110,9 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	public function handleLecternUpdate(LecternUpdatePacket $packet) : bool{
+		if($this->session->isChangingDimension()){
+			return true;
+		}
 		$pos = $packet->blockPosition;
 		$chunkX = $pos->getX() >> Chunk::COORD_BIT_SIZE;
 		$chunkZ = $pos->getZ() >> Chunk::COORD_BIT_SIZE;

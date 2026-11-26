@@ -1410,7 +1410,11 @@ abstract class Entity{
 		$oldWorld = $this->getWorld();
 		$newWorld = $pos instanceof Position ? $pos->getWorld() : $oldWorld;
 		if($oldWorld !== $newWorld){
+			$previousLocation = $this->location;
 			$this->despawnFromAll();
+			if($this->isClosed() || $this->location !== $previousLocation || !$newWorld->isLoaded()){
+				return false;
+			}
 			$oldWorld->removeEntity($this);
 		}
 
@@ -1527,7 +1531,11 @@ abstract class Entity{
 		}
 		$this->ySize = 0;
 
+		$previousLocation = $this->location;
 		$this->setMotion(new Vector3(0, 0, 0));
+		if($this->location !== $previousLocation || !$pos->isValid()){
+			return false;
+		}
 		if($this->setPositionAndRotation($pos, $yaw ?? $this->location->yaw, $pitch ?? $this->location->pitch)){
 			$this->resetFallDistance();
 			$this->setForceMovementUpdate();

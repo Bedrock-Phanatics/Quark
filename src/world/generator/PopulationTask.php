@@ -37,11 +37,12 @@ use function igbinary_unserialize;
  *
  * Some plugins instantiate this task to regenerate chunks, so its namespace is retained.
  *
- * @phpstan-type OnCompletion \Closure(Chunk|\Throwable $result, array<int, Chunk> $adjacentChunks) : void
+ * @phpstan-type OnCompletion \Closure(Chunk $result, array<int, Chunk> $adjacentChunks) : void
  */
 class PopulationTask extends AsyncTask{
 	private ?string $populationError = null;
 	private const TLS_KEY_ON_COMPLETION = "onCompletion";
+	private const TLS_KEY_ON_FAILURE = "onFailure";
 
 	private ?string $chunk;
 
@@ -51,6 +52,7 @@ class PopulationTask extends AsyncTask{
 	 * @param Chunk[]|null[] $adjacentChunks
 	 * @phpstan-param array<int, Chunk|null> $adjacentChunks
 	 * @phpstan-param OnCompletion $onCompletion
+	 * @param (\Closure(\Throwable) : void)|null $onFailure
 	 */
 	public function __construct(
 		private int $worldId,
@@ -58,7 +60,8 @@ class PopulationTask extends AsyncTask{
 		private int $chunkZ,
 		?Chunk $chunk,
 		array $adjacentChunks,
-		\Closure $onCompletion
+		\Closure $onCompletion,
+		?\Closure $onFailure = null
 	){
 		$this->chunk = $chunk !== null ? FastChunkSerializer::serializeTerrain($chunk) : null;
 
@@ -68,6 +71,7 @@ class PopulationTask extends AsyncTask{
 		)) ?? throw new AssumptionFailedError("igbinary_serialize() returned null");
 
 		$this->storeLocal(self::TLS_KEY_ON_COMPLETION, $onCompletion);
+		$this->storeLocal(self::TLS_KEY_ON_FAILURE, $onFailure);
 	}
 
 	public function onRun() : void{
@@ -126,7 +130,13 @@ class PopulationTask extends AsyncTask{
 		 */
 		$onCompletion = $this->fetchLocal(self::TLS_KEY_ON_COMPLETION);
 		if($this->populationError !== null){
-			$onCompletion(new \RuntimeException($this->populationError), []);
+			/** @var (\Closure(\Throwable) : void)|null $onFailure */
+			$onFailure = $this->fetchLocal(self::TLS_KEY_ON_FAILURE);
+			$error = new \RuntimeException($this->populationError);
+			if($onFailure === null){
+				throw $error;
+			}
+			$onFailure($error);
 			return;
 		}
 

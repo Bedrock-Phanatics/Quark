@@ -24,8 +24,10 @@ declare(strict_types=1);
 namespace quark\world\generator\executor;
 
 use quark\world\format\Chunk;
+use quark\world\generator\Flat;
 use quark\world\generator\Generator;
 use quark\world\generator\PopulationUtils;
+use quark\world\generator\VoidGenerator;
 use function array_filter;
 
 final class SyncGeneratorExecutor implements GeneratorExecutor{
@@ -43,6 +45,8 @@ final class SyncGeneratorExecutor implements GeneratorExecutor{
 	}
 
 	public function populate(int $chunkX, int $chunkZ, ?Chunk $centerChunk, array $adjacentChunks, \Closure $onCompletion) : void{
+		// Custom generators can write directly to subchunks without marking the parent dirty.
+		$tracksTerrainWrites = $this->generator::class === Flat::class || $this->generator::class === VoidGenerator::class;
 		foreach($adjacentChunks as $hash => $chunk){
 			if($chunk !== null){
 				$copy = $chunk->cloneTerrain();
@@ -65,7 +69,8 @@ final class SyncGeneratorExecutor implements GeneratorExecutor{
 			return;
 		}
 
-		$onCompletion($centerChunk, array_filter($adjacentChunks, static fn(Chunk $chunk) : bool => $chunk->isTerrainDirty()));
+		$onCompletion($centerChunk, $tracksTerrainWrites ?
+			array_filter($adjacentChunks, static fn(Chunk $chunk) : bool => $chunk->isTerrainDirty()) : $adjacentChunks);
 	}
 
 	public function shutdown() : void{

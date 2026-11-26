@@ -41,6 +41,10 @@ use quark\world\generator\executor\SyncGeneratorExecutor;
 use quark\world\generator\executor\ThreadLocalGeneratorContext;
 use quark\world\generator\Flat;
 use quark\world\generator\PopulationTask;
+use quark\world\redstone\RedstoneHarness;
+use Vow\CancelledException;
+use Vow\Deferred;
+use Vow\Promise;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Filesystem\Path;
 use function array_key_last;
@@ -258,16 +262,113 @@ final class DimensionTest extends TestCase{
 		$contextId = 1;
 		ThreadLocalGeneratorContext::register(new ThreadLocalGeneratorContext(new FailingPopulationGenerator(0, ""), 0, 128), $contextId);
 		try{
-			$task = new PopulationTask($contextId, 0, 0, null, [], static function(Chunk|\Throwable $result, array $adjacent) : void{
-				self::assertInstanceOf(\RuntimeException::class, $result);
-				self::assertStringContainsString("Test generation failure", $result->getMessage());
-				self::assertSame([], $adjacent);
-			});
+			$task = new PopulationTask(
+				$contextId, 0, 0, null, [],
+				static function() : void{ self::fail("Failed population completed successfully"); },
+				static function(\Throwable $error) : void{
+					self::assertInstanceOf(\RuntimeException::class, $error);
+					self::assertStringContainsString("Test generation failure", $error->getMessage());
+				}
+			);
 			$task->onRun();
 			$task->onCompletion();
 		}finally{
 			ThreadLocalGeneratorContext::unregister($contextId);
 		}
+	}
+
+	public function testCustomPopulationKeepsDirectSubchunkEdits() : void{
+		$executor = new SyncGeneratorExecutor(new GeneratorExecutorSetupParameters(0, 128, 0, SubchunkPopulationGenerator::class, ""));
+		$hash = World::chunkHash(1, 0);
+		$neighbor = new Chunk([], true);
+		$executor->populate(0, 0, null, [$hash => $neighbor], static function(Chunk|\Throwable $result, array $adjacent) use ($hash) : void{
+			self::assertInstanceOf(Chunk::class, $result);
+			self::assertSame(VanillaBlocks::STONE()->getStateId(), $adjacent[$hash]->getBlockStateId(0, 0, 0));
+		});
+		self::assertNotSame(VanillaBlocks::STONE()->getStateId(), $neighbor->getBlockStateId(0, 0, 0));
+	}
+
+	public function testSharedPopulationOutlivesTheOriginalLoader() : void{
+		$world = $this->getMockBuilder(World::class)->disableOriginalConstructor()
+			->onlyMethods(["unloadChunkRequest"])->getMock();
+		(new \ReflectionProperty(World::class, "chunkPopulationRequestQueue"))->setValue($world, new \SplQueue());
+		$loader = new ChunkLoader();
+		$world->registerChunkLoader($loader, 0, 0, false);
+		$queue = new \ReflectionMethod(World::class, "queuePopulationRequest");
+		$hash = World::chunkHash(0, 0);
+		/** @var Promise<Chunk> $original */
+		$original = $queue->invoke($world, 0, 0, $hash, $loader);
+		self::assertSame($original, $queue->invoke($world, 0, 0, $hash, null));
+		self::assertSame($original, $queue->invoke($world, 0, 0, $hash, null));
+		$world->unregisterChunkLoader($loader, 0, 0);
+		self::assertTrue($original->isPending());
+		self::assertCount(1, $world->getChunkLoaders(0, 0));
+		(new \ReflectionMethod(World::class, "cancelPopulationRequest"))->invoke($world, $hash, "Test cleanup");
+		self::assertInstanceOf(CancelledException::class, $original->reason());
+		self::assertSame([], $world->getChunkLoaders(0, 0));
+	}
+
+	public function testPopulationDoesNotOverwriteANeighborChangedDuringPublication() : void{
+		$world = $this->getMockBuilder(World::class)->disableOriginalConstructor()
+			->onlyMethods(["setChunk", "getFolderName"])->getMock();
+		$world->pulse = new WorldPulse($world);
+		$lock = new ChunkLockId();
+		$center = new Chunk([], true);
+		$index = World::chunkHash(0, 0);
+		$set = static fn(string $property, mixed $value) => (new \ReflectionProperty(World::class, $property))->setValue($world, $value);
+		$set("maxConcurrentChunkPopulationTasks", 1);
+		$set("chunkPopulationRequestQueue", new \SplQueue());
+		$set("activeChunkPopulationTasks", [$index => true]);
+		/** @var Deferred<Chunk> $deferred */
+		$deferred = new Deferred();
+		$set("chunkPopulationRequestMap", [$index => $deferred]);
+		for($x = -1; $x <= 1; ++$x){
+			for($z = -1; $z <= 1; ++$z){
+				$world->lockChunk($x, $z, $lock);
+			}
+		}
+		$world->expects(self::once())->method("setChunk")->with(0, 0, $center)->willReturnCallback(
+			static function() use ($world, $set, $index, $center) : void{
+				$set("chunks", [$index => $center]);
+				$world->unlockChunk(1, 0, null);
+			}
+		);
+		(new \ReflectionMethod(World::class, "generateChunkCallback"))->invoke(
+			$world, $lock, 0, 0, $center, [World::chunkHash(1, 0) => new Chunk([], true)], new ChunkLoader()
+		);
+		self::assertSame($center, $deferred->promise->value());
+		self::assertFalse($world->isChunkLocked(-1, -1));
+	}
+
+	public function testDirectChunkReplacementInvalidatesPopulationLock() : void{
+		$world = (new RedstoneHarness(0))->world;
+		$world->registerChunkLoader(new ChunkLoader(), 0, 0, false);
+		$world->lockChunk(0, 0, new ChunkLockId());
+		$replacement = new Chunk([], true);
+		$world->setChunk(0, 0, $replacement);
+		self::assertFalse($world->isChunkLocked(0, 0));
+		self::assertSame($replacement, $world->getChunk(0, 0));
+	}
+
+	public function testDiskLoadCallbackCanReplaceThePendingPopulationRequest() : void{
+		$world = $this->getMockBuilder(World::class)->disableOriginalConstructor()
+			->onlyMethods(["loadChunk", "unloadChunkRequest"])->getMock();
+		/** @var Deferred<Chunk> $old */
+		$old = new Deferred();
+		/** @var Deferred<Chunk> $new */
+		$new = new Deferred();
+		$hash = World::chunkHash(0, 0);
+		$requests = new \ReflectionProperty(World::class, "chunkPopulationRequestMap");
+		$requests->setValue($world, [$hash => $old]);
+		$world->method("loadChunk")->willReturnCallback(static function() use ($world, $requests, $hash, $old, $new) : Chunk{
+			$old->cancel();
+			$requests->setValue($world, [$hash => $new]);
+			(new \ReflectionProperty(World::class, "activeChunkPopulationTasks"))->setValue($world, [$hash => true]);
+			return new Chunk([], true);
+		});
+		self::assertSame($new->promise, $world->requestChunkPopulation(0, 0, null));
+		self::assertTrue($new->promise->isPending());
+		$new->cancel();
 	}
 
 	public function testDimensionWithoutWeatherStaysClear() : void{
@@ -301,5 +402,11 @@ final class FailingPopulationGenerator extends Flat{
 	public function populateChunk(ChunkManager $world, int $chunkX, int $chunkZ) : void{
 		$world->getChunk($chunkX, $chunkZ)?->setBlockStateId(0, 0, 0, VanillaBlocks::STONE()->getStateId());
 		throw new \RuntimeException("Test generation failure");
+	}
+}
+
+final class SubchunkPopulationGenerator extends Flat{
+	public function populateChunk(ChunkManager $world, int $chunkX, int $chunkZ) : void{
+		$world->getChunk($chunkX + 1, $chunkZ)?->getSubChunk(0)->setBlockStateId(0, 0, 0, VanillaBlocks::STONE()->getStateId());
 	}
 }

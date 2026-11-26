@@ -60,12 +60,17 @@ class ChunkCache implements ChunkListener{
 		if(!isset(self::$instances[$worldId])){
 			self::$instances[$worldId] = [];
 			$world->addOnUnloadCallback(static function() use ($worldId) : void{
-				foreach(self::$instances[$worldId] as $cache){
+				$caches = self::$instances[$worldId];
+				unset(self::$instances[$worldId]);
+				foreach($caches as $cache){
 					foreach(array_keys($cache->caches) as $chunkHash){
-						$cache->drop($chunkHash);
+						try{
+							$cache->drop($chunkHash);
+						}catch(\Throwable $error){
+							\GlobalLogger::get()->logException($error);
+						}
 					}
 				}
-				unset(self::$instances[$worldId]);
 				\GlobalLogger::get()->debug("Destroyed chunk packet caches for world#$worldId");
 			});
 		}
@@ -159,38 +164,56 @@ class ChunkCache implements ChunkListener{
 		}
 		++$this->misses;
 
-		$this->world->registerChunkListener($this, $chunkX, $chunkZ);
-		$batch = $this->prepare($chunkX, $chunkZ, null);
-		if(is_string($batch)){
-			return $this->caches[$chunkHash] = $batch;
+		if($this->world->getChunk($chunkX, $chunkZ) === null){
+			throw new \InvalidArgumentException("Cannot request an unloaded chunk");
 		}
-
 		/** @phpstan-var Deferred<string> $deferred */
 		$deferred = new Deferred();
 		$this->caches[$chunkHash] = $deferred;
-		$batch->observe(
-			function(string $result) use ($chunkX, $chunkZ, $chunkHash, $deferred) : void{
-				if(!$deferred->promise->isPending()){
-					return;
+		$this->world->registerChunkListener($this, $chunkX, $chunkZ);
+		$settle = function(string|\Throwable $result) use ($chunkX, $chunkZ, $chunkHash, $deferred) : void{
+			if(!$deferred->promise->isPending()){
+				return;
+			}
+			try{
+				if($result instanceof \Throwable){
+					throw $result;
 				}
 				if(isset($this->stale[$chunkHash])){
-					//an async retry could be outrun by changes forever, so the fresh batch is compressed right away
 					unset($this->stale[$chunkHash]);
 					$result = $this->prepare($chunkX, $chunkZ, true);
 					if(!is_string($result)){
 						throw new AssumptionFailedError("Synchronous batch preparation should never return a promise");
 					}
+					if(!$deferred->promise->isPending()){
+						return;
+					}
+					if(isset($this->stale[$chunkHash])){
+						$this->drop($chunkHash);
+						return;
+					}
 				}
-				$this->caches[$chunkHash] = $result;
-				$deferred->resolve($result);
-			},
-			function(\Throwable $e) use ($chunkHash, $deferred) : void{
+			}catch(\Throwable $error){
 				if($deferred->promise->isPending()){
 					unset($this->caches[$chunkHash], $this->stale[$chunkHash]);
-					$deferred->reject($e);
+					$deferred->reject($error);
 				}
+				return;
 			}
-		);
+			$this->caches[$chunkHash] = $result;
+			$deferred->resolve($result);
+		};
+		try{
+			$batch = $this->prepare($chunkX, $chunkZ, null);
+		}catch(\Throwable $error){
+			$settle($error);
+			return $deferred->promise;
+		}
+		if(is_string($batch)){
+			$settle($batch);
+			return $deferred->promise->isFulfilled() ? $deferred->promise->value() : $deferred->promise;
+		}
+		$batch->observe($settle, $settle);
 		return $deferred->promise;
 	}
 

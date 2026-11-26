@@ -32,11 +32,12 @@ use quark\block\VanillaBlocks;
 use quark\entity\Entity;
 use quark\network\mcpe\compression\NativeCompressor;
 use quark\network\mcpe\convert\TypeConverter;
+use quark\network\mcpe\NativeBatchPacketSender;
 use quark\network\mcpe\NetworkSession;
 use quark\network\mcpe\protocol\EncodedPacket;
 use quark\network\mcpe\serializer\ChunkSerializerTest;
 use quark\player\Player;
-use quark\player\UsedChunkStatus;
+use quark\pulse\internal\PulseZones;
 use quark\Server;
 use quark\world\Dimension;
 use quark\world\DimensionRegistry;
@@ -66,6 +67,8 @@ final class ChunkCacheTest extends TestCase{
 	private ChunkCache $cache;
 	private World $world;
 	private NativeCompressor $compressor;
+	/** @var (\Closure(): void)|null */
+	private ?\Closure $onPrepare = null;
 
 	protected function setUp() : void{
 		$this->chunk = new Chunk([], false);
@@ -74,6 +77,7 @@ final class ChunkCacheTest extends TestCase{
 		$server = $this->createMock(Server::class);
 		$server->method("prepareBatch")->willReturnCallback(function(string $buffer, mixed $compressor, ?bool $sync = null) : Promise|string{
 			$this->syncModes[] = $sync;
+			$this->onPrepare?->__invoke();
 			if($this->asyncCompression && $sync !== true){
 				/** @var Deferred<string> $deferred */
 				$deferred = new Deferred();
@@ -234,19 +238,26 @@ final class ChunkCacheTest extends TestCase{
 		self::assertCount(2, $this->syncModes);
 	}
 
-	public function testCancelledSendDoesNotCompleteWhenTheSameChunkIsRequestedAgain() : void{
-		$this->asyncCompression = true;
+	private function session(NativeBatchPacketSender $sender) : NetworkSession{
+		PulseZones::init();
 		$player = $this->createMock(Player::class);
 		(new \ReflectionProperty(Entity::class, "closed"))->setValue($player, true);
 		(new \ReflectionProperty(Player::class, "logger"))->setValue($player, $this->createMock(\Logger::class));
 		$player->method("getWorld")->willReturn($this->world);
-		$player->method("getUsedChunkStatus")->willReturn(UsedChunkStatus::REQUESTED_SENDING);
 
-		$session = $this->getMockBuilder(NetworkSession::class)
-			->disableOriginalConstructor()->onlyMethods(["queueCompressed"])->getMock();
-		$session->expects(self::once())->method("queueCompressed")->with("chunk batch");
+		$session = (new \ReflectionClass(NetworkSession::class))->newInstanceWithoutConstructor();
 		(new \ReflectionProperty(NetworkSession::class, "player"))->setValue($session, $player);
 		(new \ReflectionProperty(NetworkSession::class, "compressor"))->setValue($session, $this->compressor);
+		(new \ReflectionProperty(NetworkSession::class, "sender"))->setValue($session, $sender);
+		(new \ReflectionProperty(NetworkSession::class, "compressedQueue"))->setValue($session, new \SplQueue());
+		return $session;
+	}
+
+	public function testCancelledSendDoesNotCompleteWhenTheSameChunkIsRequestedAgain() : void{
+		$this->asyncCompression = true;
+		$sender = $this->createMock(NativeBatchPacketSender::class);
+		$sender->expects(self::once())->method("sendBatch")->with("chunk batch", 0);
+		$session = $this->session($sender);
 		$owner = new \stdClass();
 		$ownerRef = \WeakReference::create($owner);
 		$session->startUsingChunk(self::X, self::Z, static function() use ($owner) : void{ self::fail("Cancelled send still holds " . $owner::class); });
@@ -258,6 +269,31 @@ final class ChunkCacheTest extends TestCase{
 		self::assertCount(1, $this->compressing);
 		$this->compressing[0]->resolve("chunk batch");
 		self::assertTrue($completed);
+	}
+
+	public function testReceiptCallbackCanCancelAReadyChunkBeforeEnqueue() : void{
+		$sender = $this->createMock(NativeBatchPacketSender::class);
+		$sender->expects(self::once())->method("sendBatch")->with(NetworkSession::encodeBatch(["earlier packet"]), 0);
+		$session = $this->session($sender);
+		$receipt = new Deferred();
+		$receipt->promise->observe(static fn() => $session->stopUsingChunk(self::X, self::Z));
+		(new \ReflectionProperty(NetworkSession::class, "sendBuffer"))->setValue($session, ["earlier packet"]);
+		(new \ReflectionProperty(NetworkSession::class, "sendBufferAckPromises"))->setValue($session, [$receipt]);
+
+		$session->startUsingChunk(self::X, self::Z, static function() : void{ self::fail("Cancelled chunk completed"); });
+		self::assertTrue($receipt->promise->isFulfilled());
+	}
+
+	public function testUnloadDuringSynchronousPreparationCannotPublishAStaleBatch() : void{
+		$this->onPrepare = function() : void{
+			$this->onPrepare = null;
+			$this->cache->onChunkUnloaded(self::X, self::Z, $this->chunk);
+		};
+		$result = $this->cache->request(self::X, self::Z);
+		self::assertInstanceOf(Promise::class, $result);
+		self::assertInstanceOf(CancelledException::class, $result->reason());
+		self::assertIsString($this->cache->request(self::X, self::Z));
+		self::assertCount(2, $this->syncModes);
 	}
 
 	public function testIdenticalCoordinatesInDifferentWorldsUseTheCorrectDimension() : void{
