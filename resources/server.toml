@@ -111,6 +111,8 @@ spawn-radius = 4
 tick-radius = 3
 # With autosave on, unload view-only chunks outside the tick radius; updates and entity visibility pause there.
 unload-view-only-chunks = true
+# Random block samples per eligible subchunk per tick. Zero disables random block updates.
+# Scheduled updates, entity ticking, and redstone continue independently.
 random-ticks-per-subchunk = 3
 # Block names excluded from random ticks.
 disabled-random-tick-blocks = []
@@ -241,6 +243,9 @@ names = []
 
 # Optional world overrides keyed by folder name. Difficulty: peaceful, easy, normal, or hard.
 # [worlds.example]
+# Omitted ticking settings inherit from [chunks]. The tick radius is capped by server.view-distance.
+# tick-radius = 0
+# random-ticks-per-subchunk = 0
 # seed = 404
 # generator = 'FLAT'
 # preset = ''

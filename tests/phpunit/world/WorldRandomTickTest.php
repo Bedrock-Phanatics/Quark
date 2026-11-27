@@ -39,7 +39,7 @@ final class WorldRandomTickTest extends TestCase{
 	protected function setUp() : void{
 		$this->harness = new RedstoneHarness(2);
 		$world = $this->harness->world;
-		(new \ReflectionProperty(World::class, "chunkTickRadius"))->setValue($world, 1);
+		$world->setChunkTickRadius(1);
 		for($x = -2; $x <= 2; ++$x){
 			for($z = -2; $z <= 2; ++$z){
 				$world->getChunk($x, $z)?->setLightPopulated(true);
@@ -150,5 +150,50 @@ final class WorldRandomTickTest extends TestCase{
 		self::assertIsArray($scans);
 		self::assertCount(9, $scans);
 		self::assertCount(9, array_unique(array_column($scans, 0)));
+	}
+
+	public function testRandomBlockTicksResumeWithFreshPalettes() : void{
+		$world = $this->harness->world;
+		$this->tickChunks();
+		$scans = new \ReflectionProperty(World::class, "randomTickSubChunks");
+		self::assertNotEmpty($scans->getValue($world));
+
+		$world->setRandomTicksPerSubchunk(0);
+		self::assertSame(0, $world->getRandomTicksPerSubchunk());
+		$state = self::wetFarmland()->getStateId();
+		$chunk = $world->getChunk(0, 0) ?? throw new \AssertionError("Chunk is not loaded");
+		for($i = 0; $i < 4096; ++$i){
+			$chunk->setBlockStateId($i & 15, (self::SUBCHUNK << 4) + (($i >> 4) & 15), $i >> 8, $state);
+		}
+		$this->tickChunks(16);
+		self::assertSame([], $scans->getValue($world));
+		self::assertSame([World::chunkHash(0, 0)], $world->getTickingChunks());
+		self::assertSame(0, $this->driedBlocks());
+
+		$world->setRandomTicksPerSubchunk(1);
+		self::assertSame(1, $world->getRandomTicksPerSubchunk());
+		$this->tickChunks();
+		self::assertSame(1, $this->driedBlocks());
+	}
+
+	public function testDisabledRadiusRechecksCurrentChunkEligibilityOnEnable() : void{
+		$world = $this->harness->world;
+		$this->tickChunks();
+		self::assertSame([World::chunkHash(0, 0)], $world->getTickingChunks());
+		$world->setChunkTickRadius(0);
+		self::assertSame([], $world->getTickingChunks());
+		$lock = new ChunkLockId();
+		$world->lockChunk(1, 1, $lock);
+		$world->setChunkTickRadius(1);
+		$this->tickChunks();
+		self::assertSame([], $world->getTickingChunks());
+		self::assertTrue($world->unlockChunk(1, 1, $lock));
+		$this->tickChunks();
+		self::assertSame([World::chunkHash(0, 0)], $world->getTickingChunks());
+	}
+
+	public function testNegativeRandomTickCountIsRejected() : void{
+		$this->expectException(\InvalidArgumentException::class);
+		$this->harness->world->setRandomTicksPerSubchunk(-1);
 	}
 }

@@ -107,7 +107,6 @@ use quark\network\mcpe\protocol\EncodedPacket;
 use quark\player\Player;
 use quark\scheduler\AsyncPool;
 use quark\Server;
-use quark\ServerConfigGroup;
 use quark\utils\AssumptionFailedError;
 use quark\utils\ReversePriorityQueue;
 use quark\utils\Utils;
@@ -208,7 +207,7 @@ class World implements ChunkManager{
 	public const DIFFICULTY_HARD = 3;
 
 	public const DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK = 3;
-	private const RANDOM_TICK_RESCAN_TICKS = 16; //power of two, see tickChunk()
+	private const RANDOM_TICK_RESCAN_TICKS = 16; //power of two, see tickChunks()
 
 	//TODO: this could probably do with being a lot bigger
 	private const BLOCK_CACHE_SIZE_CAP = 2048;
@@ -457,17 +456,18 @@ class World implements ChunkManager{
 
 	private int $sleepTicks = 0;
 
-	private int $chunkTickRadius;
+	private int $chunkTickRadius = 0;
 	private int $viewDistanceLimit;
 	/** Chunks around players where entities tick every tick, 0 to tick everything. */
 	private int $activationChunkRadius = 0;
 	private int $inactiveTickInterval = 20;
 	private int $tickedBlocksPerSubchunkPerTick = self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK;
+	/** @var list<int|string> */
+	private array $disabledRandomTickBlocks = [];
 	/**
-	 * @var true[]
-	 * @phpstan-var array<int, true>
+	 * @phpstan-var array<int, true>|null
 	 */
-	private array $randomTickBlocks = [];
+	private ?array $randomTickBlocks = null;
 	/**
 	 * Subchunks of each ticking chunk that held random-ticked states when last scanned, and the tick to scan it
 	 * again at. The rescan only catches layers changed without going through the world.
@@ -696,25 +696,33 @@ class World implements ChunkManager{
 		$this->weatherCycle = $this->hasWeather && $cfg->getPropertyBool(YmlServerProperties::WEATHER_CYCLE, true);
 		$this->lightningChance = max(0, $cfg->getPropertyInt(YmlServerProperties::WEATHER_LIGHTNING_CHANCE, 100000));
 		$this->lightningFire = $cfg->getPropertyBool(YmlServerProperties::WEATHER_LIGHTNING_FIRE, true);
-		$this->chunkTickRadius = min($this->server->getViewDistance(), max(0, $cfg->getPropertyInt(YmlServerProperties::CHUNKS_TICK_RADIUS, 3)));
+		/** @var array<string, array{tick-radius?: int, random-ticks-per-subchunk?: int}> $worlds */
+		$worlds = $cfg->getProperty(YmlServerProperties::WORLDS, []);
+		$worldSettings = $worlds[$name] ?? [];
+		$this->chunkTickRadius = min($this->server->getViewDistance(), $worldSettings["tick-radius"] ?? $cfg->getPropertyInt(YmlServerProperties::CHUNKS_TICK_RADIUS, 3));
 		$this->viewDistanceLimit = $this->server->getWorldViewDistanceLimit($this->folderName);
-		$this->tickedBlocksPerSubchunkPerTick = $cfg->getPropertyInt(YmlServerProperties::CHUNKS_RANDOM_TICKS_PER_SUBCHUNK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
+		$this->tickedBlocksPerSubchunkPerTick = $worldSettings["random-ticks-per-subchunk"] ?? $cfg->getPropertyInt(YmlServerProperties::CHUNKS_RANDOM_TICKS_PER_SUBCHUNK, self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK);
+		/** @var list<int|string> $disabledRandomTickBlocks */
+		$disabledRandomTickBlocks = $cfg->getProperty(YmlServerProperties::CHUNKS_DISABLED_RANDOM_TICK_BLOCKS, []);
+		$this->disabledRandomTickBlocks = $disabledRandomTickBlocks;
 		$this->maxConcurrentChunkPopulationTasks = $cfg->getPropertyInt(YmlServerProperties::CHUNKS_POPULATION_QUEUE_SIZE, 32);
 		$activationRange = max(0, min(self::MAX_ACTIVATION_RANGE, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_ACTIVATION_RANGE, 0)));
 		$this->activationChunkRadius = intdiv($activationRange + Chunk::EDGE_LENGTH - 1, Chunk::EDGE_LENGTH);
 		$this->inactiveTickInterval = max(1, $cfg->getPropertyInt(YmlServerProperties::ENTITIES_INACTIVE_TICK_INTERVAL, 20));
 
-		$this->initRandomTickBlocksFromConfig($cfg);
+		if($this->chunkTickRadius > 0 && $this->tickedBlocksPerSubchunkPerTick > 0){
+			$this->randomTickBlocks = $this->initRandomTickBlocksFromConfig();
+		}
 
 		$this->pulse = new WorldPulse($this);
 	}
 
-	private function initRandomTickBlocksFromConfig(ServerConfigGroup $cfg) : void{
+	/** @return array<int, true> */
+	private function initRandomTickBlocksFromConfig() : array{
 		$dontTickBlocks = [];
-		$parser = StringToItemParser::getInstance();
-		foreach($cfg->getProperty(YmlServerProperties::CHUNKS_DISABLED_RANDOM_TICK_BLOCKS, []) as $name){
+		foreach($this->disabledRandomTickBlocks as $name){
 			$name = (string) $name;
-			$item = $parser->parse($name);
+			$item = StringToItemParser::getInstance()->parse($name);
 			if($item !== null){
 				$block = $item->getBlock();
 			}elseif(preg_match("/^-?\d+$/", $name) === 1){
@@ -735,12 +743,14 @@ class World implements ChunkManager{
 			}
 		}
 
+		$randomTickBlocks = [];
 		foreach($this->blockStateRegistry->getAllKnownStates() as $state){
 			$dontTickName = $dontTickBlocks[$state->getTypeId()] ?? null;
 			if($dontTickName === null && $state->ticksRandomly()){
-				$this->randomTickBlocks[$state->getStateId()] = true;
+				$randomTickBlocks[$state->getStateId()] = true;
 			}
 		}
+		return $randomTickBlocks;
 	}
 
 	public function getTickRateTime() : float{
@@ -865,6 +875,10 @@ class World implements ChunkManager{
 			$failure ??= $e;
 		}
 		$this->metadata?->close();
+		$this->registeredTickingChunks = [];
+		$this->recheckTickingChunks = [];
+		$this->validTickingChunks = [];
+		$this->randomTickSubChunks = [];
 		$this->blockCache = [];
 		$this->blockCacheSize = 0;
 		$this->collisionRegion->invalidateAll();
@@ -1248,9 +1262,7 @@ class World implements ChunkManager{
 		$this->flushEntityMovement();
 		$this->pulse->entityTick->stop($entityTickScope);
 
-		$randomChunkUpdatesScope = $this->pulse->randomChunkUpdates->start();
 		$this->tickChunks();
-		$this->pulse->randomChunkUpdates->stop($randomChunkUpdatesScope);
 
 		$this->executeQueuedLightUpdates();
 
@@ -1526,18 +1538,20 @@ class World implements ChunkManager{
 	 * @phpstan-return array<int, true>
 	 */
 	public function getRandomTickedBlocks() : array{
-		return $this->randomTickBlocks;
+		return $this->randomTickBlocks ??= $this->initRandomTickBlocksFromConfig();
 	}
 
 	public function addRandomTickedBlock(Block $block) : void{
 		if($block instanceof UnknownBlock){
 			throw new \InvalidArgumentException("Cannot do random-tick on unknown block");
 		}
+		$this->randomTickBlocks ??= $this->initRandomTickBlocksFromConfig();
 		$this->randomTickBlocks[$block->getStateId()] = true;
 		$this->randomTickSubChunks = [];
 	}
 
 	public function removeRandomTickedBlock(Block $block) : void{
+		$this->randomTickBlocks ??= $this->initRandomTickBlocksFromConfig();
 		unset($this->randomTickBlocks[$block->getStateId()]);
 		$this->randomTickSubChunks = [];
 	}
@@ -1559,11 +1573,44 @@ class World implements ChunkManager{
 	}
 
 	/**
-	 * Sets the radius of chunks ticked around each player. This may not take effect immediately, since each player
-	 * needs to recalculate their tick radius.
+	 * Sets the radius of chunks ticked around each player. Zero stops chunk ticking immediately.
+	 * Players recalculate their ticking chunks on their next chunk order.
 	 */
 	public function setChunkTickRadius(int $radius) : void{
+		$previous = $this->chunkTickRadius;
+		if($previous === $radius){
+			return;
+		}
 		$this->chunkTickRadius = $radius;
+		if($radius <= 0){
+			$this->validTickingChunks = [];
+			$this->recheckTickingChunks = [];
+			$this->randomTickSubChunks = [];
+		}elseif($previous <= 0){
+			foreach($this->registeredTickingChunks as $hash => $_){
+				$this->recheckTickingChunks[$hash] = $hash;
+			}
+		}
+		foreach($this->players as $player){
+			$player->requestChunkReorder();
+		}
+	}
+
+	public function getRandomTicksPerSubchunk() : int{
+		return $this->tickedBlocksPerSubchunkPerTick;
+	}
+
+	/**
+	 * Sets the random block samples per eligible subchunk. Zero stops random block ticking immediately.
+	 */
+	public function setRandomTicksPerSubchunk(int $count) : void{
+		if($count < 0){
+			throw new \InvalidArgumentException("Random ticks per subchunk must be non-negative");
+		}
+		$this->tickedBlocksPerSubchunkPerTick = $count;
+		if($count === 0){
+			$this->randomTickSubChunks = [];
+		}
 	}
 
 	/**
@@ -1584,7 +1631,9 @@ class World implements ChunkManager{
 	public function registerTickingChunk(ChunkTicker $ticker, int $chunkX, int $chunkZ) : void{
 		$chunkPosHash = World::chunkHash($chunkX, $chunkZ);
 		$this->registeredTickingChunks[$chunkPosHash][spl_object_id($ticker)] = $ticker;
-		$this->recheckTickingChunks[$chunkPosHash] = $chunkPosHash;
+		if($this->chunkTickRadius > 0){
+			$this->recheckTickingChunks[$chunkPosHash] = $chunkPosHash;
+		}
 	}
 
 	/**
@@ -1612,6 +1661,7 @@ class World implements ChunkManager{
 		if($this->chunkTickRadius <= 0 || count($this->registeredTickingChunks) === 0){
 			return;
 		}
+		$randomChunkUpdatesScope = $this->pulse->randomChunkUpdates->start();
 
 		if(count($this->recheckTickingChunks) > 0){
 			$randomChunkUpdatesChunkSelectionScope = $this->pulse->randomChunkUpdatesChunkSelection->start();
@@ -1631,13 +1681,41 @@ class World implements ChunkManager{
 
 		$lightningChance = $this->weather === Weather::THUNDER ? $this->lightningChance : 0;
 		$currentTick = $this->server->getTick();
-		foreach($this->validTickingChunks as $index => $_){
+		foreach($this->validTickingChunks as $index){
+			if(!isset($this->validTickingChunks[$index])){
+				if($this->chunkTickRadius <= 0){
+					break;
+				}
+				continue;
+			}
 			if($lightningChance > 0 && mt_rand(1, $lightningChance) === 1){
 				World::getXZ($index, $chunkX, $chunkZ);
 				$this->strikeNaturalLightning($chunkX, $chunkZ);
+				if(!isset($this->validTickingChunks[$index])){
+					continue;
+				}
 			}
-			$this->tickChunk($index, $currentTick);
+			foreach($this->entitiesByChunk[$index] ?? [] as $entity){
+				$entity->onRandomUpdate();
+				if(!isset($this->validTickingChunks[$index])){
+					continue 2;
+				}
+			}
+
+			$scan = $this->randomTickSubChunks[$index] ?? null;
+			if($scan === null || $scan[0] <= $currentTick){
+				if($this->tickedBlocksPerSubchunkPerTick === 0){
+					continue;
+				}
+				//rescans land on a phase taken from the chunk position, so neighbouring chunks don't all rescan on one tick
+				$next = $currentTick + self::RANDOM_TICK_RESCAN_TICKS - (($currentTick - $index) & (self::RANDOM_TICK_RESCAN_TICKS - 1));
+				$scan = $this->randomTickSubChunks[$index] = [$next, $this->findRandomTickSubChunks($this->chunks[$index])];
+			}
+			if(isset($scan[1][0])){
+				$this->tickRandomBlocks($index, $scan[1]);
+			}
 		}
+		$this->pulse->randomChunkUpdates->stop($randomChunkUpdatesScope);
 	}
 
 	/**
@@ -1691,7 +1769,12 @@ class World implements ChunkManager{
 	 * - Arbitrary chunk replacement (i.e. setChunk() or similar)
 	 */
 	private function markTickingChunkForRecheck(int $chunkX, int $chunkZ) : void{
-		unset($this->randomTickSubChunks[World::chunkHash($chunkX, $chunkZ)]);
+		if($this->chunkTickRadius <= 0){
+			return;
+		}
+		if($this->randomTickSubChunks !== []){
+			unset($this->randomTickSubChunks[World::chunkHash($chunkX, $chunkZ)]);
+		}
 		for($cx = -1; $cx <= 1; ++$cx){
 			for($cz = -1; $cz <= 1; ++$cz){
 				$chunkHash = World::chunkHash($chunkX + $cx, $chunkZ + $cz);
@@ -1740,35 +1823,21 @@ class World implements ChunkManager{
 		}
 	}
 
-	private function tickChunk(int $chunkHash, int $currentTick) : void{
-		$chunk = $this->chunks[$chunkHash] ?? null;
-		if($chunk === null){
-			//the chunk may have been unloaded during a previous chunk's update (e.g. during BlockGrowEvent)
-			return;
-		}
-		foreach($this->entitiesByChunk[$chunkHash] ?? [] as $entity){
-			$entity->onRandomUpdate();
-		}
-
-		$scan = $this->randomTickSubChunks[$chunkHash] ?? null;
-		if($scan === null || $scan[0] <= $currentTick){
-			//rescans land on a phase taken from the chunk position, so neighbouring chunks don't all rescan on one tick
-			$next = $currentTick + self::RANDOM_TICK_RESCAN_TICKS - (($currentTick - $chunkHash) & (self::RANDOM_TICK_RESCAN_TICKS - 1));
-			$scan = $this->randomTickSubChunks[$chunkHash] = [$next, $this->findRandomTickSubChunks($chunk)];
-		}
-		if(count($scan[1]) === 0){
-			return;
-		}
-
+	/** @param list<int> $subChunks */
+	private function tickRandomBlocks(int $chunkHash, array $subChunks) : void{
 		World::getXZ($chunkHash, $chunkX, $chunkZ);
+		$baseX = $chunkX * Chunk::EDGE_LENGTH;
+		$baseZ = $chunkZ * Chunk::EDGE_LENGTH;
+		$chunk = $this->chunks[$chunkHash];
 		$blockFactory = $this->blockStateRegistry;
 		$randomTickBlocks = $this->randomTickBlocks;
 		$samples = $this->tickedBlocksPerSubchunkPerTick;
-		foreach($scan[1] as $Y){
+		foreach($subChunks as $Y){
 			$blocks = $chunk->getSubChunk($Y)->getBlockLayer0();
 			if($blocks === null){
 				continue;
 			}
+			$baseY = $Y << SubChunk::COORD_BIT_SIZE;
 			$k = 0;
 			for($i = 0; $i < $samples; ++$i){
 				if(($i % 5) === 0){
@@ -1784,8 +1853,11 @@ class World implements ChunkManager{
 
 				if(isset($randomTickBlocks[$state])){
 					$block = $blockFactory->fromStateId($state);
-					$block->position($this, $chunkX * Chunk::EDGE_LENGTH + $x, ($Y << SubChunk::COORD_BIT_SIZE) + $y, $chunkZ * Chunk::EDGE_LENGTH + $z);
+					$block->position($this, $baseX + $x, $baseY + $y, $baseZ + $z);
 					$block->onRandomTick();
+					if(!isset($this->randomTickSubChunks[$chunkHash])){
+						return;
+					}
 				}
 			}
 		}
@@ -1798,6 +1870,7 @@ class World implements ChunkManager{
 	 * @phpstan-return list<int>
 	 */
 	private function findRandomTickSubChunks(Chunk $chunk) : array{
+		$randomTickBlocks = $this->randomTickBlocks ??= $this->initRandomTickBlocksFromConfig();
 		$found = [];
 		foreach($chunk->getSubChunks() as $Y => $subChunk){
 			$blocks = $subChunk->getBlockLayer0();
@@ -1805,7 +1878,7 @@ class World implements ChunkManager{
 				continue;
 			}
 			foreach($blocks->getPalette() as $state){
-				if(isset($this->randomTickBlocks[$state])){
+				if(isset($randomTickBlocks[$state])){
 					$found[] = $Y;
 					break;
 				}
@@ -2920,7 +2993,7 @@ class World implements ChunkManager{
 		$previousStateId = $chunk->getBlockStateId($localX, $y, $localZ);
 		$chunk->setBlockStateId($localX, $y, $localZ, $stateId);
 		$this->metadata?->onBlockChanged($chunkHash, $x, $y, $z, $previousStateId, $stateId);
-		if(isset($this->randomTickBlocks[$stateId], $this->randomTickSubChunks[$chunkHash])){
+		if(isset($this->randomTickSubChunks[$chunkHash], $this->randomTickBlocks[$stateId])){
 			//growth and spread keep writing ticked states into subchunks already listed, so only add new ones
 			$scan = $this->randomTickSubChunks[$chunkHash];
 			$subChunkY = $y >> Chunk::COORD_BIT_SIZE;

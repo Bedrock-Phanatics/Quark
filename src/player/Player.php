@@ -1377,6 +1377,13 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	}
 
 	/**
+	 * @internal Schedules chunk ordering after a world tick radius change.
+	 */
+	public function requestChunkReorder() : void{
+		$this->nextChunkOrderRun = 0;
+	}
+
+	/**
 	 * Ticks the chunk-requesting mechanism.
 	 */
 	public function doChunkRequests() : void{

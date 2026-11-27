@@ -215,6 +215,10 @@ final class CoreConfigTest extends TestCase{
 		yield "world.autosave-interval" => [["world" => ["autosave-interval" => 0]]];
 		yield "chunks.spawn-radius" => [["chunks" => ["spawn-radius" => PHP_INT_MAX]]];
 		yield "worlds.lobby.generator" => [["worlds" => ["lobby" => ["generator" => true]]]];
+		yield "worlds.lobby.tick-radius" => [["worlds" => ["lobby" => ["tick-radius" => -1]]]];
+		yield "worlds.lobby.random-ticks-per-subchunk" => [["worlds" => ["lobby" => ["random-ticks-per-subchunk" => -1]]]];
+		yield "worlds.lobby.tick-radius: expected integer" => [["worlds" => ["lobby" => ["tick-radius" => "0"]]]];
+		yield "worlds.lobby.random-ticks-per-subchunk: expected integer" => [["worlds" => ["lobby" => ["random-ticks-per-subchunk" => false]]]];
 		yield "view-distances.low" => [["view-distances" => ["low" => 1]]];
 		yield "view-distances.high" => [["view-distances" => ["high" => 97]]];
 		yield "view-distances.text" => [["view-distances" => ["text" => "8"]]];

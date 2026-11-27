@@ -767,6 +767,11 @@ final class CoreConfig{
 				if(array_key_exists("seed", $value) && !is_int($value["seed"]) && !is_string($value["seed"])){
 					throw new \InvalidArgumentException("Invalid $path.seed: expected string or integer");
 				}
+				foreach(["tick-radius", "random-ticks-per-subchunk"] as $field){
+					if(array_key_exists($field, $value)){
+						self::validateShape($value[$field], 0, "$path.$field");
+					}
+				}
 				if(isset($value["difficulty"]) && is_string($value["difficulty"]) && World::getDifficultyFromString($value["difficulty"]) < 0){
 					throw new \InvalidArgumentException("Invalid $path.difficulty: expected peaceful, easy, normal, or hard");
 				}
