@@ -1174,8 +1174,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 	private function updateTickingChunkRegistrations(array $oldTickingChunks, array $newTickingChunks) : void{
 		$world = $this->getWorld();
 		foreach($oldTickingChunks as $hash => $_){
-			if(!isset($newTickingChunks[$hash]) && !isset($this->loadQueue[$hash])){
-				//we are (probably) still using this chunk, but it's no longer within ticking range
+			if(!isset($newTickingChunks[$hash])){
 				World::getXZ($hash, $tickingChunkX, $tickingChunkZ);
 				$world->unregisterTickingChunk($this->chunkTicker, $tickingChunkX, $tickingChunkZ);
 			}

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace quark\player;
 
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use quark\entity\Entity;
 use quark\entity\Location;
@@ -39,6 +40,7 @@ use quark\ServerConfigGroup;
 use quark\thread\log\AttachableThreadSafeLogger;
 use quark\utils\Config;
 use quark\utils\Utils;
+use quark\world\ChunkTicker;
 use quark\world\World;
 use function min;
 use function sys_get_temp_dir;
@@ -104,7 +106,7 @@ final class ViewDistanceTest extends TestCase{
 		return $group;
 	}
 
-	private function world(int $limit) : World{
+	private function world(int $limit) : World&MockObject{
 		$world = $this->createMock(World::class);
 		$world->method("getViewDistanceLimit")->willReturn($limit);
 		$world->method("isLoaded")->willReturn(true);
@@ -145,6 +147,18 @@ final class ViewDistanceTest extends TestCase{
 		self::assertSame(32, $player->getRequestedViewDistance());
 		self::assertSame([self::SERVER_MAX], $this->radiusPackets);
 		self::assertSame([[-1, self::SERVER_MAX]], $this->events);
+	}
+
+	public function testLeavingTickingRangeUnregistersAChunkQueuedForResend() : void{
+		$world = $this->world(self::SERVER_MAX);
+		$player = $this->player($world);
+		$ticker = new ChunkTicker();
+		$hash = World::chunkHash(2, 3);
+		(new \ReflectionProperty(Player::class, "chunkTicker"))->setValue($player, $ticker);
+		(new \ReflectionProperty(Player::class, "loadQueue"))->setValue($player, [$hash => true]);
+		$world->expects(self::once())->method("unregisterTickingChunk")->with($ticker, 2, 3);
+
+		(new \ReflectionMethod(Player::class, "updateTickingChunkRegistrations"))->invoke($player, [$hash => true], []);
 	}
 
 	public function testWorldLimitCapsTheRequestAndRequestsBelowItPass() : void{

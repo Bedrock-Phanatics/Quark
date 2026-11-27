@@ -1667,15 +1667,20 @@ class World implements ChunkManager{
 			$randomChunkUpdatesChunkSelectionScope = $this->pulse->randomChunkUpdatesChunkSelection->start();
 
 			$chunkTickableCache = [];
-
-			foreach($this->recheckTickingChunks as $hash => $_){
+			$pending = $this->recheckTickingChunks;
+			$this->recheckTickingChunks = [];
+			foreach($pending as $hash){
+				if($this->chunkTickRadius <= 0){
+					break;
+				}
+				if(!isset($this->registeredTickingChunks[$hash])){
+					continue;
+				}
 				World::getXZ($hash, $chunkX, $chunkZ);
 				if($this->isChunkTickable($chunkX, $chunkZ, $chunkTickableCache)){
 					$this->validTickingChunks[$hash] = $hash;
 				}
 			}
-			$this->recheckTickingChunks = [];
-
 			$this->pulse->randomChunkUpdatesChunkSelection->stop($randomChunkUpdatesChunkSelectionScope);
 		}
 
@@ -1747,6 +1752,8 @@ class World implements ChunkManager{
 				if($lightPopulatedState !== true){
 					if($lightPopulatedState === false){
 						$this->orderLightPopulation($chunkX + $cx, $chunkZ + $cz);
+						// Starting a worker can run hooks that change chunk eligibility.
+						$cache = [];
 					}
 					$cache[$chunkHash] = false;
 					return false;
@@ -1790,21 +1797,25 @@ class World implements ChunkManager{
 
 	private function orderLightPopulation(int $chunkX, int $chunkZ) : void{
 		$chunkHash = World::chunkHash($chunkX, $chunkZ);
-		$lightPopulatedState = $this->chunks[$chunkHash]->isLightPopulated();
-		if($lightPopulatedState === false){
-			$this->chunks[$chunkHash]->setLightPopulated(null);
+		$chunk = $this->chunks[$chunkHash];
+		if($chunk->isLightPopulated() === false){
+			$source = \WeakReference::create($chunk);
+			$worldRef = \WeakReference::create($this);
+			$chunk->setLightPopulated(null);
 			$this->markTickingChunkForRecheck($chunkX, $chunkZ);
 
 			$this->workerPool->submitTask(new LightPopulationTask(
-				$this->chunks[$chunkHash],
-				function(array $blockLight, array $skyLight, array $heightMap) use ($chunkX, $chunkZ) : void{
+				$chunk,
+				static function(array $blockLight, array $skyLight, array $heightMap) use ($chunkHash, $chunkX, $chunkZ, $source, $worldRef) : void{
 					/**
 					 * TODO: phpstan can't infer these types yet :(
 					 * @phpstan-var array<int, LightArray> $blockLight
 					 * @phpstan-var array<int, LightArray> $skyLight
 					 * @phpstan-var non-empty-list<int>    $heightMap
 					 */
-					if($this->unloaded || ($chunk = $this->getChunk($chunkX, $chunkZ)) === null || $chunk->isLightPopulated() === true){
+					$chunk = $source->get();
+					$world = $worldRef->get();
+					if($world === null || $world->unloaded || $chunk === null || ($world->chunks[$chunkHash] ?? null) !== $chunk || $chunk->isLightPopulated() !== null){
 						return;
 					}
 					//TODO: calculated light information might not be valid if the terrain changed during light calculation
@@ -1817,7 +1828,7 @@ class World implements ChunkManager{
 						$chunk->getSubChunk($y)->setBlockSkyLightArray($lightArray);
 					}
 					$chunk->setLightPopulated(true);
-					$this->markTickingChunkForRecheck($chunkX, $chunkZ);
+					$world->markTickingChunkForRecheck($chunkX, $chunkZ);
 				}
 			));
 		}
@@ -1855,7 +1866,7 @@ class World implements ChunkManager{
 					$block = $blockFactory->fromStateId($state);
 					$block->position($this, $baseX + $x, $baseY + $y, $baseZ + $z);
 					$block->onRandomTick();
-					if(!isset($this->randomTickSubChunks[$chunkHash])){
+					if(!isset($this->validTickingChunks[$chunkHash], $this->randomTickSubChunks[$chunkHash])){
 						return;
 					}
 				}

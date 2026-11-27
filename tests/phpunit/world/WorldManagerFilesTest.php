@@ -47,6 +47,7 @@ use quark\world\format\Chunk;
 use quark\world\format\io\WorldProviderManager;
 use Symfony\Component\Filesystem\Path;
 use function file_put_contents;
+use function gc_collect_cycles;
 use function is_dir;
 use function is_file;
 use function mkdir;
@@ -63,6 +64,8 @@ final class WorldManagerFilesTest extends TestCase{
 	private WorldManager $manager;
 	/** @var AsyncTask[] */
 	private array $tasks = [];
+	/** @var (\Closure() : void)|null */
+	private ?\Closure $onTaskSubmitted = null;
 
 	protected function setUp() : void{
 		PulseZones::init();
@@ -71,6 +74,7 @@ final class WorldManagerFilesTest extends TestCase{
 		$pool = $this->createMock(AsyncPool::class);
 		$pool->method("submitTask")->willReturnCallback(function(AsyncTask $task) : int{
 			$this->tasks[] = $task;
+			$this->onTaskSubmitted?->__invoke();
 			return 0;
 		});
 		$server = $this->createMock(Server::class);
@@ -180,6 +184,48 @@ final class WorldManagerFilesTest extends TestCase{
 		self::assertInstanceOf(Button::class, $button);
 		self::assertFalse($button->isPressed());
 		self::assertTrue($this->manager->unloadWorld($world));
+	}
+
+	public function testPendingLightingRespectsRadiusChangesAndChunkReplacement() : void{
+		self::assertTrue($this->manager->generateWorld("factions", WorldCreationOptions::create(), false));
+		$world = $this->manager->getWorldByName("factions");
+		self::assertNotNull($world);
+		for($x = -1; $x <= 2; ++$x){
+			for($z = -1; $z <= 1; ++$z){
+				$chunk = new Chunk([], true);
+				$chunk->setLightPopulated($x !== -1 || $z !== -1);
+				$world->setChunk($x, $z, $chunk);
+			}
+		}
+		$ticker = new ChunkTicker();
+		$world->registerTickingChunk($ticker, 0, 0);
+		$world->registerTickingChunk($ticker, 1, 0);
+		$this->onTaskSubmitted = static function() use ($world) : void{ $world->setChunkTickRadius(0); };
+		$world->doTick(1);
+		self::assertSame([], $world->getTickingChunks());
+		self::assertCount(1, $this->tasks);
+
+		$this->onTaskSubmitted = null;
+		$replacement = new Chunk([], true);
+		$world->setChunk(-1, -1, $replacement);
+		$world->setChunkTickRadius(1);
+		$world->doTick(2);
+		self::assertCount(2, $this->tasks);
+		[$oldTask, $replacementTask] = $this->tasks;
+		$oldTask->onRun();
+		$oldTask->onCompletion();
+		self::assertNull($replacement->isLightPopulated());
+
+		$replacementTask->onRun();
+		$replacementTask->onCompletion();
+		$world->doTick(3);
+		self::assertTrue($replacement->isLightPopulated());
+		self::assertSame([World::chunkHash(1, 0), World::chunkHash(0, 0)], $world->getTickingChunks());
+		$worldRef = \WeakReference::create($world);
+		self::assertTrue($this->manager->unloadWorld($world));
+		unset($world);
+		gc_collect_cycles();
+		self::assertNull($worldRef->get());
 	}
 
 	public function testRadiusChangesReorderOnlyPlayersInTheCurrentWorld() : void{

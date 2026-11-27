@@ -196,4 +196,26 @@ final class WorldRandomTickTest extends TestCase{
 		$this->expectException(\InvalidArgumentException::class);
 		$this->harness->world->setRandomTicksPerSubchunk(-1);
 	}
+
+	public function testRandomSamplesStopWhenACallbackInvalidatesTheNeighbourhood() : void{
+		$world = $this->harness->world;
+		$world->setRandomTicksPerSubchunk(16);
+		$chunk = $world->getChunk(0, 0) ?? throw new \AssertionError("Chunk is not loaded");
+		$state = self::wetFarmland()->getStateId();
+		for($i = 0; $i < 4096; ++$i){
+			$chunk->setBlockStateId($i & 15, (self::SUBCHUNK << 4) + (($i >> 4) & 15), $i >> 8, $state);
+		}
+		$listener = $this->createMock(ChunkListener::class);
+		$listener->expects(self::once())->method("onBlockChanged")->willReturnCallback(
+			static function() use ($world) : void{
+				$world->lockChunk(1, 1, new ChunkLockId());
+			}
+		);
+		$world->registerChunkListener($listener, 0, 0);
+
+		$this->tickChunks();
+
+		self::assertSame(1, $this->driedBlocks());
+		self::assertSame([], $world->getTickingChunks());
+	}
 }
