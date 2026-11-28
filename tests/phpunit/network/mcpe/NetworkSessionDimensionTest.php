@@ -66,6 +66,7 @@ use quark\world\DimensionRegistry;
 use quark\world\Position;
 use quark\world\Weather;
 use quark\world\World;
+use const PHP_FLOAT_MAX;
 
 final class NetworkSessionDimensionTest extends TestCase{
 
@@ -276,7 +277,7 @@ final class NetworkSessionDimensionTest extends TestCase{
 		$tick = new \ReflectionProperty(Server::class, "tickCounter");
 		$tick->setValue($server, 50);
 		$nextTick = new \ReflectionProperty(Server::class, "nextTick");
-		$nextTick->setValue($server, \PHP_FLOAT_MAX);
+		$nextTick->setValue($server, PHP_FLOAT_MAX);
 		self::assertTrue($server->takeSpawnChunkBudget(2, false));
 		self::assertTrue($server->takeSpawnChunkBudget(2, false));
 		self::assertFalse($server->takeSpawnChunkBudget(2, false));
@@ -285,7 +286,7 @@ final class NetworkSessionDimensionTest extends TestCase{
 		self::assertTrue($server->takeSpawnChunkBudget(2, false));
 		$nextTick->setValue($server, 0.0);
 		self::assertFalse($server->takeSpawnChunkBudget(2, true));
-		$nextTick->setValue($server, \PHP_FLOAT_MAX);
+		$nextTick->setValue($server, PHP_FLOAT_MAX);
 		(new \ReflectionProperty(Server::class, "currentUse"))->setValue($server, 1.0);
 		self::assertFalse($server->takeSpawnChunkBudget(2, true));
 	}

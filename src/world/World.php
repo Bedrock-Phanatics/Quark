@@ -124,7 +124,6 @@ use quark\world\generator\executor\GeneratorExecutor;
 use quark\world\generator\executor\GeneratorExecutorSetupParameters;
 use quark\world\generator\executor\SyncGeneratorExecutor;
 use quark\world\generator\GeneratorManager;
-use quark\world\generator\PopulationTask;
 use quark\world\light\BlockLightUpdate;
 use quark\world\light\LightPopulationTask;
 use quark\world\light\NativeLight;
@@ -141,6 +140,7 @@ use Vow\Deferred;
 use Vow\Promise;
 use function abs;
 use function array_key_exists;
+use function array_key_first;
 use function array_keys;
 use function array_map;
 use function array_merge;
@@ -464,9 +464,7 @@ class World implements ChunkManager{
 	private int $tickedBlocksPerSubchunkPerTick = self::DEFAULT_TICKED_BLOCKS_PER_SUBCHUNK_PER_TICK;
 	/** @var list<int|string> */
 	private array $disabledRandomTickBlocks = [];
-	/**
-	 * @phpstan-var array<int, true>|null
-	 */
+	/** @phpstan-var array<int, true>|null */
 	private ?array $randomTickBlocks = null;
 	/**
 	 * Subchunks of each ticking chunk that held random-ticked states when last scanned, and the tick to scan it

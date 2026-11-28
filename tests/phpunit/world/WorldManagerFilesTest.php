@@ -55,8 +55,8 @@ use function scandir;
 use function symlink;
 use function sys_get_temp_dir;
 use function tempnam;
-use function unlink;
 use function uniqid;
+use function unlink;
 use const SCANDIR_SORT_ASCENDING;
 
 final class WorldManagerFilesTest extends TestCase{
